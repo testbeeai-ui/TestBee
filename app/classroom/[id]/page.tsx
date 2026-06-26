@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import ClassroomReviews from "@/components/ClassroomReviews";
 import ReviewPopup from "@/components/ReviewPopup";
+import LiveClassRatingPrompt from "@/components/classroom/LiveClassRatingPrompt";
 import { StarRatingBadge } from "@/components/StarRating";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -2131,6 +2132,9 @@ const ClassroomDetail = () => {
           {!isOwner && !isGuestExplorer && classroom && (
             <ReviewPopup classroomId={classroom.id} classroomName={classroom.name} />
           )}
+
+          {/* Post-class star rating (drives the teacher's credit-only quality bonus) */}
+          <LiveClassRatingPrompt enabled={Boolean(isClassMember && !showTeacherControls)} />
         </div>
       </AppLayout>
     </ProtectedRoute>

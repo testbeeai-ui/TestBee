@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import type { TopicNode } from "@/data/topicTaxonomy";
 import type { ExamType, Subject } from "@/types";
 import type { DifficultyLevel } from "@/lib/slugs";
@@ -218,15 +219,33 @@ export default function ChapterHubInvestorView(props: Props) {
     });
   }, [currentTopicName]);
 
-  const toggleTopic = useCallback((topicName: string) => {
+  const expandTopic = useCallback(
+    (topicName: string) => {
+      setExpandedTopics((prev) => {
+        if (prev.size === 1 && prev.has(topicName)) return prev;
+        return new Set([topicName]);
+      });
+      onCurrentTopicChange(topicName);
+    },
+    [onCurrentTopicChange]
+  );
+
+  const collapseTopic = useCallback((topicName: string) => {
     setExpandedTopics((prev) => {
+      if (!prev.has(topicName)) return prev;
       const next = new Set(prev);
-      if (next.has(topicName)) next.delete(topicName);
-      else next.add(topicName);
+      next.delete(topicName);
       return next;
     });
-    onCurrentTopicChange(topicName);
-  }, [onCurrentTopicChange]);
+  }, []);
+
+  const handleTopicToggleClick = useCallback(
+    (topicName: string, isExpanded: boolean) => {
+      if (isExpanded) collapseTopic(topicName);
+      else expandTopic(topicName);
+    },
+    [collapseTopic, expandTopic]
+  );
 
   const subtopicHref = useCallback(
     (topic: TopicNode, subtopicName: string, panel?: SubtopicPanelTab) =>
@@ -449,12 +468,25 @@ export default function ChapterHubInvestorView(props: Props) {
               const isCurrent = currentTopicName === topic.topic;
               const isExpanded = expandedTopics.has(topic.topic);
               return (
-                <div key={`ch-topic-${ti}-${topic.topic}`} className="border-b border-border last:border-b-0">
-                  <div className="flex w-full items-center gap-0 px-4 py-2.5 transition-colors hover:bg-muted/40">
+                <div
+                  key={`ch-topic-${ti}-${topic.topic}`}
+                  className="border-b border-border last:border-b-0"
+                  onMouseEnter={() => expandTopic(topic.topic)}
+                >
+                  <div
+                    className={cn(
+                      "flex w-full items-center gap-0 px-4 py-2.5 transition-colors duration-300 hover:bg-muted/40",
+                      isExpanded && "bg-muted/25"
+                    )}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest("a, button")) return;
+                      if (isExpanded) collapseTopic(topic.topic);
+                    }}
+                  >
                     <button
                       type="button"
                       className="chapter-hub-v2-topic-num mr-2.5 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full text-[11px] font-medium"
-                      onClick={() => toggleTopic(topic.topic)}
+                      onClick={() => handleTopicToggleClick(topic.topic, isExpanded)}
                       aria-label={`${isExpanded ? "Collapse" : "Expand"} sub-topics for ${topic.topic}`}
                     >
                       {ti + 1}
@@ -474,7 +506,7 @@ export default function ChapterHubInvestorView(props: Props) {
                     <button
                       type="button"
                       className="mr-2 shrink-0 whitespace-nowrap text-[11px] text-muted-foreground hover:text-foreground"
-                      onClick={() => toggleTopic(topic.topic)}
+                      onClick={() => handleTopicToggleClick(topic.topic, isExpanded)}
                       aria-expanded={isExpanded}
                     >
                       {topic.subtopics.length} sub-topics
@@ -482,26 +514,43 @@ export default function ChapterHubInvestorView(props: Props) {
                     <button
                       type="button"
                       className="shrink-0 p-0.5 text-muted-foreground hover:text-foreground"
-                      onClick={() => toggleTopic(topic.topic)}
+                      onClick={() => handleTopicToggleClick(topic.topic, isExpanded)}
                       aria-expanded={isExpanded}
                       aria-label={`${isExpanded ? "Collapse" : "Expand"} sub-topics for ${topic.topic}`}
                     >
                       <ChevronDown
                         className={cn(
-                          "h-4 w-4 transition-transform",
+                          "h-4 w-4 transition-transform duration-500 ease-in-out",
                           isExpanded && "rotate-180"
                         )}
                         aria-hidden
                       />
                     </button>
                   </div>
-                  {isExpanded ? (
-                    <div className="px-4 pb-2.5 pl-[52px]">
-                      {topic.subtopics.map((st, si) => (
-                        <div
-                          key={`ch-st-${si}-${st.name}`}
-                          className="flex items-center gap-2 border-b border-border py-2 last:border-b-0"
-                        >
+                  <AnimatePresence initial={false}>
+                    {isExpanded ? (
+                      <motion.div
+                        key={`subtopics-${topic.topic}`}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.48, ease: [0.4, 0, 0.2, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-4 pb-2.5 pl-[52px]">
+                          {topic.subtopics.map((st, si) => (
+                            <motion.div
+                              key={`ch-st-${si}-${st.name}`}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -6 }}
+                              transition={{
+                                duration: 0.38,
+                                delay: si * 0.065,
+                                ease: "easeOut",
+                              }}
+                              className="flex items-center gap-2 border-b border-border py-2 last:border-b-0"
+                            >
                           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-border" />
                           <Link
                             href={subtopicHref(topic, st.name)}
@@ -551,10 +600,12 @@ export default function ChapterHubInvestorView(props: Props) {
                               <BookOpen className="h-3.5 w-3.5" />
                             </SubtopicActionIcon>
                           </div>
+                            </motion.div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  ) : null}
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
                 </div>
               );
             })}

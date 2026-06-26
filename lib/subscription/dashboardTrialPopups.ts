@@ -172,6 +172,21 @@ export function isTrialGateAudience(role: string | null | undefined): boolean {
 
 
 
+/** Day-1 investor site-tour carousel (+100 RDM) — only before the one-time claim. */
+export function shouldAutoOpenSiteTourCarousel(
+  profile: OnboardingProfileFields | null | undefined,
+  nowMs: number
+): boolean {
+  const merged = mergeLocalTrialClockIntoProfile(profile);
+  if (!merged || !getFreeTrialActivated(merged)) return false;
+  if (shouldShowTrialExpirationOverlay(profile, nowMs)) return false;
+  if (merged.trial_end_bonus_activated) return false;
+  if (merged.trial_second_round_activated) return false;
+  if (isOnboardingRewardClaimed(merged)) return false;
+  if (isOnboardingRewardDismissedCooldownActive(nowMs)) return false;
+  return true;
+}
+
 export function shouldAutoOpenOnboardingRewardDialog(
 
   profile: OnboardingProfileFields | null | undefined,

@@ -4,6 +4,8 @@ import { DEFAULT_RDM_CONFIG } from "@/lib/rdm/rdmConfig";
 export type OnboardingRewardState = {
   progress: Record<string, boolean>;
   claimedAt: string | null;
+  /** True once the one-time +100 site-tour reward has ever been granted (survives trial resets). */
+  claimedEver?: boolean;
   checklistRewardRdm: number;
   freeTrialWelcomeRdm?: number;
   freeTrialActivated?: boolean;
@@ -51,20 +53,25 @@ export async function fetchOnboardingRewardState(opts?: {
   }
 
   onboardingRewardInFlight = (async () => {
-    const authHeaders = await getClientApiAuthHeaders();
-    const res = await fetch("/api/user/onboarding-reward", {
-      headers: { ...authHeaders },
-      cache: "no-store",
-    });
     const fallback: OnboardingRewardState = {
       progress: {},
       claimedAt: null,
       checklistRewardRdm: DEFAULT_RDM_CONFIG.free_trial_checklist_reward_rdm,
       freeTrialWelcomeRdm: DEFAULT_RDM_CONFIG.free_trial_welcome_rdm,
     };
-    const data = res.ok ? ((await res.json()) as OnboardingRewardState) : fallback;
-    onboardingRewardCached = { at: Date.now(), data };
-    return data;
+    try {
+      const authHeaders = await getClientApiAuthHeaders();
+      const res = await fetch("/api/user/onboarding-reward", {
+        headers: { ...authHeaders },
+        cache: "no-store",
+      });
+      const data = res.ok ? ((await res.json()) as OnboardingRewardState) : fallback;
+      onboardingRewardCached = { at: Date.now(), data };
+      return data;
+    } catch {
+      if (onboardingRewardCached) return onboardingRewardCached.data;
+      return fallback;
+    }
   })();
 
   try {
@@ -172,6 +179,25 @@ export async function resetOnboardingRewardOnServer(): Promise<OnboardingProgres
   } catch {
     return { ok: false, error: "network" };
   }
+}
+
+export async function completeSiteTourRewardOnServer(): Promise<ClaimOnboardingRewardResult> {
+  const authHeaders = await getClientApiAuthHeaders();
+  const res = await fetch("/api/user/onboarding-reward/complete-site-tour", {
+    method: "POST",
+    headers: { ...authHeaders },
+  });
+  const body = (await res.json()) as ClaimOnboardingRewardResult;
+  if (!res.ok) {
+    return {
+      ok: false,
+      amount: 0,
+      balance: 0,
+      error: body.error ?? "claim_failed",
+    };
+  }
+  invalidateOnboardingRewardStateCache();
+  return body;
 }
 
 export async function claimOnboardingReward(): Promise<ClaimOnboardingRewardResult> {

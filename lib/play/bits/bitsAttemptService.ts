@@ -1,10 +1,9 @@
-import { supabase } from "@/integrations/supabase/client";
 import type { DifficultyLevel } from "@/lib/slugs";
 import type { Board, Subject } from "@/types";
 import { safeGetSession } from "@/lib/auth/safeSession";
 import { localStudyCalendarDay } from "@/lib/dashboard/studyDayBump";
-import { dispatchStudyDayBumped } from "@/lib/dashboard/studyDayBumpEvents";
 import { track } from "@/lib/analytics/track";
+import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 
 const API = "/api/user/bits-attempts";
 
@@ -30,8 +29,8 @@ type BitsAttemptScope = {
   topic: string;
   subtopicName: string;
   level: DifficultyLevel;
-  /** Required for advanced (1–3); omitted for basics/intermediate. */
-  set?: 1 | 2 | 3;
+  /** Required for advanced (1–6); omitted for basics/intermediate. */
+  set?: AdvancedQuizSetIndex;
 };
 
 /** Scope for Numerals / formula-practice attempts (never uses advanced `set`). */
@@ -72,7 +71,7 @@ export async function fetchBitsAttempt(scope: BitsAttemptScope): Promise<BitsAtt
 
 export async function saveBitsAttempt(
   attempt: BitsAttemptRecord,
-  options?: { set?: 1 | 2 | 3 }
+  options?: { set?: AdvancedQuizSetIndex }
 ): Promise<BitsAttemptRecord> {
   const authHeaders = await getAuthHeaders();
   const body =
@@ -175,7 +174,7 @@ export async function clearFormulaPracticeAttempt(
 }
 
 export async function clearBitsAttemptSet(
-  scope: BitsAttemptScope & { set: 1 | 2 | 3 }
+  scope: BitsAttemptScope & { set: AdvancedQuizSetIndex }
 ): Promise<void> {
   if (scope.level !== "advanced") return;
   const authHeaders = await getAuthHeaders();

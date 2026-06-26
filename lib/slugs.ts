@@ -32,3 +32,27 @@ export type DifficultyLevel = "basics" | "intermediate" | "advanced";
 export function isValidLevel(level: string): level is DifficultyLevel {
   return level === "basics" || level === "intermediate" || level === "advanced";
 }
+
+/** Learners use the advanced route by default; don't surface the word in UI. */
+export function isDifficultyLevelShownInUi(level: DifficultyLevel): boolean {
+  return level !== "advanced";
+}
+
+/** Capitalized label for basics/intermediate; null when advanced (hidden). */
+export function formatDifficultyLevelForUi(level: DifficultyLevel): string | null {
+  if (level === "basics") return "Basics";
+  if (level === "intermediate") return "Intermediate";
+  return null;
+}
+
+/** Tier word for admin topic preview headings, e.g. "Basic preview cards". */
+export function formatDifficultyPreviewTierLabel(level: DifficultyLevel): string | null {
+  if (level === "basics") return "Basic";
+  if (level === "intermediate") return "Intermediate";
+  return null;
+}
+
+/** Remove trailing "(Level: …)" from deep-dive / revision titles. */
+export function stripCurriculumLevelFromTitle(title: string): string {
+  return title.replace(/\s*\(Level:.*$/i, "").trim() || title;
+}

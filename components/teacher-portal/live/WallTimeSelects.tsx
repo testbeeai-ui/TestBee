@@ -7,6 +7,8 @@ type WallTimeSelectsProps = {
   onChange: (hhmm: string) => void;
   disabled?: boolean;
   className?: string;
+  /** md = roomier selects for modals */
+  size?: "sm" | "md";
 };
 
 /**
@@ -17,11 +19,14 @@ export default function WallTimeSelects({
   onChange,
   disabled,
   className = "",
+  size = "sm",
 }: WallTimeSelectsProps) {
   const parsed = hhmmToWallParts(value.trim());
 
   const sel =
-    "h-9 min-h-[36px] w-full min-w-0 rounded-lg border border-white/15 bg-[#070b17] px-1 text-center text-[12px] font-medium outline-none focus:border-emerald-400 disabled:opacity-50 sm:text-sm";
+    size === "md"
+      ? "h-11 min-h-[44px] w-full min-w-0 appearance-none rounded-xl border border-white/12 bg-[#0c1020] px-3 pr-8 text-sm font-medium text-slate-100 outline-none focus:border-sky-400/60 focus:ring-1 focus:ring-sky-400/20 disabled:opacity-50"
+      : "h-9 min-h-[36px] w-full min-w-0 rounded-lg border border-white/15 bg-[#070b17] px-1 text-center text-[12px] font-medium outline-none focus:border-emerald-400 disabled:opacity-50 sm:text-sm";
 
   const apply = (partial: Partial<WallTimeParts>) => {
     if (!parsed && partial.hour12 != null) {
@@ -39,7 +44,9 @@ export default function WallTimeSelects({
   };
 
   return (
-    <div className={`flex min-w-0 items-stretch gap-1 ${className}`}>
+    <div
+      className={`grid min-w-0 gap-2 ${size === "md" ? "grid-cols-3" : "flex items-stretch gap-1"} ${className}`}
+    >
       <select
         aria-label="Hour"
         disabled={disabled}
@@ -52,7 +59,7 @@ export default function WallTimeSelects({
           }
           apply({ hour12: Number(v) });
         }}
-        className={`${sel} flex-[1.15]`}
+        className={size === "md" ? sel : `${sel} flex-[1.15]`}
       >
         <option value="">Hr</option>
         {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
@@ -70,7 +77,7 @@ export default function WallTimeSelects({
           if (!parsed || raw === "") return;
           apply({ minute: raw === "30" ? 30 : 0 });
         }}
-        className={`${sel} flex-[0.95]`}
+        className={size === "md" ? sel : `${sel} flex-[0.95]`}
       >
         <option value="">Min</option>
         <option value="0">00</option>
@@ -85,7 +92,7 @@ export default function WallTimeSelects({
           if (!parsed || (raw !== "am" && raw !== "pm")) return;
           apply({ isPm: raw === "pm" });
         }}
-        className={`${sel} flex-[1]`}
+        className={size === "md" ? sel : `${sel} flex-[1]`}
       >
         <option value="">—</option>
         <option value="am">AM</option>

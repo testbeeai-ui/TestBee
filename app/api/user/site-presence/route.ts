@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { isSupabaseNetworkError } from "@/lib/supabase/supabaseNodeFetch";
 import { SITE_PRESENCE_HEARTBEAT_MS } from "@/lib/dashboard/sitePresenceConstants";
 import {
   clearSitePresenceBuffer,
@@ -74,6 +75,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, updatedAt: now, skipped: false });
   } catch (e) {
+    if (isSupabaseNetworkError(e)) {
+      return NextResponse.json(
+        { error: "Upstream unavailable" },
+        { status: 503, headers: { "Retry-After": "5" } }
+      );
+    }
     console.error("site-presence POST error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

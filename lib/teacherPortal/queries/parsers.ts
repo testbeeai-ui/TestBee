@@ -6,6 +6,10 @@ import {
   type DailyDoseStreakTrackId,
 } from "@/lib/teacherPortal/dailyDoseStreakTracks";
 import { SUBJECTS } from "./utils";
+import {
+  isAdvancedQuizSetIndex,
+  type AdvancedQuizSetIndex,
+} from "@/lib/play/quiz/advancedQuizSets";
 import type {
   TeacherPortalChapterQuizRef,
   TeacherPortalDailyDoseStreakRef,
@@ -53,11 +57,10 @@ export function parseChapterQuizRef(
   const levelRaw = typeof o.level === "string" ? o.level.trim().toLowerCase() : "";
   if (!topic || !subtopicName || !isValidLevel(levelRaw)) return null;
   const level = levelRaw;
-  let advancedSet: 1 | 2 | 3 | undefined;
+  let advancedSet: AdvancedQuizSetIndex | undefined;
   if (level === "advanced") {
     const s = Number(o.advancedSet);
-    if (s === 1 || s === 2 || s === 3) advancedSet = s;
-    else advancedSet = 1;
+    advancedSet = isAdvancedQuizSetIndex(s) ? s : 1;
   }
   return {
     board: board || "cbse",

@@ -94,6 +94,11 @@ interface SparkleItem {
   size: number;
 }
 
+function stepsProgressEqual(a: boolean[], b: boolean[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+}
+
 export function FloatingTaskCompanion() {
   const pathname = usePathname();
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -265,7 +270,8 @@ export function FloatingTaskCompanion() {
     if (!activeTaskId) return;
 
     if (activeTaskId === "lessons" && isDailyLessonsChecklistTrackingActive()) {
-      setStepsProgress(reconcileDailyLessonsCompanionSteps(pathname));
+      const next = reconcileDailyLessonsCompanionSteps(pathname);
+      setStepsProgress((prev) => (stepsProgressEqual(prev, next) ? prev : next));
       return;
     }
 
@@ -276,7 +282,7 @@ export function FloatingTaskCompanion() {
       (activeTaskId === PLAY_DAILYDOSE_TASK_ID ? PLAY_DAILYDOSE_COMPANION_TASK : null);
     const count = task?.steps.length ?? 0;
     if (count === 0) {
-      setStepsProgress([]);
+      setStepsProgress((prev) => (prev.length === 0 ? prev : []));
       return;
     }
 
@@ -285,7 +291,8 @@ export function FloatingTaskCompanion() {
       isDailyChecklistCompanionRetryActive(activeTaskId) ||
       (activeTaskId === "lessons" && isDailyLessonsChecklistTrackingActive());
     if (isOnboardingTaskComplete(activeTaskId, progress) && !dailyRetry) {
-      setStepsProgress(Array.from({ length: count }, () => true));
+      const allDone = Array.from({ length: count }, () => true);
+      setStepsProgress((prev) => (stepsProgressEqual(prev, allDone) ? prev : allDone));
       return;
     }
 
@@ -293,7 +300,7 @@ export function FloatingTaskCompanion() {
     const currentSteps = Array.from({ length: count }, (_, idx) =>
       Boolean(progress[`${activeTaskId}_step_${idx}`])
     );
-    setStepsProgress(currentSteps);
+    setStepsProgress((prev) => (stepsProgressEqual(prev, currentSteps) ? prev : currentSteps));
   }, [activeTaskId, pathname]);
 
   useEffect(() => {
@@ -321,7 +328,7 @@ export function FloatingTaskCompanion() {
       window.removeEventListener(ONBOARDING_PROGRESS_EVENT, onProgress);
       window.clearInterval(pollId);
     };
-  }, [activeTaskId, stepsProgress]);
+  }, [activeTaskId]);
 
   const triggerCelebration = useCallback(() => {
     const completedTaskId = activeTaskId;

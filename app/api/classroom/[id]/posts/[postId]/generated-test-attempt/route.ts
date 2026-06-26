@@ -6,6 +6,10 @@ import {
 } from "@/integrations/supabase/server";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
 import { tryFulfillAssignmentMotivationGrants } from "@/lib/teacherPortal/motivationRdm";
+import {
+  isAdvancedQuizSetIndex,
+  type AdvancedQuizSetIndex,
+} from "@/lib/play/quiz/advancedQuizSets";
 
 type GeneratedPaperQuestion = {
   id: string;
@@ -212,7 +216,7 @@ function makeBitsAttemptKey(params: {
   topic: string;
   subtopicName: string;
   level: string;
-  set?: 1 | 2 | 3;
+  set?: AdvancedQuizSetIndex;
 }) {
   const base = [
     normalizeKeyPart(params.board, 40),
@@ -222,7 +226,7 @@ function makeBitsAttemptKey(params: {
     normalizeKeyPart(params.subtopicName, 300),
     normalizeKeyPart(params.level, 30),
   ].join("||");
-  if (params.level === "advanced" && params.set != null && [1, 2, 3].includes(params.set)) {
+  if (params.level === "advanced" && params.set != null && isAdvancedQuizSetIndex(params.set)) {
     return `${base}||set:${params.set}`;
   }
   return base;
@@ -394,8 +398,8 @@ export async function GET(
       const subtopicName = sanitizeText(cq?.subtopicName, 300);
       const level = normalizeKeyPart(cq?.level, 30);
       const advancedSetRaw = Number(cq?.advancedSet);
-      const advancedSet: 1 | 2 | 3 | undefined = [1, 2, 3].includes(advancedSetRaw)
-        ? (advancedSetRaw as 1 | 2 | 3)
+      const advancedSet: AdvancedQuizSetIndex | undefined = isAdvancedQuizSetIndex(advancedSetRaw)
+        ? advancedSetRaw
         : undefined;
 
       if (subject && (classLevel === 11 || classLevel === 12) && topic && subtopicName && level) {

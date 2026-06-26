@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useMemo, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -13,7 +13,6 @@ import {
   Map,
   Heart,
   BarChart3,
-  PanelLeftClose,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,9 +21,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
 import { useStudyStreakFromApi } from "@/hooks/useStudyStreakFromApi";
 import {
+  countInstacueRevisionDue,
   formatEdufundRdmBadge,
   formatEdufundRdmBadgeDetail,
 } from "@/lib/dashboard/dashboardSidebarMetrics";
+import { useRecallNowMs } from "@/hooks/useRecallNowMs";
 
 type NavItem = {
   href: string;
@@ -36,6 +37,23 @@ type NavItem = {
 };
 
 const PIN_KEY = "eb_sidebar_pinned";
+
+function subscribeSidebarPinned(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === PIN_KEY || event.key === null) onStoreChange();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
+
+function getSidebarPinnedSnapshot(): boolean {
+  try {
+    return window.localStorage.getItem(PIN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 function isActivePath(pathname: string, href: string): boolean {
   if (href === "/revision") return pathname === "/revision";
@@ -114,22 +132,17 @@ export default function DashboardSidebar() {
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
   const { streakDays, ready: streakReady } = useStudyStreakFromApi();
 
-  // Pin state — persisted in localStorage so the user's choice survives reloads.
-  const [pinned, setPinned] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
+  const pinned = useSyncExternalStore(
+    subscribeSidebarPinned,
+    getSidebarPinnedSnapshot,
+    () => false
+  );
 
-  useEffect(() => {
-    try {
-      setPinned(window.localStorage.getItem(PIN_KEY) === "1");
-    } catch {
-      /* private mode / storage blocked */
-    }
-    setHydrated(true);
-  }, []);
-
-  // Render in the unpinned (collapsed) state until hydration completes, so we
-  // don't flash the expanded sidebar on first paint when the saved pin is on.
-  void hydrated;
+  const nowMs = useRecallNowMs();
+  const instacueDueCount = useMemo(
+    () => countInstacueRevisionDue(user?.savedRevisionCards, nowMs),
+    [user?.savedRevisionCards, nowMs]
+  );
 
   const edufundBadge = profile?.id ? formatEdufundRdmBadge(rdm) : null;
   // Full-detail string (RDM remaining → tier) for the badge tooltip; the
@@ -145,6 +158,7 @@ export default function DashboardSidebar() {
       href: "/revision",
       label: "Instacue revision",
       icon: RotateCcw,
+      badge: instacueDueCount > 0 ? String(instacueDueCount) : null,
     },
     { href: "/play", label: "Play arena", icon: Gamepad2 },
   ];
@@ -184,7 +198,6 @@ export default function DashboardSidebar() {
         "eb-sidebar sticky top-2 hidden h-[calc(100vh-1rem)] shrink-0 flex-col overflow-hidden border-r border-border/50 bg-card/30 lg:flex"
       )}
       aria-label="Dashboard navigation"
-      aria-expanded={pinned}
     >
       <nav
         className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pt-1"

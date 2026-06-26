@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { normalizeRazorpayEnvValue } from "@/lib/razorpay/razorpayEnv";
 
 export function verifyRazorpayPaymentSignature(
   orderId: string,
@@ -19,6 +20,5 @@ export function verifyRazorpayPaymentSignature(
 }
 
 export function getRazorpayKeySecret(): string | null {
-  const secret = process.env.RAZORPAY_KEY_SECRET?.trim();
-  return secret || null;
+  return normalizeRazorpayEnvValue(process.env.RAZORPAY_KEY_SECRET);
 }

@@ -255,29 +255,42 @@ html {
   vertical-align: text-bottom;
 }
 
-/* Subject chatbot (chapters / topics / subtopics) — denser body copy */
+/* Subject chatbot (Prof Pi dark theme) — denser body copy */
 .subject-chat-panel .chat-markdown {
-  font-size: 0.875rem;
-  line-height: 1.5;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  color: #9ba3b8;
 }
 .subject-chat-panel .chat-markdown p {
   margin: 0 0 0.4rem 0;
+  color: #9ba3b8;
 }
 .subject-chat-panel .chat-markdown ul,
 .subject-chat-panel .chat-markdown ol {
   padding-left: 1.15rem;
   margin: 0.3rem 0;
+  color: #9ba3b8;
 }
 .subject-chat-panel .chat-markdown li {
   margin: 0.15rem 0;
+  color: #9ba3b8;
+}
+.subject-chat-panel .chat-markdown strong {
+  color: #e8eaf0;
+  font-weight: 600;
+}
+.subject-chat-panel .chat-markdown a {
+  color: #afa9ec;
 }
 .subject-chat-panel .chat-markdown .katex {
   font-size: 1em;
+  color: #e8eaf0;
 }
 .subject-chat-panel .chat-markdown .katex-display {
   padding: 0.5rem 0.75rem;
   margin: 0.45rem 0;
   border-radius: 8px;
+  background: #222a3a;
 }
 .subject-chat-panel .chat-markdown .katex-display > .katex {
   font-size: 1.05em;
@@ -600,6 +613,15 @@ html {
 }
 .subtopic-function-def-line--body .katex {
   font-size: 0.88em;
+}
+
+/* InstaCue revision player: subtopic pill fills row; one-line math with tail ellipsis. */
+.instacue-subtopic-pill-math .katex {
+  white-space: nowrap;
+}
+.instacue-subtopic-pill-math .katex-display {
+  display: inline-block;
+  margin: 0;
 }
 
 /* Matrix multiplication (line 2): nudge summation index k closer to \sum (KaTeX default gap is loose). */

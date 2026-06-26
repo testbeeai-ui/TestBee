@@ -621,7 +621,7 @@ function PlayPageContent() {
       p_question_id: streakQuestion.id,
       p_is_correct: isCorrect,
       p_time_taken_ms: timeTakenMs,
-      p_category: null,
+      p_category: undefined,
       p_pool_key: streakPoolForDomain(selectedDomain),
       p_selected_answer_index: selectedIndex,
     });
@@ -651,9 +651,9 @@ function PlayPageContent() {
       p_question_id: streakQuestion.id,
       p_is_correct: false,
       p_time_taken_ms: Date.now(),
-      p_category: null,
+      p_category: undefined,
       p_pool_key: streakPoolForDomain(selectedDomain),
-      p_selected_answer_index: null,
+      p_selected_answer_index: undefined,
     });
     setStreakOutcomes((o) => [...o, "skip"]);
     setStreakResultFlash({
@@ -703,9 +703,9 @@ function PlayPageContent() {
       p_question_id: streakQuestion.id,
       p_is_correct: false,
       p_time_taken_ms: QUESTION_TOTAL_SEC * 1000,
-      p_category: null,
+      p_category: undefined,
       p_pool_key: streakPoolForDomain(selectedDomain),
-      p_selected_answer_index: null,
+      p_selected_answer_index: undefined,
     });
     void bumpUserStudyDayMs(QUESTION_TOTAL_SEC * 1000);
     setStreakOutcomes((o) => [...o, "skip"]);

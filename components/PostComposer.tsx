@@ -146,6 +146,7 @@ const PostComposer = ({ classroomId, onClose, onPublished }: Props) => {
       due_date: config.showDueDate && dueDate ? dueDate : null,
       content_json: contentJson as unknown as undefined,
       google_classroom_synced: publishToGoogle,
+      visibility: "classroom",
     });
 
     if (error) {

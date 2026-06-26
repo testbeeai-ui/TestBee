@@ -73,7 +73,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         extraContentJson: (body.extraContentJson ?? null) as any,
       },
       admin as any,
-      { skipVerificationCheck: true }
+      { skipVerificationCheck: true, skipPlanQuotaCheck: true }
     );
 
     await auditAdminTeacherAction({

@@ -5,6 +5,12 @@ export type RdmConfigParams = {
   referral_referee_welcome: number;
   referral_weekly_bonus_threshold: number;
   referral_weekly_bonus_rdm: number;
+  /** RDM a teacher earns when a student signs up via the teacher referral link */
+  referral_teacher_signup_reward: number;
+  /** Extra RDM a teacher earns when their referred student goes paid within the window */
+  referral_teacher_paid_bonus: number;
+  /** Days after signup in which a referred student must go paid for the teacher bonus */
+  referral_teacher_paid_window_days: number;
 
   challenge_5_win: number;
   challenge_5_share: number;
@@ -70,6 +76,15 @@ export type RdmConfigParams = {
   free_trial_checklist_reward_rdm: number;
   free_trial_daily_streak_reward_rdm: number;
 
+  /** Days after invite timestamp in which a bulk-invited student must go paid for the per-student bonus */
+  classroom_batch_paid_window_days: number;
+  /** Minimum newly-invited emails in one batch for the flat classroom bulk-invite RDM */
+  classroom_bulk_invite_min_students: number;
+  /** One-time flat RDM when a classroom's first bulk invite batch reaches the minimum */
+  classroom_bulk_invite_flat_rdm: number;
+  /** RDM per bulk-invited student who goes paid within the batch window */
+  classroom_batch_paid_bonus_rdm: number;
+
   /** Max topics a free-trial student can select on Magic Wall (admin always gets 5) */
   magic_wall_max_topics: number;
 };
@@ -79,6 +94,9 @@ export const DEFAULT_RDM_CONFIG: RdmConfigParams = {
   referral_referee_welcome: 25,
   referral_weekly_bonus_threshold: 5,
   referral_weekly_bonus_rdm: 100,
+  referral_teacher_signup_reward: 500,
+  referral_teacher_paid_bonus: 500,
+  referral_teacher_paid_window_days: 30,
 
   challenge_5_win: 3,
   challenge_5_share: 2,
@@ -122,6 +140,11 @@ export const DEFAULT_RDM_CONFIG: RdmConfigParams = {
   pro_inactive_penalty_rdm: 25,
   free_trial_checklist_reward_rdm: 100,
   free_trial_daily_streak_reward_rdm: 80,
+
+  classroom_bulk_invite_min_students: 20,
+  classroom_bulk_invite_flat_rdm: 5000,
+  classroom_batch_paid_bonus_rdm: 100,
+  classroom_batch_paid_window_days: 7,
 
   magic_wall_max_topics: 3,
 };

@@ -131,5 +131,8 @@ export function buildBillingHistoryFromProfile(
   }
 
   records.sort((a, b) => b._sortMs - a._sortMs);
-  return records.map(({ _sortMs: _ignored, ...record }) => record);
+  return records.map(({ _sortMs, ...record }) => {
+    void _sortMs;
+    return record;
+  });
 }

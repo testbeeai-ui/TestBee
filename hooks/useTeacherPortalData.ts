@@ -3,6 +3,7 @@
 import { useCallback, useLayoutEffect, useState } from "react";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import type { Json } from "@/integrations/supabase/types";
+import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
 import { chargeTeacherRdm, refundTeacherRdm } from "@/lib/teacherPortal/rdmCharges";
 import {
@@ -167,7 +168,7 @@ interface UseTeacherPortalDataResult {
       topic: string;
       subtopicName: string;
       level: "basics" | "intermediate" | "advanced";
-      advancedSet?: 1 | 2 | 3;
+      advancedSet?: AdvancedQuizSetIndex;
     } | null;
     postWorkMode?: "none" | "custom" | "concept_focus";
     postWorkConceptRef?: {
@@ -178,7 +179,7 @@ interface UseTeacherPortalDataResult {
       topic: string;
       subtopicName: string;
       level: "basics" | "intermediate" | "advanced";
-      advancedSet?: 1 | 2 | 3;
+      advancedSet?: AdvancedQuizSetIndex;
     } | null;
     postWorkDelayDays?: number;
   }) => Promise<void>;
@@ -349,6 +350,13 @@ export function useTeacherPortalData(
       gyanEngagement?: TeacherPortalGyanEngagementRef | null;
       extraContentJson?: Record<string, Json> | null;
     }) => {
+      const quotaRes = await fetchWithClientAuth("/api/teacher/plan/check-assignment", {
+        method: "POST",
+      });
+      const quotaBody = (await quotaRes.json()) as { error?: string };
+      if (!quotaRes.ok) {
+        throw new Error(quotaBody.error ?? "Assignment limit reached");
+      }
       await chargeTeacherRdm("create_assignment", rdmCosts);
       try {
         const created = await createClassroomAssignment(input);
@@ -441,7 +449,7 @@ export function useTeacherPortalData(
         topic: string;
         subtopicName: string;
         level: "basics" | "intermediate" | "advanced";
-        advancedSet?: 1 | 2 | 3;
+        advancedSet?: AdvancedQuizSetIndex;
       } | null;
       postWorkMode?: "none" | "custom" | "concept_focus";
       postWorkConceptRef?: {
@@ -452,7 +460,7 @@ export function useTeacherPortalData(
         topic: string;
         subtopicName: string;
         level: "basics" | "intermediate" | "advanced";
-        advancedSet?: 1 | 2 | 3;
+        advancedSet?: AdvancedQuizSetIndex;
       } | null;
       postWorkDelayDays?: number;
     }) => {

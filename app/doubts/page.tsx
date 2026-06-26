@@ -416,7 +416,7 @@ function DoubtsPageContent() {
 
   const fetchUserRdmToday = async () => {
     if (!user?.id) return;
-    const { data, error } = await supabase.rpc("get_daily_rdm_earned_ist", {});
+    const { data, error } = await supabase.rpc("get_daily_rdm_earned_ist");
     if (error) {
       console.warn("[doubts] get_daily_rdm_earned_ist", error.message);
       setUserRdmToday(0);

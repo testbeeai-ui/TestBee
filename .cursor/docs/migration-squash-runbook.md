@@ -24,9 +24,38 @@
 
 ## Going forward
 
-- **Prod schema changes:** add new dated files under `supabase/migrations/` (incremental), then `npx supabase db push`.
+- **Prod schema changes:** add new dated files under `supabase/migrations/` with a **fresh timestamp** (never reuse a version already on prod).
 - **Do not** run `20260915120000_baseline_schema_from_prod.sql` on prod again.
 - **Archive reference:** `scripts/legacy/migrations/pre-squash-2026/`
+
+### Why `db push` fails after squash
+
+Prod `schema_migrations` still lists ~250 archived versions that no longer have files under `supabase/migrations/`. The CLI blocks push until histories align.
+
+**One-time history cleanup (schema unchanged):**
+
+```bash
+node scripts/generate-migration-repair.js
+# Review output, then run the printed repair --status reverted ... command
+npx supabase db push
+```
+
+`repair --status reverted` only edits the migration history table — it does **not** undo applied SQL.
+
+### Deploy without full repair (single migration)
+
+When push is blocked or you need a hotfix:
+
+```bash
+node scripts/apply-linked-migrations.js --phase2
+# or: node scripts/apply-linked-migrations.js 20260811120000_student_engagement_bits_tables.sql
+```
+
+This runs `supabase db query --linked -f …` then `migration repair --status applied <version>`.
+
+### Version slug conflicts (critical)
+
+If local file `20260623120000_foo.sql` shares a version with remote `admin_analytics_conversion_funnel`, prod already recorded that version — your SQL was **not** applied. Rename the local file to a new timestamp (e.g. `20260811120000_foo.sql`) before push or `apply-linked-migrations`.
 
 ## If something looks wrong
 

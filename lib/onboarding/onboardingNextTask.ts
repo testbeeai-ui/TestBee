@@ -1,4 +1,4 @@
-import { ONBOARDING_REWARD_TASKS } from "@/components/dashboard/OnboardingRewardDialog";
+import { ONBOARDING_REWARD_TASKS } from "@/lib/onboarding/onboardingRewardTasks";
 import {
   ONBOARDING_GYAN_PLUS_SUBSTEP_IDS,
   ONBOARDING_REWARD_TASK_IDS,

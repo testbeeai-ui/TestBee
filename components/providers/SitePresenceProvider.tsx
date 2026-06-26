@@ -22,8 +22,19 @@ export function useSitePresenceLiveMsToday(): number {
   return useContext(SitePresenceLiveContext);
 }
 
+let sitePresenceHeartbeatInFlight = false;
+let lastOnlineSitePresenceAt = 0;
+let studyDaysPresenceInFlight = false;
+let lastStudyDaysPresencePostAt = 0;
+/** Match server batching — avoid back-to-back presence_ms POSTs from flush loops / remounts. */
+const MIN_STUDY_DAYS_PRESENCE_GAP_MS = 22_000;
+
 async function postPresenceDelta(day: string, deltaMs: number): Promise<boolean> {
   const capped = Math.min(Math.max(1, Math.trunc(deltaMs)), 5 * 60 * 1000);
+  const now = Date.now();
+  if (studyDaysPresenceInFlight) return false;
+  if (now - lastStudyDaysPresencePostAt < MIN_STUDY_DAYS_PRESENCE_GAP_MS) return false;
+  studyDaysPresenceInFlight = true;
   try {
     const res = await fetchWithClientAuth("/api/user/study-days", {
       method: "POST",
@@ -31,34 +42,57 @@ async function postPresenceDelta(day: string, deltaMs: number): Promise<boolean>
       body: JSON.stringify({ day, deltaPresenceMs: capped }),
     });
     if (!res.ok) return false;
+    lastStudyDaysPresencePostAt = Date.now();
     invalidateStudyDaysCache();
     notifyStudyDaysRefresh();
     return true;
   } catch {
     return false;
+  } finally {
+    studyDaysPresenceInFlight = false;
   }
 }
 
-async function postSitePresence(offline = false, signedOut = false) {
-  try {
-    const init: RequestInit = {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ offline, signedOut: signedOut || undefined }),
-    };
-    if (offline) {
-      init.keepalive = true;
-      const auth = await getClientApiAuthHeaders();
-      if (auth.Authorization) {
-        init.headers = { ...init.headers, Authorization: auth.Authorization };
-      }
-      void fetch("/api/user/site-presence", init).catch(() => {});
-    } else {
-      await fetchWithClientAuth("/api/user/site-presence", init);
-    }
-  } catch (err) {
-    // Non-fatal presence error
+async function postSitePresence(offline = false, signedOut = false, forceOnline = false) {
+  if (!offline) {
+    const age = Date.now() - lastOnlineSitePresenceAt;
+    if (!forceOnline && age >= 0 && age < SITE_PRESENCE_HEARTBEAT_MS - 2_000) return;
+    if (sitePresenceHeartbeatInFlight) return;
   }
+
+  const run = async () => {
+    try {
+      const init: RequestInit = {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ offline, signedOut: signedOut || undefined }),
+      };
+      if (offline) {
+        init.keepalive = true;
+        const auth = await getClientApiAuthHeaders();
+        if (auth.Authorization) {
+          init.headers = { ...init.headers, Authorization: auth.Authorization };
+        }
+        void fetch("/api/user/site-presence", init).catch(() => {});
+        return;
+      }
+      sitePresenceHeartbeatInFlight = true;
+      try {
+        await fetchWithClientAuth("/api/user/site-presence", init);
+        lastOnlineSitePresenceAt = Date.now();
+      } finally {
+        sitePresenceHeartbeatInFlight = false;
+      }
+    } catch {
+      // Non-fatal presence error
+    }
+  };
+
+  if (offline) {
+    await run();
+    return;
+  }
+  void run();
 }
 
 interface TabInfo {
@@ -199,7 +233,7 @@ export function SitePresenceProvider({
     lastHeartbeatTime.current = Date.now();
     updateTabPresenceState(userId, tabId, isVisible, false);
     if (isVisible) {
-      void postSitePresence(false);
+      void postSitePresence(false, false, true);
     }
 
     const rollDayIfNeeded = () => {
@@ -240,7 +274,7 @@ export function SitePresenceProvider({
         lastTickRef.current = performance.now();
         lastHeartbeatTime.current = Date.now();
         updateTabPresenceState(userId, tabId, true, false);
-        void postSitePresence(false);
+        void postSitePresence(false, false, true);
       } else {
         lastTickRef.current = null;
         void tryFlush();
@@ -272,7 +306,7 @@ export function SitePresenceProvider({
         if (timeSinceHeartbeat >= SITE_PRESENCE_HEARTBEAT_MS) {
           lastHeartbeatTime.current = Date.now();
           updateTabPresenceState(userId, tabId, true, false);
-          void postSitePresence(false);
+          void postSitePresence(false, false, false);
         }
       }
 
@@ -285,7 +319,7 @@ export function SitePresenceProvider({
       unsentMsRef.current += dt;
       const floored = Math.floor(unsentMsRef.current);
       setLiveMs((prev) => (prev === floored ? prev : floored));
-      if (unsentMsRef.current >= 25_000) {
+      if (unsentMsRef.current >= 30_000) {
         void tryFlush();
       }
     }, 1000);

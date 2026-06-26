@@ -14,6 +14,20 @@ import {
   Board,
   ExamType,
 } from "@/types";
+import {
+  dedupeRevisionCards,
+  normalizeRevisionCardForSave,
+  revisionCardFingerprint,
+} from "@/lib/saved/revisionCardIdentity";
+import {
+  applyRevisionRecallAction,
+  promoteDueTomorrowCards,
+  type RevisionRecallAction,
+} from "@/lib/saved/revisionCardRecall";
+
+function normalizeStoredRevisionCards(cards: SavedRevisionCard[]): SavedRevisionCard[] {
+  return dedupeRevisionCards(promoteDueTomorrowCards(cards));
+}
 
 function emptySavedUserProfile(
   name: string,
@@ -78,6 +92,8 @@ interface UserState {
     cardId: string,
     status: "unsure" | "tomorrow" | "know_it" | "new"
   ) => void;
+  /** Promote tomorrow cards past reviewAt to new (e.g. after 9 AM local). */
+  refreshDueRevisionCards: () => void;
   saveRevisionUnit: (unit: SavedRevisionUnit) => void;
   unsaveRevisionUnit: (unitId: string) => void;
   saveBit: (bit: SavedBit) => void;
@@ -198,16 +214,18 @@ export const useUserStore = create<UserState>()(
       saveRevisionCard: (card) =>
         set((state) => {
           const list = state.user?.savedRevisionCards ?? [];
-          if (list.some((c) => c.id === card.id)) return state;
-          const stamped: SavedRevisionCard = {
-            ...card,
-            savedAt: card.savedAt ?? new Date().toISOString(),
-          };
+          const stamped = normalizeRevisionCardForSave(card);
+          const fp = revisionCardFingerprint(stamped);
+          if (
+            list.some((c) => c.id === stamped.id || revisionCardFingerprint(c) === fp)
+          ) {
+            return state;
+          }
           return {
             user: state.user
               ? {
                   ...state.user,
-                  savedRevisionCards: [...list, stamped],
+                  savedRevisionCards: normalizeStoredRevisionCards([...list, stamped]),
                 }
               : null,
           };
@@ -226,16 +244,39 @@ export const useUserStore = create<UserState>()(
         })),
 
       updateRevisionCardStatus: (cardId, status) =>
-        set((state) => ({
-          user: state.user
-            ? {
-                ...state.user,
-                savedRevisionCards: (state.user.savedRevisionCards ?? []).map((c) =>
-                  c.id === cardId ? { ...c, status } : c
-                ),
-              }
-            : null,
-        })),
+        set((state) => {
+          if (!state.user) return state;
+          const updated = (state.user.savedRevisionCards ?? []).map((c) => {
+            if (c.id !== cardId) return c;
+            if (status === "know_it" || status === "tomorrow" || status === "unsure") {
+              return applyRevisionRecallAction(c, status as RevisionRecallAction);
+            }
+            return { ...c, status, reviewAt: undefined };
+          });
+          return {
+            user: {
+              ...state.user,
+              savedRevisionCards: normalizeStoredRevisionCards(updated),
+            },
+          };
+        }),
+
+      refreshDueRevisionCards: () =>
+        set((state) => {
+          if (!state.user) return state;
+          const before = state.user.savedRevisionCards ?? [];
+          const after = normalizeStoredRevisionCards(before);
+          const changed =
+            after.length !== before.length ||
+            after.some((card) => {
+              const prev = before.find((c) => c.id === card.id);
+              return !prev || prev.status !== card.status || prev.reviewAt !== card.reviewAt;
+            });
+          if (!changed) return state;
+          return {
+            user: { ...state.user, savedRevisionCards: after },
+          };
+        }),
 
       saveRevisionUnit: (unit) =>
         set((state) => {
@@ -348,7 +389,7 @@ export const useUserStore = create<UserState>()(
                   ...state.user,
                   savedBits,
                   savedFormulas,
-                  savedRevisionCards,
+                  savedRevisionCards: normalizeStoredRevisionCards(savedRevisionCards),
                   savedRevisionUnits,
                   savedCommunityPosts,
                 },
@@ -424,6 +465,13 @@ export const useUserStore = create<UserState>()(
           state.linkedAuthUserId = null;
         }
         return persistedState;
+      },
+      onRehydrateStorage: () => (state) => {
+        const user = (state as { user?: { savedRevisionCards?: SavedRevisionCard[] } } | undefined)
+          ?.user;
+        if (user?.savedRevisionCards?.length) {
+          user.savedRevisionCards = normalizeStoredRevisionCards(user.savedRevisionCards);
+        }
       },
     }
   )

@@ -55,6 +55,12 @@ import {
   parseGyanEngagementRef,
 } from "./parsers";
 import {
+  computeLiveClassDeliveryRdm,
+  DEFAULT_LIVE_CLASS_DELIVERY_RDM_CONFIG,
+} from "@/lib/teacherPortal/liveClassDeliveryRdm";
+import { fetchLiveClassDeliveryRdmConfig } from "@/lib/teacherPortal/teacherRdmConfig";
+import { normalizeTeacherPlanTier } from "@/lib/teacherPortal/teacherPlan";
+import {
   allocateUniqueJoinCode,
   countStudentsAllVisibleTasksDone,
   fetchAllPostsForTeacherClassrooms,
@@ -66,6 +72,7 @@ export async function loadTeacherPortalBundle(
   client?: DbClient
 ): Promise<TeacherPortalDataBundle> {
   const db = client ?? supabase;
+  const deliveryRdmConfig = await fetchLiveClassDeliveryRdmConfig(db);
   const [
     profileRes,
     classroomsRes,
@@ -77,9 +84,10 @@ export async function loadTeacherPortalBundle(
     payoutsRes,
   ] = await Promise.all([
     db
-      .from("profiles")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from("profiles" as any)
       .select(
-        "id, name, avatar_url, bio, subjects, exam_tags, teaching_levels, visibility, rdm, google_connected"
+        "id, name, avatar_url, bio, subjects, exam_tags, teaching_levels, visibility, rdm, google_connected, teacher_plan_tier, teacher_plan_started_at, teacher_plan_expires_at"
       )
       .eq("id", userId)
       .maybeSingle(),
@@ -130,7 +138,21 @@ export async function loadTeacherPortalBundle(
       .gte("paid_at", startOfWeekIso()),
   ]);
 
-  const profile = profileRes.data ?? {
+  const profile = (profileRes.data as {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    bio: string | null;
+    subjects: string[] | null;
+    exam_tags: string[] | null;
+    teaching_levels: number[] | null;
+    visibility: string | null;
+    rdm: number | null;
+    google_connected?: boolean | null;
+    teacher_plan_tier?: string | null;
+    teacher_plan_started_at?: string | null;
+    teacher_plan_expires_at?: string | null;
+  } | null) ?? {
     id: userId,
     name: "Teacher",
     avatar_url: null,
@@ -226,6 +248,41 @@ export async function loadTeacherPortalBundle(
   const sectionRows = sectionRowsRes.data ?? [];
   const doubts = doubtsRes.data ?? [];
   const answers = answersRes.data ?? [];
+
+  const sectionIds = (sectionRows as Array<{ id: string }>).map((s) => s.id);
+  const sectionGrantsRes =
+    sectionIds.length > 0
+      ? await (db as unknown as {
+          from: (table: string) => {
+            select: (cols: string) => {
+              in: (
+                col: string,
+                ids: string[]
+              ) => Promise<{ data: Array<Record<string, unknown>> | null; error: unknown }>;
+            };
+          };
+        })
+          .from("teacher_section_schedule_rdm_grants")
+          .select("section_id, total_rdm, student_count, awarded_at")
+          .in("section_id", sectionIds)
+      : { data: [] as Array<Record<string, unknown>> | null };
+  const sectionGrantTotalsBySectionId = new Map<
+    string,
+    { totalRdm: number; grantCount: number; lastAwardedAt: string }
+  >();
+  for (const row of sectionGrantsRes.data ?? []) {
+    const sectionId = typeof row.section_id === "string" ? row.section_id : "";
+    if (!sectionId) continue;
+    const totalRdm = typeof row.total_rdm === "number" ? row.total_rdm : 0;
+    const awardedAt = typeof row.awarded_at === "string" ? row.awarded_at : "";
+    const prev = sectionGrantTotalsBySectionId.get(sectionId);
+    sectionGrantTotalsBySectionId.set(sectionId, {
+      totalRdm: (prev?.totalRdm ?? 0) + totalRdm,
+      grantCount: (prev?.grantCount ?? 0) + 1,
+      lastAwardedAt:
+        !prev?.lastAwardedAt || awardedAt > prev.lastAwardedAt ? awardedAt : prev.lastAwardedAt,
+    });
+  }
 
   const sectionsByClassroom = new Map<
     string,
@@ -638,6 +695,10 @@ export async function loadTeacherPortalBundle(
         return { label, href };
       })
       .filter((entry): entry is { label: string; href: string | null } => Boolean(entry));
+    const scopedStudentCount =
+      (s as { section_id?: string | null }).section_id != null
+        ? (memberCountBySectionId.get((s as { section_id?: string | null }).section_id ?? "") ?? 0)
+        : (memberCountMap.get(s.classroom_id) ?? 0);
     return {
       id: s.id,
       classroomId: s.classroom_id,
@@ -656,14 +717,13 @@ export async function loadTeacherPortalBundle(
       scheduledAt: s.scheduled_at,
       durationMinutes: s.duration_minutes,
       meetLink: s.meet_link,
-      studentCount:
-        (s as { section_id?: string | null }).section_id != null
-          ? (memberCountBySectionId.get((s as { section_id?: string | null }).section_id ?? "") ??
-            0)
-          : (memberCountMap.get(s.classroom_id) ?? 0),
+      studentCount: scopedStudentCount,
       status: s.status,
       isTrial: classroom?.description?.toLowerCase().includes("ad-hoc trial: enabled") ?? false,
-      rewardRdm: typeof assignmentPayload.rewardRdm === "number" ? assignmentPayload.rewardRdm : 20,
+      rewardRdm: 0,
+      deliveryRdmAwarded: null,
+      deliveryRdmGrantedAt: null,
+      deliveryRdmStudentCount: null,
       preWork: preWork.length ? preWork : ["Warm-up worksheet", "Revise previous class notes"],
       postWork: postWork.length
         ? postWork
@@ -775,6 +835,14 @@ export async function loadTeacherPortalBundle(
         googleSeriesLinked: Boolean(
           (s as { google_recurring_event_id?: string | null }).google_recurring_event_id
         ),
+        expectedDeliveryRdm: (() => {
+          const enrolled = memberCountBySectionId.get(s.id) ?? 0;
+          return computeLiveClassDeliveryRdm(
+            enrolled,
+            deliveryRdmConfig ?? DEFAULT_LIVE_CLASS_DELIVERY_RDM_CONFIG
+          ).totalRdm;
+        })(),
+        deliveryRdmGrantedTotal: sectionGrantTotalsBySectionId.get(s.id)?.totalRdm ?? 0,
       })),
       students: [],
       assignments: [],
@@ -1562,6 +1630,12 @@ export async function loadTeacherPortalBundle(
     studentsHelped: summary.totalStudents,
     expertAnswers: summary.teacherSectionsWritten,
     avgUpvotes: summary.avgTeacherUpvotes,
+    teacherPlanTier: normalizeTeacherPlanTier(
+      (profile as { teacher_plan_tier?: string | null }).teacher_plan_tier,
+      profile as { teacher_plan_expires_at?: string | null; time_travel_offset_ms?: number | null }
+    ),
+    teacherPlanExpiresAt:
+      (profile as { teacher_plan_expires_at?: string | null }).teacher_plan_expires_at ?? null,
     details: {
       location: details.location ?? null,
       qualification: details.qualification ?? null,
@@ -1586,14 +1660,24 @@ export async function loadTeacherPortalBundle(
     },
   };
 
+  const referralCode = profile.id.replace(/-/g, "").slice(0, 7).toUpperCase();
+  const { count: studentsReferredCount } = await db
+    .from("referral_attributions")
+    .select("id", { count: "exact", head: true })
+    .eq("referrer_user_id", userId);
+
   const referStats: TeacherPortalReferStats = {
     rdmBalance: profile.rdm ?? 0,
-    referralLink: `edublast.in/teacher?ref=${profile.id.slice(0, 8).toUpperCase()}`,
+    referralCode,
+    referralLink: `/join?ref=${referralCode}`,
     teachersReferred: 0,
-    studentsReferred: 0,
+    studentsReferred: studentsReferredCount ?? 0,
     teacherRewardRdm: 100,
     studentRewardRdm: 50,
     teacherMilestoneBonusRdm: 300,
+    teacherSignupRewardRdm: 500,
+    teacherPaidBonusRdm: 500,
+    teacherPaidWindowDays: 30,
   };
 
   return {

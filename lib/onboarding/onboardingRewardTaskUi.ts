@@ -15,6 +15,8 @@ export type OnboardingTask = {
   href: string;
   icon: LucideIcon;
   color: NoteColor;
+  /** Day-1 checklist RDM share (sticky board + tour copy). */
+  rdmReward?: number;
 };
 
 export const NOTE_COLOR_STYLES: Record<

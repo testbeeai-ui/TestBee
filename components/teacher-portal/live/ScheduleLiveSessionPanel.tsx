@@ -15,6 +15,7 @@ import {
   type ChapterQuizSelectionState,
 } from "@/lib/teacherPortal/chapterQuizUtils";
 import type { TeacherPortalClassroomCard } from "@/lib/teacherPortal/types";
+import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 import WallTimeSelects from "@/components/teacher-portal/live/WallTimeSelects";
 
@@ -38,7 +39,7 @@ export type ScheduleLiveSessionPayload = {
     topic: string;
     subtopicName: string;
     level: "basics" | "intermediate" | "advanced";
-    advancedSet?: 1 | 2 | 3;
+    advancedSet?: AdvancedQuizSetIndex;
   } | null;
   postWorkMode?: "none" | "custom" | "concept_focus";
   postWorkConceptRef?: {
@@ -49,7 +50,7 @@ export type ScheduleLiveSessionPayload = {
     topic: string;
     subtopicName: string;
     level: "basics" | "intermediate" | "advanced";
-    advancedSet?: 1 | 2 | 3;
+    advancedSet?: AdvancedQuizSetIndex;
   } | null;
   postWorkDelayDays?: number;
 };

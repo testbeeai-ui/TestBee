@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Coins, Save } from "lucide-react";
 import {
   TEACHER_RDM_ADMIN_CHARGE_KEYS,
+  TEACHER_RDM_ADMIN_GROWTH_KEYS,
   TEACHER_RDM_ADMIN_META,
   TEACHER_RDM_ADMIN_REWARD_KEYS,
 } from "@/lib/teacherPortal/teacherRdmConfig";
@@ -280,7 +281,7 @@ function TeacherRdmGroupBlock({
             onChange={(e) => onDraftChange(key, e.target.value)}
             className="bg-background font-mono"
           />
-          <span className="shrink-0 text-sm font-semibold text-amber-400">RDM</span>
+          <span className="shrink-0 text-sm font-semibold text-amber-400">{meta.unit ?? "RDM"}</span>
         </div>
         <div className="mt-1 text-[10px] text-muted-foreground">
           Last updated: {new Date(row.updated_at).toLocaleString()}
@@ -294,8 +295,9 @@ function TeacherRdmGroupBlock({
       <div className="border-b bg-muted/40 px-4 py-3">
         <h2 className="text-lg font-semibold">Teachers (portal charges &amp; rewards)</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Live-linked to the teacher portal: classroom, section, assignment, schedule, test
-          generation, and Gyan++ teacher rewards. After{" "}
+              Live-linked to the teacher portal: classroom, section, assignment, schedule, test
+          generation, Gyan++ teacher rewards, and section schedule class delivery (base + per-student, capped).
+          After{" "}
           <span className="font-semibold">Save Changes</span>, amounts apply on the next teacher
           action (wallet labels refresh when the teacher refocuses the tab).
         </p>
@@ -315,6 +317,18 @@ function TeacherRdmGroupBlock({
           </h3>
           <div className="grid gap-4 md:grid-cols-2">
             {TEACHER_RDM_ADMIN_REWARD_KEYS.map((k) => renderCard(k))}
+          </div>
+        </div>
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            Growth rewards (referrals &amp; bulk invite)
+          </h3>
+          <p className="text-[11px] text-muted-foreground">
+            Reward amounts plus their qualifying thresholds and paid-conversion windows. Window
+            values are in days and minimum-batch values are student counts (not RDM).
+          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            {TEACHER_RDM_ADMIN_GROWTH_KEYS.map((k) => renderCard(k))}
           </div>
         </div>
       </div>
@@ -1259,9 +1273,11 @@ export default function RdmTablePage() {
           <p className="text-sm font-semibold text-foreground">Teachers (portal)</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Same live connection as the teacher portal: My Classroom (class + sections), Create
-            assignment, Schedule live class, Generate test, and Gyan++ teacher rewards. Edit amounts
-            below and click <span className="font-semibold">Save Changes</span> — the next charge or
-            reward uses the new value; button labels refresh when teachers refocus the portal tab.
+            assignment, Schedule live class, Generate test, Gyan++ teacher rewards, and{" "}
+            <span className="font-semibold">section schedule class delivery</span> (base + per-student bonus,
+            capped). Edit amounts below and click <span className="font-semibold">Save Changes</span>{" "}
+            — the next charge or reward uses the new value; button labels refresh when teachers
+            refocus the portal tab.
           </p>
         </div>
         <TeacherRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />

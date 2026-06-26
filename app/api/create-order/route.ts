@@ -5,16 +5,24 @@ import {
   rdmPackAmountPaise,
   type PaidSubscriptionPlan,
 } from "@/lib/subscription/subscriptionCheckoutSummary";
+import {
+  computeTeacherCheckoutSummary,
+  type PaidTeacherPlan,
+} from "@/lib/subscription/teacherCheckoutSummary";
 import type { BillingCycle } from "@/lib/subscription/subscriptionBilling";
 import {
   getRazorpayClient,
   getRazorpayPublicKeyId,
   parseRazorpayError,
 } from "@/lib/razorpay/razorpayClient";
+import {
+  getRazorpayCheckoutConfigId,
+  razorpayKeyMode,
+} from "@/lib/razorpay/razorpayEnv";
 
 export const runtime = "nodejs";
 
-type OrderPurpose = "demo" | "subscription" | "rdm_pack";
+type OrderPurpose = "demo" | "subscription" | "teacher_subscription" | "rdm_pack";
 
 function parseBillingCycle(raw: unknown): BillingCycle | null {
   const v = String(raw ?? "").trim().toLowerCase();
@@ -26,16 +34,28 @@ function parsePaidPlan(raw: unknown): PaidSubscriptionPlan | null {
   return v === "starter" || v === "pro" ? v : null;
 }
 
+function parsePaidTeacherPlan(raw: unknown): PaidTeacherPlan | null {
+  const v = String(raw ?? "").trim().toLowerCase();
+  return v === "starter" || v === "pro" ? v : null;
+}
+
 export async function POST(request: Request) {
+  let purpose: OrderPurpose = "demo";
   try {
     const razorpay = getRazorpayClient();
     const keyId = getRazorpayPublicKeyId();
     if (!razorpay || !keyId) {
-      return NextResponse.json({ error: "Razorpay credentials not configured" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error:
+            "Razorpay credentials not configured on server. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in Vercel Production, then redeploy.",
+        },
+        { status: 503 },
+      );
     }
 
     const body = await request.json().catch(() => ({}));
-    const purpose = String(body.purpose ?? "demo").trim() as OrderPurpose;
+    purpose = String(body.purpose ?? "demo").trim() as OrderPurpose;
     const currency = String(body.currency ?? "INR").trim() || "INR";
 
     let amountPaise: number;
@@ -65,6 +85,35 @@ export async function POST(request: Request) {
         user_id: ctx.user.id,
         plan,
         billing_cycle: billingCycle,
+      };
+    } else if (purpose === "teacher_subscription") {
+      const ctx = await getSupabaseAndUser(request);
+      if (!ctx) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      const { data: profileRow } = await ctx.supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", ctx.user.id)
+        .maybeSingle();
+      if (profileRow?.role !== "teacher") {
+        return NextResponse.json({ error: "Teachers only" }, { status: 403 });
+      }
+
+      const plan = parsePaidTeacherPlan(body.plan);
+      if (!plan) {
+        return NextResponse.json({ error: "Invalid teacher plan" }, { status: 400 });
+      }
+
+      const summary = computeTeacherCheckoutSummary(plan);
+      amountPaise = summary.amountPaise;
+      receipt = `tsub_${ctx.user.id.slice(0, 8)}_${Date.now()}`;
+      notes = {
+        purpose: "teacher_subscription",
+        user_id: ctx.user.id,
+        plan,
+        billing_cycle: "monthly",
       };
     } else if (purpose === "rdm_pack") {
       const ctx = await getSupabaseAndUser(request);
@@ -98,23 +147,40 @@ export async function POST(request: Request) {
       notes = { purpose: "demo" };
     }
 
-    const order = await razorpay.orders.create({
+    const checkoutConfigId = getRazorpayCheckoutConfigId();
+    const orderPayload: {
+      amount: number;
+      currency: string;
+      receipt: string;
+      notes: Record<string, string>;
+      checkout_config_id?: string;
+    } = {
       amount: Math.round(amountPaise),
       currency,
       receipt,
       notes,
-    });
+    };
+    if (checkoutConfigId) {
+      orderPayload.checkout_config_id = checkoutConfigId;
+    }
+
+    const order = await razorpay.orders.create(orderPayload);
 
     return NextResponse.json({
       order_id: order.id,
       amount: order.amount,
       currency: order.currency,
       key_id: keyId,
+      key_mode: razorpayKeyMode(keyId),
       purpose,
+      checkout_config_id: checkoutConfigId,
     });
   } catch (e) {
-    const { message, status } = parseRazorpayError(e);
-    console.error("create-order error", e);
-    return NextResponse.json({ error: message }, { status });
+    const { message, status, detail, code } = parseRazorpayError(e);
+    console.error("create-order error", { purpose, e });
+    return NextResponse.json(
+      { error: message, purpose, razorpayDetail: detail, razorpayCode: code },
+      { status },
+    );
   }
 }

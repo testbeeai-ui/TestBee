@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { createAdminClient } from "@/integrations/supabase/server";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import {
   computeSubscriptionCheckoutSummary,
@@ -115,6 +116,18 @@ export async function POST(request: Request) {
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    // If this user was referred by a teacher within the bonus window, grant the
+    // teacher the +500 paid bonus. Non-fatal: a failure here must not block activation.
+    try {
+      const admin = createAdminClient();
+      if (admin) {
+        await admin.rpc("award_teacher_referral_paid_bonus", { p_referee_id: user.id });
+        await admin.rpc("award_classroom_batch_paid_bonus", { p_user_id: user.id });
+      }
+    } catch (bonusError) {
+      console.error("teacher referral / classroom batch paid bonus failed", bonusError);
     }
 
     return NextResponse.json({ ok: true, plan, billingCycle });

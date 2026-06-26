@@ -88,7 +88,7 @@ export default function AddRevisionCardModal({ isOpen, onClose }: Props) {
       classLevel: 12,
       status: "new",
     });
-    const sync = await syncAllSavedContent();
+    const sync = await syncAllSavedContent({ immediate: true });
     if (!sync.ok) {
       unsaveRevisionCard(cardId);
       toast({

@@ -19,31 +19,38 @@ import { markOnboardingTaskComplete } from "@/lib/subscription/freeTrialClient";
  * simple checklist rows locally (companion-driven tasks return without auto-complete).
  */
 export function launchOnboardingChecklistTask(taskId: string): void {
+  const companionTaskId = taskId === "prep_mock" ? "prep_classes" : taskId;
   const prevCompanion =
     typeof window !== "undefined"
       ? window.localStorage.getItem(ONBOARDING_COMPANION_LAUNCHED_KEY)
       : null;
 
-  launchOnboardingTaskCompanion(taskId);
+  if (taskId === "dashboard" || taskId === "rdm_wallet") {
+    return;
+  }
 
-  if (taskId === "lessons" && prevCompanion !== "lessons") {
+  launchOnboardingTaskCompanion(companionTaskId);
+
+  if (companionTaskId === "lessons" && prevCompanion !== "lessons") {
     clearLessonsCompanionSessionMarkers();
   }
 
-  if (taskId === "earn_buddy" && prevCompanion !== "earn_buddy") {
+  if (companionTaskId === "earn_buddy" && prevCompanion !== "earn_buddy") {
     clearEarnBuddyCompanionSessionMarkers();
   }
 
-  if (taskId === "profile" && prevCompanion !== "profile") {
+  if (companionTaskId === "profile" && prevCompanion !== "profile") {
     clearProfileCompanionSessionMarkers();
   }
 
-  if (taskId === "prep_mcq") {
+  if (taskId === "prep_mcq" || taskId === "prep_mock") {
     startCbseMcqOnboardingFlow();
+  }
+  if (taskId === "prep_mock" || taskId === "prep_classes") {
+    startPrepClassesOnboardingFlow();
     return;
   }
-  if (taskId === "prep_classes") {
-    startPrepClassesOnboardingFlow();
+  if (taskId === "prep_mcq") {
     return;
   }
   if (taskId === "earn_challenge") {
@@ -62,12 +69,12 @@ export function launchOnboardingChecklistTask(taskId: string): void {
     return;
   }
   if (
-    taskId === "lessons" ||
-    taskId === "magic_wall" ||
-    taskId === "gyan_plus" ||
-    taskId === "earn_buddy" ||
-    taskId === "news_blog" ||
-    taskId === "profile"
+    companionTaskId === "lessons" ||
+    companionTaskId === "magic_wall" ||
+    companionTaskId === "gyan_plus" ||
+    companionTaskId === "earn_buddy" ||
+    companionTaskId === "news_blog" ||
+    companionTaskId === "profile"
   ) {
     return;
   }

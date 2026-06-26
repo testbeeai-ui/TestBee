@@ -1,0 +1,11 @@
+---
+description: Never git push without explicit user approval in the same conversation
+alwaysApply: true
+---
+
+# Git push — ask first
+
+- **Never** run `git push` (or push via token URL / `gh` to remote) unless the user **explicitly asks to push** in that conversation turn.
+- Committing locally is OK only when the user asked to commit, or the task clearly includes "commit".
+- If changes are ready, say what was committed locally and ask: **"Want me to push to GitHub?"** — wait for yes.
+- Do not push "to be helpful" after fixes, deploy prep, or branch updates.

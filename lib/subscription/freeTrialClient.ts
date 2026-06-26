@@ -5,6 +5,7 @@ import {
 } from "@/lib/onboarding/onboardingTaskCompanion";
 import { isMainOnboardingTaskId } from "@/lib/onboarding/onboardingNextTask";
 import { requestOnboardingSiteTourAfterTask } from "@/lib/onboarding/onboardingSiteTourPromo";
+import { requestOpenSiteTourCarousel } from "@/lib/onboarding/openSiteTourCarousel";
 import { markPrepClassesStep0FromClassroomsPage } from "@/lib/onboarding/prepClassesCompanionOnboarding";
 import { resetAllOnboardingGuideSessions } from "@/lib/onboarding/resetOnboardingGuideSessions";
 import type { TrialOnboardingAnswers } from "@/components/dashboard/free-trial-onboarding/types";
@@ -140,14 +141,9 @@ export type OnboardingClaimRewardPromoDetail = {
   force?: boolean;
 };
 
-/** Open the global Claim RDM dialog (mounted in AppLayout via OnboardingNextTaskPrompt). */
-export function requestOnboardingClaimRewardPromo(opts?: OnboardingClaimRewardPromoDetail): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(
-    new CustomEvent<OnboardingClaimRewardPromoDetail>(ONBOARDING_CLAIM_REWARD_PROMO_EVENT, {
-      detail: opts ?? {},
-    })
-  );
+/** Open the site-tour carousel (+100 RDM at the end). Replaces the legacy checklist grid. */
+export function requestOnboardingClaimRewardPromo(): void {
+  requestOpenSiteTourCarousel();
 }
 
 export type OnboardingSyncFailedDetail = {
@@ -266,6 +262,17 @@ function mergeOnboardingProgressUnion(
     if (v === true) out[k] = true;
   }
   return out;
+}
+
+function onboardingProgressShallowEqual(
+  a: Record<string, boolean>,
+  b: Record<string, boolean>
+): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) {
+    if (Boolean(a[key]) !== Boolean(b[key])) return false;
+  }
+  return true;
 }
 
 function canUseStorage(): boolean {
@@ -613,7 +620,9 @@ export function buildOnboardingRewardChecklistToast(
  */
 export function hydrateOnboardingProgressFromServer(progress: Record<string, boolean>): void {
   if (!canUseStorage()) return;
-  const merged = mergeOnboardingProgressUnion(getOnboardingProgress(), progress);
+  const local = getOnboardingProgress();
+  const merged = mergeOnboardingProgressUnion(local, progress);
+  if (onboardingProgressShallowEqual(local, merged)) return;
   window.localStorage.setItem(ONBOARDING_PROGRESS_KEY, JSON.stringify(merged));
   window.dispatchEvent(
     new CustomEvent(ONBOARDING_PROGRESS_EVENT, {

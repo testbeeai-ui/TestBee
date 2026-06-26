@@ -1131,7 +1131,7 @@ export default function MagicWallPage() {
                     </div>
                     <DialogDescription className="mt-2 space-y-1.5 text-slate-400">
                       <span className="block">
-                        {`Topics you finished at Advanced for Class ${historyModalClass}${
+                        {`Topics you finished for Class ${historyModalClass}${
                           activeSubjects.size < 3
                             ? ` · ${[...activeSubjects]
                                 .sort()
@@ -1144,7 +1144,7 @@ export default function MagicWallPage() {
                       </span>
                       <span className="block text-slate-500">
                         Anything that appears here is automatically hidden from Topic Rain (auto
-                        filter) once your Advanced completions are loaded—same rule as the wall.
+                        filter) once your lesson completions are loaded—same rule as the wall.
                       </span>
                     </DialogDescription>
                   </DialogHeader>
@@ -1155,7 +1155,7 @@ export default function MagicWallPage() {
                       </p>
                     ) : historyTotal === 0 ? (
                       <p className="text-sm text-slate-400">
-                        No completed topics for these filters yet. Finish every subtopic at Advanced
+                        No completed topics for these filters yet. Finish every subtopic
                         in a topic to add it here.
                       </p>
                     ) : (
@@ -1248,7 +1248,7 @@ export default function MagicWallPage() {
                       <span className="block">
                         That includes every{" "}
                         <strong className="text-white">topic, chapter, and subtopic</strong> you
-                        marked as read or complete (including Advanced lesson checks and saved
+                        marked as read or complete (including lesson checks and saved
                         progress in those classes). Other grades are not affected.
                       </span>
                       <span className="block">

@@ -160,7 +160,13 @@ export default function DeepDiveRandomWheel({
       </h4>
       <p className="text-xs text-muted-foreground mb-4">
         Want to explore a subtopic in depth? Spin the wheel to land on a random section and dive
-        deep. Current level: <strong className="text-foreground">{levelLabel}</strong>.
+        deep.
+        {levelLabel ? (
+          <>
+            {" "}
+            Current level: <strong className="text-foreground">{levelLabel}</strong>.
+          </>
+        ) : null}
       </p>
 
       {/* Wheel with segments */}

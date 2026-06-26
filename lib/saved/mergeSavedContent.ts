@@ -5,6 +5,8 @@ import type {
   SavedRevisionUnit,
   SavedCommunityPost,
 } from "@/types";
+import { dedupeRevisionCards } from "@/lib/saved/revisionCardIdentity";
+import { mergeRevisionCards } from "@/lib/saved/revisionCardRecall";
 
 /**
  * Merge local and server saved arrays by `id`. Server entries win on conflict;
@@ -37,7 +39,9 @@ export function mergeAllSavedContent(
   return {
     savedBits: mergeSavedById(localBits, serverBits),
     savedFormulas: mergeSavedById(localFormulas, serverFormulas),
-    savedRevisionCards: mergeSavedById(localRevisionCards, serverRevisionCards),
+    savedRevisionCards: dedupeRevisionCards(
+      mergeRevisionCards(localRevisionCards, serverRevisionCards)
+    ),
     savedRevisionUnits: mergeSavedById(localRevisionUnits, serverRevisionUnits),
     savedCommunityPosts: mergeSavedById(localCommunityPosts, serverCommunityPosts),
   };

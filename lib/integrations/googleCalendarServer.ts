@@ -222,3 +222,35 @@ export function buildEventPayload(input: {
   if (rrule) body.recurrence = [rrule];
   return body;
 }
+
+/** One-off calendar event (no RRULE) for explicit live-class slot booking. */
+export function buildSingleEventPayload(input: {
+  title: string;
+  description?: string;
+  /** ISO local wall time without offset: YYYY-MM-DDTHH:mm:ss */
+  startLocalIso: string;
+  durationMinutes: number;
+  timeZone: string;
+}): CalendarEventBody {
+  const start = new Date(`${input.startLocalIso}`);
+  if (Number.isNaN(start.getTime())) {
+    throw new Error("Invalid start date/time.");
+  }
+  const end = new Date(start.getTime() + input.durationMinutes * 60 * 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+
+  return {
+    summary: input.title,
+    description: input.description,
+    start: { dateTime: fmt(start), timeZone: input.timeZone },
+    end: { dateTime: fmt(end), timeZone: input.timeZone },
+    conferenceData: {
+      createRequest: {
+        requestId: `meet-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        conferenceSolutionKey: { type: "hangoutsMeet" },
+      },
+    },
+  };
+}

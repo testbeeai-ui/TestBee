@@ -254,7 +254,7 @@ export default function InlineRdmChallenge({
         p_question_id: q.id,
         p_is_correct: isCorrect,
         p_time_taken_ms: timeTakenMs,
-        p_category: null,
+        p_category: undefined,
         p_pool_key: spec.playCategory,
         p_selected_answer_index: selectedIndex,
       });

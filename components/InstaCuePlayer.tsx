@@ -3,10 +3,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/store/useUserStore";
 import { useAuth } from "@/hooks/useAuth";
-import { syncAllSavedContent } from "@/lib/saved/savedContentService";
+import { patchRevisionCardRecall } from "@/lib/saved/savedContentService";
 import MathText from "@/components/MathText";
 import { SavedRevisionCard } from "@/types";
 import { reportInstacueCardRead } from "@/lib/rdm/reports/reportInstacueCardRead";
+import { normalizeCardMath } from "@/lib/saved/revisionCardMath";
+import { dedupeRevisionCards } from "@/lib/saved/revisionCardIdentity";
+import {
+  applyRevisionRecallAction,
+  getRevisionRecallFeedback,
+  isInRevisionStudyDeck,
+  isInTomorrowTab,
+  promoteDueTomorrowCards,
+} from "@/lib/saved/revisionCardRecall";
+import { useRecallNowMs } from "@/hooks/useRecallNowMs";
+import { useToast } from "@/hooks/use-toast";
 import {
   Plus,
   HelpCircle,
@@ -23,83 +34,65 @@ interface Props {
   onClose: () => void;
 }
 
-type TabType = "new" | "unsure" | "tomorrow" | "know_it" | "all";
+type TabType = "new" | "unsure" | "tomorrow" | "all";
 
-function normalizeTrigNotation(raw: string): string {
-  let out = raw;
-  const trigMap: Record<string, string> = {
-    sin: "\\sin",
-    cos: "\\cos",
-    tan: "\\tan",
-    cot: "\\cot",
-    sec: "\\sec",
-    cosec: "\\csc",
-    csc: "\\csc",
-  };
-
-  out = out.replace(/\b(sin|cos|tan|cot|sec|cosec|csc)\s*\^\s*-?1\s*x\b/gi, (_m, fn: string) => {
-    const key = fn.toLowerCase();
-    return `${trigMap[key] ?? `\\${key}`}^{-1}x`;
-  });
-
-  out = out.replace(/\bpi\b/gi, "\\pi");
-  out = out.replace(/\\?ext\{/g, "\\text{");
-  out = out.replace(/\\frac\\pi\{2\}/g, "\\frac{\\pi}{2}");
-  return out;
-}
-
-function normalizeCardMath(raw: string, wrapInlineMath = false): string {
-  let out = raw ?? "";
-  // Handle doubly-escaped delimiters from JSON payloads.
-  out = out
-    .replace(/\\\\\(/g, "\\(")
-    .replace(/\\\\\)/g, "\\)")
-    .replace(/\\\\\[/g, "\\[")
-    .replace(/\\\\\]/g, "\\]");
-  out = normalizeTrigNotation(out);
-  if (
-    wrapInlineMath &&
-    !/\\\(|\\\[|\$/.test(out) &&
-    /\\(sin|cos|tan|cot|sec|csc)|\\pi|=/.test(out)
-  ) {
-    out = `\\(${out}\\)`;
-  }
-  return out;
+function subtopicPillTitle(raw: string): string {
+  return raw.replace(/\s+/g, " ").trim();
 }
 
 export default function InstaCuePlayer({ cards, onClose }: Props) {
+  const { toast } = useToast();
   const { profile } = useAuth();
   const updateRevisionCardStatus = useUserStore((s) => s.updateRevisionCardStatus);
+  const refreshDueRevisionCards = useUserStore((s) => s.refreshDueRevisionCards);
   const instacueReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("new");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  // Local status overrides — so tab counts update even for demo cards not in store
-  const [localStatuses, setLocalStatuses] = useState<
-    Record<string, "new" | "unsure" | "tomorrow" | "know_it">
+  const [localPatches, setLocalPatches] = useState<
+    Record<string, Pick<SavedRevisionCard, "status" | "reviewAt">>
   >({});
 
-  // Group cards by status — prefer localStatuses override so demo cards also filter correctly
+  const nowMs = useRecallNowMs();
+
+  useEffect(() => {
+    refreshDueRevisionCards();
+  }, [nowMs, refreshDueRevisionCards]);
+
+  const studyDeck = useMemo(() => {
+    const promoted = promoteDueTomorrowCards(cards, nowMs);
+    const patched = promoted.map((c) => ({ ...c, ...localPatches[c.id] }));
+    return dedupeRevisionCards(patched).filter((c) => isInRevisionStudyDeck(c, nowMs));
+  }, [cards, localPatches, nowMs]);
+
   const groupedCards = useMemo(() => {
-    const defaultCards = cards.map((c) => ({
-      ...c,
-      status: (localStatuses[c.id] ?? c.status ?? "new") as
-        | "new"
-        | "unsure"
-        | "tomorrow"
-        | "know_it",
-    }));
     return {
-      new: defaultCards.filter((c) => c.status === "new"),
-      unsure: defaultCards.filter((c) => c.status === "unsure"),
-      tomorrow: defaultCards.filter((c) => c.status === "tomorrow"),
-      know_it: defaultCards.filter((c) => c.status === "know_it"),
-      all: defaultCards,
+      new: studyDeck.filter((c) => (c.status ?? "new") === "new"),
+      unsure: studyDeck.filter((c) => c.status === "unsure"),
+      tomorrow: studyDeck.filter((c) => isInTomorrowTab(c, nowMs)),
+      all: studyDeck,
     };
-  }, [cards, localStatuses]);
+  }, [studyDeck, nowMs]);
 
   const activeCards = groupedCards[activeTab];
   const currentCard = activeCards[currentIndex];
+
+  useEffect(() => {
+    setIsFlipped(false);
+  }, [currentCard?.id]);
+
+  useEffect(() => {
+    setCurrentIndex((index) => {
+      if (activeCards.length === 0) return 0;
+      const maxIndex = activeCards.length - 1;
+      const currentId = activeCards[index]?.id;
+      if (currentId && activeCards.some((c) => c.id === currentId)) {
+        const nextIndex = activeCards.findIndex((c) => c.id === currentId);
+        return nextIndex >= 0 ? nextIndex : Math.min(index, maxIndex);
+      }
+      return Math.min(index, maxIndex);
+    });
+  }, [activeCards, activeTab]);
 
   useEffect(() => {
     if (!profile?.id || !currentCard?.id) return;
@@ -123,26 +116,29 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
   const handleStatusUpdate = (status: "unsure" | "tomorrow" | "know_it") => {
     if (!currentCard) return;
 
-    // Update local status map so tabs update immediately (works for demo cards too)
-    setLocalStatuses((prev) => ({ ...prev, [currentCard.id]: status }));
+    const updated = applyRevisionRecallAction(currentCard, status, nowMs);
+    setLocalPatches((prev) => ({
+      ...prev,
+      [currentCard.id]: { status: updated.status, reviewAt: updated.reviewAt },
+    }));
 
-    // Also persist to store for real saved cards (skip demo deck IDs)
     updateRevisionCardStatus(currentCard.id, status);
     const stored = useUserStore.getState().user?.savedRevisionCards ?? [];
-    if (stored.some((c) => c.id === currentCard.id)) {
-      syncAllSavedContent().catch(() => {});
+    const synced = stored.find((c) => c.id === currentCard.id);
+    if (synced) {
+      patchRevisionCardRecall(synced).catch(() => {});
     }
 
-    // Advance to next card in filtered tabs (card leaves the current filtered list)
+    const feedback = getRevisionRecallFeedback(status, {
+      reviewAt: updated.reviewAt,
+      nowMs,
+    });
+    toast({ title: feedback.title, description: feedback.description });
+
     if (activeTab !== "all") {
-      // Card will leave this tab's list, so index stays and shows next card
-      // But we must ensure index doesn't go out of bounds after re-render
       setCurrentIndex((prev) => Math.max(0, prev));
-    } else {
-      // On 'All Cards' tab, move forward
-      if (currentIndex < activeCards.length - 1) {
-        setCurrentIndex((prev) => prev + 1);
-      }
+    } else if (currentIndex < activeCards.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
     }
     setIsFlipped(false);
   };
@@ -177,12 +173,6 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
       label: "Tomorrow",
       icon: <Clock className="w-4 h-4" />,
       count: groupedCards.tomorrow.length,
-    },
-    {
-      id: "know_it",
-      label: "Know It",
-      icon: <Check className="w-4 h-4" />,
-      count: groupedCards.know_it.length,
     },
     {
       id: "all",
@@ -251,35 +241,51 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.2 }}
-                className="w-full max-w-2xl bg-card rounded-xl shadow-sm border border-border p-3.5 sm:p-5 md:p-6 cursor-pointer sm:rounded-2xl"
+                className="w-full max-w-2xl bg-card rounded-xl shadow-sm border border-border p-3.5 sm:p-5 md:p-6 cursor-pointer select-none sm:rounded-2xl"
                 onClick={() => setIsFlipped((f) => !f)}
               >
                 {!isFlipped ? (
                   // Front of Card
                   <div className="flex flex-col h-full min-h-[180px] sm:min-h-[230px]">
-                    <div className="flex flex-wrap items-center justify-between gap-1.5 mb-3 sm:mb-4">
-                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                        <span className="px-2.5 py-0.5 bg-primary/20 text-primary text-[10px] font-semibold rounded-full capitalize sm:px-3.5 sm:py-1 sm:text-[11px]">
-                          {currentCard.type.replace("_", " ")}
+                    <div className="mb-3 flex items-center gap-1.5 sm:mb-4 sm:gap-2">
+                      <span className="shrink-0 px-2.5 py-0.5 bg-primary/20 text-primary text-[10px] font-semibold rounded-full capitalize sm:px-3.5 sm:py-1 sm:text-[11px]">
+                        {currentCard.type.replace("_", " ")}
+                      </span>
+                      <span className="shrink-0 px-2.5 py-0.5 bg-muted text-muted-foreground text-[10px] font-medium rounded-full lowercase sm:px-3.5 sm:py-1 sm:text-[11px]">
+                        {currentCard.subject}
+                      </span>
+                      {currentCard.subtopicName ? (
+                        <span
+                          className="flex min-w-0 flex-1 items-center rounded-full border border-border/60 bg-muted/50 px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:px-3 sm:py-1 sm:text-[11px]"
+                          title={subtopicPillTitle(currentCard.subtopicName)}
+                        >
+                          <span className="min-w-0 flex-1 truncate">
+                            <MathText
+                              as="span"
+                              compact
+                              className="instacue-subtopic-pill-math block min-w-0"
+                              title={subtopicPillTitle(currentCard.subtopicName)}
+                            >
+                              {normalizeCardMath(currentCard.subtopicName, true)}
+                            </MathText>
+                          </span>
                         </span>
-                        <span className="px-2.5 py-0.5 bg-muted text-muted-foreground text-[10px] font-medium rounded-full lowercase sm:px-3.5 sm:py-1 sm:text-[11px]">
-                          {currentCard.subject}
-                        </span>
-                      </div>
-                      <span className="px-2.5 py-0.5 bg-muted text-muted-foreground text-[10px] font-bold rounded-full uppercase tracking-wider sm:px-3.5 sm:py-1 sm:text-[11px]">
+                      ) : (
+                        <span className="min-w-0 flex-1" aria-hidden />
+                      )}
+                      <span className="shrink-0 px-2.5 py-0.5 bg-muted text-muted-foreground text-[10px] font-bold rounded-full uppercase tracking-wider sm:px-3.5 sm:py-1 sm:text-[11px]">
                         {currentCard.status === "new"
                           ? "New"
-                          : currentCard.status.replace("_", " ")}
+                          : (currentCard.status ?? "new").replace("_", " ")}
                       </span>
                     </div>
 
-                    <h2 className="text-base font-bold text-foreground mb-2 sm:text-[19px] sm:mb-3">
-                      <MathText as="span" weight="bold">
-                        {normalizeCardMath(currentCard.subtopicName, true)}
-                      </MathText>
-                    </h2>
-                    <div className="text-[13px] text-foreground/85 whitespace-pre-wrap flex-1 leading-relaxed sm:text-[15px]">
-                      <MathText as="div" weight="semibold">
+                    <div className="flex flex-1 items-center justify-center px-1 py-2 sm:px-2 sm:py-4">
+                      <MathText
+                        as="div"
+                        className="w-full text-center text-[17px] font-semibold leading-snug text-foreground sm:text-[22px] sm:leading-relaxed md:text-[24px]"
+                        weight="semibold"
+                      >
                         {normalizeCardMath(currentCard.frontContent)}
                       </MathText>
                     </div>
@@ -293,19 +299,37 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
                 ) : (
                   // Back of Card
                   <div className="flex flex-col h-full min-h-[180px] sm:min-h-[230px]">
-                    <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
-                      <h2 className="text-base font-bold text-primary sm:text-[19px]">
-                        <MathText as="span" weight="bold">
-                          {normalizeCardMath(currentCard.subtopicName, true)}
-                        </MathText>
-                      </h2>
-                      <span className="px-2.5 py-0.5 text-muted-foreground text-[11px] font-bold rounded-full border border-border sm:px-3.5 sm:py-1 sm:text-xs">
+                    <div className="mb-3 flex items-center gap-1.5 sm:mb-4 sm:gap-2">
+                      {currentCard.subtopicName ? (
+                        <span
+                          className="flex min-w-0 flex-1 items-center rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-medium text-primary sm:px-3 sm:py-1 sm:text-[11px]"
+                          title={subtopicPillTitle(currentCard.subtopicName)}
+                        >
+                          <span className="min-w-0 flex-1 truncate">
+                            <MathText
+                              as="span"
+                              compact
+                              className="instacue-subtopic-pill-math block min-w-0"
+                              title={subtopicPillTitle(currentCard.subtopicName)}
+                            >
+                              {normalizeCardMath(currentCard.subtopicName, true)}
+                            </MathText>
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="min-w-0 flex-1" aria-hidden />
+                      )}
+                      <span className="shrink-0 px-2.5 py-0.5 text-muted-foreground text-[11px] font-bold rounded-full border border-border sm:px-3.5 sm:py-1 sm:text-xs">
                         Answer
                       </span>
                     </div>
 
-                    <div className="text-[13px] text-foreground/90 whitespace-pre-wrap flex-1 leading-relaxed sm:text-[15px]">
-                      <MathText as="div" weight="semibold">
+                    <div className="flex flex-1 items-center justify-center px-1 py-2 sm:px-2 sm:py-4">
+                      <MathText
+                        as="div"
+                        className="w-full text-center text-[16px] font-semibold leading-snug text-foreground/95 sm:text-[20px] sm:leading-relaxed md:text-[22px]"
+                        weight="semibold"
+                      >
                         {normalizeCardMath(currentCard.backContent)}
                       </MathText>
                     </div>
@@ -315,7 +339,7 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
             ) : (
               <div className="text-center p-12 bg-card rounded-2xl border border-dashed border-border w-full max-w-2xl">
                 <div className="w-16 h-16 bg-muted text-muted-foreground rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8" />
+                  <Layers className="w-8 h-8" />
                 </div>
                 <h3 className="text-xl font-bold text-foreground mb-2">
                   You&apos;re all caught up!
@@ -334,23 +358,32 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
             <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
               <Button
                 variant="outline"
-                className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 px-4 py-3 rounded-xl font-semibold text-xs bg-card sm:px-7 sm:py-5 sm:rounded-[14px] sm:text-[14px]"
-                onClick={() => handleStatusUpdate("unsure")}
+                className="cursor-pointer border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 px-4 py-3 rounded-xl font-semibold text-xs bg-card sm:px-7 sm:py-5 sm:rounded-[14px] sm:text-[14px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStatusUpdate("unsure");
+                }}
               >
                 <HelpCircle className="w-4 h-4 mr-1.5 sm:w-[18px] sm:h-[18px] sm:mr-2" />
                 Unsure
               </Button>
               <Button
                 variant="outline"
-                className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 px-4 py-3 rounded-xl font-semibold text-xs bg-card sm:px-7 sm:py-5 sm:rounded-[14px] sm:text-[14px]"
-                onClick={() => handleStatusUpdate("tomorrow")}
+                className="cursor-pointer border-amber-500/50 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 px-4 py-3 rounded-xl font-semibold text-xs bg-card sm:px-7 sm:py-5 sm:rounded-[14px] sm:text-[14px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStatusUpdate("tomorrow");
+                }}
               >
                 <Clock className="w-4 h-4 mr-1.5 sm:w-[18px] sm:h-[18px] sm:mr-2" />
                 Tomorrow
               </Button>
               <Button
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-3 rounded-xl font-semibold text-xs border-none shadow-sm sm:px-7 sm:py-5 sm:rounded-[14px] sm:text-[14px]"
-                onClick={() => handleStatusUpdate("know_it")}
+                className="cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-3 rounded-xl font-semibold text-xs border-none shadow-sm sm:px-7 sm:py-5 sm:rounded-[14px] sm:text-[14px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStatusUpdate("know_it");
+                }}
               >
                 <Check className="w-4 h-4 mr-1.5 sm:w-[18px] sm:h-[18px] sm:mr-2" />
                 Know It

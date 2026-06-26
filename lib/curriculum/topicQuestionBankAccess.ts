@@ -28,7 +28,7 @@ export function hasQuestionBankPlanAccess(plan: SubscriptionPlanKey): boolean {
   return plan === "starter" || plan === "pro";
 }
 
-/** Video & reading references — same paid tiers as question bank sets 2–3. */
+/** Video & reading references — same paid tiers as question bank sets 2–6. */
 export function hasTopicReferencesAccess(plan: SubscriptionPlanKey): boolean {
   return hasQuestionBankPlanAccess(plan);
 }
@@ -105,10 +105,10 @@ export function buildTopicQuestionBankHref(
 
 export function quizSetLockTitle(reason: AdvancedQuizSetLockReason): string | undefined {
   if (reason === "needs_starter_or_pro") {
-    return "Sets 2–3 are in the Question bank (Starter & Pro plans)";
+    return "Sets 2–6 are in the Question bank (Starter & Pro plans)";
   }
   if (reason === "needs_question_bank_unlock") {
-    return "Tap Question bank to unlock sets 2 & 3 for this topic";
+    return "Tap Question bank to unlock sets 2–6 for this topic";
   }
   return undefined;
 }

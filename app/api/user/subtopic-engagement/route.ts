@@ -3,7 +3,13 @@ import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import type { Json } from "@/integrations/supabase/types";
 import type { SubtopicEngagementSnapshot } from "@/lib/curriculum/subtopicEngagementService";
 import { parseEngagementStore } from "@/lib/curriculum/subtopicEngagementStoreParse";
+import { subtopicEngagementSnapshotsEqual } from "@/lib/curriculum/subtopicEngagementSnapshotHash";
 import { makeSubtopicEngagementStorageKey } from "@/lib/curriculum/subtopicEngagementStorageKey";
+import {
+  isOptionalStudentTableError,
+  readSubtopicEngagementRow,
+  upsertSubtopicEngagementRow,
+} from "@/lib/curriculum/subtopicEngagementTable";
 import type { Board, Subject } from "@/types";
 import type { DifficultyLevel } from "@/lib/slugs";
 
@@ -64,13 +70,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
     }
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
     const key = makeSubtopicEngagementStorageKey({
       board: board as Board,
       subject: subject as Subject,
@@ -79,6 +78,21 @@ export async function GET(request: Request) {
       subtopicName,
       level: level as DifficultyLevel,
     });
+
+    try {
+      const fromTable = await readSubtopicEngagementRow(supabase, user.id, key);
+      if (fromTable) return NextResponse.json({ engagement: fromTable });
+    } catch (e) {
+      if (!isOptionalStudentTableError(e)) throw e;
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("subtopic_engagement")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
     const row = data as ProfileEngagementRow | null;
     const store = parseEngagementStore(row?.subtopic_engagement);
     return NextResponse.json({ engagement: store[key] ?? null });
@@ -127,21 +141,63 @@ export async function POST(request: Request) {
       subtopicName,
       level: level as DifficultyLevel,
     });
-    const { data: profile, error: readErr } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
 
-    const profileRow = profile as ProfileEngagementRow | null;
-    const current = parseEngagementStore(profileRow?.subtopic_engagement);
-    const next = trimStore({ ...current, [key]: snapshot });
-    const { error: writeErr } = await supabase
-      .from("profiles")
-      .update({ subtopic_engagement: next } as never)
-      .eq("id", user.id);
-    if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
+    let existing: SubtopicEngagementSnapshot | undefined;
+    try {
+      const fromTable = await readSubtopicEngagementRow(supabase, user.id, key);
+      if (fromTable) existing = fromTable;
+    } catch (e) {
+      if (!isOptionalStudentTableError(e)) throw e;
+    }
+
+    let profileRow: ProfileEngagementRow | null = null;
+    if (!existing) {
+      const { data: profile, error: readErr } = await supabase
+        .from("profiles")
+        .select("subtopic_engagement")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
+      profileRow = profile as ProfileEngagementRow | null;
+      const current = parseEngagementStore(profileRow?.subtopic_engagement);
+      existing = current[key];
+    }
+
+    if (subtopicEngagementSnapshotsEqual(existing, snapshot)) {
+      return new NextResponse(null, { status: 204 });
+    }
+
+    let wroteTable = false;
+    try {
+      await upsertSubtopicEngagementRow(supabase, user.id, key, snapshot);
+      wroteTable = true;
+    } catch (e) {
+      if (!isOptionalStudentTableError(e)) {
+        return NextResponse.json(
+          { error: e instanceof Error ? e.message : "Failed to save engagement" },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (!wroteTable) {
+      if (!profileRow) {
+        const { data: profile, error: readErr } = await supabase
+          .from("profiles")
+          .select("subtopic_engagement")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
+        profileRow = profile as ProfileEngagementRow | null;
+      }
+      const current = parseEngagementStore(profileRow?.subtopic_engagement);
+      const next = trimStore({ ...current, [key]: snapshot });
+      const { error: writeErr } = await supabase
+        .from("profiles")
+        .update({ subtopic_engagement: next } as never)
+        .eq("id", user.id);
+      if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
+    }
 
     const boardNorm = normalizeKeyPart(board, 40);
     const marked =

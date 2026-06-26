@@ -65,11 +65,11 @@ import {
   getFreeTrialElapsedMs,
   isFreeTrialPeriodEnded,
 } from "@/lib/subscription/freeTrialTimer";
-import { cbseMcqOnboardingMockHubHref } from "@/lib/onboarding/cbseMcqOnboardingFlow";
-import { prepClassesOnboardingClassroomsHref } from "@/lib/onboarding/prepClassesOnboardingFlow";
-import { earnChallengeOnboardingHref } from "@/lib/onboarding/earnChallengeOnboardingFlow";
-import { edufundOnboardingHref } from "@/lib/onboarding/edufundOnboardingFlow";
 import { launchOnboardingChecklistTask } from "@/lib/onboarding/launchOnboardingChecklistTask";
+import { cbseMcqOnboardingMockHubHref } from "@/lib/onboarding/cbseMcqOnboardingFlow";
+import { earnChallengeOnboardingHref } from "@/lib/onboarding/earnChallengeOnboardingFlow";
+import { GYAN_PLUS_ONBOARDING_HREF } from "@/lib/onboarding/gyanPlusOnboarding";
+import type { OnboardingDailyTaskDoneDetail } from "@/lib/onboarding/dailyChecklistTaskStorage";
 import {
   getActiveStreakDayNumber,
   getMaxReachableStreakDay,
@@ -85,22 +85,22 @@ import {
   markDailyChecklistTaskDone,
   dailyCbseMcqDoneDateKey,
   ONBOARDING_DAILY_TASK_DONE_EVENT,
-  type OnboardingDailyTaskDoneDetail,
 } from "@/lib/onboarding/dailyChecklistTaskStorage";
 import { startDailyCbseMcqChecklistTracking } from "@/lib/onboarding/dailyCbseMcqChecklist";
 import { startDailyLessonsChecklistTracking } from "@/lib/onboarding/dailyLessonsChecklist";
 import { startDailyChecklistCompanionRetry } from "@/lib/onboarding/dailyChecklistCompanionRetry";
 import { isPathRelevantForOnboardingTask } from "@/lib/onboarding/onboardingTaskCompanionRoutes";
-import { lessonsOnboardingExploreHref } from "@/lib/onboarding/lessonsOnboardingFlow";
-import { GYAN_PLUS_ONBOARDING_HREF } from "@/lib/onboarding/gyanPlusOnboarding";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { DEFAULT_RDM_CONFIG } from "@/lib/rdm/rdmConfig";
+import type { NoteColor, OnboardingTask } from "@/lib/onboarding/onboardingRewardTaskUi";
+import { NOTE_COLOR_STYLES } from "@/lib/onboarding/onboardingRewardTaskUi";
 import {
-  NOTE_COLOR_STYLES,
-  type NoteColor,
-  type OnboardingTask,
-} from "@/lib/onboarding/onboardingRewardTaskUi";
+  ONBOARDING_CHECKLIST_COMPLETION_BONUS_RDM,
+  ONBOARDING_CHECKLIST_TOTAL_RDM,
+  getOnboardingTaskRdmReward,
+} from "@/lib/onboarding/onboardingChecklistRdm";
+import { ONBOARDING_REWARD_TASKS } from "@/lib/onboarding/onboardingRewardTasks";
 import { OnboardingTaskDetailCard } from "@/components/onboarding/OnboardingTaskDetailCard";
 import {
   fetchOnboardingRewardState,
@@ -120,196 +120,7 @@ import {
 } from "@/lib/onboarding/dailyStreakClient";
 
 export type { NoteColor, OnboardingTask } from "@/lib/onboarding/onboardingRewardTaskUi";
-
-const NOTE_COLOR_CYCLE: NoteColor[] = [
-  "teal",
-  "amber",
-  "purple",
-  "teal",
-  "amber",
-  "purple",
-  "teal",
-  "amber",
-  "purple",
-  "teal",
-];
-
-export const ONBOARDING_REWARD_TASKS: OnboardingTask[] = [
-  {
-    id: "magic_wall",
-    title: "Magic Wall",
-    boardTitle: "Magic Wall",
-    teaser: "Open Magic Wall, pick topics, save changes",
-    time: "~2 min",
-    steps: [
-      "Open Magic Wall from the main menu.",
-      "Browse Magic Wall and select at least one topic you want to read.",
-      'Tap "Save changes" to keep your topic picks in your reading basket.',
-    ],
-    hints: ["Open Magic Wall, select at least one topic, then tap Save changes"],
-    href: "/magic-wall",
-    icon: Wand2,
-    color: NOTE_COLOR_CYCLE[0],
-  },
-  {
-    id: "lessons",
-    title: "Lessons",
-    boardTitle: "Lessons",
-    teaser: "Pick chapters, explore a topic, try quiz or InstaCue",
-    time: "~4 min",
-    steps: [
-      "Go to Lessons and pick any subject (Physics, Chemistry, or Maths).",
-      "Browse any chapter — all chapters are open on every plan.",
-      "Open a sub-topic and explore the lesson panels.",
-      "On a sub-topic, try Set 1 quiz free; Question bank unlocks extra sets on Starter & Pro.",
-    ],
-    hints: [
-      "Subject → any chapter → sub-topic → quiz / numerals / InstaCue (premium inside panels)",
-    ],
-    href: lessonsOnboardingExploreHref(),
-    icon: BookOpen,
-    color: NOTE_COLOR_CYCLE[1],
-  },
-  {
-    id: "prep_classes",
-    title: "Prep + Mock · Classes",
-    boardTitle: "Classes",
-    teaser: "Open a class and watch the intro video",
-    time: "~3 min",
-    steps: [
-      "Open Classrooms to see your enrolled classes.",
-      "Tap any class card (or View class) to open it.",
-      "On the class Home tab, play the intro video to preview the lesson.",
-      "Open the Live tab to check upcoming sessions.",
-    ],
-    hints: ["Classrooms → pick a class → watch intro video → Live tab"],
-    href: prepClassesOnboardingClassroomsHref(),
-    icon: GraduationCap,
-    color: NOTE_COLOR_CYCLE[2],
-  },
-  {
-    id: "prep_mcq",
-    title: "Prep + Mock · CBSE MCQ",
-    boardTitle: "Mock test",
-    teaser: "Try a CBSE chapter quiz",
-    time: "~5 min",
-    steps: [
-      'Open Prep + Mock → Mock tests card → tap "View all".',
-      "Go to the CBSE MCQ's tab.",
-      "Pick any chapter and attempt the quiz.",
-      "Read the explanation for at least one answer.",
-    ],
-    hints: ["Mock tests card → View all → CBSE MCQ's tab → Quiz on any chapter"],
-    href: cbseMcqOnboardingMockHubHref(),
-    icon: GraduationCap,
-    color: NOTE_COLOR_CYCLE[3],
-  },
-  {
-    id: "gyan_plus",
-    title: "Gyan++",
-    boardTitle: "Gyan++",
-    teaser: "Post a doubt & upvote one answer",
-    time: "~3 min",
-    steps: [
-      "Open Gyan++ and browse the Doubt Wall for 1 minute.",
-      "Upvote one answer you found helpful.",
-      "Post one question from any chapter you are studying.",
-      "Comment on one existing doubt thread.",
-    ],
-    hints: [
-      "Browse the doubt wall, post one question, then upvote or comment on a doubt or answer",
-    ],
-    href: GYAN_PLUS_ONBOARDING_HREF,
-    icon: MessageSquare,
-    color: NOTE_COLOR_CYCLE[4],
-  },
-  {
-    id: "earn_buddy",
-    title: "Earn & Learn · Buddy",
-    boardTitle: "Buddy",
-    teaser: "Invite a learning buddy",
-    time: "~2 min",
-    steps: [
-      "Copy your invite link or share it with a friend.",
-      "Ask them to sign up and join through your link.",
-      "The step completes when their invite is accepted.",
-    ],
-    hints: ["Invite a learning buddy", "Done when they sign up and join through your link"],
-    href: "/refer-earn?tab=learning_buddy&onboarding_buddy=1",
-    icon: Users,
-    color: NOTE_COLOR_CYCLE[5],
-  },
-  {
-    id: "earn_challenge",
-    title: "Earn & Learn · Challenge",
-    boardTitle: "Challenge",
-    teaser: "Mentamill or Funbrain round",
-    time: "~2 min",
-    steps: [
-      "Tap Start challenge to begin your speed round.",
-      "Finish the full round (win or lose).",
-      "Post your result to the community feed.",
-    ],
-    hints: ["Try Mentamill or Funbrain challenge"],
-    href: earnChallengeOnboardingHref(),
-    icon: Sparkles,
-    color: NOTE_COLOR_CYCLE[6],
-  },
-  {
-    id: "news_blog",
-    title: "News & Blogs",
-    boardTitle: "News & Blogs",
-    teaser: "Read one article or blog post",
-    time: "~2 min",
-    steps: [
-      "Open News & Blogs from the main menu.",
-      "Pick any news article or blog post.",
-      "Read through the full piece.",
-      "Return to the checklist when finished.",
-    ],
-    hints: ["Read one news article or blog post"],
-    href: "/news-blog",
-    icon: Newspaper,
-    color: NOTE_COLOR_CYCLE[7],
-  },
-  {
-    id: "edufund",
-    title: "EduFund",
-    boardTitle: "EduFund",
-    teaser: "Open your grant proposal",
-    time: "~2 min",
-    steps: [
-      "Open EduFund from the main menu.",
-      "Scroll down to see proposals & grant tiers.",
-      'Tap "Create Proposal" to open your application shell.',
-      "See how many RDM you need for the Sprout grant.",
-    ],
-    hints: ['Click "Create Proposal"'],
-    href: edufundOnboardingHref(),
-    icon: Coins,
-    color: NOTE_COLOR_CYCLE[8],
-  },
-  {
-    id: "profile",
-    title: "Profile",
-    boardTitle: "Profile",
-    teaser: "Save your basic details",
-    time: "~2 min",
-    steps: [
-      "Open Profile → Basic information.",
-      "Fill in name, location, mobile, gender, and category.",
-      "Save — all required fields must be filled.",
-      "Add a profile photo to complete your identity.",
-    ],
-    hints: [
-      "Open Profile → Basic information",
-      "Save first name, location, mobile, gender, and category",
-    ],
-    href: "/profile?section=personal",
-    icon: User,
-    color: NOTE_COLOR_CYCLE[9],
-  },
-];
+export { ONBOARDING_REWARD_TASKS } from "@/lib/onboarding/onboardingRewardTasks";
 
 type DailyTask = {
   id: string;
@@ -452,9 +263,15 @@ export const DAILY_TASKS: DailyTask[] = [
 
 const REWARD_RDM = DEFAULT_RDM_CONFIG.free_trial_checklist_reward_rdm;
 
-function perTaskRdm(total: number): number {
-  const n = ONBOARDING_REWARD_TASKS.length;
-  return n > 0 ? Math.round(total / n) : 0;
+function taskRdmReward(task: OnboardingTask): number {
+  return task.rdmReward ?? getOnboardingTaskRdmReward(task.id);
+}
+
+function sumCompletedTaskRdm(progress: Record<string, boolean>): number {
+  return ONBOARDING_REWARD_TASKS.reduce((sum, task) => {
+    if (!progress[task.id]) return sum;
+    return sum + taskRdmReward(task);
+  }, 0);
 }
 
 type OnboardingRewardDialogProps = {
@@ -618,8 +435,6 @@ export function OnboardingRewardDialog({
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const pendingLaunchTaskIdRef = useRef<string | null>(null);
   const dailyStreakClaimRef = useRef(false);
-
-  const taskRdm = perTaskRdm(checklistRewardRdm);
 
   const trialActivatedAt = useMemo(
     () => resolveFreeTrialActivatedAt(profile),
@@ -1086,7 +901,7 @@ export function OnboardingRewardDialog({
   );
   const totalCount = ONBOARDING_REWARD_TASKS.length;
   const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-  const earnedRdm = completedCount * taskRdm;
+  const earnedRdm = useMemo(() => sumCompletedTaskRdm(progress), [progress]);
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
@@ -2440,7 +2255,8 @@ export function OnboardingRewardDialog({
                             className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse"
                             aria-hidden
                           />
-                          +{checklistRewardRdm} RDM — {taskRdm} RDM per task
+                          +{ONBOARDING_CHECKLIST_TOTAL_RDM} RDM total — split by task (+
+                          {ONBOARDING_CHECKLIST_COMPLETION_BONUS_RDM} bonus when all done)
                         </span>
                         <DialogTitle className="text-sm sm:text-base font-extrabold tracking-tight text-zinc-100">
                           Complete the Site Tour to Claim Your Reward
@@ -2512,7 +2328,7 @@ export function OnboardingRewardDialog({
                       key={task.id}
                       task={task}
                       done={isOnboardingTaskComplete(task.id, progress)}
-                      perTaskReward={taskRdm}
+                      perTaskReward={taskRdmReward(task)}
                       isLast={index === ONBOARDING_REWARD_TASKS.length - 1}
                       onOpen={() => setSelectedTaskId(task.id)}
                     />
@@ -2741,7 +2557,7 @@ export function OnboardingRewardDialog({
         <TaskDetailDrawer
           task={selectedTask}
           done={isOnboardingTaskComplete(selectedTask.id, progress)}
-          perTaskReward={taskRdm}
+          perTaskReward={taskRdmReward(selectedTask)}
           isAdminManualChecklist={isAdminManualChecklist}
           onClose={() => setSelectedTaskId(null)}
           onAdminToggle={() => {

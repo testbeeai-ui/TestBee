@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import type { Json } from "@/integrations/supabase/types";
 import { syncAssignmentTasksForKinds } from "@/lib/classroom/syncAssignmentTaskProgress";
+import {
+  deleteBitsAttemptRow,
+  isOptionalStudentTableError,
+  readBitsAttemptRow,
+  upsertBitsAttemptRow,
+} from "@/lib/play/bits/bitsAttemptsTable";
+import {
+  isAdvancedQuizSetIndex,
+  type AdvancedQuizSetIndex,
+} from "@/lib/play/quiz/advancedQuizSets";
 
 /** DB column from migration; cast when `Database` types are not yet regenerated (e.g. Vercel on older main). */
 type ProfileBitsRow = { bits_test_attempts?: Json | null };
@@ -44,8 +54,8 @@ function makeAttemptKey(params: {
   topic: string;
   subtopicName: string;
   level: string;
-  /** Advanced-only: per-set attempts (1–3) use a distinct storage key. */
-  set?: 1 | 2 | 3;
+  /** Advanced-only: per-set attempts (1–6) use a distinct storage key. */
+  set?: AdvancedQuizSetIndex;
 }) {
   const base = [
     normalizeKeyPart(params.board, 40),
@@ -55,7 +65,7 @@ function makeAttemptKey(params: {
     normalizeKeyPart(params.subtopicName, 300),
     normalizeKeyPart(params.level, 30),
   ].join("||");
-  if (params.level === "advanced" && params.set != null && [1, 2, 3].includes(params.set)) {
+  if (params.level === "advanced" && params.set != null && isAdvancedQuizSetIndex(params.set)) {
     return `${base}||set:${params.set}`;
   }
   return base;
@@ -138,6 +148,50 @@ function trimAttemptStore(
   return Object.fromEntries(entries.slice(0, MAX_ATTEMPT_KEYS));
 }
 
+async function readAttemptFromTable(
+  supabase: unknown,
+  userId: string,
+  attemptKey: string
+): Promise<BitsAttemptRecord | null> {
+  try {
+    return await readBitsAttemptRow<BitsAttemptRecord>(supabase, userId, attemptKey);
+  } catch (e) {
+    if (isOptionalStudentTableError(e)) return null;
+    throw e;
+  }
+}
+
+async function persistAttemptToTable(
+  supabase: unknown,
+  userId: string,
+  attemptKey: string,
+  attempt: BitsAttemptRecord
+): Promise<boolean> {
+  try {
+    await upsertBitsAttemptRow(supabase, userId, attemptKey, attempt);
+    return true;
+  } catch (e) {
+    if (isOptionalStudentTableError(e)) return false;
+    throw e;
+  }
+}
+
+async function clearAttemptKeysOnTable(
+  supabase: unknown,
+  userId: string,
+  keys: string[]
+): Promise<boolean> {
+  try {
+    for (const k of keys) {
+      await deleteBitsAttemptRow(supabase, userId, k);
+    }
+    return true;
+  } catch (e) {
+    if (isOptionalStudentTableError(e)) return false;
+    throw e;
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const ctx = await getSupabaseAndUser(request);
@@ -164,11 +218,11 @@ export async function GET(request: Request) {
       formulaPracticeIndex = fi;
     }
     const setRaw = searchParams.get("set");
-    let set: 1 | 2 | 3 | undefined;
+    let set: AdvancedQuizSetIndex | undefined;
     if (setRaw != null && setRaw !== "") {
       const n = Number(setRaw);
-      if (![1, 2, 3].includes(n)) {
-        return NextResponse.json({ error: "Invalid set (use 1, 2, or 3)" }, { status: 400 });
+      if (!isAdvancedQuizSetIndex(n)) {
+        return NextResponse.json({ error: "Invalid set (use 1–6)" }, { status: 400 });
       }
       if (level !== "advanced") {
         return NextResponse.json(
@@ -176,7 +230,7 @@ export async function GET(request: Request) {
           { status: 400 }
         );
       }
-      set = n as 1 | 2 | 3;
+      set = n;
     }
 
     if (
@@ -191,15 +245,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
     }
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    let profileStore: Record<string, BitsAttemptRecord> | null = null;
+    const loadFromProfile = async (attemptKey: string): Promise<BitsAttemptRecord | null> => {
+      if (!profileStore) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("bits_test_attempts")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (error) return null;
+        const row = data as ProfileBitsRow | null;
+        profileStore = parseAttemptsStore(row?.bits_test_attempts);
+      }
+      return profileStore[attemptKey] ?? null;
+    };
 
-    const row = data as ProfileBitsRow | null;
-    const store = parseAttemptsStore(row?.bits_test_attempts);
     if (formulaPracticeIndex != null) {
       const fpKey = makeFormulaPracticeAttemptKey({
         board,
@@ -210,17 +270,24 @@ export async function GET(request: Request) {
         level,
         formulaPracticeIndex,
       });
-      return NextResponse.json({ attempt: store[fpKey] ?? null });
+      const fromTable = await readAttemptFromTable(supabase, user.id, fpKey);
+      return NextResponse.json({ attempt: fromTable ?? (await loadFromProfile(fpKey)) });
     }
     const baseKey = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level });
     if (level === "advanced" && set != null) {
       const keyed = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level, set });
-      if (store[keyed]) return NextResponse.json({ attempt: store[keyed] });
-      // Legacy single-key advanced attempt (pre–3-set) maps to set 1 only.
-      if (set === 1 && store[baseKey]) return NextResponse.json({ attempt: store[baseKey] });
-      return NextResponse.json({ attempt: null });
+      const fromKeyed = await readAttemptFromTable(supabase, user.id, keyed);
+      if (fromKeyed) return NextResponse.json({ attempt: fromKeyed });
+      if (set === 1) {
+        const fromBase = await readAttemptFromTable(supabase, user.id, baseKey);
+        if (fromBase) return NextResponse.json({ attempt: fromBase });
+        const legacy = await loadFromProfile(baseKey);
+        if (legacy) return NextResponse.json({ attempt: legacy });
+      }
+      return NextResponse.json({ attempt: await loadFromProfile(keyed) });
     }
-    return NextResponse.json({ attempt: store[baseKey] ?? null });
+    const fromTable = await readAttemptFromTable(supabase, user.id, baseKey);
+    return NextResponse.json({ attempt: fromTable ?? (await loadFromProfile(baseKey)) });
   } catch (e) {
     console.error("bits-attempts GET error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -244,9 +311,9 @@ export async function POST(request: Request) {
     /** Remove one advanced per-set attempt (used for “Take test another time”). */
     if (body?.clearAttempt === true) {
       const setClear = Number(body?.set);
-      if (![1, 2, 3].includes(setClear)) {
+      if (!isAdvancedQuizSetIndex(setClear)) {
         return NextResponse.json(
-          { error: "set is required (1, 2, or 3) to clear an attempt" },
+          { error: "set is required (1–6) to clear an attempt" },
           { status: 400 }
         );
       }
@@ -266,7 +333,7 @@ export async function POST(request: Request) {
       ) {
         return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
       }
-      const set = setClear as 1 | 2 | 3;
+      const set = setClear as AdvancedQuizSetIndex;
       const baseKey = makeAttemptKey({
         board,
         subject,
@@ -284,23 +351,28 @@ export async function POST(request: Request) {
         level,
         set,
       });
-      const { data: profile, error: readErr } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
-      const profileRow = profile as ProfileBitsRow | null;
-      const current = parseAttemptsStore(profileRow?.bits_test_attempts);
-      const next = { ...current };
-      delete next[keyed];
-      if (set === 1) delete next[baseKey];
-      const trimmed = trimAttemptStore(next);
-      const { error: writeErr } = await supabase
-        .from("profiles")
-        .update({ bits_test_attempts: trimmed } as never)
-        .eq("id", user.id);
-      if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
+      const keysToClear = [keyed];
+      if (set === 1) keysToClear.push(baseKey);
+      const clearedOnTable = await clearAttemptKeysOnTable(supabase, user.id, keysToClear);
+      if (!clearedOnTable) {
+        const { data: profile, error: readErr } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
+        const profileRow = profile as ProfileBitsRow | null;
+        const current = parseAttemptsStore(profileRow?.bits_test_attempts);
+        const next = { ...current };
+        delete next[keyed];
+        if (set === 1) delete next[baseKey];
+        const trimmed = trimAttemptStore(next);
+        const { error: writeErr } = await supabase
+          .from("profiles")
+          .update({ bits_test_attempts: trimmed } as never)
+          .eq("id", user.id);
+        if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
+      }
       return NextResponse.json({ ok: true });
     }
 
@@ -333,22 +405,25 @@ export async function POST(request: Request) {
         level,
         formulaPracticeIndex: fi,
       });
-      const { data: profile, error: readErr } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
-      const profileRow = profile as ProfileBitsRow | null;
-      const current = parseAttemptsStore(profileRow?.bits_test_attempts);
-      const next = { ...current };
-      delete next[fpKey];
-      const trimmed = trimAttemptStore(next);
-      const { error: writeErr } = await supabase
-        .from("profiles")
-        .update({ bits_test_attempts: trimmed } as never)
-        .eq("id", user.id);
-      if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
+      const clearedOnTable = await clearAttemptKeysOnTable(supabase, user.id, [fpKey]);
+      if (!clearedOnTable) {
+        const { data: profile, error: readErr } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
+        const profileRow = profile as ProfileBitsRow | null;
+        const current = parseAttemptsStore(profileRow?.bits_test_attempts);
+        const next = { ...current };
+        delete next[fpKey];
+        const trimmed = trimAttemptStore(next);
+        const { error: writeErr } = await supabase
+          .from("profiles")
+          .update({ bits_test_attempts: trimmed } as never)
+          .eq("id", user.id);
+        if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
+      }
       return NextResponse.json({ ok: true });
     }
 
@@ -371,11 +446,11 @@ export async function POST(request: Request) {
     }
 
     const setBody = body?.set;
-    let set: 1 | 2 | 3 | undefined;
+    let set: AdvancedQuizSetIndex | undefined;
     if (setBody != null && setBody !== "") {
       const n = Number(setBody);
-      if (![1, 2, 3].includes(n)) {
-        return NextResponse.json({ error: "Invalid set (use 1, 2, or 3)" }, { status: 400 });
+      if (!isAdvancedQuizSetIndex(n)) {
+        return NextResponse.json({ error: "Invalid set (use 1–6)" }, { status: 400 });
       }
       if (level !== "advanced") {
         return NextResponse.json(
@@ -383,7 +458,7 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      set = n as 1 | 2 | 3;
+      set = n;
     }
 
     if (
@@ -449,21 +524,24 @@ export async function POST(request: Request) {
             formulaPracticeIndex: formulaPracticeIndexPost,
           })
         : makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level, set });
-    const { data: profile, error: readErr } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
+    const wroteOnTable = await persistAttemptToTable(supabase, user.id, key, attempt);
+    if (!wroteOnTable) {
+      const { data: profile, error: readErr } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
 
-    const profileRow = profile as ProfileBitsRow | null;
-    const current = parseAttemptsStore(profileRow?.bits_test_attempts);
-    const next = trimAttemptStore({ ...current, [key]: attempt });
-    const { error: writeErr } = await supabase
-      .from("profiles")
-      .update({ bits_test_attempts: next } as never)
-      .eq("id", user.id);
-    if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
+      const profileRow = profile as ProfileBitsRow | null;
+      const current = parseAttemptsStore(profileRow?.bits_test_attempts);
+      const next = trimAttemptStore({ ...current, [key]: attempt });
+      const { error: writeErr } = await supabase
+        .from("profiles")
+        .update({ bits_test_attempts: next } as never)
+        .eq("id", user.id);
+      if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
+    }
 
     void syncAssignmentTasksForKinds(supabase, user.id, ["bits"]).catch((e) => {
       console.warn("[bits-attempts] assignment task sync", e);

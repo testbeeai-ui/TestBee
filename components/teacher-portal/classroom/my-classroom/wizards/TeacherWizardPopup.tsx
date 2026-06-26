@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   BookOpen,
   Check,
@@ -19,6 +19,7 @@ import {
   ClipboardList,
   ExternalLink,
   Flame,
+  Lock,
   Loader2,
   Plus,
   Settings,
@@ -86,7 +87,6 @@ import {
   trackLabelById,
   type DailyDoseStreakTrackId,
 } from "@/lib/teacherPortal/dailyDoseStreakTracks";
-import WallTimeSelects from "@/components/teacher-portal/live/WallTimeSelects";
 import type {
   TeacherPortalAssignmentItem,
   TeacherPortalClassroomCard,
@@ -104,6 +104,10 @@ import type {
 import type { MockPaper, PastPaper } from "@/types";
 import { assignmentPostDueStillActive } from "@/lib/teacherPortal/assignmentDueActive";
 import { assignmentItemIsNudgeMcqTarget } from "@/lib/teacherPortal/nudgeMcqPosts";
+import {
+  canUseGoogleCalendarSeries,
+  type TeacherPlanKey,
+} from "@/lib/teacherPortal/teacherPlan";
 
 import type { MyClassroomViewProps } from "../types";
 import { WIZARD_TASKS } from "../wizard/constants";
@@ -144,6 +148,7 @@ export function TeacherWizardPopup(props: {
   allowNudgeStructuredAssignmentCreate?: boolean;
 }) {
   const toast = props.toast;
+  const router = useRouter();
   const nudgeWizardRef = useRef<TeacherNudgeWithRdmWizardHandle>(null);
   const GOOGLE_CONNECT_PROMPTED_SESSION_KEY = `teacherPortal.googleConnectPrompted.session.v1:${props.teacherId}`;
   const GOOGLE_CONNECT_GATE_DISMISSED_SESSION_KEY = `teacherPortal.googleConnectGateDismissed.session.v1:${props.teacherId}`;
@@ -213,6 +218,29 @@ export function TeacherWizardPopup(props: {
   const [highlightSectionClear, setHighlightSectionClear] = useState(false);
   const [singleSectionGateOpen, setSingleSectionGateOpen] = useState(false);
   const [highlightSectionEdit, setHighlightSectionEdit] = useState(false);
+
+  const [teacherPlanTier, setTeacherPlanTier] = useState<TeacherPlanKey>("free");
+  const canCalendarSeries = canUseGoogleCalendarSeries(teacherPlanTier);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetchWithClientAuth("/api/teacher/plan/limits");
+        const body = (await res.json()) as { tier?: TeacherPlanKey };
+        if (!cancelled && res.ok && body.tier) setTeacherPlanTier(body.tier);
+      } catch {
+        /* keep free default */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [props.teacherId]);
+
+  const goToTeacherSubscriptions = useCallback(() => {
+    router.push("/teacher-portal?section=subscriptions");
+  }, [router]);
 
   useEffect(() => {
     const s = buildWizardShellInitialState(props.teacherId);
@@ -471,11 +499,7 @@ export function TeacherWizardPopup(props: {
     if (activeTask === 0) {
       const step = currentSteps[0] ?? 0;
       const hasSavedSection = Boolean(cwSections[0]);
-      const sectionFormHasAny =
-        Boolean(cwSectionName.trim()) ||
-        Boolean(cwSectionScheduleDate.trim()) ||
-        Boolean(cwSectionScheduleTime.trim()) ||
-        Boolean(cwSectionScheduleEndDate.trim());
+      const sectionFormHasAny = Boolean(cwSectionName.trim());
 
       if (step === 0 && !cwName.trim()) {
         toast({ title: "Classroom name required", variant: "destructive" });
@@ -582,9 +606,6 @@ export function TeacherWizardPopup(props: {
 
       const sectionDrafts = cwSections.slice(0, 1);
       if (sectionDrafts.length > 0) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData.session?.access_token ?? "";
-
         for (let i = 0; i < sectionDrafts.length; i += 1) {
           const draft = sectionDrafts[i];
           const secName = draft.name.trim();
@@ -603,36 +624,9 @@ export function TeacherWizardPopup(props: {
               .single();
             const createdRow = created as { id?: string } | null;
             if (error || !createdRow?.id) throw error ?? new Error("Could not create section.");
-
-            // Sync schedule to Google (same endpoint as the real section flow).
-            const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-            const res = await fetch(
-              `/api/integrations/google/classrooms/${classroomId}/recurring`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                },
-                credentials: "include",
-                body: JSON.stringify({
-                  sectionId: createdRow.id,
-                  timeZone,
-                  scheduleDate: draft.scheduleDate,
-                  scheduleTime: draft.scheduleTime,
-                  durationMinutes: draft.durationMinutes,
-                  repeatDays: draft.repeatDays,
-                  scheduleEndDate: draft.scheduleEndDate,
-                }),
-              }
-            );
-            if (!res.ok) {
-              const payload = (await res.json().catch(() => null)) as { error?: string } | null;
-              throw new Error(payload?.error ?? `Calendar sync failed (${res.status})`);
-            }
           } catch (secErr) {
             props.toast({
-              title: "Section could not be synced",
+              title: "Section could not be created",
               description: secErr instanceof Error ? secErr.message : "Please try again.",
               variant: "destructive",
             });
@@ -660,31 +654,15 @@ export function TeacherWizardPopup(props: {
       props.toast({ title: "Section name required", variant: "destructive" });
       return;
     }
-    if (!cwSectionScheduleDate.trim() || !cwSectionScheduleTime.trim()) {
-      props.toast({
-        title: "Schedule required",
-        description: "Pick a start date and time for this section schedule.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (cwSectionRepeatDays.length === 0) {
-      props.toast({
-        title: "Repeat days required",
-        description: "Select at least one repeat day.",
-        variant: "destructive",
-      });
-      return;
-    }
-    // Investor UX: this step supports a single section draft. Re-adding replaces the existing draft.
+
     setCwSections([
       {
         name,
-        scheduleDate: cwSectionScheduleDate,
-        scheduleTime: cwSectionScheduleTime,
+        scheduleDate: "",
+        scheduleTime: "",
         durationMinutes: cwSectionDurationMinutes,
-        repeatDays: cwSectionRepeatDays,
-        scheduleEndDate: cwSectionScheduleEndDate.trim() || null,
+        repeatDays: [],
+        scheduleEndDate: null,
       },
     ]);
     setCwSectionName("");
@@ -1243,8 +1221,42 @@ export function TeacherWizardPopup(props: {
                                   <span className="font-semibold text-slate-100">
                                     Sections are optional.
                                   </span>{" "}
-                                  Skip and add later under Sections &amp; Google Calendar.
+                                  Name a batch here only — no Google Calendar in this step. After
+                                  launch, use{" "}
+                                  <span className="font-medium text-emerald-200">Book live class</span>{" "}
+                                  on the Students tab (Starter / Pro).
                                 </div>
+
+                                {canCalendarSeries ? (
+                                  <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.06] px-3 py-2.5 text-xs text-sky-100/90">
+                                    Your plan includes live class slots. Book each class individually
+                                    after launch — we no longer create recurring Calendar series here.
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col gap-2 rounded-xl border border-violet-500/25 bg-violet-500/[0.06] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+                                    <div className="flex min-w-0 items-start gap-2.5">
+                                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-400/25 bg-violet-500/10">
+                                        <Lock className="h-4 w-4 text-violet-300" />
+                                      </span>
+                                      <div className="min-w-0 text-xs leading-relaxed text-slate-300">
+                                        <p className="font-semibold text-violet-100">
+                                          Live classes need Starter or Pro
+                                        </p>
+                                        <p className="mt-0.5 text-slate-400">
+                                          Free plan: save a batch name only. Upgrade to book Google
+                                          Calendar + Meet slots per class.
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={goToTeacherSubscriptions}
+                                      className="shrink-0 rounded-full bg-violet-500 px-4 py-2 text-[11px] font-bold text-white hover:bg-violet-400"
+                                    >
+                                      View plans
+                                    </button>
+                                  </div>
+                                )}
 
                                 <div className="grid gap-2 sm:gap-3">
                                   {cwSectionFormOpen ? (
@@ -1260,103 +1272,6 @@ export function TeacherWizardPopup(props: {
                                             placeholder="e.g. Morning batch, Section A"
                                             className="h-9 w-full rounded-lg border border-white/15 bg-[#070b17] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400 sm:h-10 sm:rounded-xl"
                                           />
-                                        </div>
-
-                                        <div className="grid gap-2 sm:gap-3 lg:grid-cols-3">
-                                          <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-1 lg:grid-rows-2">
-                                            <div>
-                                              <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs sm:text-sm">
-                                                Start date <span className="text-rose-300">*</span>
-                                              </label>
-                                              <input
-                                                type="date"
-                                                value={cwSectionScheduleDate}
-                                                onChange={(e) =>
-                                                  setCwSectionScheduleDate(e.target.value)
-                                                }
-                                                className="h-9 w-full min-w-0 rounded-lg border border-white/15 bg-[#070b17] px-2 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
-                                              />
-                                            </div>
-                                            <div>
-                                              <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs sm:text-sm">
-                                                End (optional)
-                                              </label>
-                                              <input
-                                                type="date"
-                                                value={cwSectionScheduleEndDate}
-                                                onChange={(e) =>
-                                                  setCwSectionScheduleEndDate(e.target.value)
-                                                }
-                                                className="h-9 w-full min-w-0 rounded-lg border border-white/15 bg-[#070b17] px-2 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
-                                              />
-                                            </div>
-                                          </div>
-
-                                          <div className="flex min-w-0 flex-col gap-2 sm:gap-3">
-                                            <div className="min-w-0">
-                                              <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs sm:text-sm">
-                                                Start <span className="text-rose-300">*</span>
-                                              </label>
-                                              <WallTimeSelects
-                                                value={cwSectionScheduleTime}
-                                                onChange={setCwSectionScheduleTime}
-                                              />
-                                            </div>
-                                            <div className="min-w-0">
-                                              <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs sm:text-sm">
-                                                Duration
-                                              </label>
-                                              <div className="relative">
-                                                <select
-                                                  value={String(cwSectionDurationMinutes)}
-                                                  onChange={(e) =>
-                                                    setCwSectionDurationMinutes(
-                                                      Number(e.target.value)
-                                                    )
-                                                  }
-                                                  className="h-9 w-full appearance-none rounded-lg border border-white/15 bg-[#070b17] px-2 pr-8 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3 sm:pr-9"
-                                                >
-                                                  {[60, 75, 90, 105, 120].map((m) => (
-                                                    <option key={m} value={String(m)}>
-                                                      {m}m
-                                                    </option>
-                                                  ))}
-                                                </select>
-                                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 sm:right-3" />
-                                              </div>
-                                            </div>
-                                          </div>
-
-                                          <div>
-                                            <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:text-xs">
-                                              Repeat days
-                                            </div>
-                                            <div className="flex flex-wrap gap-1 sm:gap-1.5">
-                                              {WEEKDAYS.map((day) => {
-                                                const on = cwSectionRepeatDays.includes(day);
-                                                return (
-                                                  <button
-                                                    key={day}
-                                                    type="button"
-                                                    onClick={() =>
-                                                      setCwSectionRepeatDays((prev) =>
-                                                        prev.includes(day)
-                                                          ? prev.filter((d) => d !== day)
-                                                          : [...prev, day]
-                                                      )
-                                                    }
-                                                    className={`rounded-full border px-2 py-1 text-[10px] font-semibold transition sm:px-2.5 sm:py-1 sm:text-xs ${
-                                                      on
-                                                        ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
-                                                        : "border-white/15 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
-                                                    }`}
-                                                  >
-                                                    {day}
-                                                  </button>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
                                         </div>
 
                                         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
@@ -1381,10 +1296,6 @@ export function TeacherWizardPopup(props: {
                                                 const isVerified =
                                                   await ensureVerifiedForClassroomFlow();
                                                 if (!isVerified) return;
-                                                if (activeTask === 0 && shouldGateGoogle()) {
-                                                  openGoogleGate({ kind: "addSection" });
-                                                  return;
-                                                }
                                                 beginAddSectionDraft();
                                                 setCwSectionFormOpen(false);
                                               }}
@@ -1396,8 +1307,9 @@ export function TeacherWizardPopup(props: {
                                         </div>
 
                                         <div className="text-[11px] leading-snug text-slate-500 sm:text-xs">
-                                          One section only. Syncs to Google Calendar when you
-                                          launch.
+                                          One batch name per class in this wizard. Calendar sync
+                                          happens when you book a live class later — not as a repeating
+                                          series here.
                                         </div>
                                       </div>
                                     </div>
@@ -1445,40 +1357,11 @@ export function TeacherWizardPopup(props: {
                                         </div>
                                       </div>
 
-                                      <div className="mt-2 grid gap-1.5 text-[11px] text-slate-200 sm:grid-cols-2 sm:text-xs">
-                                        <div className="min-w-0">
-                                          <span className="text-slate-500">Start:</span>{" "}
-                                          <span className="font-semibold">
-                                            {cwSections[0].scheduleDate}
-                                          </span>{" "}
-                                          <span className="text-slate-400">·</span>{" "}
-                                          <span className="font-semibold">
-                                            {cwSections[0].scheduleTime}
-                                          </span>
-                                        </div>
-                                        <div className="min-w-0">
-                                          <span className="text-slate-500">Duration:</span>{" "}
-                                          <span className="font-semibold">
-                                            {cwSections[0].durationMinutes}m
-                                          </span>
-                                        </div>
-                                        <div className="min-w-0 sm:col-span-2">
-                                          <span className="text-slate-500">Repeat:</span>{" "}
-                                          <span className="font-semibold">
-                                            {cwSections[0].repeatDays?.length
-                                              ? cwSections[0].repeatDays.join(", ")
-                                              : "—"}
-                                          </span>
-                                        </div>
-                                        {cwSections[0].scheduleEndDate ? (
-                                          <div className="min-w-0 sm:col-span-2">
-                                            <span className="text-slate-500">End:</span>{" "}
-                                            <span className="font-semibold">
-                                              {cwSections[0].scheduleEndDate}
-                                            </span>
-                                          </div>
-                                        ) : null}
-                                      </div>
+                                      <p className="mt-2 text-[11px] leading-relaxed text-slate-400 sm:text-xs">
+                                        {canCalendarSeries
+                                          ? "After launch: Students tab → select this section → Book live class."
+                                          : "Upgrade to Starter or Pro to book Google Calendar + Meet classes for this batch."}
+                                      </p>
                                     </div>
                                   ) : null}
                                 </div>
@@ -1521,11 +1404,7 @@ export function TeacherWizardPopup(props: {
                                   onClick={async () => {
                                     const isVerified = await ensureVerifiedForClassroomFlow();
                                     if (!isVerified) return;
-                                    const sectionFormHasAny =
-                                      Boolean(cwSectionName.trim()) ||
-                                      Boolean(cwSectionScheduleDate.trim()) ||
-                                      Boolean(cwSectionScheduleTime.trim()) ||
-                                      Boolean(cwSectionScheduleEndDate.trim());
+                                    const sectionFormHasAny = Boolean(cwSectionName.trim());
                                     if (sectionFormHasAny && !Boolean(cwSections[0])) {
                                       openSectionGate({ kind: "launch" });
                                       return;

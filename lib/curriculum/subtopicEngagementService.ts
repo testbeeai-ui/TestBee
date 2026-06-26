@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { DifficultyLevel } from "@/lib/slugs";
 import type { Board, Subject } from "@/types";
 import { safeGetSession } from "@/lib/auth/safeSession";
+import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 
 const API = "/api/user/subtopic-engagement";
 
@@ -27,8 +28,8 @@ export type SubtopicEngagementBitsDraft = {
   selectedAnswers: Record<string, number>;
   visitedIndices: number[];
   graded?: SubtopicEngagementBitsGraded;
-  /** Advanced 3-set flow: which set the in-progress state refers to (indices are global). */
-  activeQuizSet?: 1 | 2 | 3;
+  /** Advanced multi-set flow: which set the in-progress state refers to (indices are global). */
+  activeQuizSet?: AdvancedQuizSetIndex;
 };
 
 export type SubtopicEngagementFormulaDraft = {
@@ -106,6 +107,7 @@ export async function saveSubtopicEngagement(
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ ...scope, snapshot }),
   });
+  if (res.status === 204) return;
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(err.error || "Failed to save subtopic engagement");

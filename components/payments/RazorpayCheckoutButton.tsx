@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { loadRazorpayCheckoutScript } from "@/lib/payments/loadRazorpayCheckoutScript";
+import { standardRazorpayCheckoutDisplayConfig } from "@/lib/razorpay/razorpayCheckoutDisplay";
+import type { RazorpayKeyMode } from "@/lib/razorpay/razorpayCheckoutDisplay";
 
 declare global {
   interface Window {
@@ -22,20 +24,7 @@ interface RazorpayCheckoutOptions {
   prefill?: { name?: string; email?: string; contact?: string };
   theme?: { color?: string };
   retry?: { enabled: boolean; max_count: number };
-  config?: {
-    display: {
-      blocks: Record<
-        string,
-        {
-          name: string;
-          instruments: Array<{ method: string }>;
-        }
-      >;
-      hide?: Array<{ method: string }>;
-      sequence: string[];
-      preferences: { show_default_blocks: boolean };
-    };
-  };
+  config?: ReturnType<typeof standardRazorpayCheckoutDisplayConfig>;
   handler: (response: RazorpaySuccessResponse) => void;
   modal?: { ondismiss?: () => void };
 }
@@ -64,6 +53,7 @@ interface CreateOrderResponse {
   amount: number;
   currency: string;
   key_id?: string;
+  key_mode?: RazorpayKeyMode;
   error?: string;
 }
 
@@ -72,9 +62,14 @@ interface VerifyPaymentResponse {
   error?: string;
 }
 
-const SITE_BASE =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://edublast.vercel.app";
-const SITE_LOGO = `${SITE_BASE}/logo.png`;
+function checkoutLogoUrl(): string {
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/logo.png`;
+  }
+  const site =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://www.edublast.in";
+  return `${site}/logo.png`;
+}
 
 export type RazorpayCreateOrderBody = Record<string, unknown>;
 
@@ -94,7 +89,8 @@ export interface RazorpayCheckoutButtonProps {
   /** Called after signature verification succeeds. When set, default success toast is skipped. */
   onPaymentVerified?: (response: RazorpaySuccessResponse) => void | Promise<void>;
   showSuccessToast?: boolean;
-  testModeLayout?: boolean;
+  /** When false, omits the lock icon (e.g. subscription CTAs). Default true. */
+  showLockIcon?: boolean;
 }
 
 export default function RazorpayCheckoutButton({
@@ -110,7 +106,7 @@ export default function RazorpayCheckoutButton({
   createOrderBody,
   onPaymentVerified,
   showSuccessToast,
-  testModeLayout = false,
+  showLockIcon = true,
 }: RazorpayCheckoutButtonProps) {
   const { toast } = useToast();
   const [scriptReady, setScriptReady] = useState(false);
@@ -190,7 +186,7 @@ export default function RazorpayCheckoutButton({
         name,
         description: description ?? `Payment of ₹${checkoutAmount / 100}`,
         order_id: orderData.order_id,
-        image: SITE_LOGO,
+        image: checkoutLogoUrl(),
         prefill: prefill ?? {
           name: "Test User",
           email: "test@edublast.in",
@@ -198,32 +194,7 @@ export default function RazorpayCheckoutButton({
         },
         theme: { color: "#3395FF" },
         retry: { enabled: true, max_count: 3 },
-        ...(testModeLayout
-          ? {
-              config: {
-                display: {
-                  blocks: {
-                    nb: {
-                      name: "Netbanking (recommended for test)",
-                      instruments: [{ method: "netbanking" }],
-                    },
-                    card: {
-                      name: "Debit / Credit Card",
-                      instruments: [{ method: "card" }],
-                    },
-                  },
-                  hide: [
-                    { method: "upi" },
-                    { method: "wallet" },
-                    { method: "paylater" },
-                    { method: "emi" },
-                  ],
-                  sequence: ["block.nb", "block.card"],
-                  preferences: { show_default_blocks: false },
-                },
-              },
-            }
-          : {}),
+        config: standardRazorpayCheckoutDisplayConfig(),
         handler: (response) => {
           void (async () => {
             try {
@@ -306,7 +277,6 @@ export default function RazorpayCheckoutButton({
     prefill,
     receipt,
     shouldShowSuccessToast,
-    testModeLayout,
     toast,
   ]);
 
@@ -322,9 +292,9 @@ export default function RazorpayCheckoutButton({
     >
       {loading ? (
         <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
+      ) : showLockIcon ? (
         <Lock className="h-4 w-4" />
-      )}
+      ) : null}
       {loading ? "Processing…" : displayLabel}
     </button>
   );

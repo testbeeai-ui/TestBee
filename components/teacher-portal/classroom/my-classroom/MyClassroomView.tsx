@@ -46,7 +46,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { safeGetSession } from "@/lib/auth/safeSession";
 import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
 import GeneratedMcqReview from "@/components/classroom/GeneratedMcqReview";
-import { getAdvancedSetBounds } from "@/lib/play/quiz/advancedQuizSets";
+import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 import { fetchSubtopicContent } from "@/lib/curriculum/subtopicContentService";
 import MeetSessionsStack from "@/components/teacher-portal/live/MeetSessionsStack";
 import { redirectToGoogleCalendarConsent } from "@/lib/integrations/googleCalendarOAuthClient";
@@ -65,6 +65,7 @@ import ConceptFocusSubtopicPreview from "@/components/teacher-portal/assignment/
 import DailyDoseStreakAssignmentFields from "@/components/teacher-portal/assignment/fields/DailyDoseStreakAssignmentFields";
 import GyanEngagementAssignmentFields from "@/components/teacher-portal/assignment/fields/GyanEngagementAssignmentFields";
 import CreateAssignmentWizard from "@/components/teacher-portal/assignment/CreateAssignmentWizard";
+import { BookLiveClassSlotPanel } from "@/components/teacher-portal/classroom/BookLiveClassSlotPanel";
 import ScheduleLiveSessionPanel from "@/components/teacher-portal/live/ScheduleLiveSessionPanel";
 import type { ScheduleLiveSessionPayload } from "@/components/teacher-portal/live/ScheduleLiveSessionPanel";
 import CreateTestsView from "@/components/teacher-portal/views/tests/CreateTestsView";
@@ -103,6 +104,7 @@ import type {
   TeacherPortalSummary,
 } from "@/lib/teacherPortal/types";
 import type { MockPaper, PastPaper } from "@/types";
+import { formatSectionScheduleDeliveryRdmLabel } from "@/lib/teacherPortal/liveClassDeliveryRdm";
 import { assignmentPostDueStillActive } from "@/lib/teacherPortal/assignmentDueActive";
 import { assignmentItemIsNudgeMcqTarget } from "@/lib/teacherPortal/nudgeMcqPosts";
 
@@ -213,7 +215,7 @@ export default function MyClassroomView({
       topic: string;
       subtopicName: string;
       level: string;
-      advancedSet?: 1 | 2 | 3;
+      advancedSet?: AdvancedQuizSetIndex;
     };
   } | null>(null);
 
@@ -1434,22 +1436,30 @@ export default function MyClassroomView({
   const approveJoinRequest = async (req: JoinRequestRow) => {
     if (!activeClassroomId || !teacherId) return;
     setActingJoinRequestId(req.id);
-    const { error: insertErr } = await supabase
-      .from("classroom_members")
-      .insert({ classroom_id: activeClassroomId, user_id: req.user_id, role: "student" });
-    if (insertErr) {
-      toast({ title: "Could not approve", description: insertErr.message, variant: "destructive" });
-      setActingJoinRequestId(null);
+    try {
+      const res = await fetchWithClientAuth(
+        `/api/teacher/classroom/${encodeURIComponent(activeClassroomId)}/join-requests/${encodeURIComponent(req.id)}/approve`,
+        { method: "POST" }
+      );
+      const body = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast({
+          title: res.status === 403 ? "Student limit reached" : "Could not approve",
+          description: body.error ?? "Try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+    } catch {
+      toast({
+        title: "Could not approve",
+        description: "Could not verify student limit. Try again.",
+        variant: "destructive",
+      });
       return;
+    } finally {
+      setActingJoinRequestId(null);
     }
-    await supabase
-      .from("classroom_join_requests")
-      .update({
-        status: "approved",
-        responded_at: new Date().toISOString(),
-        responded_by: teacherId,
-      })
-      .eq("id", req.id);
     setJoinRequests((prev) => prev.filter((r) => r.id !== req.id));
     await onRefreshTeacherPortal({ silent: true });
     const sectionsWithSeries = activeDetail.sections.filter((s) => s.googleSeriesLinked);
@@ -1501,14 +1511,6 @@ export default function MyClassroomView({
       toast({ title: "Section name required", variant: "destructive" });
       return;
     }
-    if (!sectionScheduleDate.trim() || !sectionScheduleTime.trim()) {
-      toast({
-        title: "Schedule required",
-        description: "Pick a start date and time for this section schedule.",
-        variant: "destructive",
-      });
-      return;
-    }
     setSectionCreating(true);
     try {
       const { data: created, error } = await supabase
@@ -1524,36 +1526,14 @@ export default function MyClassroomView({
       const createdRow = created as { id?: string } | null;
       if (error || !createdRow?.id) throw error ?? new Error("Could not create section.");
 
-      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-      const res = await fetchWithClientAuth(
-        `/api/integrations/google/classrooms/${activeClassroomId}/recurring`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sectionId: createdRow.id,
-            timeZone,
-            scheduleDate: sectionScheduleDate,
-            scheduleTime: sectionScheduleTime,
-            durationMinutes: sectionDurationMinutes,
-            repeatDays: sectionRepeatDays,
-            scheduleEndDate: sectionScheduleEndDate.trim() || null,
-          }),
-        }
-      );
-      if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? `Calendar sync failed (${res.status})`);
-      }
-
-      toast({ title: "Section created", description: "Schedule synced to Google Calendar." });
+      toast({
+        title: "Section created",
+        description: "Book a Google Calendar live class below (Settings is open).",
+      });
       setSectionDialogOpen(false);
       setNewSectionName("");
-      setSectionScheduleDate("");
-      setSectionScheduleTime("");
-      setSectionScheduleEndDate("");
-      setSectionDurationMinutes(90);
-      setSectionRepeatDays(["Mon", "Wed", "Fri"]);
+      setCohortTab({ kind: "section", id: createdRow.id });
+      setDetailTab("settings");
       await onRefreshTeacherPortal({ silent: true });
     } catch (e) {
       toast({
@@ -1898,7 +1878,7 @@ export default function MyClassroomView({
         toast({
           title: "Finish chapter quiz setup",
           description:
-            "Select class, subject, chapter, topic, subtopic, and difficulty (including Set 1–3 for Advanced).",
+            "Select class, subject, chapter, topic, subtopic, and difficulty (including Set 1–6 for Advanced).",
           variant: "destructive",
         });
         return;
@@ -2292,11 +2272,17 @@ export default function MyClassroomView({
           body: JSON.stringify({ mode, sectionId: sectionId ?? null }),
         }
       );
-      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        cleared?: boolean;
+      };
       if (!res.ok) throw new Error(payload.error || `Request failed (${res.status})`);
       toast({
         title: mode === "delete_series" ? "Calendar series removed" : "Future classes stopped",
-        description: "Google Calendar was updated. Refresh if Meet links still show cached values.",
+        description:
+          payload.message ??
+          "Google Calendar was updated. Refresh if Meet links still show cached values.",
       });
       await onRefreshTeacherPortal();
     } catch (err) {
@@ -2513,6 +2499,15 @@ export default function MyClassroomView({
               </div>
             </div>
             <div className="flex flex-wrap gap-2 sm:justify-end">
+              {!summary.googleCalendarConnected ? (
+                <button
+                  type="button"
+                  onClick={() => void connectGoogleCalendarFromToolbar()}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-sky-500/40 bg-sky-500/10 px-3 text-xs font-semibold text-sky-100 hover:bg-sky-500/20"
+                >
+                  Connect Google Calendar
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => setInviteDialogOpen(true)}
@@ -2571,8 +2566,21 @@ export default function MyClassroomView({
               >
                 <span className="max-w-[200px] truncate leading-tight">{sec.name}</span>
                 <span className="text-[10px] font-semibold text-slate-500">
-                  {sec.scheduleLabel?.trim() || "No schedule set"}
+                  {sec.scheduleLabel?.trim() ||
+                    (sec.googleSeriesLinked ? "Legacy calendar series" : "No live class booked")}
                 </span>
+                {(() => {
+                  const rdmLine = formatSectionScheduleDeliveryRdmLabel({
+                    hasSchedule: Boolean(sec.scheduleLabel?.trim() || sec.googleSeriesLinked),
+                    expectedDeliveryRdm: sec.expectedDeliveryRdm,
+                    deliveryRdmGrantedTotal: sec.deliveryRdmGrantedTotal,
+                  });
+                  return rdmLine ? (
+                    <span className="mt-0.5 max-w-[200px] truncate text-[10px] font-semibold text-amber-300/90">
+                      {rdmLine}
+                    </span>
+                  ) : null;
+                })()}
               </button>
             ))}
             <div className="ml-auto flex shrink-0 items-center gap-2 pl-1">
@@ -2738,6 +2746,24 @@ export default function MyClassroomView({
                   )}
                 </div>
               ) : null}
+              {cohortTab.kind === "section" && activeClassroomId
+                ? (() => {
+                    const sec =
+                      activeDetail.sections.find((s) => s.id === cohortTab.id) ?? null;
+                    if (!sec || sec.isActive === false) return null;
+                    return (
+                      <BookLiveClassSlotPanel
+                        variant="compact"
+                        classroomId={activeClassroomId}
+                        sectionId={sec.id}
+                        sectionName={sec.name}
+                        googleCalendarConnected={summary.googleCalendarConnected}
+                        onConnectGoogle={() => void connectGoogleCalendarFromToolbar()}
+                        onBooked={() => void onRefreshTeacherPortal({ silent: true })}
+                      />
+                    );
+                  })()
+                : null}
               <div className="rounded-xl border border-white/10 bg-[#15162b] p-3.5 sm:p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <div className="text-sm font-semibold">Enrolled Students</div>
@@ -3295,69 +3321,95 @@ export default function MyClassroomView({
                               </button>
                             </div>
                           </div>
+
+                          {(() => {
+                            const rdmLine = formatSectionScheduleDeliveryRdmLabel({
+                              hasSchedule: Boolean(sec.scheduleLabel?.trim() || sec.googleSeriesLinked),
+                              expectedDeliveryRdm: sec.expectedDeliveryRdm,
+                              deliveryRdmGrantedTotal: sec.deliveryRdmGrantedTotal,
+                            });
+                            if (!rdmLine) return null;
+                            return (
+                              <div className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2.5 text-xs">
+                                <div className="font-semibold text-amber-200">Schedule class RDM</div>
+                                <div className="mt-1 text-amber-100/90">{rdmLine}</div>
+                                <div className="mt-1 text-[10px] text-slate-500">
+                                  Credited after each Google Calendar / section occurrence ends (roster
+                                  in this section; student join not required).
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex h-full flex-col rounded-xl border border-sky-500/25 bg-sky-500/5 p-3.5 sm:p-4 lg:col-span-7">
                           <div className="mb-2 text-sm font-semibold text-sky-200">
                             Google Meet &amp; Calendar
                           </div>
-                          <p className="mb-3 text-xs text-slate-400">
-                            Manage the Meet link and Google Calendar series for this section.
-                          </p>
+                          {activeClassroomId ? (
+                            <BookLiveClassSlotPanel
+                              variant="settings"
+                              classroomId={activeClassroomId}
+                              sectionId={sec.id}
+                              sectionName={sec.name}
+                              googleCalendarConnected={summary.googleCalendarConnected}
+                              onConnectGoogle={() => void connectGoogleCalendarFromToolbar()}
+                              onBooked={() => void onRefreshTeacherPortal({ silent: true })}
+                            />
+                          ) : null}
 
-                          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-                            <div className="mb-1 text-xs font-semibold text-slate-200">
-                              {sec.name}
-                            </div>
-                            {sec.googleMeetLink ? (
-                              <a
-                                href={sec.googleMeetLink}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-sky-500/40 bg-sky-500/15 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-500/25"
-                              >
-                                Open Meet link <ExternalLink className="h-3.5 w-3.5" />
-                              </a>
-                            ) : (
-                              <p className="mb-2 text-xs text-slate-400">
-                                Meet link will appear after the next calendar sync.
-                              </p>
-                            )}
+                          {sec.googleSeriesLinked ? (
+                            <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-3">
+                              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                Legacy recurring series
+                              </div>
+                              <div className="mb-1 text-xs font-semibold text-slate-200">
+                                {sec.name}
+                              </div>
+                              {sec.googleMeetLink ? (
+                                <a
+                                  href={sec.googleMeetLink}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-sky-500/40 bg-sky-500/15 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-500/25"
+                                >
+                                  Open Meet link <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              ) : null}
 
-                            <div className="mt-2 flex flex-wrap gap-2">
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  disabled={googleSeriesStopping}
+                                  onClick={() => void stopGoogleSeries("until_today", sec.id)}
+                                  className="rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-500/20 disabled:opacity-50"
+                                >
+                                  {googleSeriesStopping ? "Working…" : "Stop future dates"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={googleSeriesStopping}
+                                  onClick={() => void stopGoogleSeries("delete_series", sec.id)}
+                                  className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
+                                >
+                                  Delete Google series
+                                </button>
+                              </div>
+
                               <button
                                 type="button"
-                                disabled={googleSeriesStopping || !sec.googleSeriesLinked}
-                                onClick={() => void stopGoogleSeries("until_today", sec.id)}
-                                className="rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-500/20 disabled:opacity-50"
+                                disabled={
+                                  googleInviteSyncing || activeDetail.students.length === 0
+                                }
+                                onClick={() => void syncStudentCalendarInvites()}
+                                className="mb-1 mt-3 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-50"
                               >
-                                {googleSeriesStopping ? "Working…" : "Stop future dates"}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={googleSeriesStopping || !sec.googleSeriesLinked}
-                                onClick={() => void stopGoogleSeries("delete_series", sec.id)}
-                                className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
-                              >
-                                Delete Google series
+                                {googleInviteSyncing
+                                  ? "Syncing invites…"
+                                  : "Email calendar invites to students"}
                               </button>
                             </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            disabled={
-                              googleInviteSyncing ||
-                              !sec.googleSeriesLinked ||
-                              activeDetail.students.length === 0
-                            }
-                            onClick={() => void syncStudentCalendarInvites()}
-                            className="mb-1 mt-3 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-50"
-                          >
-                            {googleInviteSyncing
-                              ? "Syncing invites…"
-                              : "Email calendar invites to students"}
-                          </button>
+                          ) : null}
                         </div>
                       </div>
                     );
@@ -3530,8 +3582,11 @@ export default function MyClassroomView({
                                 tab, assign each student to a section (or leave them unassigned).
                               </li>
                               <li>
-                                Open a section from the class filter to set its weekly plan and sync
-                                Google Calendar for that section only.
+                                Select a section tab, then use{" "}
+                                <span className="font-medium text-slate-300">
+                                  Book live class (Google Calendar + Meet)
+                                </span>{" "}
+                                on Students or Settings to schedule a class.
                               </li>
                             </ol>
                           </div>
@@ -3600,6 +3655,17 @@ export default function MyClassroomView({
                                       an active section to resume section-based assignments,
                                       messages, and scheduling.
                                     </div>
+                                  ) : null}
+                                  {!expired && activeClassroomId ? (
+                                    <BookLiveClassSlotPanel
+                                      variant="settings"
+                                      classroomId={activeClassroomId}
+                                      sectionId={sec.id}
+                                      sectionName={sec.name}
+                                      googleCalendarConnected={summary.googleCalendarConnected}
+                                      onConnectGoogle={() => void connectGoogleCalendarFromToolbar()}
+                                      onBooked={() => void onRefreshTeacherPortal({ silent: true })}
+                                    />
                                   ) : null}
                                 </li>
                               );
@@ -4111,8 +4177,7 @@ export default function MyClassroomView({
               Add section
             </DialogTitle>
             <p className="mt-1 text-sm text-slate-400">
-              Create a section (up to 6 per class) and set its recurring schedule. This is what
-              syncs to Google Calendar for that section.
+              Name your batch, then book live classes (Google Calendar + Meet) from the section tab.
             </p>
           </DialogHeader>
           <div className="space-y-4 p-4 sm:p-6">
@@ -4126,85 +4191,6 @@ export default function MyClassroomView({
                 placeholder="e.g. Morning batch, Section A"
                 className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400"
               />
-            </div>
-            <div className="rounded-xl border border-white/10 bg-[#0d1121] p-3 sm:rounded-2xl sm:p-4">
-              <label className="mb-2 block text-xs font-semibold text-slate-300 sm:text-sm">
-                Section schedule
-              </label>
-              <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 sm:gap-3">
-                <div className="relative">
-                  <label className="mb-1 block text-[10px] font-semibold text-slate-500 sm:text-xs">
-                    Start date
-                  </label>
-                  <input
-                    type="date"
-                    value={sectionScheduleDate}
-                    onChange={(e) => setSectionScheduleDate(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400 sm:h-11"
-                  />
-                </div>
-                <div className="relative flex min-w-0 flex-col gap-2">
-                  <div className="min-w-0">
-                    <label className="mb-1 block text-[10px] font-semibold text-slate-500 sm:text-xs">
-                      Start time
-                    </label>
-                    <WallTimeSelects
-                      value={sectionScheduleTime}
-                      onChange={setSectionScheduleTime}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-[10px] font-semibold text-slate-500 sm:text-xs">
-                      Duration
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={String(sectionDurationMinutes)}
-                        onChange={(e) => setSectionDurationMinutes(Number(e.target.value))}
-                        className={selectClassName}
-                      >
-                        <option value="45">45m</option>
-                        <option value="60">60m</option>
-                        <option value="90">90m</option>
-                        <option value="120">120m</option>
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-2">
-                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-xs">
-                  Repeat days
-                </div>
-                <div className="flex flex-wrap gap-1 sm:gap-1.5">
-                  {WEEKDAYS.map((day) => (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => toggleSectionRepeat(day)}
-                      className={`rounded-full border px-2 py-1 text-[10px] font-semibold sm:px-2.5 sm:text-xs ${
-                        sectionRepeatDays.includes(day)
-                          ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
-                          : "border-white/15 text-slate-400 hover:border-white/25 hover:text-slate-200"
-                      }`}
-                    >
-                      {day}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-2">
-                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-xs">
-                  End date (optional)
-                </label>
-                <input
-                  type="date"
-                  value={sectionScheduleEndDate}
-                  onChange={(e) => setSectionScheduleEndDate(e.target.value)}
-                  className="h-10 w-full max-w-xs rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400 sm:h-11"
-                />
-              </div>
             </div>
           </div>
           <div className="flex flex-col-reverse items-stretch justify-end gap-3 border-t border-white/10 p-4 sm:flex-row sm:items-center sm:p-5">
@@ -4899,7 +4885,7 @@ export default function MyClassroomView({
           <DialogHeader className="border-b border-white/10 p-4 pb-3 sm:p-6 sm:pb-4">
             <DialogTitle className="font-serif text-2xl sm:text-3xl">Invite students</DialogTitle>
             <p className="mt-1 text-sm text-slate-400">
-              Share a join link/code, or directly add existing users.
+              Share a join link/code, or bulk-import student emails for classroom rewards.
             </p>
           </DialogHeader>
           <div className="p-4 sm:p-6">

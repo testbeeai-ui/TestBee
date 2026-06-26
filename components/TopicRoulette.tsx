@@ -46,7 +46,7 @@ const DIFFICULTY_TIERS = [
   },
   {
     id: "advanced" as const,
-    label: "Advanced",
+    label: "Topic",
     subtitle: "Master the topic",
     level: "III",
     icon: Zap,

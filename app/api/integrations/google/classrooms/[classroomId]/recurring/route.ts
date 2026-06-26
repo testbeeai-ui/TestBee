@@ -10,6 +10,7 @@ import {
   refreshAccessToken,
 } from "@/lib/integrations/googleCalendarServer";
 import { getGoogleOAuthEnv } from "@/lib/integrations/googleEnv";
+import { loadTeacherPlanContext } from "@/lib/teacherPortal/teacherPlanServer";
 
 type Body = {
   sectionId?: string | null;
@@ -88,6 +89,17 @@ export async function POST(
   }
   if (room.teacher_id !== user.id) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+
+  const planCtx = await loadTeacherPlanContext(user.id);
+  if (!planCtx || planCtx.tier === "free") {
+    return NextResponse.json(
+      {
+        error: "Google Calendar recurring series requires Starter or Pro. Upgrade in Subscriptions.",
+        code: "plan_calendar_series",
+      },
+      { status: 403 }
+    );
   }
 
   const sectionId = body.sectionId?.trim() || null;
