@@ -1,12 +1,15 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { makeSubtopicEngagementStorageKey } from "@/lib/curriculum/subtopicEngagementStorageKey";
 import {
   parseTeacherProfileMetaFromBio,
   type TeacherProfileDetails,
 } from "@/lib/profile/teacherProfileMeta";
 import { appendQueryParams, buildTopicPath } from "@/lib/curriculum/topicRoutes";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
+import {
+  countStudentsAssignmentComplete,
+  resolveAssignmentAudienceStudentIds,
+} from "@/lib/classroom/assignmentStudentCompletion";
 import {
   formatConceptFocusRefForDisplay,
   inferSessionWorkKind,
@@ -59,10 +62,10 @@ import {
   DEFAULT_LIVE_CLASS_DELIVERY_RDM_CONFIG,
 } from "@/lib/teacherPortal/liveClassDeliveryRdm";
 import { fetchLiveClassDeliveryRdmConfig } from "@/lib/teacherPortal/teacherRdmConfig";
+import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdm/rdmConfig";
 import { normalizeTeacherPlanTier } from "@/lib/teacherPortal/teacherPlan";
 import {
   allocateUniqueJoinCode,
-  countStudentsAllVisibleTasksDone,
   fetchAllPostsForTeacherClassrooms,
   isTeacherPortalDemoShowcaseClassroom,
 } from "./helpers";
@@ -73,70 +76,47 @@ export async function loadTeacherPortalBundle(
 ): Promise<TeacherPortalDataBundle> {
   const db = client ?? supabase;
   const deliveryRdmConfig = await fetchLiveClassDeliveryRdmConfig(db);
-  const [
-    profileRes,
-    classroomsRes,
-    membersRes,
-    postsRes,
-    sessionsRes,
-    doubtsRes,
-    answersRes,
-    payoutsRes,
-  ] = await Promise.all([
-    db
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .from("profiles" as any)
-      .select(
-        "id, name, avatar_url, bio, subjects, exam_tags, teaching_levels, visibility, rdm, google_connected, teacher_plan_tier, teacher_plan_started_at, teacher_plan_expires_at"
-      )
-      .eq("id", userId)
-      .maybeSingle(),
-    // Supabase generated TS types may not include newly added columns yet (e.g. allow_adhoc_trial).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- narrow escape hatch until types are regenerated
-    (db as any)
-      .from("classrooms")
-      .select(
-        "id, name, subject, section, description, intro_video_url, teacher_id, join_code, google_meet_link, google_recurring_event_id, allow_adhoc_trial"
-      )
-      .eq("teacher_id", userId)
-      .order("created_at", { ascending: false }),
-    db
-      .from("classroom_members")
-      .select("classroom_id, role")
-      .in(
-        "classroom_id",
-        (await db.from("classrooms").select("id").eq("teacher_id", userId)).data?.map(
-          (c) => c.id
-        ) ?? [""]
-      ),
-    db
-      .from("posts")
-      .select(
-        "id, classroom_id, section_id, type, created_at, updated_at, title, description, due_date, content_json, teacher_id"
-      )
-      .eq("teacher_id", userId),
-    db
-      .from("live_sessions")
-      .select(
-        "id, classroom_id, section_id, title, scheduled_at, duration_minutes, meet_link, status, plan_json, pre_assignment_post_id, post_assignment_post_id"
-      )
-      .eq("teacher_id", userId)
-      .order("scheduled_at", { ascending: true }),
-    db
-      .from("doubts")
-      .select("id, title, body, subject, created_at, upvotes, user_id")
-      .order("created_at", { ascending: false })
-      .limit(30),
-    db
-      .from("doubt_answers")
-      .select("id, doubt_id, body, user_id, upvotes, created_at")
-      .order("created_at", { ascending: false }),
-    db
-      .from("accepted_answer_payouts")
-      .select("rdm_paid, paid_at")
-      .eq("user_id", userId)
-      .gte("paid_at", startOfWeekIso()),
-  ]);
+  const [profileRes, classroomsRes, postsRes, doubtsRes, answersRes, payoutsRes] =
+    await Promise.all([
+      db
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .from("profiles" as any)
+        .select(
+          "id, name, avatar_url, bio, subjects, exam_tags, teaching_levels, visibility, rdm, google_connected, google_calendar_email, teacher_plan_tier, teacher_plan_started_at, teacher_plan_expires_at"
+        )
+        .eq("id", userId)
+        .maybeSingle(),
+      // Supabase generated TS types may not include newly added columns yet (e.g. allow_adhoc_trial).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- narrow escape hatch until types are regenerated
+      (db as any)
+        .from("classrooms")
+        .select(
+          "id, name, subject, section, description, intro_video_url, teacher_id, join_code, google_meet_link, google_recurring_event_id, allow_adhoc_trial"
+        )
+        .eq("teacher_id", userId)
+        .order("created_at", { ascending: false }),
+      // Fallback only for the no-classroom case; scoped query below supersedes this otherwise.
+      db
+        .from("posts")
+        .select(
+          "id, classroom_id, section_id, type, created_at, updated_at, title, description, due_date, content_json, teacher_id"
+        )
+        .eq("teacher_id", userId),
+      db
+        .from("doubts")
+        .select("id, title, body, subject, created_at, upvotes, user_id")
+        .order("created_at", { ascending: false })
+        .limit(30),
+      db
+        .from("doubt_answers")
+        .select("id, doubt_id, body, user_id, upvotes, created_at")
+        .order("created_at", { ascending: false }),
+      db
+        .from("accepted_answer_payouts")
+        .select("rdm_paid, paid_at")
+        .eq("user_id", userId)
+        .gte("paid_at", startOfWeekIso()),
+    ]);
 
   const profile = (profileRes.data as {
     id: string;
@@ -204,7 +184,7 @@ export async function loadTeacherPortalBundle(
   }
   const classroomIds = classrooms.map((c) => c.id);
 
-  const [memberRowsBase, sessionRows, sectionRowsRes, askerProfilesRes] = await Promise.all([
+  const [memberRowsBase, sessionRows, slotRowsRes, sectionRowsRes, askerProfilesRes] = await Promise.all([
     classroomIds.length
       ? db
           .from("classroom_members")
@@ -220,6 +200,15 @@ export async function loadTeacherPortalBundle(
           .eq("teacher_id", userId)
           .in("classroom_id", classroomIds)
           .order("scheduled_at", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+    classroomIds.length
+      ? (db as any)
+          .from("live_class_slots")
+          .select("id, classroom_id, section_id, slot_at, duration_minutes, meet_link, status")
+          .eq("teacher_id", userId)
+          .in("classroom_id", classroomIds)
+          .eq("status", "scheduled")
+          .order("slot_at", { ascending: true })
       : Promise.resolve({ data: [], error: null }),
     classroomIds.length
       ? db
@@ -242,9 +231,31 @@ export async function loadTeacherPortalBundle(
       ? await fetchAllPostsForTeacherClassrooms(db, userId, classroomIds)
       : [];
 
-  const members = memberRowsBase.data ?? membersRes.data ?? [];
+  const members = memberRowsBase.data ?? [];
   const posts = classroomIds.length > 0 ? postsFromClassrooms : (postsRes.data ?? []);
-  const sessions = sessionRows.data ?? sessionsRes.data ?? [];
+  const liveSessionRows = sessionRows.data ?? [];
+  const bookedSlotRows = (slotRowsRes.data ?? []) as Array<{
+    id: string;
+    classroom_id: string;
+    section_id: string;
+    slot_at: string;
+    duration_minutes: number;
+    meet_link: string | null;
+    status: string;
+  }>;
+  const slotAsSessions = bookedSlotRows.map((row) => ({
+    id: row.id,
+    classroom_id: row.classroom_id,
+    section_id: row.section_id,
+    title: "Live class",
+    scheduled_at: row.slot_at,
+    duration_minutes: row.duration_minutes,
+    meet_link: row.meet_link,
+    status: row.status,
+  }));
+  const sessions = [...liveSessionRows, ...slotAsSessions].sort(
+    (a, b) => Date.parse(String(a.scheduled_at)) - Date.parse(String(b.scheduled_at))
+  );
   const sectionRows = sectionRowsRes.data ?? [];
   const doubts = doubtsRes.data ?? [];
   const answers = answersRes.data ?? [];
@@ -965,6 +976,28 @@ export async function loadTeacherPortalBundle(
 
   const studentEngagementByUser = new Map<string, Record<string, unknown>>();
   const bitsAttemptsByUserId = new Map<string, ReturnType<typeof parseBitsTestAttemptsStore>>();
+  type LessonMarkRow = {
+    user_id: string;
+    board: string;
+    subject: string;
+    class_level: number;
+    topic: string;
+    subtopic: string;
+    level: string;
+    marked_complete_at: string | null;
+  };
+  const lessonMarksByUser = new Map<
+    string,
+    Array<{
+      board: string;
+      subject: string;
+      class_level: number;
+      topic: string;
+      subtopic: string;
+      level: string;
+      marked_complete_at?: string | null;
+    }>
+  >();
   if (studentIdsAcrossClassrooms.length > 0) {
     const { data: profileRows, error: profileErr } = await db
       .from("profiles")
@@ -985,10 +1018,34 @@ export async function loadTeacherPortalBundle(
         );
       }
     }
+
+    const { data: markRows, error: markErr } = await db
+      .from("student_lesson_mark_completions" as never)
+      .select(
+        "user_id, board, subject, class_level, topic, subtopic, level, marked_complete_at"
+      )
+      .in("user_id", studentIdsAcrossClassrooms);
+    if (!markErr && markRows) {
+      for (const row of markRows as LessonMarkRow[]) {
+        const uid = String(row.user_id);
+        const list = lessonMarksByUser.get(uid) ?? [];
+        list.push({
+          board: row.board,
+          subject: row.subject,
+          class_level: row.class_level,
+          topic: row.topic,
+          subtopic: row.subtopic,
+          level: row.level,
+          marked_complete_at: row.marked_complete_at,
+        });
+        lessonMarksByUser.set(uid, list);
+      }
+    }
   }
 
   // Backfill chapter quiz completion from submitted attempts so teacher stats stay accurate
   // even when explicit task-progress rows are missing.
+  const submittedUserIdsByPostId = new Map<string, Set<string>>();
   if (assignmentPostIds.length > 0) {
     const genericSupabase = db as unknown as {
       from: (table: string) => {
@@ -1020,12 +1077,24 @@ export async function loadTeacherPortalBundle(
       );
       const postById = new Map(assignmentPosts.map((p) => [p.id, p]));
       for (const attempt of attempts) {
+        let submittedSet = submittedUserIdsByPostId.get(attempt.post_id);
+        if (!submittedSet) {
+          submittedSet = new Set<string>();
+          submittedUserIdsByPostId.set(attempt.post_id, submittedSet);
+        }
+        submittedSet.add(attempt.user_id);
+
         const post = postById.get(attempt.post_id);
         if (!post) continue;
         const chapterTaskIds = studentVisibleTasks(
           parseAssignmentTasks(post.content_json, post.type)
         )
-          .filter((t) => t.kind === "chapter_quiz")
+          .filter(
+            (t) =>
+              t.kind === "chapter_quiz" ||
+              t.kind === "mock_paper" ||
+              t.kind === "past_paper"
+          )
           .map((t) => t.id);
         for (const taskId of chapterTaskIds) {
           const key = `${attempt.post_id}:${taskId}:${attempt.user_id}`;
@@ -1135,6 +1204,7 @@ export async function loadTeacherPortalBundle(
     const expectedClass = Number(cq.classLevel);
     const expectedTopic = normalizeBitsLookupKey(cq.topic);
     const expectedSubtopic = normalizeBitsLookupKey(cq.subtopicName);
+    const expectedLevel = normalizeBitsLookupKey(cq.level);
     if (!expectedSubject || !expectedTopic || !expectedSubtopic) continue;
 
     const cid = post.classroom_id;
@@ -1153,7 +1223,8 @@ export async function loadTeacherPortalBundle(
             normalizeBitsLookupKey(r.subject) === expectedSubject &&
             Number(r.classLevel) === expectedClass &&
             normalizeBitsLookupKey(r.topic) === expectedTopic &&
-            normalizeBitsLookupKey(r.subtopicName) === expectedSubtopic
+            normalizeBitsLookupKey(r.subtopicName) === expectedSubtopic &&
+            (!expectedLevel || normalizeBitsLookupKey(r.level) === expectedLevel)
           );
         })
         .sort((a, b) => (b.submittedAtMs ?? 0) - (a.submittedAtMs ?? 0))[0];
@@ -1174,6 +1245,38 @@ export async function loadTeacherPortalBundle(
         post_id: post.id,
       });
       cgtaPostUserSeen.add(pair);
+    }
+  }
+
+  // Keep completion counts aligned with cgtaRowsAll (includes bits_test_attempts fallback).
+  for (const row of cgtaRowsAll) {
+    if (!row.post_id || !row.user_id || !row.submitted_at) continue;
+    let submittedSet = submittedUserIdsByPostId.get(row.post_id);
+    if (!submittedSet) {
+      submittedSet = new Set<string>();
+      submittedUserIdsByPostId.set(row.post_id, submittedSet);
+    }
+    submittedSet.add(row.user_id);
+
+    const post = assignmentPosts.find((p) => p.id === row.post_id);
+    if (!post) continue;
+    const chapterTaskIds = studentVisibleTasks(parseAssignmentTasks(post.content_json, post.type))
+      .filter(
+        (t) =>
+          t.kind === "chapter_quiz" || t.kind === "mock_paper" || t.kind === "past_paper"
+      )
+      .map((t) => t.id);
+    for (const taskId of chapterTaskIds) {
+      const key = `${row.post_id}:${taskId}:${row.user_id}`;
+      if (taskProgressRows.some((r) => `${r.post_id}:${r.task_id}:${r.user_id}` === key)) {
+        continue;
+      }
+      taskProgressRows.push({
+        post_id: row.post_id,
+        task_id: taskId,
+        user_id: row.user_id,
+        completed_at: row.submitted_at,
+      });
     }
   }
 
@@ -1335,61 +1438,42 @@ export async function loadTeacherPortalBundle(
     const gyanEngagement = parseGyanEngagementRef(payload);
     const studentMembers = detail.students.filter((s) => s.role !== "teacher");
     const studentIds = studentMembers.map((s) => s.userId);
-    const total = Math.max(1, studentIds.length);
+    const postSectionId =
+      typeof (post as unknown as { section_id?: unknown }).section_id === "string"
+        ? String((post as unknown as { section_id: string }).section_id)
+        : null;
+    const audienceIds = resolveAssignmentAudienceStudentIds(post.content_json, studentIds, {
+      postSectionId,
+      members: studentMembers.map((s) => ({
+        userId: s.userId,
+        sectionId: s.sectionId ?? null,
+      })),
+    });
+    const total = Math.max(1, audienceIds.length);
     const tasks = parseAssignmentTasks(post.content_json, post.type);
     const visible = studentVisibleTasks(tasks);
     const forPost = taskProgressRows.filter((r) => r.post_id === post.id);
+    const submittedUserIds = submittedUserIdsByPostId.get(post.id) ?? new Set<string>();
     let completionPercent: number;
     let completedCount: number;
-    if (visible.length > 0 && forPost.length >= 0) {
-      completedCount = countStudentsAllVisibleTasksDone(studentIds, visible, forPost);
-      const totalInstances = studentIds.length * visible.length;
+    if (visible.length > 0 || post.type === "Concept Focus") {
+      completedCount = countStudentsAssignmentComplete({
+        postType: post.type,
+        contentJson: post.content_json,
+        studentIds: audienceIds,
+        progressForPost: forPost,
+        submittedUserIds,
+        engagementByUser: studentEngagementByUser,
+        lessonMarksByUser,
+        visibleTasks: visible,
+      });
       completionPercent =
-        totalInstances > 0
-          ? Math.round((100 * Math.min(forPost.length, totalInstances)) / totalInstances)
+        audienceIds.length > 0
+          ? Math.round((100 * completedCount) / audienceIds.length)
           : 0;
     } else {
       completionPercent = Math.max(22, Math.min(95, 35 + ((idx * 18) % 60)));
       completedCount = Math.round((completionPercent / 100) * total);
-    }
-
-    // Concept Focus: also count students who marked the matching subtopic as complete
-    // in `profiles.subtopic_engagement.lessonChecklistMarkedCompleteAt`.
-    if (post.type === "Concept Focus") {
-      const chapterQuizRef = parseChapterQuizRef(payload);
-      if (chapterQuizRef) {
-        const completedByEngagement = new Set<string>();
-        for (const uid of studentIds) {
-          const store = studentEngagementByUser.get(uid);
-          if (!store) continue;
-          const key = makeSubtopicEngagementStorageKey({
-            board: chapterQuizRef.board.toLowerCase() === "icse" ? "ICSE" : "CBSE",
-            subject: chapterQuizRef.subject,
-            classLevel: chapterQuizRef.classLevel,
-            topic: chapterQuizRef.topic,
-            subtopicName: chapterQuizRef.subtopicName,
-            level: chapterQuizRef.level,
-          });
-          const snap = store[key];
-          if (!snap || typeof snap !== "object" || Array.isArray(snap)) continue;
-          const markedAt =
-            typeof (snap as Record<string, unknown>).lessonChecklistMarkedCompleteAt === "string"
-              ? String((snap as Record<string, unknown>).lessonChecklistMarkedCompleteAt).trim()
-              : "";
-          if (markedAt) completedByEngagement.add(uid);
-        }
-
-        if (completedByEngagement.size > 0) {
-          completedCount = Math.max(completedCount, completedByEngagement.size);
-          completionPercent =
-            studentIds.length > 0
-              ? Math.max(
-                  completionPercent,
-                  Math.round((100 * completedByEngagement.size) / studentIds.length)
-                )
-              : completionPercent;
-        }
-      }
     }
     const rewardRdm = typeof payload.rewardRdm === "number" ? payload.rewardRdm : 15;
     const instructions =
@@ -1535,6 +1619,8 @@ export async function loadTeacherPortalBundle(
     googleCalendarConnected: Boolean(
       (profile as { google_connected?: boolean | null }).google_connected
     ),
+    googleCalendarEmail:
+      (profile as { google_calendar_email?: string | null }).google_calendar_email ?? null,
     activeClassrooms: classroomCards.length,
     totalStudents: classroomCards.reduce((sum, c) => sum + c.studentCount, 0),
     assignmentsActive: classroomCards.reduce((sum, c) => sum + c.assignmentCount, 0),
@@ -1661,23 +1747,61 @@ export async function loadTeacherPortalBundle(
   };
 
   const referralCode = profile.id.replace(/-/g, "").slice(0, 7).toUpperCase();
-  const { count: studentsReferredCount } = await db
+  const rdmConfig = await fetchRdmConfig(
+    db as unknown as Parameters<typeof fetchRdmConfig>[0]
+  );
+  const { data: referralRows } = await (db as unknown as {
+    from: (table: string) => {
+      select: (cols: string) => {
+        eq: (
+          col: string,
+          val: string
+        ) => Promise<{ data: Array<Record<string, unknown>> | null; error: unknown }>;
+      };
+    };
+  })
     .from("referral_attributions")
-    .select("id", { count: "exact", head: true })
+    .select("referrer_rdm, referee_is_teacher, teacher_paid_bonus_awarded_at")
     .eq("referrer_user_id", userId);
+
+  let teachersReferred = 0;
+  let studentsReferred = 0;
+  let teacherReferralRdmEarned = 0;
+  let studentReferralRdmEarned = 0;
+  const paidBonus = rdmConfig.referral_teacher_paid_bonus ?? DEFAULT_RDM_CONFIG.referral_teacher_paid_bonus;
+
+  for (const row of referralRows ?? []) {
+    const isTeacherReferee = row.referee_is_teacher === true;
+    const signupRdm = typeof row.referrer_rdm === "number" ? row.referrer_rdm : 0;
+    const paidExtra =
+      typeof row.teacher_paid_bonus_awarded_at === "string" &&
+      row.teacher_paid_bonus_awarded_at.trim()
+        ? paidBonus
+        : 0;
+    if (isTeacherReferee) {
+      teachersReferred += 1;
+      teacherReferralRdmEarned += signupRdm + paidExtra;
+    } else {
+      studentsReferred += 1;
+      studentReferralRdmEarned += signupRdm + paidExtra;
+    }
+  }
 
   const referStats: TeacherPortalReferStats = {
     rdmBalance: profile.rdm ?? 0,
     referralCode,
     referralLink: `/join?ref=${referralCode}`,
-    teachersReferred: 0,
-    studentsReferred: studentsReferredCount ?? 0,
-    teacherRewardRdm: 100,
-    studentRewardRdm: 50,
+    teachersReferred,
+    studentsReferred,
+    teacherReferralRdmEarned,
+    studentReferralRdmEarned,
+    teacherRewardRdm: rdmConfig.referral_teacher_signup_reward,
+    studentRewardRdm: rdmConfig.referral_referrer_reward,
     teacherMilestoneBonusRdm: 300,
-    teacherSignupRewardRdm: 500,
-    teacherPaidBonusRdm: 500,
-    teacherPaidWindowDays: 30,
+    teacherSignupRewardRdm: rdmConfig.referral_teacher_signup_reward,
+    teacherStudentSignupRewardRdm: rdmConfig.referral_teacher_student_signup_reward,
+    teacherPaidBonusRdm: rdmConfig.referral_teacher_paid_bonus,
+    teacherPaidWindowDays: rdmConfig.referral_teacher_paid_window_days,
   };
 
   return {

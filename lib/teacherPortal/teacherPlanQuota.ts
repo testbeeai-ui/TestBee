@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { DbClient } from "@/lib/teacherPortal/queries/utils";
 import {
+  assignmentQuotaExceededMessage,
   canCreateMoreAssignments,
   fetchTeacherPlanConfig,
   getTeacherPlanLimits,
@@ -57,13 +58,6 @@ export async function assertTeacherCanCreateAssignmentWithDb(
   const client = db ?? supabase;
   const { tier, limits } = await loadTeacherTier(teacherId, client);
 
-  if (tier === "free") {
-    throw new TeacherPlanQuotaError(
-      "Upgrade to Starter to publish assignments.",
-      "assignment_cap_reached"
-    );
-  }
-
   const { start, end } = istMonthBoundsForDate(new Date());
   const { count } = await client
     .from("posts")
@@ -77,7 +71,7 @@ export async function assertTeacherCanCreateAssignmentWithDb(
   const quota = canCreateMoreAssignments(created, limits);
   if (!quota.allowed) {
     throw new TeacherPlanQuotaError(
-      "Monthly assignment limit reached. Upgrade to Pro for unlimited assignments.",
+      assignmentQuotaExceededMessage(tier, quota.cap),
       "assignment_cap_reached"
     );
   }

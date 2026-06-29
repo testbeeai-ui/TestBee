@@ -53,13 +53,7 @@ export function subscriptionExpiresAtIso(
   return new Date(fromMs + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
-/** Teacher RDM top-up packs — price in paise (INR × 100). */
-export const RDM_PACK_PRICE_PAISE: Record<string, number> = {
-  pack_500: 30_000,
-  pack_1000: 50_000,
-  pack_2200: 100_000,
-};
-
-export function rdmPackAmountPaise(packId: string): number | null {
-  return RDM_PACK_PRICE_PAISE[packId] ?? null;
-}
+export {
+  TEACHER_RDM_PACKS,
+  teacherRdmPackAmountPaise as rdmPackAmountPaise,
+} from "@/lib/subscription/teacherRdmPacks";

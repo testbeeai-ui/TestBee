@@ -1,6 +1,6 @@
 import type { Post as DbPost } from "@/lib/news-blog/news-blog-db";
 
-import { BLOG_SECTIONS, EXAMS, NEWS_SECTIONS } from "./constants";
+import { BLOG_SECTIONS, EXAMS, isAdminOnlyNewsSection, NEWS_SECTIONS } from "./constants";
 import type { Draft, ExamId, Portal, Post, RevisionPlanId, SectionId } from "./types";
 
 export function isExamId(value: string): value is ExamId {
@@ -141,4 +141,51 @@ export function revisionPlanDisplayLabel(plan: string): string {
     default:
       return "";
   }
+}
+
+/** Human-readable blockers when Publish is disabled or clicked too early. */
+export function getNewsBlogPublishBlockers(
+  draft: Draft,
+  opts?: { sanitizedHtml?: string }
+): string[] {
+  const blockers: string[] = [];
+  if (!draft.section) {
+    blockers.push("Section");
+    return blockers;
+  }
+  if (draft.portal === "news" && isAdminOnlyNewsSection(draft.section)) {
+    blockers.push("Section (admin preview only — pick Exam buzz or Key dates)");
+    return blockers;
+  }
+
+  const isKeyDates = draft.portal === "news" && draft.section === "ndates";
+  const isExamBuzz = draft.portal === "news" && draft.section === "nbuzz";
+  const isBlast = draft.portal === "blog" && draft.section === "blast";
+  const hasHtml = Boolean(opts?.sanitizedHtml?.trim());
+
+  if (isKeyDates) {
+    if (!draft.title.trim()) blockers.push("Title");
+    if (!draft.summary.trim()) blockers.push("Summary");
+    if (!draft.examDate.trim()) blockers.push("End date");
+    if (!draft.sourceLink.trim()) blockers.push("Official link");
+    return blockers;
+  }
+
+  if (!draft.author.trim()) blockers.push("Author name");
+  if (!draft.title.trim()) blockers.push("Headline");
+  if (!draft.summary.trim()) blockers.push("Summary");
+  if (!hasHtml && !draft.body.trim()) blockers.push("Body (or upload HTML)");
+
+  if (isExamBuzz) {
+    if (!draft.sourceLink.trim()) blockers.push("Source link");
+  } else if (draft.portal === "news") {
+    if (!draft.examDate.trim()) blockers.push("Exam date");
+    if (!draft.sourceLink.trim()) blockers.push("Source link");
+  }
+
+  if (isBlast && draft.revisionPlan !== "180" && draft.revisionPlan !== "60" && draft.revisionPlan !== "3") {
+    blockers.push("Revision plan (180 / 60 / 3 days)");
+  }
+
+  return blockers;
 }

@@ -28,17 +28,29 @@ import { incrementPrepCalendarDay, localDayISO } from "@/lib/dashboard/prepCalen
 import { safeGetSession } from "@/lib/auth/safeSession";
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { gyanDoubtLimitToastCopy } from "@/lib/subscription/gyanDoubtsLimits";
+import type { GyanAssignmentContext } from "@/lib/classroom/gyanAssignmentCompletion";
 
 interface AskDoubtDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called after a successful post; `doubtId` is set when the RPC returns an id (for Prof-Pi pending UI). */
-  onDoubtPosted?: (doubtId?: string | null) => void;
+  /** When set, posting completes this classroom Gyan++ assignment. */
+  assignmentContext?: GyanAssignmentContext | null;
+  /** Called after a successful post. */
+  onDoubtPosted?: (payload: {
+    doubtId?: string | null;
+    assignmentCompleted?: boolean;
+    assignmentContext?: GyanAssignmentContext | null;
+  }) => void;
 }
 
 const DRAFT_KEY = "doubts-ask-draft";
 
-export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: AskDoubtDialogProps) {
+export default function AskDoubtDialog({
+  open,
+  onOpenChange,
+  assignmentContext,
+  onDoubtPosted,
+}: AskDoubtDialogProps) {
   const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -171,6 +183,7 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
         subject: subject.trim(),
         costRdm: 0,
         bountyRdm: 0,
+        ...(assignmentContext ? { assignmentContext } : {}),
       }),
     });
     setSubmitLoading(false);
@@ -180,6 +193,9 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
       error?: string;
       limitReached?: boolean;
       daily_rdm?: { awarded?: boolean; amount?: number };
+      assignmentCompleted?: boolean;
+      assignmentCompletionSkippedReason?: string;
+      assignmentContext?: GyanAssignmentContext | null;
     };
     if (!postRes.ok) {
       setAskStep(1);
@@ -209,9 +225,13 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
       toast({
         title: "Doubt posted!",
         description:
-          res.daily_rdm?.awarded && res.daily_rdm.amount
-            ? `+${res.daily_rdm.amount} RDM — first question milestone today (IST).`
-            : undefined,
+          res.assignmentCompleted
+            ? "Assignment marked complete for your class."
+            : res.daily_rdm?.awarded && res.daily_rdm.amount
+              ? `+${res.daily_rdm.amount} RDM — first question milestone today (IST).`
+              : res.assignmentCompletionSkippedReason
+                ? res.assignmentCompletionSkippedReason
+                : undefined,
       });
       void (async () => {
         const at = (await safeGetSession()).session?.access_token;
@@ -225,7 +245,11 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
           : rawId != null && String(rawId) !== ""
             ? String(rawId).trim()
             : null;
-      onDoubtPosted?.(doubtId ?? null);
+      onDoubtPosted?.({
+        doubtId: doubtId ?? null,
+        assignmentCompleted: res.assignmentCompleted === true,
+        assignmentContext: res.assignmentContext ?? assignmentContext ?? null,
+      });
       if (doubtId) {
         let accessToken = (await safeGetSession()).session?.access_token ?? null;
         if (!accessToken) {
@@ -332,6 +356,12 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
             {askStep === 3 && "We found similar questions. Is yours here?"}
           </DialogDescription>
         </DialogHeader>
+        {assignmentContext ? (
+          <div className="rounded-lg border border-violet-500/35 bg-violet-500/10 px-3 py-2 text-xs leading-relaxed text-violet-100">
+            This doubt completes your classroom Gyan++ assignment. Post a real question about the
+            lesson topic.
+          </div>
+        ) : null}
         <div className="space-y-4 py-2">
           {askStep === 1 && (
             <>

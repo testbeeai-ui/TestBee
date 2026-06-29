@@ -4,10 +4,12 @@ import { createAdminClient } from "@/integrations/supabase/server";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import {
   buildSingleEventPayload,
+  fetchPrimaryCalendarEmail,
   insertCalendarEventWithMeet,
   refreshAccessToken,
 } from "@/lib/integrations/googleCalendarServer";
 import { getGoogleOAuthEnv } from "@/lib/integrations/googleEnv";
+import { persistTeacherGoogleCalendarEmail } from "@/lib/integrations/googleCalendarAccount";
 import { wallClockInTimeZoneToUtc } from "@/lib/datetime/wallClockInTimeZone";
 import { assertTeacherCanBookSlot } from "@/lib/teacherPortal/teacherPlanServer";
 
@@ -134,6 +136,9 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", user.id);
+
+    const calendarEmail = await fetchPrimaryCalendarEmail(refreshed.access_token);
+    await persistTeacherGoogleCalendarEmail(admin, user.id, calendarEmail);
 
     const eventBody = buildSingleEventPayload({
       title: `${room.name} · ${section.name}`,

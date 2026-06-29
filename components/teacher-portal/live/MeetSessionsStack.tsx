@@ -4,6 +4,7 @@ import { ExternalLink } from "lucide-react";
 import { useMemo } from "react";
 import { useSyncedUtcNowMs } from "@/hooks/useSyncedUtcNow";
 import type { TeacherPortalMeetSession } from "@/lib/teacherPortal/types";
+import { buildTeacherMeetJoinUrl, teacherMeetJoinTitle } from "@/lib/meetLink";
 import {
   evaluateSessionTemporalState,
   isActiveMeetState,
@@ -36,9 +37,14 @@ function labelForState(state: SessionTemporalState) {
 export default function MeetSessionsStack({
   sessions,
   fallbackLabel,
+  hostJoin = false,
+  googleCalendarEmail,
 }: {
   sessions: TeacherPortalMeetSession[] | null | undefined;
   fallbackLabel: string;
+  /** Teacher portal: open Meet as calendar host (Start + authuser). */
+  hostJoin?: boolean;
+  googleCalendarEmail?: string | null;
 }) {
   const { nowMs } = useSyncedUtcNowMs({ tickMs: 1000 });
 
@@ -125,6 +131,10 @@ export default function MeetSessionsStack({
 
         const canJoin =
           ev.state === "PRE_JOIN" || ev.state === "LIVE" || ev.state === "GRACE_PERIOD";
+        const meetHref = hostJoin
+          ? buildTeacherMeetJoinUrl(session.meetLink, googleCalendarEmail)
+          : session.meetLink ?? "";
+        const joinLabel = hostJoin ? "Start" : "Join";
 
         return (
           <div key={session.id} className="flex items-center justify-between gap-2">
@@ -138,11 +148,12 @@ export default function MeetSessionsStack({
               ) : null}
             </div>
 
-            {session.meetLink ? (
+            {meetHref ? (
               <a
-                href={session.meetLink}
+                href={meetHref}
                 target="_blank"
                 rel="noreferrer"
+                title={hostJoin ? teacherMeetJoinTitle(googleCalendarEmail) : undefined}
                 aria-disabled={!canJoin}
                 className={[
                   "shrink-0 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold",
@@ -151,7 +162,7 @@ export default function MeetSessionsStack({
                     : "border-white/10 bg-white/[0.03] text-slate-400 pointer-events-none",
                 ].join(" ")}
               >
-                Join <ExternalLink className="h-3.5 w-3.5" />
+                {joinLabel} <ExternalLink className="h-3.5 w-3.5" />
               </a>
             ) : null}
           </div>

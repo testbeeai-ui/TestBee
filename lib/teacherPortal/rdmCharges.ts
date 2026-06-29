@@ -33,13 +33,14 @@ type ChargeApiResponse = {
   rdm?: number;
   amount?: number;
   error?: string;
+  skipped?: boolean;
 };
 
 async function postTeacherRdm(
   path: "charge" | "refund",
   action: TeacherRdmChargeAction,
   fallbackAmount: number
-): Promise<{ rdm: number | null; amount: number }> {
+): Promise<{ rdm: number | null; amount: number; skipped: boolean }> {
   const res = await fetchWithClientAuth(`/api/teacher/rdm/${path}`, {
     method: "POST",
     credentials: "include",
@@ -60,16 +61,22 @@ async function postTeacherRdm(
   return {
     rdm: typeof payload.rdm === "number" ? payload.rdm : null,
     amount,
+    skipped: payload.skipped === true,
   };
 }
+
+export type TeacherRdmChargeResult = {
+  rdm: number | null;
+  charged: boolean;
+};
 
 /** Deduct RDM for a whitelisted teacher action. Throws if balance is too low. */
 export async function chargeTeacherRdm(
   action: TeacherRdmChargeAction,
   costs: Pick<TeacherRdmCosts, TeacherRdmChargeAction> = DEFAULT_TEACHER_RDM_COSTS
-): Promise<number | null> {
-  const { rdm } = await postTeacherRdm("charge", action, costs[action]);
-  return rdm;
+): Promise<TeacherRdmChargeResult> {
+  const { rdm, skipped } = await postTeacherRdm("charge", action, costs[action]);
+  return { rdm, charged: !skipped };
 }
 
 /** Refund RDM after a failed create (same amount as charge for that action). */
@@ -86,4 +93,14 @@ export function formatTeacherRdmCost(
   costs: Pick<TeacherRdmCosts, TeacherRdmChargeAction> = DEFAULT_TEACHER_RDM_COSTS
 ): string {
   return `(-${costs[action]} RDM)`;
+}
+
+/** Compact inline label for toolbar / secondary buttons, e.g. `−30 RDM`. */
+export function formatTeacherRdmDeductionCompact(
+  action: TeacherRdmChargeAction,
+  costs: Pick<TeacherRdmCosts, TeacherRdmChargeAction> = DEFAULT_TEACHER_RDM_COSTS
+): string | null {
+  const amount = costs[action];
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return `−${amount} RDM`;
 }

@@ -1,11 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Json } from "@/integrations/supabase/types";
-import {
-  parseAssignmentTasks,
-  studentVisibleTasks,
-  type AssignmentTaskStored,
-} from "@/lib/classroom/assignmentTasks";
-import { countStudentsAllVisibleTasksDone } from "@/lib/teacherPortal/queries/helpers";
+import { isStudentAssignmentCompleteForPayout } from "@/lib/teacherPortal/assignmentCompletionRdm";
 
 /** Policy A: RDM bonus only when tied to an assignment students can complete. */
 export function effectiveMotivationRdmDelta(
@@ -52,33 +46,6 @@ export async function assertRelatedAssignmentPost(
   return { id: data.id, type: data.type, content_json: data.content_json };
 }
 
-export async function isStudentAssignmentComplete(
-  db: SupabaseClient,
-  assignmentPostId: string,
-  postType: string,
-  contentJson: unknown,
-  studentId: string
-): Promise<boolean> {
-  const visible: AssignmentTaskStored[] = studentVisibleTasks(
-    parseAssignmentTasks(contentJson as Json | undefined, postType)
-  );
-  if (visible.length === 0) return false;
-
-  const { data: progress, error } = await db
-    .from("classroom_assignment_task_progress")
-    .select("task_id, user_id")
-    .eq("post_id", assignmentPostId)
-    .eq("user_id", studentId);
-  if (error) {
-    if (error.code === "42P01") return false;
-    throw new Error(error.message);
-  }
-  const rows = (progress ?? []) as Array<{ task_id: string; user_id: string }>;
-  return (
-    countStudentsAllVisibleTasksDone([studentId], visible, rows) === 1
-  );
-}
-
 export async function tryFulfillAssignmentMotivationGrants(
   admin: SupabaseClient,
   studentId: string,
@@ -103,7 +70,7 @@ export async function tryFulfillAssignmentMotivationGrants(
     .maybeSingle();
   if (pErr || !post) return { fulfilled: 0, amounts: [] };
 
-  const complete = await isStudentAssignmentComplete(
+  const complete = await isStudentAssignmentCompleteForPayout(
     admin,
     assignmentPostId,
     post.type,

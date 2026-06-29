@@ -7,6 +7,7 @@ import {
 import {
   parseChapterQuizRefFromContentJson,
   getConceptFocusLessonMarkedAtIso,
+  getConceptFocusLessonMarkedAtFromLessonMarks,
 } from "@/lib/classroom/conceptFocusLessonCompletion";
 
 async function getAuthedUser(request: Request) {
@@ -130,6 +131,18 @@ export async function GET(
   }
 
   const engagementByUser = new Map<string, unknown>();
+  const lessonMarksByUser = new Map<
+    string,
+    Array<{
+      board: string;
+      subject: string;
+      class_level: number;
+      topic: string;
+      subtopic: string;
+      level: string;
+      marked_complete_at?: string | null;
+    }>
+  >();
   if (studentIds.length > 0) {
     const { data: profiles, error: profErr } = await authedClient
       .from("profiles")
@@ -139,14 +152,47 @@ export async function GET(
     for (const p of (profiles ?? []) as Array<{ id: string; subtopic_engagement?: unknown }>) {
       engagementByUser.set(p.id, p.subtopic_engagement ?? null);
     }
+
+    const { data: markRows, error: markErr } = await authedClient
+      .from("student_lesson_mark_completions" as never)
+      .select(
+        "user_id, board, subject, class_level, topic, subtopic, level, marked_complete_at"
+      )
+      .in("user_id", studentIds);
+    if (markErr) return NextResponse.json({ error: markErr.message }, { status: 500 });
+    for (const row of (markRows ?? []) as Array<{
+      user_id: string;
+      board: string;
+      subject: string;
+      class_level: number;
+      topic: string;
+      subtopic: string;
+      level: string;
+      marked_complete_at?: string | null;
+    }>) {
+      const uid = String(row.user_id);
+      const list = lessonMarksByUser.get(uid) ?? [];
+      list.push({
+        board: row.board,
+        subject: row.subject,
+        class_level: row.class_level,
+        topic: row.topic,
+        subtopic: row.subtopic,
+        level: row.level,
+        marked_complete_at: row.marked_complete_at,
+      });
+      lessonMarksByUser.set(uid, list);
+    }
   }
 
   const students = studentIds.map((userId) => {
     const progressAt = progressByUser.get(userId) ?? null;
-    const lessonMarkedAt = getConceptFocusLessonMarkedAtIso(
-      engagementByUser.get(userId),
-      post.content_json
-    );
+    const lessonMarkedAt =
+      getConceptFocusLessonMarkedAtIso(engagementByUser.get(userId), post.content_json) ??
+      getConceptFocusLessonMarkedAtFromLessonMarks(
+        lessonMarksByUser.get(userId),
+        post.content_json
+      );
     const completed = Boolean(progressAt) || Boolean(lessonMarkedAt);
     let completedAt: string | null = progressAt ?? lessonMarkedAt ?? null;
     if (progressAt && lessonMarkedAt) {

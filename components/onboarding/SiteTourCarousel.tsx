@@ -17,6 +17,7 @@ import { ONBOARDING_SERVER_CHECKLIST_TASK_COUNT } from "@/lib/onboarding/onboard
 import {
   isOnboardingRewardClaimed,
   isOnboardingSiteTourClaimedLocally,
+  setOnboardingRewardDismissedCooldown,
 } from "@/lib/subscription/freeTrialClient";
 import { fetchOnboardingRewardState } from "@/lib/subscription/onboardingRewardApi";
 import {
@@ -417,7 +418,10 @@ export function SiteTourCarousel({
     if (playingRef.current) startAutoBar();
   }, [startAutoBar]);
 
-  const handleConfirmClose = closeTour;
+  const handleConfirmClose = useCallback(() => {
+    setOnboardingRewardDismissedCooldown();
+    closeTour();
+  }, [closeTour]);
 
   const handleGoToDashboard = useCallback(() => {
     onOpenChange(false);

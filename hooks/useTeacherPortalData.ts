@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useUserStore } from "@/store/useUserStore";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import type { Json } from "@/integrations/supabase/types";
 import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
@@ -11,7 +12,6 @@ import {
   type TeacherRdmCosts,
 } from "@/lib/teacherPortal/teacherRdmConfig";
 import {
-  createClassroomAssignment,
   createTeacherLiveSession,
   createTeacherClassroom,
   deleteTeacherClassroom,
@@ -22,15 +22,18 @@ import {
   type MotivationNudgeGoal,
   type MotivationRecommendActionId,
 } from "@/lib/teacherPortal/queries";
+import type { StudentMessageKind } from "@/lib/teacherPortal/studentNotificationCopy";
 import type {
   TeacherPortalChapterQuizRef,
   TeacherPortalDailyDoseStreakRef,
   TeacherPortalDataBundle,
   TeacherPortalGyanEngagementRef,
   TeacherPortalMockPaperRef,
+  TeacherPortalPastPaperRef,
 } from "@/lib/teacherPortal/types";
+import { fetchTeacherWalletBalanceClient } from "@/lib/teacherPortal/fetchTeacherWalletBalanceClient";
 
-const TEACHER_PORTAL_BUNDLE_SNAPSHOT_PREFIX = "teacherPortal.bundleSnapshot.v1:";
+const TEACHER_PORTAL_BUNDLE_SNAPSHOT_PREFIX = "teacherPortal.bundleSnapshot.v2:";
 
 function persistTeacherPortalBundleSnapshot(userId: string, bundle: TeacherPortalDataBundle) {
   try {
@@ -66,6 +69,10 @@ interface UseTeacherPortalDataResult {
   error: string | null;
   /** Pass `{ silent: true }` to reload data without toggling the full-page loading state (for polling). */
   refresh: (opts?: { silent?: boolean }) => Promise<void>;
+  /** Immediately sync wallet UI after server-side RDM credit (before bundle reload). */
+  patchRdmBalance: (balance: number) => void;
+  /** Fetch authoritative wallet balance from server (fixes stale client profile reads). */
+  syncWalletBalance: () => Promise<void>;
   submitTeacherSection: (input: {
     doubtId: string;
     teacherId: string;
@@ -124,6 +131,7 @@ interface UseTeacherPortalDataResult {
     dailyDoseStreak?: TeacherPortalDailyDoseStreakRef | null;
     gyanEngagement?: TeacherPortalGyanEngagementRef | null;
     extraContentJson?: Record<string, Json> | null;
+    confirmCompletionEscrow?: boolean;
   }) => Promise<{ id: string }>;
   motivateStudents: (input: {
     teacherId: string;
@@ -140,6 +148,7 @@ interface UseTeacherPortalDataResult {
     recommendActionUrl?: string;
     notificationTitle?: string;
     nudgeGoal?: MotivationNudgeGoal;
+    studentMessageKind?: StudentMessageKind;
   }) => Promise<void>;
   rewardTopStudents: (input: {
     teacherId: string;
@@ -204,25 +213,80 @@ export function useTeacherPortalData(
   const [data, setData] = useState<TeacherPortalDataBundle | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Collapse overlapping triggers (poll + focus + visibility + realtime) into one network pass. */
+  const inFlightRef = useRef<Promise<void> | null>(null);
 
   const refresh = useCallback(
     async (opts?: { silent?: boolean }) => {
       if (!userId) return;
+      if (inFlightRef.current) {
+        if (!opts?.silent) setLoading(true);
+        try {
+          await inFlightRef.current;
+        } finally {
+          if (!opts?.silent) setLoading(false);
+        }
+        return;
+      }
       const silent = Boolean(opts?.silent);
       if (!silent) setLoading(true);
       setError(null);
+      const run = (async () => {
+        try {
+          const next = await loadTeacherPortalBundle(userId);
+          const walletRdm = await fetchTeacherWalletBalanceClient();
+          if (walletRdm != null) {
+            next.profile.rdm = walletRdm;
+            if (next.referStats) {
+              next.referStats.rdmBalance = walletRdm;
+            }
+            useUserStore.getState().setRdmFromProfile(walletRdm);
+          }
+          setData(next);
+          persistTeacherPortalBundleSnapshot(userId, next);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Could not load teacher portal.");
+        } finally {
+          if (!silent) setLoading(false);
+        }
+      })();
+      inFlightRef.current = run;
       try {
-        const next = await loadTeacherPortalBundle(userId);
-        setData(next);
-        persistTeacherPortalBundleSnapshot(userId, next);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not load teacher portal.");
+        await run;
       } finally {
-        if (!silent) setLoading(false);
+        inFlightRef.current = null;
       }
     },
     [userId]
   );
+
+  const patchRdmBalance = useCallback(
+    (balance: number) => {
+      if (!userId || !Number.isFinite(balance)) return;
+      const normalized = Math.max(0, Math.round(balance));
+      useUserStore.getState().setRdmFromProfile(normalized);
+      setData((prev) => {
+        if (!prev) return prev;
+        const next: TeacherPortalDataBundle = {
+          ...prev,
+          profile: { ...prev.profile, rdm: normalized },
+          referStats: prev.referStats
+            ? { ...prev.referStats, rdmBalance: normalized }
+            : prev.referStats,
+        };
+        persistTeacherPortalBundleSnapshot(userId, next);
+        return next;
+      });
+    },
+    [userId]
+  );
+
+  const syncWalletBalance = useCallback(async () => {
+    if (!userId) return;
+    const walletRdm = await fetchTeacherWalletBalanceClient();
+    if (walletRdm == null) return;
+    patchRdmBalance(walletRdm);
+  }, [userId, patchRdmBalance]);
 
   useLayoutEffect(() => {
     if (!userId) {
@@ -345,10 +409,13 @@ export function useTeacherPortalData(
       instructions: string;
       tasks?: AssignmentTaskStored[];
       mockPaper?: TeacherPortalMockPaperRef | null;
+      pastPaper?: TeacherPortalPastPaperRef | null;
       chapterQuiz?: TeacherPortalChapterQuizRef | null;
       dailyDoseStreak?: TeacherPortalDailyDoseStreakRef | null;
       gyanEngagement?: TeacherPortalGyanEngagementRef | null;
       extraContentJson?: Record<string, Json> | null;
+      confirmCompletionEscrow?: boolean;
+      confirmSubtopicUnlock?: boolean;
     }) => {
       const quotaRes = await fetchWithClientAuth("/api/teacher/plan/check-assignment", {
         method: "POST",
@@ -357,17 +424,30 @@ export function useTeacherPortalData(
       if (!quotaRes.ok) {
         throw new Error(quotaBody.error ?? "Assignment limit reached");
       }
-      await chargeTeacherRdm("create_assignment", rdmCosts);
-      try {
-        const created = await createClassroomAssignment(input);
-        await refresh();
-        return created;
-      } catch (e) {
-        await refundTeacherRdm("create_assignment", rdmCosts).catch(() => {});
-        throw e;
+
+      const res = await fetchWithClientAuth("/api/teacher/assignments/create", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...input,
+          confirmCompletionEscrow: input.confirmCompletionEscrow === true,
+          confirmSubtopicUnlock: input.confirmSubtopicUnlock === true,
+        }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        id?: string;
+        code?: string;
+        escrowTotal?: number;
+      };
+      if (!res.ok) {
+        throw new Error(payload.error ?? `Create assignment failed (${res.status})`);
       }
+      await refresh();
+      return { id: payload.id as string };
     },
-    [refresh, rdmCosts]
+    [refresh]
   );
 
   const postTeacherMotivation = useCallback(
@@ -386,6 +466,7 @@ export function useTeacherPortalData(
       recommendActionUrl?: string;
       notificationTitle?: string;
       nudgeGoal?: MotivationNudgeGoal;
+      studentMessageKind?: StudentMessageKind;
     }) => {
       const res = await fetchWithClientAuth("/api/teacher/motivation/send", {
         method: "POST",
@@ -499,19 +580,40 @@ export function useTeacherPortalData(
     [refresh]
   );
 
-  return {
-    data,
-    loading,
-    error,
-    refresh,
-    submitTeacherSection,
-    saveProfile,
-    createClassroom,
-    createAssignment,
-    motivateStudents,
-    rewardTopStudents,
-    createSession,
-    updateClassroom,
-    deleteClassroom,
-  };
+  return useMemo(
+    () => ({
+      data,
+      loading,
+      error,
+      refresh,
+      patchRdmBalance,
+      syncWalletBalance,
+      submitTeacherSection,
+      saveProfile,
+      createClassroom,
+      createAssignment,
+      motivateStudents,
+      rewardTopStudents,
+      createSession,
+      updateClassroom,
+      deleteClassroom,
+    }),
+    [
+      data,
+      loading,
+      error,
+      refresh,
+      patchRdmBalance,
+      syncWalletBalance,
+      submitTeacherSection,
+      saveProfile,
+      createClassroom,
+      createAssignment,
+      motivateStudents,
+      rewardTopStudents,
+      createSession,
+      updateClassroom,
+      deleteClassroom,
+    ]
+  );
 }

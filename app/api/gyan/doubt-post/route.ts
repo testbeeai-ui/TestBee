@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import {
+  parseGyanAssignmentContext,
+  tryCompleteGyanEngagementAssignment,
+} from "@/lib/classroom/gyanAssignmentCompletion";
+import { createAdminClient } from "@/integrations/supabase/server";
+import {
   gyanDoubtLimitToastCopy,
   resolveGyanDoubtAccessForUser,
 } from "@/lib/subscription/gyanDoubtsLimits";
@@ -23,6 +28,7 @@ export async function POST(request: NextRequest) {
       subject?: string;
       costRdm?: number;
       bountyRdm?: number;
+      assignmentContext?: unknown;
     };
 
     const title = String(body.title ?? "").trim();
@@ -85,10 +91,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const doubtId =
+      typeof res.id === "string"
+        ? res.id.trim()
+        : res.id != null
+          ? String(res.id).trim()
+          : "";
+    const assignmentContext = parseGyanAssignmentContext(body.assignmentContext);
+    let assignmentCompleted = false;
+    let assignmentCompletionSkippedReason: string | undefined;
+
+    if (assignmentContext && doubtId) {
+      const admin = createAdminClient();
+      const completion = await tryCompleteGyanEngagementAssignment(supabase, admin, {
+        userId: user.id,
+        doubtId,
+        title,
+        body: doubtBody,
+        context: assignmentContext,
+      });
+      if (completion.ok && completion.completed) {
+        assignmentCompleted = true;
+      } else if (completion.ok && !completion.completed && completion.skipped) {
+        assignmentCompletionSkippedReason = completion.reason;
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       id: res.id ?? null,
       daily_rdm: res.daily_rdm ?? null,
+      assignmentCompleted,
+      assignmentCompletionSkippedReason,
+      assignmentContext: assignmentCompleted ? assignmentContext : null,
       access: {
         ...access,
         usedToday: access.usedToday + 1,

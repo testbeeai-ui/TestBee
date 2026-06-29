@@ -4,6 +4,7 @@ import { type ReactNode, useState } from "react";
 import {
   Bell,
   BookOpen,
+  Calendar,
   ClipboardList,
   Coins,
   CreditCard,
@@ -16,7 +17,6 @@ import {
   X,
   Zap,
   Users,
-  TrendingUp,
 } from "lucide-react";
 import type { TeacherPortalSection } from "@/lib/teacherPortal/types";
 import { useRouter } from "next/navigation";
@@ -32,6 +32,7 @@ interface TeacherPortalShellProps {
   teacherName: string;
   teacherSubtitle: string;
   onOpenCreateTests: () => void;
+  onSyncWallet?: () => void | Promise<void>;
   children: ReactNode;
 }
 
@@ -60,7 +61,6 @@ const WALLET_EARNING_RATES = [
     color: "text-emerald-300",
   },
   { label: "Refer a teacher", amount: 100, icon: Users, color: "text-violet-300" },
-  { label: "Content co-creation", amount: 20, icon: TrendingUp, color: "text-sky-300" },
 ] as const;
 
 const EDUBLAST_WORDMARK_SRC = "/images/logo-2.png";
@@ -74,10 +74,16 @@ export default function TeacherPortalShell({
   teacherName,
   teacherSubtitle,
   onOpenCreateTests,
+  onSyncWallet,
   children,
 }: TeacherPortalShellProps) {
   const [walletOpen, setWalletOpen] = useState(false);
   const router = useRouter();
+
+  const openWallet = () => {
+    void onSyncWallet?.();
+    setWalletOpen(true);
+  };
   const initials =
     teacherName
       .split(" ")
@@ -139,7 +145,7 @@ export default function TeacherPortalShell({
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setWalletOpen(true)}
+              onClick={openWallet}
               className="flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-200 transition-colors hover:bg-amber-400/20 sm:px-3 sm:py-1 sm:text-xs"
               aria-label={`RDM Wallet: ${rdmBalance.toLocaleString("en-IN")} RDM`}
             >
@@ -200,6 +206,14 @@ export default function TeacherPortalShell({
             </button>
             <button
               type="button"
+              onClick={() => router.push("/teacher-portal?section=myClassroom&scheduleLive=1")}
+              className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-[12px] text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:px-3 sm:py-2 sm:text-sm"
+            >
+              <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              Schedule lesson
+            </button>
+            <button
+              type="button"
               onClick={() => router.push("/teacher-portal?section=myClassroom&wizard=1")}
               className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-[12px] text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:px-3 sm:py-2 sm:text-sm"
             >
@@ -227,7 +241,7 @@ export default function TeacherPortalShell({
             </div>
             <button
               type="button"
-              onClick={() => setWalletOpen(true)}
+              onClick={openWallet}
               className="mt-2 w-full text-center text-[11px] font-semibold text-amber-300 transition-colors hover:text-amber-200 sm:text-xs"
             >
               {rdmBalance.toLocaleString("en-IN")} RDM earned
@@ -291,7 +305,7 @@ export default function TeacherPortalShell({
             </div>
 
             <p className="text-center text-[11px] text-slate-500">
-              Contact admin for top-up requests.
+              Top up in Subscriptions — Razorpay checkout for 500 / 1,000 / 2,200 RDM packs.
             </p>
           </div>
         </div>

@@ -12,6 +12,9 @@ import {
   type ClassroomAssignmentProgressDetail,
 } from "@/lib/classroom/assignmentProgressSync";
 import { supabase } from "@/integrations/supabase/client";
+import { withAssignmentTrackingParams } from "@/lib/classroom/assignmentTrackingHref";
+import type { StudentCompletionRewardStatus } from "@/lib/teacherPortal/assignmentCompletionRdm";
+import { studentCompletionRewardStatusLine } from "@/lib/teacherPortal/assignmentCompletionRdmCopy";
 
 /** Short TTL GET dedupe for task-progress (reduces polling churn). Cleared on local mutations. */
 const TASK_PROGRESS_GET_TTL_MS = 45_000;
@@ -23,6 +26,7 @@ const taskProgressGetCache = new Map<
       tasks: AssignmentTaskStored[];
       completedTaskIds: string[];
       progressAvailable: boolean;
+      completionReward?: StudentCompletionRewardStatus;
     };
   }
 >();
@@ -146,30 +150,13 @@ function taskLinkLabel(task: AssignmentTaskStored): string {
   }
 }
 
-function withAssignmentTrackingParams(
-  href: string,
-  task: AssignmentTaskStored,
-  classroomId: string,
-  postId: string
-): string {
-  if (!href) return href;
-  const shouldTrack =
-    task.kind === "chapter_quiz" ||
-    task.kind === "mock_paper" ||
-    task.kind === "past_paper" ||
-    href.startsWith("/mock") ||
-    href.startsWith("/mock-test");
-  if (!shouldTrack) return href;
-  try {
-    const isAbsolute = /^https?:\/\//i.test(href);
-    const url = isAbsolute ? new URL(href) : new URL(href, "https://edublast.local");
-    if (!url.searchParams.get("classroomId")) url.searchParams.set("classroomId", classroomId);
-    if (!url.searchParams.get("postId")) url.searchParams.set("postId", postId);
-    return isAbsolute ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
-  } catch {
-    return href;
-  }
-}
+type GyanDoubtPreview = {
+  doubtId: string;
+  title: string;
+  body: string;
+  subject: string | null;
+  createdAt: string;
+};
 
 export default function AssignmentTaskChecklist({
   classroomId,
@@ -193,6 +180,12 @@ export default function AssignmentTaskChecklist({
   const [draftLinksByTaskId, setDraftLinksByTaskId] = useState<Record<string, string>>({});
   const [submitBusyTaskId, setSubmitBusyTaskId] = useState<string | null>(null);
   const [responsesLoading, setResponsesLoading] = useState(false);
+  const [completionReward, setCompletionReward] = useState<StudentCompletionRewardStatus | null>(
+    null
+  );
+  const [gyanDoubtsByTaskId, setGyanDoubtsByTaskId] = useState<Record<string, GyanDoubtPreview>>(
+    {}
+  );
   const hasLoadedOnceRef = useRef(false);
   const isInteractingRef = useRef(false);
 
@@ -241,6 +234,7 @@ export default function AssignmentTaskChecklist({
             setTasks((prev) => (sameTaskList(prev, cachedTasks) ? prev : cachedTasks));
             setCompleted(loadedCompleted);
             setProgressAvailable(pa);
+            setCompletionReward(hit.data.completionReward ?? null);
             hasLoadedOnceRef.current = true;
             return;
           }
@@ -254,6 +248,8 @@ export default function AssignmentTaskChecklist({
           tasks?: AssignmentTaskStored[];
           completedTaskIds?: string[];
           progressAvailable?: boolean;
+          completionReward?: StudentCompletionRewardStatus;
+          gyanDoubtsByTaskId?: Record<string, GyanDoubtPreview>;
           error?: string;
         };
         if (!res.ok) {
@@ -280,6 +276,7 @@ export default function AssignmentTaskChecklist({
               tasks: nextTasks,
               completedTaskIds: Array.from(loadedCompleted),
               progressAvailable: data.progressAvailable !== false,
+              completionReward: data.completionReward,
             },
           });
         }
@@ -291,6 +288,8 @@ export default function AssignmentTaskChecklist({
         }
         setCompleted(loadedCompleted);
         setProgressAvailable(data.progressAvailable !== false);
+        setCompletionReward(data.completionReward ?? null);
+        setGyanDoubtsByTaskId(data.gyanDoubtsByTaskId ?? {});
         hasLoadedOnceRef.current = true;
 
         const needsResponses =
@@ -577,8 +576,26 @@ export default function AssignmentTaskChecklist({
     return lab || "Subtopic";
   })();
 
+  const completionRewardLine = completionReward
+    ? studentCompletionRewardStatusLine(completionReward)
+    : null;
+
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+      {!isTeacherView && completionRewardLine ? (
+        <div
+          className={`rounded-lg border px-3 py-2 text-xs leading-relaxed ${
+            completionReward?.grantStatus === "paid"
+              ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+              : completionReward?.grantStatus === "no_escrow" ||
+                  completionReward?.grantStatus === "past_due"
+                ? "border-amber-500/35 bg-amber-500/10 text-amber-900 dark:text-amber-200"
+                : "border-sky-500/30 bg-sky-500/10 text-sky-900 dark:text-sky-200"
+          }`}
+        >
+          {completionRewardLine}
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
           {isTeacherView
@@ -682,7 +699,9 @@ export default function AssignmentTaskChecklist({
                         ? "Open the mock paper and complete it. Submit to record your score."
                         : t.kind === "past_paper"
                           ? "Open the past paper and complete it. Submit to record your score."
-                          : postType === "Concept Focus"
+                          : t.kind === "gyan_engagement"
+                            ? "Open Gyan++, post your doubt, and it will mark this assignment complete."
+                            : postType === "Concept Focus"
                             ? "Open the lesson, complete the checklist, then tap Mark as complete on the topic page."
                             : "Open the link, complete the task, then come back here."}
                   </div>
@@ -768,6 +787,27 @@ export default function AssignmentTaskChecklist({
                         </ul>
                       </div>
                     ) : null}
+                  </div>
+                ) : null}
+                {!isTeacherView && t.kind === "gyan_engagement" && completed.has(t.id) && gyanDoubtsByTaskId[t.id] ? (
+                  <div className="mt-2 rounded-lg border border-emerald-500/25 bg-emerald-500/8 px-3 py-2.5">
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                      Your posted doubt
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {gyanDoubtsByTaskId[t.id].title}
+                    </p>
+                    {gyanDoubtsByTaskId[t.id].body ? (
+                      <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
+                        {gyanDoubtsByTaskId[t.id].body}
+                      </p>
+                    ) : null}
+                    <Link
+                      href={`/doubts/${gyanDoubtsByTaskId[t.id].doubtId}`}
+                      className="mt-2 inline-flex text-xs font-bold text-primary underline underline-offset-2"
+                    >
+                      View on Gyan++
+                    </Link>
                   </div>
                 ) : null}
                 {!isTeacherView && isAutoTrackedTask ? (

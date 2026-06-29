@@ -82,6 +82,12 @@ import {
 } from "@/lib/teacherPortal/chapterQuizUtils";
 import type { MotivationNudgeGoal, MotivationRecommendActionId } from "@/lib/teacherPortal/queries";
 import {
+  buildCounselMessage,
+  counselApproachToMessageKind,
+  counselApproachToNotificationTitle,
+  type CounselApproach,
+} from "@/lib/teacherPortal/studentNotificationCopy";
+import {
   DAILYDOSE_STREAK_TRACK_IDS,
   trackLabelById,
   type DailyDoseStreakTrackId,
@@ -156,7 +162,7 @@ export function TeacherCounselStudentWizard(props: {
   const [weakAreasError, setWeakAreasError] = useState<string | null>(null);
   const [weakAreas, setWeakAreas] = useState<Array<{ topic: string; pct: number }>>([]);
 
-  type CounsellingApproach = "remotivate" | "weak_areas" | "celebrate" | "custom";
+  type CounsellingApproach = CounselApproach;
   const [approach, setApproach] = useState<CounsellingApproach>("remotivate");
   const [adviceTouched, setAdviceTouched] = useState(false);
   const [advice, setAdvice] = useState("");
@@ -266,26 +272,18 @@ export function TeacherCounselStudentWizard(props: {
       setAdvice("");
       return;
     }
-    const name = selectedStudent?.name?.trim() || "there";
-    const firstName = name.split(" ")[0] || name;
     const avg = avgScore != null ? `${Math.round(avgScore)}%` : "your recent score";
-    const streakLabel = streakDays > 0 ? `${streakDays} day streak` : "streak restart";
-    const rankLabel = rankByAvgScore != null ? `#${rankByAvgScore}` : "your rank";
+    const streakLabel = streakDays > 0 ? `${streakDays}-day streak` : "streak restart";
+    const rankLabel = rankByAvgScore != null ? `#${rankByAvgScore} in class` : "your rank";
 
-    const next = (() => {
-      if (approach === "celebrate") {
-        return `Fantastic work ${firstName}! Your consistency is showing in your results. Keep going exactly as you are — you’re building a strong ${streakLabel}. — ${firstName}`;
-      }
-      if (approach === "weak_areas") {
-        return `Hi ${firstName}! I noticed some topics are pulling down your overall performance. Your average is around ${avg}. Let’s pick 1 weak area, revise for 30 minutes, and then attempt a targeted mock. I believe you can push your ${rankLabel} even higher. — ${firstName}`;
-      }
-      if (approach === "custom") {
-        return "";
-      }
-      return `Hi ${firstName}! I’ve been reviewing your progress. Your average is around ${avg} and you can do even better. Let’s restart your momentum today: 30 minutes focused revision + one short practice test. You’ve got this. — ${firstName}`;
-    })();
-
-    setAdvice(next);
+    setAdvice(
+      buildCounselMessage({
+        approach,
+        avgScoreLabel: avg,
+        streakLabel,
+        rankLabel,
+      })
+    );
   }, [approach, adviceTouched, selectedStudent, avgScore, streakDays, rankByAvgScore]);
 
   const actionKind = useMemo<"boost" | "nudge" | "urgent_nudge">(() => {
@@ -691,6 +689,8 @@ export function TeacherCounselStudentWizard(props: {
                           : recommendAction === "post_doubt"
                             ? "/doubts"
                             : undefined,
+                    studentMessageKind: counselApproachToMessageKind(approach, actionKind),
+                    notificationTitle: counselApproachToNotificationTitle(approach),
                   });
                   toast({ title: "Counselling message sent" });
                   props.onDone();

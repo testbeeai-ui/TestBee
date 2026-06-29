@@ -4,6 +4,7 @@ import {
   createClient,
   createClientWithToken,
 } from "@/integrations/supabase/server";
+import { tryFulfillAssignmentCompletionReward } from "@/lib/teacherPortal/assignmentCompletionRdm";
 
 /**
  * Persists catalog mock / past-paper attempts for classroom assignments.
@@ -46,7 +47,7 @@ async function loadPostAndAccess(
 ) {
   const { data: post, error: postErr } = await authedClient
     .from("posts")
-    .select("id, classroom_id, teacher_id, type")
+    .select("id, classroom_id, teacher_id, type, content_json")
     .eq("id", postId)
     .maybeSingle();
   if (postErr || !post) return { error: "Post not found", status: 404 } as const;
@@ -159,6 +160,34 @@ export async function POST(
       { error: upsertErr.message ?? "Could not save attempt", code: upsertErr.code },
       { status: 500 }
     );
+  }
+
+  const content = access.post.content_json as Record<string, unknown> | null;
+  const tasksRaw = Array.isArray(content?.tasks) ? content.tasks : [];
+  const paperTask = tasksRaw.find((t: unknown) => {
+    if (!t || typeof t !== "object" || Array.isArray(t)) return false;
+    const kind = (t as Record<string, unknown>).kind;
+    return kind === "mock_paper" || kind === "past_paper";
+  }) as Record<string, unknown> | undefined;
+  if (paperTask?.id) {
+    await authedClient.from("classroom_assignment_task_progress").upsert(
+      {
+        post_id: postId,
+        task_id: String(paperTask.id),
+        user_id: user.id,
+        completed_at: submittedAt,
+      },
+      { onConflict: "post_id,task_id,user_id" }
+    );
+  }
+
+  const adminAfterAttempt = createAdminClient();
+  if (adminAfterAttempt) {
+    try {
+      await tryFulfillAssignmentCompletionReward(adminAfterAttempt, user.id, postId);
+    } catch {
+      // Non-fatal: attempt saved even if completion reward fulfillment fails
+    }
   }
 
   return NextResponse.json({ ok: true, submittedAt, score, total });

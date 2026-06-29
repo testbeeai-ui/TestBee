@@ -21,6 +21,7 @@ import { extractHtmlMeta, formatKeyDateEndBadge, formatLinkHostDisplay } from ".
 import {
   createInitialDraft,
   getExamLabel,
+  getNewsBlogPublishBlockers,
   getSectionLabel,
   publishDateFieldToIso,
   revisionPlanDisplayLabel,
@@ -194,7 +195,6 @@ export function NewsBlogClient({
     : null;
 
   const isKeyDatesDraft = draft.portal === "news" && draft.section === "ndates";
-  const isExamBuzzDraft = draft.portal === "news" && draft.section === "nbuzz";
   const isBlastDraft = draft.portal === "blog" && draft.section === "blast";
   const isKeyDatesPortalView = portal === "news" && activeSection === "ndates";
   const showComposerHtmlPreview =
@@ -267,6 +267,12 @@ export function NewsBlogClient({
   const latestNewsSidebar = useMemo(() => newsPosts.slice(0, 3), [newsPosts]);
 
   const publishPost = async () => {
+    const blockers = getNewsBlogPublishBlockers(draft, { sanitizedHtml: sanitizedDraftHtml });
+    if (blockers.length > 0) {
+      alert(`Complete these fields before publishing:\n\n• ${blockers.join("\n• ")}`);
+      return;
+    }
+
     const keyDatesPost = draft.portal === "news" && draft.section === "ndates";
     const blastPost = draft.portal === "blog" && draft.section === "blast";
     const sanitizedRawHtml = draft.rawHtml.trim()
@@ -279,29 +285,6 @@ export function NewsBlogClient({
       return;
     }
     if (draft.portal === "news" && isAdminOnlyNewsSection(draft.section)) {
-      return;
-    }
-    if (keyDatesPost) {
-      if (!draft.title.trim() || !draft.summary.trim()) {
-        return;
-      }
-    } else {
-      if (!draft.author.trim()) {
-        return;
-      }
-      if (!hasHtml && !bodyTrim) {
-        return;
-      }
-      if (!draft.title.trim() || !draft.summary.trim()) {
-        return;
-      }
-    }
-    if (
-      blastPost &&
-      draft.revisionPlan !== "180" &&
-      draft.revisionPlan !== "60" &&
-      draft.revisionPlan !== "3"
-    ) {
       return;
     }
 
@@ -378,33 +361,17 @@ export function NewsBlogClient({
     }
   };
 
-  const newsExamMetaOk =
-    draft.portal !== "news"
-      ? true
-      : isKeyDatesDraft
-        ? draft.examDate.trim().length > 0 && draft.sourceLink.trim().length > 0
-        : isExamBuzzDraft
-          ? draft.sourceLink.trim().length > 0
-          : draft.examDate.trim().length > 0 && draft.sourceLink.trim().length > 0;
+  const publishBlockers = useMemo(
+    () => getNewsBlogPublishBlockers(draft, { sanitizedHtml: sanitizedDraftHtml }),
+    [draft, sanitizedDraftHtml]
+  );
 
-  const canPublish =
-    !!draft.section &&
-    (isKeyDatesDraft
-      ? draft.title.trim().length > 0 && draft.summary.trim().length > 0
-      : draft.author.trim().length > 0 &&
-        draft.title.trim().length > 0 &&
-        draft.summary.trim().length > 0 &&
-        (sanitizedDraftHtml.length > 0 || draft.body.trim().length > 0) &&
-        (isBlastDraft
-          ? draft.revisionPlan === "180" ||
-            draft.revisionPlan === "60" ||
-            draft.revisionPlan === "3"
-          : true)) &&
-    (draft.portal === "blog" || newsExamMetaOk);
+  const canPublish = publishBlockers.length === 0;
 
   const openUpload = () => {
     setEditingPostId(null);
-    setDraft(createInitialDraft({ portal }));
+    const defaultSection = portal === "news" ? newsSection : blogSection;
+    setDraft(createInitialDraft({ portal, section: defaultSection }));
     setUploadedHtmlFileName("");
     setView("upload");
   };
@@ -595,13 +562,13 @@ export function NewsBlogClient({
                     {editingPostId ? "Edit post" : "Add a new post"}
                   </h2>
                   <p className="mt-1 max-w-xl text-sm leading-relaxed text-slate-500">
-                    Draft locally, preview on the right, then publish to the feed.
+                    Fill required fields, preview on the right, then publish to Supabase.
                   </p>
                 </div>
               </div>
               <span className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-950/30 px-3 py-1.5 text-[11px] font-medium text-emerald-300/95">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                Saved in local SQLite (localhost demo)
+                Admin publish · live on News & Blogs
               </span>
             </div>
 
@@ -1284,7 +1251,13 @@ export function NewsBlogClient({
                         </p>
                       ) : null}
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-col items-end gap-2">
+                      {!canPublish && publishBlockers.length > 0 ? (
+                        <p className="max-w-xs text-right text-[11px] leading-relaxed text-amber-200/90">
+                          Required: {publishBlockers.join(" · ")}
+                        </p>
+                      ) : null}
+                      <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -1303,6 +1276,7 @@ export function NewsBlogClient({
                       >
                         <Send className="h-4 w-4" /> {editingPostId ? "Save changes" : "Publish"}
                       </button>
+                      </div>
                     </div>
                   </div>
                 </section>
@@ -1473,7 +1447,7 @@ export function NewsBlogClient({
                     </p>
                   ) : null}
                   <div className="mt-4 border-t border-slate-600/20 pt-3 text-[11px] leading-relaxed text-slate-500">
-                    Preview only. Published posts are stored in local SQLite for localhost testing.
+                    Preview only. Published posts appear under Exam buzz or Key dates in the feed.
                   </div>
                 </div>
               </aside>

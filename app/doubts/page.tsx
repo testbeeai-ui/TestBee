@@ -48,6 +48,11 @@ import {
   isGyanPlusSubstepDone,
   recordGyanPlusSubstep,
 } from "@/lib/onboarding/gyanPlusOnboarding";
+import {
+  parseGyanAssignmentContext,
+  type GyanAssignmentContext,
+} from "@/lib/classroom/gyanAssignmentCompletion";
+import { dispatchClassroomAssignmentProgressChanged } from "@/lib/classroom/assignmentProgressSync";
 import { isDailyChecklistCompanionRetryActive } from "@/lib/onboarding/dailyChecklistCompanionRetry";
 import {
   isGyanPlusCompanionTrackingActive,
@@ -101,6 +106,23 @@ function DoubtsPageContent() {
 
   // UI state
   const [askOpen, setAskOpen] = useState(false);
+
+  const assignmentContextFromUrl = useMemo(
+    () =>
+      parseGyanAssignmentContext({
+        classroomId: searchParams.get("classroomId"),
+        postId: searchParams.get("postId"),
+        taskId: searchParams.get("taskId"),
+      }),
+    [searchParams]
+  );
+  const [assignmentContext, setAssignmentContext] = useState<GyanAssignmentContext | null>(null);
+
+  useEffect(() => {
+    if (assignmentContextFromUrl) {
+      setAssignmentContext(assignmentContextFromUrl);
+    }
+  }, [assignmentContextFromUrl]);
 
   const gyanOnboardingActive = isGyanPlusOnboardingSessionActive(searchParams);
 
@@ -896,7 +918,12 @@ function DoubtsPageContent() {
     }
   };
 
-  const handleDoubtPosted = (doubtId?: string | null) => {
+  const handleDoubtPosted = (payload: {
+    doubtId?: string | null;
+    assignmentCompleted?: boolean;
+    assignmentContext?: GyanAssignmentContext | null;
+  }) => {
+    const doubtId = payload.doubtId;
     if (doubtId) {
       setProfPiPendingByDoubtId((p) => ({ ...p, [doubtId]: Date.now() }));
     }
@@ -906,6 +933,19 @@ function DoubtsPageContent() {
     void fetchTrending();
     void fetchTopContributors();
     void fetchUserRdmToday();
+
+    if (payload.assignmentCompleted && payload.assignmentContext) {
+      dispatchClassroomAssignmentProgressChanged({
+        classroomId: payload.assignmentContext.classroomId,
+        postId: payload.assignmentContext.postId,
+      });
+      setAssignmentContext(null);
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("classroomId");
+      next.delete("postId");
+      next.delete("taskId");
+      router.replace(gyanDoubtsPathFromSearchParams(next), { scroll: false });
+    }
 
     if (gyanOnboardingActive) {
       markGyanPlusCompanionPost();
@@ -1044,6 +1084,7 @@ function DoubtsPageContent() {
           <AskDoubtDialog
             open={askOpen}
             onOpenChange={setAskOpen}
+            assignmentContext={assignmentContext}
             onDoubtPosted={handleDoubtPosted}
           />
         </GyanDoubtsFocusTracker>

@@ -26,7 +26,6 @@ import {
   Users,
   UserPlus,
   UserMinus,
-  WandSparkles,
   X,
 } from "lucide-react";
 import {
@@ -41,6 +40,13 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import InviteStudents from "@/components/InviteStudents";
 import { useToast } from "@/hooks/use-toast";
+import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
+import {
+  chargeTeacherRdm,
+  formatTeacherRdmCost,
+  formatTeacherRdmDeductionCompact,
+  refundTeacherRdm,
+} from "@/lib/teacherPortal/rdmCharges";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import { supabase } from "@/integrations/supabase/client";
 import { safeGetSession } from "@/lib/auth/safeSession";
@@ -49,6 +55,7 @@ import GeneratedMcqReview from "@/components/classroom/GeneratedMcqReview";
 import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 import { fetchSubtopicContent } from "@/lib/curriculum/subtopicContentService";
 import MeetSessionsStack from "@/components/teacher-portal/live/MeetSessionsStack";
+import ClassroomSessionsDialog from "@/components/teacher-portal/live/ClassroomSessionsDialog";
 import { redirectToGoogleCalendarConsent } from "@/lib/integrations/googleCalendarOAuthClient";
 import {
   buildDefaultTasksForAssignmentType,
@@ -106,7 +113,27 @@ import type {
 import type { MockPaper, PastPaper } from "@/types";
 import { formatSectionScheduleDeliveryRdmLabel } from "@/lib/teacherPortal/liveClassDeliveryRdm";
 import { assignmentPostDueStillActive } from "@/lib/teacherPortal/assignmentDueActive";
+import {
+  TEACHER_ASSIGNMENT_INCENTIVE_DETAIL_PREFIX,
+  TEACHER_ASSIGNMENT_INCENTIVE_HELP,
+  TEACHER_ASSIGNMENT_INCENTIVE_LABEL,
+  TEACHER_ASSIGNMENT_NO_RDM_LABEL,
+  formatCompletionEscrowSummary,
+  teacherAssignmentPublishIncentiveLine,
+} from "@/lib/teacherPortal/assignmentCompletionRdmCopy";
+import SubtopicUnlockCostPanel, {
+  conceptFocusPublishGrandTotal,
+} from "@/components/teacher-portal/assignment/SubtopicUnlockCostPanel";
+import AssignmentCompletionRewardPanel, {
+  assignmentCompletionPublishGrandTotal,
+} from "@/components/teacher-portal/assignment/AssignmentCompletionRewardPanel";
+import AssignmentInfoHelp from "@/components/teacher-portal/assignment/AssignmentInfoHelp";
 import { assignmentItemIsNudgeMcqTarget } from "@/lib/teacherPortal/nudgeMcqPosts";
+import { resolveAssignmentTrackingInHref } from "@/lib/teacherPortal/assignmentPostIdTemplate";
+import {
+  CLASSROOM_ASSIGNMENT_PROGRESS_EVENT,
+  type ClassroomAssignmentProgressDetail,
+} from "@/lib/classroom/assignmentProgressSync";
 
 import type { MyClassroomViewProps } from "./types";
 import type {
@@ -140,6 +167,12 @@ import * as display from "./utils/display";
 import * as assignmentHelpers from "./assignment/helpers";
 import { normalizeTeacherMotivationExternalUrl } from "./utils/motivation-url";
 import { emptyClassroomDetail } from "./defaults";
+import {
+  clearTeacherWizardDismiss,
+  dismissTeacherWizardForMs,
+  isTeacherWizardDismissed,
+} from "@/lib/teacherPortal/teacherWizardDismiss";
+import { buildStudentNotificationTitle } from "@/lib/teacherPortal/studentNotificationCopy";
 
 export default function MyClassroomView({
   summary,
@@ -161,10 +194,22 @@ export default function MyClassroomView({
   allowNudgeStructuredAssignmentCreate = true,
 }: MyClassroomViewProps) {
   const { toast } = useToast();
+  const { costs: teacherRdmCosts } = useTeacherRdmCosts();
+  const createClassroomRdmLabel = formatTeacherRdmCost("create_classroom", teacherRdmCosts);
+  const createSectionRdmLabel = formatTeacherRdmCost("create_section", teacherRdmCosts);
+  const createClassroomRdmCompact = formatTeacherRdmDeductionCompact(
+    "create_classroom",
+    teacherRdmCosts
+  );
+  const createSectionRdmCompact = formatTeacherRdmDeductionCompact(
+    "create_section",
+    teacherRdmCosts
+  );
   const searchParams = useSearchParams();
   const qpClassroom = searchParams.get("classroom");
   const qpDetailRaw = searchParams.get("portalDetail");
   const qpWizard = searchParams.get("wizard");
+  const qpScheduleLive = searchParams.get("scheduleLive");
   const qpDetail: DetailTab | null =
     qpDetailRaw === "students" ||
     qpDetailRaw === "assignments" ||
@@ -249,6 +294,7 @@ export default function MyClassroomView({
   const wizardAutoOpenOnceRef = useRef(false);
   const wizardDismissedRef = useRef(false);
   const wizardOpenRef = useRef(false);
+  const scheduleLiveHandledRef = useRef(false);
 
   const assignmentScoresCacheRef = useRef<
     Record<string, { scores: AssignmentScoreRow[]; updatedAt: string }>
@@ -264,6 +310,20 @@ export default function MyClassroomView({
       links: string[];
       updatedAt: string;
       student: { name: string | null; email: string | null };
+    }>
+  >([]);
+  const [gyanCompletionsLoading, setGyanCompletionsLoading] = useState(false);
+  const [gyanCompletionsError, setGyanCompletionsError] = useState<string | null>(null);
+  const [gyanCompletions, setGyanCompletions] = useState<
+    Array<{
+      userId: string;
+      studentName: string;
+      doubtId: string;
+      doubtTitle: string;
+      doubtBody: string;
+      subject: string | null;
+      completedAt: string;
+      hasTeacherAnswer: boolean;
     }>
   >([]);
 
@@ -287,11 +347,6 @@ export default function MyClassroomView({
   } | null>(null);
 
   const [rewardSubmitting, setRewardSubmitting] = useState(false);
-  const assignmentProgressCacheRef = useRef<
-    Record<string, { completionPercent: number; completedCount: number; totalCount: number }>
-  >({});
-  const ASSIGNMENT_PROGRESS_CACHE_KEY = "teacherPortal.assignmentProgressCache.v1";
-  const [assignmentProgressCacheVersion, setAssignmentProgressCacheVersion] = useState(0);
   const googleOauthToastKeyRef = useRef<string | null>(null);
   const [name, setName] = useState("");
   const [subject, setSubject] = useState<(typeof SUBJECT_OPTIONS)[number]>("Physics");
@@ -314,7 +369,7 @@ export default function MyClassroomView({
   const [assignmentTargetSectionId, setAssignmentTargetSectionId] = useState<string | null>(null);
   const [assignmentCustomStudentIds, setAssignmentCustomStudentIds] = useState<string[]>([]);
   const [assignmentCustomSearch, setAssignmentCustomSearch] = useState("");
-  const [rewardRdm, setRewardRdm] = useState(15);
+  const [rewardRdm, setRewardRdm] = useState(0);
   const [assignmentInstructions, setAssignmentInstructions] = useState("");
   const [sectionPickerStudentId, setSectionPickerStudentId] = useState<string | null>(null);
   const assignmentScopeTouchedRef = useRef(false);
@@ -329,9 +384,15 @@ export default function MyClassroomView({
   const [joinRequests, setJoinRequests] = useState<JoinRequestRow[]>([]);
   const [actingJoinRequestId, setActingJoinRequestId] = useState<string | null>(null);
   const [cohortTab, setCohortTab] = useState<ClassroomCohortTab>({ kind: "class" });
+  const [autoOpenScheduleSectionId, setAutoOpenScheduleSectionId] = useState<string | null>(null);
   /** Assignments tab: default Active assignments; Past due = deadline passed */
   const [assignmentDueBucket, setAssignmentDueBucket] = useState<"active" | "pastDue">("active");
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
+  const [sessionsDialogClassroom, setSessionsDialogClassroom] =
+    useState<TeacherPortalClassroomCard | null>(null);
+  const [googleCalendarEmail, setGoogleCalendarEmail] = useState<string | null>(
+    summary.googleCalendarEmail ?? null
+  );
   const [newSectionName, setNewSectionName] = useState("");
   const [sectionScheduleDate, setSectionScheduleDate] = useState("");
   const [sectionScheduleTime, setSectionScheduleTime] = useState("");
@@ -384,53 +445,66 @@ export default function MyClassroomView({
     wizardOpenRef.current = wizardOpen;
   }, [wizardOpen]);
 
-  const WIZARD_CLOSED_SESSION_KEY = "teacherPortal.teacherWizardClosed.session.v1";
+  const dismissWizardForOneHour = useCallback(() => {
+    wizardDismissedRef.current = true;
+    dismissTeacherWizardForMs(teacherId);
+    setWizardOpen(false);
+  }, [teacherId]);
 
   const tryAutoOpenWizard = useCallback(() => {
     if (typeof window === "undefined") return;
     if (activeClassroomId) return;
     if (wizardOpenRef.current) return;
     if (wizardDismissedRef.current) return;
-    try {
-      if (window.sessionStorage.getItem(WIZARD_CLOSED_SESSION_KEY) === "1") return;
-    } catch {
-      // ignore
-    }
+    if (isTeacherWizardDismissed(teacherId)) return;
     // Prevent reopen loops during the same page view.
     if (wizardAutoOpenOnceRef.current) return;
     wizardAutoOpenOnceRef.current = true;
     window.setTimeout(() => setWizardOpen(true), 250);
-  }, [activeClassroomId]);
+  }, [activeClassroomId, teacherId]);
 
   useEffect(() => {
     // Auto-open on Teacher Portal landing (per page load).
     wizardAutoOpenOnceRef.current = false;
-    wizardDismissedRef.current = false;
+    wizardDismissedRef.current = isTeacherWizardDismissed(teacherId);
     tryAutoOpenWizard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teacherId]);
+
+  useEffect(() => {
+    setGoogleCalendarEmail(summary.googleCalendarEmail ?? null);
+  }, [summary.googleCalendarEmail]);
+
+  useEffect(() => {
+    if (!summary.googleCalendarConnected) {
+      setGoogleCalendarEmail(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchWithClientAuth("/api/integrations/google/status")
+      .then(async (res) => {
+        const body = (await res.json()) as { googleAccountEmail?: string | null };
+        if (!cancelled && body.googleAccountEmail) {
+          setGoogleCalendarEmail(body.googleAccountEmail);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [summary.googleCalendarConnected]);
 
   useEffect(() => {
     // Auto-open after login (even if counts don't change).
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN") {
         wizardAutoOpenOnceRef.current = false;
-        wizardDismissedRef.current = false;
-        try {
-          window.sessionStorage.removeItem(WIZARD_CLOSED_SESSION_KEY);
-        } catch {
-          // ignore
-        }
+        wizardDismissedRef.current = isTeacherWizardDismissed(teacherId);
         tryAutoOpenWizard();
       }
       if (event === "SIGNED_OUT") {
         wizardAutoOpenOnceRef.current = false;
         wizardDismissedRef.current = false;
-        try {
-          window.sessionStorage.removeItem(WIZARD_CLOSED_SESSION_KEY);
-        } catch {
-          // ignore
-        }
         // Ask for Google connect again after relogin.
         try {
           window.sessionStorage.removeItem(
@@ -451,11 +525,7 @@ export default function MyClassroomView({
     if (typeof window === "undefined") return;
     if (qpWizard !== "1") return;
     wizardDismissedRef.current = false;
-    try {
-      window.sessionStorage.removeItem(WIZARD_CLOSED_SESSION_KEY);
-    } catch {
-      // ignore
-    }
+    clearTeacherWizardDismiss(teacherId);
     setWizardOpen(true);
     // Remove the param so it doesn't re-trigger on every re-render.
     try {
@@ -465,7 +535,7 @@ export default function MyClassroomView({
     } catch {
       // ignore
     }
-  }, [qpWizard]);
+  }, [qpWizard, teacherId]);
 
   useEffect(() => {
     const isQuizAssignmentTemplateLocal =
@@ -711,9 +781,78 @@ export default function MyClassroomView({
     ? (classroomDetails[activeClassroomId] ?? emptyClassroomDetail)
     : emptyClassroomDetail;
 
+  const openAssignmentFromBundle = useMemo(() => {
+    if (!assignmentDetail?.id) return null;
+    return activeDetail.assignments.find((a) => a.id === assignmentDetail.id) ?? null;
+  }, [activeDetail.assignments, assignmentDetail?.id]);
+
+  /** When Realtime refreshes the bundle, keep the open detail modal in sync (no polling). */
   useEffect(() => {
+    if (!openAssignmentFromBundle || !assignmentDetail) return;
+    if (
+      openAssignmentFromBundle.completedCount !== assignmentDetail.completedCount ||
+      openAssignmentFromBundle.completionPercent !== assignmentDetail.completionPercent
+    ) {
+      setAssignmentDetail(openAssignmentFromBundle);
+    }
+  }, [openAssignmentFromBundle, assignmentDetail]);
+
+  useEffect(() => {
+    if (autoOpenScheduleSectionId) return;
     setCohortTab({ kind: "class" });
-  }, [activeClassroomId]);
+  }, [activeClassroomId, autoOpenScheduleSectionId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (qpScheduleLive !== "1" || scheduleLiveHandledRef.current) return;
+    scheduleLiveHandledRef.current = true;
+
+    const cid = activeClassroomId ?? classrooms[0]?.id ?? null;
+    if (!cid) {
+      toast({
+        title: "Create a classroom first",
+        description: "Add a class under My Classroom, then schedule a live lesson.",
+      });
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("scheduleLive");
+        window.history.replaceState({}, "", url.toString());
+      } catch {
+        // ignore
+      }
+      return;
+    }
+    if (!activeClassroomId) setActiveClassroomId(cid);
+
+    const sections = classroomDetails[cid]?.sections ?? [];
+    const firstSection =
+      sections.find((s) => s.isActive !== false) ?? sections[0] ?? null;
+
+    setDetailTab("students");
+    if (firstSection) {
+      setCohortTab({ kind: "section", id: firstSection.id });
+      setAutoOpenScheduleSectionId(firstSection.id);
+    } else {
+      toast({
+        title: "Add a section first",
+        description: "Create a section under this class, then schedule a live lesson.",
+      });
+    }
+
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("scheduleLive");
+      window.history.replaceState({}, "", url.toString());
+    } catch {
+      // ignore
+    }
+  }, [
+    qpScheduleLive,
+    activeClassroomId,
+    classrooms,
+    classroomDetails,
+    toast,
+  ]);
 
   const cohortStudents = useMemo(() => {
     const roster = activeDetail.students.filter((s) => s.role !== "teacher");
@@ -965,61 +1104,15 @@ export default function MyClassroomView({
   }, [isQuizAssignmentTemplate, isConceptFocusTemplate]);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(ASSIGNMENT_PROGRESS_CACHE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as unknown;
-      if (!parsed || typeof parsed !== "object") return;
-      assignmentProgressCacheRef.current = parsed as Record<
-        string,
-        { completionPercent: number; completedCount: number; totalCount: number }
-      >;
-      setAssignmentProgressCacheVersion((v) => v + 1);
-    } catch {
-      assignmentProgressCacheRef.current = {};
-      setAssignmentProgressCacheVersion((v) => v + 1);
-    }
-  }, []);
-
-  /** Concept Focus: merge server bundle + local progress cache so refresh never “forgets” completion history. */
-  useEffect(() => {
     if (!activeClassroomId) return;
-    let dirty = false;
-    for (const a of activeDetail.assignments) {
-      if (a.type !== "Concept Focus") continue;
-      const prev = assignmentProgressCacheRef.current[a.id];
-      const bundleCount = Math.max(0, Number(a.completedCount) || 0);
-      const cachedCount = Math.max(0, Number(prev?.completedCount) || 0);
-      const mergedCount = Math.max(bundleCount, cachedCount);
-      const total = Math.max(1, Number(a.totalCount) || Number(prev?.totalCount) || 1);
-      const mergedPct = Math.min(100, Math.round((100 * mergedCount) / total));
-      const prevPct = prev?.completionPercent ?? -1;
-      if (
-        !prev ||
-        prev.completedCount !== mergedCount ||
-        prevPct !== mergedPct ||
-        prev.totalCount !== total
-      ) {
-        assignmentProgressCacheRef.current[a.id] = {
-          completedCount: mergedCount,
-          completionPercent: mergedPct,
-          totalCount: total,
-        };
-        dirty = true;
-      }
-    }
-    if (dirty) {
-      setAssignmentProgressCacheVersion((v) => v + 1);
-      try {
-        window.localStorage.setItem(
-          ASSIGNMENT_PROGRESS_CACHE_KEY,
-          JSON.stringify(assignmentProgressCacheRef.current)
-        );
-      } catch {
-        // ignore
-      }
-    }
-  }, [activeClassroomId, activeDetail.assignments]);
+    const onProgress = (ev: Event) => {
+      const detail = (ev as CustomEvent<ClassroomAssignmentProgressDetail>).detail;
+      if (!detail || detail.classroomId !== activeClassroomId) return;
+      void onRefreshTeacherPortal({ silent: true });
+    };
+    window.addEventListener(CLASSROOM_ASSIGNMENT_PROGRESS_EVENT, onProgress);
+    return () => window.removeEventListener(CLASSROOM_ASSIGNMENT_PROGRESS_EVENT, onProgress);
+  }, [activeClassroomId, onRefreshTeacherPortal]);
 
   useEffect(() => {
     try {
@@ -1035,17 +1128,6 @@ export default function MyClassroomView({
       assignmentScoresCacheRef.current = {};
     }
   }, [ASSIGNMENT_SCORES_CACHE_KEY]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        ASSIGNMENT_PROGRESS_CACHE_KEY,
-        JSON.stringify(assignmentProgressCacheRef.current)
-      );
-    } catch {
-      // Ignore storage write failures (private mode/quota)
-    }
-  }, [assignmentDetail, activeClassroomId, assignmentScores]);
 
   useEffect(() => {
     if (!assignmentDetail || !activeClassroomId) return;
@@ -1133,27 +1215,6 @@ export default function MyClassroomView({
           const scores = (data.scores ?? []) as AssignmentScoreRow[];
           setAssignmentScores(scores);
           setAssignmentScoresLastUpdatedAt(new Date().toISOString());
-
-          const totalStudents = cohortStudents.length;
-          const completedCount = scores.length;
-          const completionPercent =
-            totalStudents > 0 ? Math.round((completedCount / Math.max(1, totalStudents)) * 100) : 0;
-
-          assignmentProgressCacheRef.current[assignmentDetail.id] = {
-            completionPercent,
-            completedCount,
-            totalCount: totalStudents,
-          };
-          setAssignmentProgressCacheVersion((v) => v + 1);
-
-          try {
-            window.localStorage.setItem(
-              ASSIGNMENT_PROGRESS_CACHE_KEY,
-              JSON.stringify(assignmentProgressCacheRef.current)
-            );
-          } catch {
-            // Ignore storage write failures
-          }
         }
       } catch {
         if (!cancelled) setAssignmentScoresError("Network error while loading scores.");
@@ -1162,15 +1223,15 @@ export default function MyClassroomView({
       }
     };
     void load();
-    const intervalId = window.setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      void load();
-    }, 60_000);
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
     };
-  }, [assignmentDetail, activeClassroomId, cohortStudents.length, ASSIGNMENT_PROGRESS_CACHE_KEY]);
+  }, [
+    assignmentDetail,
+    activeClassroomId,
+    cohortStudents.length,
+    openAssignmentFromBundle?.completedCount,
+  ]);
 
   useEffect(() => {
     if (!assignmentDetail || !activeClassroomId) return;
@@ -1209,8 +1270,10 @@ export default function MyClassroomView({
           }
           return;
         }
-        if (!cancelled)
-          setConceptFocusCompletion(Array.isArray(data.students) ? data.students : []);
+        if (!cancelled) {
+          const rows = Array.isArray(data.students) ? data.students : [];
+          setConceptFocusCompletion(rows);
+        }
       } catch {
         if (!cancelled) {
           setConceptFocusCompletionError("Network error while loading lesson completion.");
@@ -1221,15 +1284,10 @@ export default function MyClassroomView({
       }
     };
     void load();
-    const intervalId = window.setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      void load();
-    }, 60_000);
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
     };
-  }, [assignmentDetail, activeClassroomId]);
+  }, [assignmentDetail, activeClassroomId, openAssignmentFromBundle?.completedCount]);
 
   useEffect(() => {
     if (!assignmentDetail || !activeClassroomId) return;
@@ -1281,6 +1339,60 @@ export default function MyClassroomView({
       cancelled = true;
     };
   }, [assignmentDetail, activeClassroomId]);
+
+  useEffect(() => {
+    if (!assignmentDetail || !activeClassroomId) return;
+    const isGyan =
+      Boolean(assignmentDetail.gyanEngagement) ||
+      assignmentDetail.tasks?.some((t) => t.kind === "gyan_engagement");
+    if (!isGyan) {
+      setGyanCompletions([]);
+      setGyanCompletionsError(null);
+      return;
+    }
+    let cancelled = false;
+    setGyanCompletionsLoading(true);
+    setGyanCompletionsError(null);
+    const load = async () => {
+      try {
+        const { session } = await safeGetSession();
+        const res = await fetch(
+          `/api/classroom/${activeClassroomId}/posts/${assignmentDetail.id}/gyan-completions`,
+          {
+            headers: session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {},
+            credentials: "include",
+          }
+        );
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          completions?: typeof gyanCompletions;
+        };
+        if (!res.ok) {
+          if (!cancelled) {
+            setGyanCompletionsError(data?.error ?? "Failed to load Gyan++ submissions.");
+            setGyanCompletions([]);
+          }
+          return;
+        }
+        if (!cancelled) {
+          setGyanCompletions(Array.isArray(data.completions) ? data.completions : []);
+        }
+      } catch {
+        if (!cancelled) {
+          setGyanCompletionsError("Network error while loading Gyan++ submissions.");
+          setGyanCompletions([]);
+        }
+      } finally {
+        if (!cancelled) setGyanCompletionsLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [assignmentDetail, activeClassroomId, openAssignmentFromBundle?.completedCount]);
 
   const openStudentAnswerReview = useCallback(
     async (input: { userId: string; name: string; score: number; total: number }) => {
@@ -1513,18 +1625,25 @@ export default function MyClassroomView({
     }
     setSectionCreating(true);
     try {
-      const { data: created, error } = await supabase
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .from("classroom_sections" as any)
-        .insert({
-          classroom_id: activeClassroomId,
-          name: sectionName,
-          sort_order: activeDetail.sections.length,
-        })
-        .select("id")
-        .single();
-      const createdRow = created as { id?: string } | null;
-      if (error || !createdRow?.id) throw error ?? new Error("Could not create section.");
+      await chargeTeacherRdm("create_section", teacherRdmCosts);
+      let createdRow: { id?: string } | null = null;
+      try {
+        const { data: created, error } = await supabase
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .from("classroom_sections" as any)
+          .insert({
+            classroom_id: activeClassroomId,
+            name: sectionName,
+            sort_order: activeDetail.sections.length,
+          })
+          .select("id")
+          .single();
+        createdRow = created as { id?: string } | null;
+        if (error || !createdRow?.id) throw error ?? new Error("Could not create section.");
+      } catch (e) {
+        await refundTeacherRdm("create_section", teacherRdmCosts).catch(() => {});
+        throw e;
+      }
 
       toast({
         title: "Section created",
@@ -1842,6 +1961,32 @@ export default function MyClassroomView({
     setActingJoinRequestId(null);
   };
 
+  const assignmentAudienceStudentCount = useMemo(() => {
+    const isCustom = assignToLabel.trim().toLowerCase().startsWith("custom");
+    if (isCustom) return assignmentCustomStudentIds.length;
+    return assignmentAudienceCandidates.length;
+  }, [assignToLabel, assignmentCustomStudentIds.length, assignmentAudienceCandidates.length]);
+
+  const conceptFocusPublishTotalRdm = useMemo(
+    () =>
+      conceptFocusPublishGrandTotal(
+        teacherRdmCosts.create_assignment,
+        assignmentAudienceStudentCount,
+        rewardRdm
+      ),
+    [teacherRdmCosts.create_assignment, assignmentAudienceStudentCount, rewardRdm]
+  );
+
+  const standardAssignmentPublishTotalRdm = useMemo(
+    () =>
+      assignmentCompletionPublishGrandTotal(
+        teacherRdmCosts.create_assignment,
+        assignmentAudienceStudentCount,
+        rewardRdm
+      ),
+    [teacherRdmCosts.create_assignment, assignmentAudienceStudentCount, rewardRdm]
+  );
+
   const submitAssignment = async () => {
     if (!activeClassroomId) return;
     const derivedType = assignmentType.toLowerCase().includes("mock")
@@ -1911,6 +2056,24 @@ export default function MyClassroomView({
       });
       return;
     }
+    const confirmEscrow = rewardRdm > 0 && assignmentAudienceStudentCount > 0;
+    const confirmUnlock = isConceptFocusTemplate && assignmentAudienceStudentCount > 0;
+    await runAssignmentSubmit(confirmEscrow, confirmUnlock);
+  };
+
+  const runAssignmentSubmit = async (
+    confirmCompletionEscrow: boolean,
+    confirmSubtopicUnlock: boolean
+  ) => {
+    if (!activeClassroomId) return;
+    const derivedType = assignmentType.toLowerCase().includes("mock")
+      ? "mock"
+      : assignmentType.toLowerCase().includes("quiz")
+        ? "quiz"
+        : assignmentType === "Concept Focus"
+          ? "Concept Focus"
+          : "assignment";
+    const isCustomAudience = assignToLabel.trim().toLowerCase().startsWith("custom");
     setAssignmentSubmitting(true);
     try {
       const defaultTasks = normalizeTaskPositions(
@@ -1962,6 +2125,8 @@ export default function MyClassroomView({
           derivedType === "quiz" || derivedType === "Concept Focus" ? chapterQuizRef : undefined,
         dailyDoseStreak: dailyDoseStreak ?? undefined,
         gyanEngagement: gyanEngagement ?? undefined,
+        confirmCompletionEscrow,
+        confirmSubtopicUnlock,
       });
       await onRefreshTeacherPortal({ silent: true });
       window.setTimeout(() => {
@@ -2012,6 +2177,21 @@ export default function MyClassroomView({
         message: motivationMessage,
         rdmDelta: 0,
         sectionId: cohortTab.kind === "section" ? cohortTab.id : null,
+        studentMessageKind:
+          motivationAction === "boost" || motivationMessageType === "top_performer"
+            ? "recognition"
+            : motivationAction === "urgent_nudge"
+              ? "urgent_checkin"
+              : "teacher_nudge",
+        notificationTitle: buildStudentNotificationTitle({
+          kind:
+            motivationAction === "boost" || motivationMessageType === "top_performer"
+              ? "recognition"
+              : motivationAction === "urgent_nudge"
+                ? "urgent_checkin"
+                : "teacher_nudge",
+          actionKind: motivationAction,
+        }),
       });
       setMotivationOpen(false);
       setSelectedStudent(null);
@@ -2430,7 +2610,12 @@ export default function MyClassroomView({
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-2 text-xs font-semibold text-black hover:bg-emerald-400 sm:px-4 sm:py-2.5 sm:text-sm"
               >
                 <Plus className="h-4 w-4" />
-                New Classroom
+                <span className="inline-flex items-baseline gap-1.5">
+                  New Classroom
+                  {createClassroomRdmCompact ? (
+                    <span className="text-[10px] font-normal opacity-80">{createClassroomRdmCompact}</span>
+                  ) : null}
+                </span>
               </button>
             </div>
           </div>
@@ -2486,16 +2671,32 @@ export default function MyClassroomView({
           </button>
           <div className="flex flex-col gap-2.5 rounded-2xl border border-white/10 bg-linear-to-b from-[#12172b] to-[#101426] p-3.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:p-5">
             <div className="min-w-0 flex-1">
-              <div
-                title={activeClassroom.name}
-                className="font-serif text-xl leading-tight sm:text-[30px] lg:text-[36px] truncate"
-              >
-                {activeClassroom.name}
+              <div className="flex min-w-0 items-center justify-between gap-2 sm:gap-3">
+                <div
+                  title={activeClassroom.name}
+                  className="min-w-0 flex-1 truncate font-serif text-xl leading-tight sm:text-[30px] lg:text-[36px]"
+                >
+                  {activeClassroom.name}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSessionsDialogClassroom(activeClassroom)}
+                  className="shrink-0 rounded-full border border-violet-500/35 bg-violet-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-200 hover:bg-violet-500/20"
+                >
+                  Sessions
+                </button>
               </div>
-              <div className="text-xs text-slate-400 sm:text-sm lg:text-base break-words">
+              <div className="mt-1 text-xs text-slate-400 sm:text-sm lg:text-base break-words">
                 {(activeClassroom.subject ?? "General").trim()} ·{" "}
                 {activeClassroom.section ?? "Section"} · {activeClassroom.studentCount} students ·{" "}
-                {activeClassroom.scheduleLabel} · {activeClassroom.nextSessionLabel}
+                {activeClassroom.scheduleLabel}
+                {" · "}
+                <MeetSessionsStack
+                  sessions={activeClassroom.meetSessions ?? null}
+                  fallbackLabel={activeClassroom.nextSessionLabel}
+                  hostJoin
+                  googleCalendarEmail={googleCalendarEmail}
+                />
               </div>
             </div>
             <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -2524,12 +2725,6 @@ export default function MyClassroomView({
                 className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/15 px-3 text-xs font-semibold disabled:opacity-50"
               >
                 <BookOpen className="h-3.5 w-3.5" /> Set Assignment
-              </button>
-              <button
-                type="button"
-                className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-500 px-3 text-xs font-semibold text-black"
-              >
-                <WandSparkles className="h-3.5 w-3.5" /> Send RDM Boost
               </button>
             </div>
           </div>
@@ -2613,9 +2808,12 @@ export default function MyClassroomView({
               <button
                 type="button"
                 onClick={() => setSectionDialogOpen(true)}
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-white/10"
+                className="inline-flex items-baseline gap-1 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-white/10"
               >
                 + Add section
+                {createSectionRdmCompact ? (
+                  <span className="text-[10px] font-normal text-slate-400">{createSectionRdmCompact}</span>
+                ) : null}
               </button>
             </div>
           </div>
@@ -2758,8 +2956,11 @@ export default function MyClassroomView({
                         sectionId={sec.id}
                         sectionName={sec.name}
                         googleCalendarConnected={summary.googleCalendarConnected}
+                        googleCalendarEmail={googleCalendarEmail}
                         onConnectGoogle={() => void connectGoogleCalendarFromToolbar()}
                         onBooked={() => void onRefreshTeacherPortal({ silent: true })}
+                        autoOpenSchedule={autoOpenScheduleSectionId === sec.id}
+                        onAutoOpenScheduleHandled={() => setAutoOpenScheduleSectionId(null)}
                       />
                     );
                   })()
@@ -3047,12 +3248,6 @@ export default function MyClassroomView({
                         key={item.id}
                         item={item}
                         sections={activeDetail.sections}
-                        progress={
-                          assignmentProgressCacheVersion >= 0 &&
-                          assignmentProgressCacheRef.current[item.id]
-                            ? { ...assignmentProgressCacheRef.current[item.id] }
-                            : undefined
-                        }
                         onOpen={() => setAssignmentDetail(item)}
                       />
                     ))
@@ -3353,6 +3548,7 @@ export default function MyClassroomView({
                               sectionId={sec.id}
                               sectionName={sec.name}
                               googleCalendarConnected={summary.googleCalendarConnected}
+                              googleCalendarEmail={googleCalendarEmail}
                               onConnectGoogle={() => void connectGoogleCalendarFromToolbar()}
                               onBooked={() => void onRefreshTeacherPortal({ silent: true })}
                             />
@@ -3561,9 +3757,14 @@ export default function MyClassroomView({
                           <button
                             type="button"
                             onClick={() => setSectionDialogOpen(true)}
-                            className="shrink-0 rounded-full border border-violet-500/35 bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
+                            className="inline-flex shrink-0 items-baseline gap-1 rounded-full border border-violet-500/35 bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
                           >
                             + Add section
+                            {createSectionRdmCompact ? (
+                              <span className="text-[10px] font-normal text-violet-200/70">
+                                {createSectionRdmCompact}
+                              </span>
+                            ) : null}
                           </button>
                         </div>
                         {activeDetail.sections.length === 0 ? (
@@ -3663,6 +3864,7 @@ export default function MyClassroomView({
                                       sectionId={sec.id}
                                       sectionName={sec.name}
                                       googleCalendarConnected={summary.googleCalendarConnected}
+                                      googleCalendarEmail={googleCalendarEmail}
                                       onConnectGoogle={() => void connectGoogleCalendarFromToolbar()}
                                       onBooked={() => void onRefreshTeacherPortal({ silent: true })}
                                     />
@@ -3862,11 +4064,18 @@ export default function MyClassroomView({
       ) : (
         <div className="grid gap-3 sm:gap-3.5 md:grid-cols-2 xl:grid-cols-3">
           {classrooms.map((room) => (
-            <button
+            <div
               key={room.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => setActiveClassroomId(room.id)}
-              className="overflow-hidden rounded-2xl border border-white/10 bg-[#161629] text-left transition hover:-translate-y-0.5 hover:border-white/20"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setActiveClassroomId(room.id);
+                }
+              }}
+              className="cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-[#161629] text-left transition hover:-translate-y-0.5 hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
             >
               <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-4 py-3">
                 <div className="font-serif text-xl text-slate-500 sm:text-2xl">
@@ -3877,7 +4086,19 @@ export default function MyClassroomView({
                 </span>
               </div>
               <div className="space-y-2 px-4 py-3">
-                <div className="text-sm font-semibold">{room.name}</div>
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                  <div className="min-w-0 truncate text-sm font-semibold">{room.name}</div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSessionsDialogClassroom(room);
+                    }}
+                    className="shrink-0 rounded-full border border-violet-500/35 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-200 hover:bg-violet-500/20"
+                  >
+                    Sessions
+                  </button>
+                </div>
                 <div className="text-xs text-slate-400">
                   {(() => {
                     const subj = (room.subject ?? "General").trim();
@@ -3918,15 +4139,27 @@ export default function MyClassroomView({
                     <MeetSessionsStack
                       sessions={room.meetSessions ?? null}
                       fallbackLabel={room.nextSessionLabel}
+                      hostJoin
+                      googleCalendarEmail={googleCalendarEmail}
                     />
                   </div>
                   <BookOpen className="h-4 w-4 text-slate-500" />
                 </div>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}
+
+      <ClassroomSessionsDialog
+        open={sessionsDialogClassroom != null}
+        onOpenChange={(next) => {
+          if (!next) setSessionsDialogClassroom(null);
+        }}
+        classroomName={sessionsDialogClassroom?.name ?? "Classroom"}
+        sessions={sessionsDialogClassroom?.meetSessions}
+        googleCalendarEmail={googleCalendarEmail}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="w-[96vw] max-w-190 max-h-[92vh] overflow-y-auto rounded-3xl border border-white/20 bg-[#111428] p-0 text-slate-100">
@@ -3936,6 +4169,9 @@ export default function MyClassroomView({
             </DialogTitle>
             <p className="mt-1 text-sm text-slate-400">
               A classroom is a dedicated space for one batch of students.
+              {createClassroomRdmCompact ? (
+                <span className="ml-1 text-xs text-slate-500">{createClassroomRdmCompact} from your wallet</span>
+              ) : null}
             </p>
           </DialogHeader>
           <div className="space-y-4 p-4 sm:p-6">
@@ -4107,9 +4343,12 @@ export default function MyClassroomView({
               type="button"
               onClick={() => void submit()}
               disabled={!name.trim() || submitting}
-              className="rounded-full bg-emerald-500 px-6 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-40"
+              className="inline-flex items-baseline justify-center gap-1 rounded-full bg-emerald-500 px-6 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-40"
             >
               {submitting ? "Creating..." : "Create classroom"}
+              {!submitting && createClassroomRdmLabel ? (
+                <span className="text-xs font-normal opacity-85">{createClassroomRdmLabel}</span>
+              ) : null}
             </button>
           </div>
         </DialogContent>
@@ -4118,16 +4357,11 @@ export default function MyClassroomView({
       <Dialog
         open={wizardOpen}
         onOpenChange={(v) => {
-          setWizardOpen(v);
-          if (!v) {
-            wizardDismissedRef.current = true;
-            // Close (X) should not re-open on refresh within same session.
-            try {
-              window.sessionStorage.setItem(WIZARD_CLOSED_SESSION_KEY, "1");
-            } catch {
-              // ignore
-            }
+          if (v) {
+            setWizardOpen(true);
+            return;
           }
+          dismissWizardForOneHour();
         }}
       >
         <DialogContent
@@ -4146,9 +4380,9 @@ export default function MyClassroomView({
             <DialogTitle>Teacher Wizard</DialogTitle>
           </DialogHeader>
           <TeacherWizardPopup
-            onClose={() => setWizardOpen(false)}
+            onClose={dismissWizardForOneHour}
             onHideForever={() => {
-              // Hide: close for this view (should reappear after switching tabs/back or refresh).
+              // Hide: close for this view only (reappears on refresh / tab return).
               setWizardOpen(false);
               wizardDismissedRef.current = true;
             }}
@@ -4178,6 +4412,9 @@ export default function MyClassroomView({
             </DialogTitle>
             <p className="mt-1 text-sm text-slate-400">
               Name your batch, then book live classes (Google Calendar + Meet) from the section tab.
+              {createSectionRdmCompact ? (
+                <span className="ml-1 text-xs text-slate-500">{createSectionRdmCompact} per section</span>
+              ) : null}
             </p>
           </DialogHeader>
           <div className="space-y-4 p-4 sm:p-6">
@@ -4205,9 +4442,12 @@ export default function MyClassroomView({
               type="button"
               onClick={() => void createSection()}
               disabled={sectionCreating}
-              className="rounded-full bg-violet-500 px-6 py-2 text-sm font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-40"
+              className="inline-flex items-baseline justify-center gap-1 rounded-full bg-violet-500 px-6 py-2 text-sm font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-40"
             >
               {sectionCreating ? "Creating..." : "Create section"}
+              {!sectionCreating && createSectionRdmLabel ? (
+                <span className="text-xs font-normal opacity-90">{createSectionRdmLabel}</span>
+              ) : null}
             </button>
           </div>
         </DialogContent>
@@ -4483,22 +4723,38 @@ export default function MyClassroomView({
                     ) : null}
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-300">
-                      RDM reward for completion
-                    </label>
+                    <div className="mb-1 flex items-center gap-2">
+                      <label className="text-sm font-semibold text-slate-300">
+                        {TEACHER_ASSIGNMENT_INCENTIVE_LABEL}
+                      </label>
+                      <AssignmentInfoHelp title={TEACHER_ASSIGNMENT_INCENTIVE_LABEL} tone="slate">
+                        {TEACHER_ASSIGNMENT_INCENTIVE_HELP}
+                      </AssignmentInfoHelp>
+                    </div>
                     <div className="relative">
                       <select
                         value={String(rewardRdm)}
                         onChange={(e) => setRewardRdm(Number(e.target.value))}
                         className={selectClassName}
                       >
-                        <option value="15">+15 RDM (standard)</option>
-                        <option value="25">+25 RDM (medium)</option>
-                        <option value="40">+40 RDM (high value)</option>
-                        <option value="50">+50 RDM (special)</option>
+                        <option value="0">{TEACHER_ASSIGNMENT_NO_RDM_LABEL}</option>
+                        <option value="15">+15 RDM per student</option>
+                        <option value="25">+25 RDM per student</option>
+                        <option value="40">+40 RDM per student</option>
+                        <option value="50">+50 RDM per student</option>
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                     </div>
+                    {rewardRdm > 0 && assignmentAudienceStudentCount > 0 ? (
+                      <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
+                        Reserve{" "}
+                        {
+                          formatCompletionEscrowSummary(rewardRdm, assignmentAudienceStudentCount)
+                            .total
+                        }{" "}
+                        RDM at publish.
+                      </p>
+                    ) : null}
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
@@ -4568,6 +4824,11 @@ export default function MyClassroomView({
                         Same catalog as the Mock tests page. One paper still appears here so
                         teachers confirm the exact test.
                       </p>
+                      <AssignmentCompletionRewardPanel
+                        rewardRdm={rewardRdm}
+                        studentCount={assignmentAudienceStudentCount}
+                        publishFeeRdm={teacherRdmCosts.create_assignment}
+                      />
                     </div>
                   ) : isPastPaperAssignmentTemplate ? (
                     <div>
@@ -4606,6 +4867,11 @@ export default function MyClassroomView({
                       <p className="mt-2 text-[11px] text-slate-500">
                         Same catalog as the Past papers section in Mock test library.
                       </p>
+                      <AssignmentCompletionRewardPanel
+                        rewardRdm={rewardRdm}
+                        studentCount={assignmentAudienceStudentCount}
+                        publishFeeRdm={teacherRdmCosts.create_assignment}
+                      />
                     </div>
                   ) : isQuizAssignmentTemplate ? (
                     <div className="space-y-3 sm:space-y-4">
@@ -4652,28 +4918,54 @@ export default function MyClassroomView({
                           />
                         )}
                       </div>
+                      <AssignmentCompletionRewardPanel
+                        rewardRdm={rewardRdm}
+                        studentCount={assignmentAudienceStudentCount}
+                        publishFeeRdm={teacherRdmCosts.create_assignment}
+                      />
                     </div>
                   ) : isConceptFocusTemplate ? (
-                    <ConceptFocusAssignmentFields
-                      taxonomy={curriculumTaxonomy}
-                      taxonomyLoading={curriculumLoading}
-                      taxonomyError={curriculumError}
-                      value={conceptFocusSel}
-                      onChange={setConceptFocusSel}
-                      selectClassName={selectClassName}
-                    />
+                    <div className="space-y-4">
+                      <ConceptFocusAssignmentFields
+                        taxonomy={curriculumTaxonomy}
+                        taxonomyLoading={curriculumLoading}
+                        taxonomyError={curriculumError}
+                        value={conceptFocusSel}
+                        onChange={setConceptFocusSel}
+                        selectClassName={selectClassName}
+                      />
+                      <SubtopicUnlockCostPanel
+                        perStudentUnlock={teacherRdmCosts.create_assignment}
+                        studentCount={assignmentAudienceStudentCount}
+                        rewardRdm={rewardRdm}
+                      />
+                    </div>
                   ) : isGyanEngagementTemplate ? (
-                    <GyanEngagementAssignmentFields
-                      topicFocus={gyanTopicFocus}
-                      subtopicHint={gyanSubtopicHint}
-                      onTopicFocusChange={setGyanTopicFocus}
-                      onSubtopicHintChange={setGyanSubtopicHint}
-                    />
+                    <div className="space-y-4">
+                      <GyanEngagementAssignmentFields
+                        topicFocus={gyanTopicFocus}
+                        subtopicHint={gyanSubtopicHint}
+                        onTopicFocusChange={setGyanTopicFocus}
+                        onSubtopicHintChange={setGyanSubtopicHint}
+                      />
+                      <AssignmentCompletionRewardPanel
+                        rewardRdm={rewardRdm}
+                        studentCount={assignmentAudienceStudentCount}
+                        publishFeeRdm={teacherRdmCosts.create_assignment}
+                      />
+                    </div>
                   ) : (
-                    <DailyDoseStreakAssignmentFields
-                      selectedTrackId={dailyDoseTrackId}
-                      onSelectTrack={setDailyDoseTrackId}
-                    />
+                    <div className="space-y-4">
+                      <DailyDoseStreakAssignmentFields
+                        selectedTrackId={dailyDoseTrackId}
+                        onSelectTrack={setDailyDoseTrackId}
+                      />
+                      <AssignmentCompletionRewardPanel
+                        rewardRdm={rewardRdm}
+                        studentCount={assignmentAudienceStudentCount}
+                        publishFeeRdm={teacherRdmCosts.create_assignment}
+                      />
+                    </div>
                   )}
                 </div>
               </div>
@@ -4817,22 +5109,35 @@ export default function MyClassroomView({
                 </div>
               ) : null}
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
-                  RDM reward for completion
-                </label>
+                <div className="mb-1 flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-300 sm:text-sm">
+                    {TEACHER_ASSIGNMENT_INCENTIVE_LABEL}
+                  </label>
+                  <AssignmentInfoHelp title={TEACHER_ASSIGNMENT_INCENTIVE_LABEL} tone="slate">
+                    {TEACHER_ASSIGNMENT_INCENTIVE_HELP}
+                  </AssignmentInfoHelp>
+                </div>
                 <div className="relative">
                   <select
                     value={String(rewardRdm)}
                     onChange={(e) => setRewardRdm(Number(e.target.value))}
                     className={selectClassName}
                   >
-                    <option value="15">+15 RDM (standard)</option>
-                    <option value="25">+25 RDM (medium)</option>
-                    <option value="40">+40 RDM (high value)</option>
-                    <option value="50">+50 RDM (special)</option>
+                    <option value="0">{TEACHER_ASSIGNMENT_NO_RDM_LABEL}</option>
+                    <option value="15">+15 RDM per student</option>
+                    <option value="25">+25 RDM per student</option>
+                    <option value="40">+40 RDM per student</option>
+                    <option value="50">+50 RDM per student</option>
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 </div>
+                {rewardRdm > 0 && assignmentAudienceStudentCount > 0 ? (
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
+                    Reserve{" "}
+                    {formatCompletionEscrowSummary(rewardRdm, assignmentAudienceStudentCount).total}{" "}
+                    RDM at publish.
+                  </p>
+                ) : null}
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
@@ -4870,11 +5175,26 @@ export default function MyClassroomView({
                   !selectedMockPaperId) ||
                 (isQuizAssignmentTemplate &&
                   (curriculumLoading ||
-                    !chapterQuizSelectionComplete(chapterQuizSel, curriculumTaxonomy)))
+                    !chapterQuizSelectionComplete(chapterQuizSel, curriculumTaxonomy))) ||
+                (isConceptFocusTemplate &&
+                  (curriculumLoading ||
+                    !conceptFocusSelectionComplete(conceptFocusSel, curriculumTaxonomy)))
               }
               className="rounded-full bg-violet-500 px-5 py-2 text-xs font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-40 sm:px-6 sm:text-sm"
             >
-              {assignmentSubmitting ? "Creating..." : "Create assignment"}
+              {assignmentSubmitting
+                ? "Creating..."
+                : isConceptFocusTemplate && assignmentAudienceStudentCount > 0
+                  ? `Create assignment (${conceptFocusPublishTotalRdm} RDM)`
+                  : (isMockAssignmentTemplate ||
+                      isPastPaperAssignmentTemplate ||
+                      isQuizAssignmentTemplate ||
+                      isGyanEngagementTemplate ||
+                      isDailyDoseAssignmentTemplate) &&
+                      assignmentAudienceStudentCount > 0 &&
+                      standardAssignmentPublishTotalRdm > 0
+                    ? `Create assignment (${standardAssignmentPublishTotalRdm} RDM)`
+                    : "Create assignment"}
             </button>
           </div>
         </DialogContent>
@@ -5096,56 +5416,84 @@ export default function MyClassroomView({
                     </span>
                     <span className="font-semibold">{assignmentDetail.dueDateLabel}</span>
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#151b35] px-3 py-1.5 text-xs text-slate-200">
-                    <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
-                      Submitted
-                    </span>
-                    <span className="font-semibold text-emerald-300">
-                      {(() => {
-                        // UX: For Concept Focus, "Submitted" should reflect "Marked complete" (reads/finishes subtopic),
-                        // not just MCQ submissions. The completion stats already include `lessonChecklistMarkedCompleteAt`.
-                        if (assignmentDetail.type === "Concept Focus") {
-                          const completed =
-                            assignmentProgressCacheRef.current[assignmentDetail.id]
-                              ?.completedCount ??
-                            assignmentDetail.completedCount ??
-                            0;
-                          return completed;
-                        }
-                        return (
-                          (assignmentScores.length > 0
-                            ? assignmentScores.length
-                            : (assignmentProgressCacheRef.current[assignmentDetail.id]
-                                ?.completedCount ?? assignmentDetail.completedCount)) ?? 0
-                        );
-                      })()}
-                      /{cohortStudents.length}
-                    </span>
-                  </div>
-                  {assignmentDetail.type !== "Concept Focus" ? (
-                    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#151b35] px-3 py-1.5 text-xs text-slate-200">
-                      <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
-                        Avg score
-                      </span>
-                      <span className="font-semibold text-violet-300">
-                        {assignmentScores.length > 0
-                          ? `${
-                              Math.round(
-                                (assignmentScores.reduce(
-                                  (acc, s) => acc + (s.total > 0 ? (s.score / s.total) * 100 : 0),
-                                  0
-                                ) /
-                                  assignmentScores.length) *
-                                  10
-                              ) / 10
-                            }%`
-                          : `${
-                              assignmentProgressCacheRef.current[assignmentDetail.id]
-                                ?.completionPercent ?? assignmentDetail.completionPercent
-                            }%`}
-                      </span>
-                    </div>
-                  ) : null}
+                  {(() => {
+                    const audienceTotal = Math.max(
+                      1,
+                      assignmentDetail.totalCount ?? cohortStudents.length
+                    );
+                    const completedCount =
+                      assignmentDetail.type === "Concept Focus"
+                        ? (conceptFocusCompletion.length > 0
+                            ? conceptFocusCompletion.filter((s) => s.completed).length
+                            : (assignmentDetail.completedCount ?? 0))
+                        : assignmentScores.length > 0
+                          ? assignmentScores.length
+                          : (assignmentDetail.completedCount ?? 0);
+                    const completionPct = Math.min(
+                      100,
+                      Math.round((100 * completedCount) / audienceTotal)
+                    );
+                    const allDone = completedCount >= audienceTotal;
+                    const someDone = completedCount > 0 && !allDone;
+                    return (
+                      <>
+                        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#151b35] px-3 py-1.5 text-xs text-slate-200">
+                          <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
+                            Submitted
+                          </span>
+                          <span className="font-semibold text-emerald-300">
+                            {completedCount}/{audienceTotal}
+                          </span>
+                        </div>
+                        {assignmentDetail.type !== "Concept Focus" ? (
+                          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#151b35] px-3 py-1.5 text-xs text-slate-200">
+                            <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
+                              Avg score
+                            </span>
+                            <span className="font-semibold text-violet-300">
+                              {assignmentScores.length > 0
+                                ? `${
+                                    Math.round(
+                                      (assignmentScores.reduce(
+                                        (acc, s) =>
+                                          acc + (s.total > 0 ? (s.score / s.total) * 100 : 0),
+                                        0
+                                      ) /
+                                        assignmentScores.length) *
+                                        10
+                                    ) / 10
+                                  }%`
+                                : assignmentScoresLoading
+                                  ? "…"
+                                  : "—"}
+                            </span>
+                          </div>
+                        ) : null}
+                        {allDone ? (
+                          <div className="flex w-full items-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-500/12 px-3 py-2 text-xs font-bold text-emerald-200">
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" aria-hidden />
+                            {audienceTotal === 1
+                              ? "Student completed"
+                              : `All ${audienceTotal} students completed`}
+                          </div>
+                        ) : someDone ? (
+                          <div className="flex w-full items-center justify-between gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/8 px-3 py-2 text-xs">
+                            <span className="font-bold text-emerald-300">
+                              {completedCount} of {audienceTotal} done
+                            </span>
+                            <span className="text-slate-400">{completionPct}%</span>
+                          </div>
+                        ) : (
+                          <div className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-[#151b35] px-3 py-2 text-xs">
+                            <span className="font-bold text-slate-400">Not started</span>
+                            <span className="text-slate-500">
+                              0/{audienceTotal} done
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Visibility + assignment meta */}
@@ -5170,23 +5518,30 @@ export default function MyClassroomView({
                         {assignmentDetail.assignedToLabel}
                       </span>
                       <span className="text-slate-600">•</span>
-                      <span className="text-slate-400">Reward:</span>
+                      <span className="text-slate-400">{TEACHER_ASSIGNMENT_INCENTIVE_DETAIL_PREFIX}:</span>
                       <span className="font-semibold text-amber-300">
-                        +{assignmentDetail.rewardRdm} RDM
+                        {teacherAssignmentPublishIncentiveLine(assignmentDetail.rewardRdm)}
                       </span>
                       <span className="text-slate-600">•</span>
                       <span className="text-slate-400">Completion:</span>
                       <span className="font-semibold text-sky-200">
-                        {cohortStudents.length > 0
-                          ? `${Math.round(
-                              ((assignmentScores.length > 0
+                        {(() => {
+                          const audienceTotal = Math.max(
+                            1,
+                            assignmentDetail.totalCount ?? cohortStudents.length
+                          );
+                          const completedCount =
+                            assignmentDetail.type === "Concept Focus"
+                              ? (conceptFocusCompletion.length > 0
+                                  ? conceptFocusCompletion.filter((s) => s.completed).length
+                                  : (assignmentDetail.completedCount ?? 0))
+                              : assignmentScores.length > 0
                                 ? assignmentScores.length
-                                : (assignmentProgressCacheRef.current[assignmentDetail.id]
-                                    ?.completedCount ?? assignmentDetail.completedCount)) /
-                                Math.max(1, cohortStudents.length)) *
-                                100
-                            )}%`
-                          : "0%"}
+                                : (assignmentDetail.completedCount ?? 0);
+                          return audienceTotal > 0
+                            ? `${Math.round((completedCount / audienceTotal) * 100)}%`
+                            : "0%";
+                        })()}
                       </span>
                     </div>
                   </div>
@@ -5255,26 +5610,29 @@ export default function MyClassroomView({
                                 (t) => t.kind === "chapter_quiz" && Boolean(t.href)
                               ) ?? assignmentDetail.tasks?.find((t) => Boolean(t.href)));
                         if (!primaryHrefTask?.href) return null;
+                        const audienceTotal = Math.max(
+                          1,
+                          assignmentDetail.totalCount ?? cohortStudents.length
+                        );
                         const cfCompleted =
                           assignmentDetail.type === "Concept Focus"
-                            ? (assignmentProgressCacheRef.current[assignmentDetail.id]
-                                ?.completedCount ??
-                              assignmentDetail.completedCount ??
-                              0)
+                            ? (conceptFocusCompletion.length > 0
+                                ? conceptFocusCompletion.filter((s) => s.completed).length
+                                : (assignmentDetail.completedCount ?? 0))
                             : 0;
                         const conceptFocusClassDone =
                           assignmentDetail.type === "Concept Focus" &&
-                          cohortStudents.length > 0 &&
-                          cfCompleted >= cohortStudents.length;
+                          audienceTotal > 0 &&
+                          cfCompleted >= audienceTotal;
                         const openPreview = () => {
                           const rawHref = primaryHrefTask.href ?? "";
                           const postId = assignmentDetail?.id ?? "";
                           const classroomId = activeClassroomId ?? "";
-                          const resolved = rawHref
-                            .replace(/\{\{POST_ID\}\}/g, postId)
-                            .replace(/\{\{CLASSROOM_ID\}\}/g, classroomId)
-                            .replace(/%7B%7BPOST_ID%7D%7D/gi, encodeURIComponent(postId))
-                            .replace(/%7B%7BCLASSROOM_ID%7D%7D/gi, encodeURIComponent(classroomId));
+                          const resolved = resolveAssignmentTrackingInHref(
+                            rawHref,
+                            postId,
+                            classroomId
+                          );
                           const safeResolved = (() => {
                             // If a Concept Focus link accidentally points at `panel=quiz`, force the concepts panel.
                             if (assignmentDetail.type !== "Concept Focus") return resolved;
@@ -5384,9 +5742,68 @@ export default function MyClassroomView({
                       </div>
                     ) : (
                       <div className="mt-2 text-[11px] text-slate-400">
-                        Students complete this via the Gyan++ checklist link.
+                        Students post a doubt on Gyan++ to complete this assignment.
                       </div>
                     )}
+
+                    <div className="mt-4 border-t border-violet-500/15 pt-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                          Student doubts posted
+                        </div>
+                        {gyanCompletionsLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                        ) : (
+                          <span className="text-[11px] text-slate-500">
+                            {gyanCompletions.length} submitted
+                          </span>
+                        )}
+                      </div>
+                      {gyanCompletionsError ? (
+                        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                          {gyanCompletionsError}
+                        </div>
+                      ) : gyanCompletions.length === 0 && !gyanCompletionsLoading ? (
+                        <div className="rounded-lg border border-dashed border-white/10 bg-black/10 px-4 py-5 text-center text-xs text-slate-400">
+                          No doubts yet. Students must open this assignment and post on Gyan++.
+                        </div>
+                      ) : (
+                        <div className="max-h-72 space-y-2 overflow-y-auto">
+                          {gyanCompletions.map((row) => (
+                            <div
+                              key={`${row.userId}-${row.doubtId}`}
+                              className="rounded-lg border border-white/10 bg-[#151b35] px-3 py-2.5"
+                            >
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-sm font-semibold text-slate-100">
+                                    {row.studentName}
+                                  </div>
+                                  <div className="mt-0.5 text-xs font-medium text-violet-200">
+                                    {row.doubtTitle}
+                                  </div>
+                                  {row.doubtBody ? (
+                                    <p className="mt-1 line-clamp-2 text-[11px] text-slate-400">
+                                      {row.doubtBody}
+                                    </p>
+                                  ) : null}
+                                  <div className="mt-1 text-[10px] text-slate-500">
+                                    {display.formatRelativeTime(row.completedAt)}
+                                    {row.hasTeacherAnswer ? " · You replied on wall" : ""}
+                                  </div>
+                                </div>
+                                <a
+                                  href={`/teacher-portal?section=gyanWall&focusDoubt=${encodeURIComponent(row.doubtId)}`}
+                                  className="inline-flex shrink-0 items-center rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/15"
+                                >
+                                  Review on Gyan++ Wall →
+                                </a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : null}
 
@@ -5544,7 +5961,10 @@ export default function MyClassroomView({
                               (st) => st.userId === s.userId
                             );
                             const studentName = rosterStudent?.name ?? "Student";
-                            const pct = Math.round((s.score / Math.max(1, s.total)) * 100);
+                            const hasScore = s.total > 0;
+                            const pct = hasScore
+                              ? Math.round((s.score / s.total) * 100)
+                              : null;
                             return (
                               <div
                                 key={s.userId}
@@ -5552,7 +5972,7 @@ export default function MyClassroomView({
                               >
                                 <div className="flex items-center gap-2 min-w-0">
                                   <div
-                                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${pct >= 80 ? "bg-emerald-500/15 text-emerald-300" : pct >= 60 ? "bg-amber-500/15 text-amber-300" : "bg-rose-500/15 text-rose-300"}`}
+                                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${pct === null ? "bg-sky-500/15 text-sky-300" : pct >= 80 ? "bg-emerald-500/15 text-emerald-300" : pct >= 60 ? "bg-amber-500/15 text-amber-300" : "bg-rose-500/15 text-rose-300"}`}
                                   >
                                     {display.initials(studentName)}
                                   </div>
@@ -5561,12 +5981,12 @@ export default function MyClassroomView({
                                   </span>
                                 </div>
                                 <div className="text-right text-sm font-bold text-emerald-300">
-                                  {s.score}/{s.total}
+                                  {hasScore ? `${s.score}/${s.total}` : "Submitted"}
                                 </div>
                                 <div
-                                  className={`text-right text-[11px] font-bold ${pct >= 80 ? "text-emerald-400" : pct >= 60 ? "text-amber-400" : "text-rose-400"}`}
+                                  className={`text-right text-[11px] font-bold ${pct === null ? "text-sky-300" : pct >= 80 ? "text-emerald-400" : pct >= 60 ? "text-amber-400" : "text-rose-400"}`}
                                 >
-                                  {pct}%
+                                  {pct === null ? "—" : `${pct}%`}
                                 </div>
                                 <div className="hidden items-center justify-end gap-2 sm:flex">
                                   {s.submittedAt ? (
@@ -5576,20 +5996,24 @@ export default function MyClassroomView({
                                   ) : null}
                                 </div>
                                 <div className="flex justify-end">
-                                  <button
-                                    type="button"
-                                    className="inline-flex h-7 items-center rounded-md border border-violet-400/30 bg-violet-500/10 px-2 text-[11px] font-semibold text-violet-200 hover:bg-violet-500/20"
-                                    onClick={() => {
-                                      void openStudentAnswerReview({
-                                        userId: s.userId,
-                                        name: studentName,
-                                        score: s.score,
-                                        total: s.total,
-                                      });
-                                    }}
-                                  >
-                                    View
-                                  </button>
+                                  {hasScore ? (
+                                    <button
+                                      type="button"
+                                      className="inline-flex h-7 items-center rounded-md border border-violet-400/30 bg-violet-500/10 px-2 text-[11px] font-semibold text-violet-200 hover:bg-violet-500/20"
+                                      onClick={() => {
+                                        void openStudentAnswerReview({
+                                          userId: s.userId,
+                                          name: studentName,
+                                          score: s.score,
+                                          total: s.total,
+                                        });
+                                      }}
+                                    >
+                                      View
+                                    </button>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-500">No answers</span>
+                                  )}
                                 </div>
                               </div>
                             );

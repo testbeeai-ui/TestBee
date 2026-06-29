@@ -22,11 +22,15 @@ export const TEACHER_PLAN_PRICING_INR = {
   pro: 1999,
 } as const;
 
+/** Values at or above this cap are treated as unlimited live classes (Pro). */
+export const TEACHER_LIVE_CLASSES_UNLIMITED_CAP = 9999;
+
 export const TEACHER_PLAN_CONFIG_DEFAULTS: TeacherPlanConfig = {
-  teacher_free_live_classes_per_month: 0,
-  teacher_starter_live_classes_per_month: 4,
-  teacher_pro_live_classes_per_month: 12,
-  teacher_starter_assignments_per_month: 10,
+  teacher_free_live_classes_per_month: 24,
+  teacher_starter_live_classes_per_month: 60,
+  teacher_pro_live_classes_per_month: TEACHER_LIVE_CLASSES_UNLIMITED_CAP,
+  teacher_free_assignments_per_month: 10,
+  teacher_starter_assignments_per_month: 9999,
   teacher_pro_assignments_per_month: 9999,
   teacher_class_students_cap: 30,
 };
@@ -60,17 +64,18 @@ export const TEACHER_PLAN_TIERS: TeacherPlanTierMeta[] = [
       "Basic teacher profile",
       "Gyan++ Teacher Section posts",
       "Invite students & earn RDM",
-      "No live class slots",
+      "Up to 10 assignments / month (RDM charge per publish)",
+      "Up to 24 live classes / month (30 students each)",
     ],
   },
   {
     id: "starter",
     name: "Starter Teacher",
-    tagline: "Conduct up to 4 live classes per month.",
+    tagline: "Conduct up to 60 live classes per month.",
     priceInr: TEACHER_PLAN_PRICING_INR.starter,
     features: [
-      "Up to 4 live classes / month (30 students each)",
-      "Up to 10 assignments / month",
+      "Up to 60 live classes / month (30 students each)",
+      "Unlimited assignments (RDM charged every publish)",
       "Student performance for referred students",
       "Basic public Teachers directory listing",
     ],
@@ -78,11 +83,11 @@ export const TEACHER_PLAN_TIERS: TeacherPlanTierMeta[] = [
   {
     id: "pro",
     name: "Pro Teacher",
-    tagline: "Scale teaching with 12 live classes and priority visibility.",
+    tagline: "Unlimited live classes and priority visibility.",
     priceInr: TEACHER_PLAN_PRICING_INR.pro,
     features: [
-      "Up to 12 live classes / month (30 students each)",
-      "Unlimited assignments",
+      "Unlimited live classes / month (30 students each)",
+      "Unlimited assignments (no RDM publish fee)",
       "Priority Teachers directory listing",
       "Verified badge on Gyan++",
       "Chapter-level weak-area assignment analytics",
@@ -132,7 +137,13 @@ export function teacherPlanConfigFromRows(
       byKey.get("teacher_pro_live_classes_per_month"),
       d.teacher_pro_live_classes_per_month,
       0,
-      1000
+      TEACHER_LIVE_CLASSES_UNLIMITED_CAP
+    ),
+    teacher_free_assignments_per_month: clampInt(
+      byKey.get("teacher_free_assignments_per_month"),
+      d.teacher_free_assignments_per_month,
+      0,
+      10000
     ),
     teacher_starter_assignments_per_month: clampInt(
       byKey.get("teacher_starter_assignments_per_month"),
@@ -217,7 +228,7 @@ export function getTeacherPlanLimits(
     default:
       return {
         liveClassesPerMonth: cfg.teacher_free_live_classes_per_month,
-        assignmentsPerMonth: 0,
+        assignmentsPerMonth: cfg.teacher_free_assignments_per_month,
         studentsPerClass: cfg.teacher_class_students_cap,
         performanceDashboard: false,
         publicDirectoryListing: false,
@@ -253,11 +264,38 @@ export function istMonthBoundsForDate(date: Date): { start: Date; end: Date } {
   return { start, end };
 }
 
+export function isUnlimitedLiveClassesCap(cap: number): boolean {
+  return cap >= TEACHER_LIVE_CLASSES_UNLIMITED_CAP;
+}
+
+export function formatTeacherLiveClassQuotaLabel(quota: {
+  remaining: number;
+  cap: number;
+}): string {
+  if (isUnlimitedLiveClassesCap(quota.cap)) {
+    return "Unlimited live classes this month";
+  }
+  return `${quota.remaining}/${quota.cap} left this month`;
+}
+
+export function liveClassQuotaExceededMessage(tier: TeacherPlanKey, cap: number): string {
+  if (tier === "free") {
+    return `You've used all ${cap} free live classes this month. Upgrade to Starter (60/month) or Pro (unlimited).`;
+  }
+  if (tier === "starter") {
+    return `You've used all ${cap} live classes this month. Upgrade to Pro for unlimited live classes.`;
+  }
+  return "Monthly live class limit reached.";
+}
+
 export function canBookMoreLiveClasses(
   bookedThisMonth: number,
   limits: TeacherPlanLimits
 ): { allowed: boolean; remaining: number; cap: number } {
   const cap = limits.liveClassesPerMonth;
+  if (isUnlimitedLiveClassesCap(cap)) {
+    return { allowed: true, remaining: TEACHER_LIVE_CLASSES_UNLIMITED_CAP, cap };
+  }
   const remaining = Math.max(0, cap - bookedThisMonth);
   return { allowed: bookedThisMonth < cap, remaining, cap };
 }
@@ -272,6 +310,20 @@ export function canCreateMoreAssignments(
   }
   const remaining = Math.max(0, cap - createdThisMonth);
   return { allowed: createdThisMonth < cap, remaining, cap };
+}
+
+export function assignmentQuotaExceededMessage(tier: TeacherPlanKey, cap: number): string {
+  if (tier === "free") {
+    return `You've used all ${cap} free assignments this month. Upgrade to Starter for unlimited assignments (RDM charged each publish).`;
+  }
+  if (tier === "starter") {
+    return "Monthly assignment limit reached. Contact support or upgrade your plan.";
+  }
+  return "Monthly assignment limit reached.";
+}
+
+export function teacherAssignmentPublishChargeWaived(tier: TeacherPlanKey): boolean {
+  return tier === "pro";
 }
 
 export function teacherPlanDisplayName(tier: TeacherPlanKey): string {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Loader2,
   Copy,
@@ -10,14 +10,20 @@ import {
   History,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
 import { TeacherPlanSubscriptionSection } from "@/components/teacher-portal/views/subscriptions/TeacherPlanSubscriptionSection";
+import { TeacherRdmTopUpSection } from "@/components/teacher-portal/views/subscriptions/TeacherRdmTopUpSection";
 
 type SubscriptionsViewProps = {
-  onRefresh: () => Promise<void>;
+  onRefresh: (opts?: { silent?: boolean }) => Promise<void>;
+  onRdmBalanceUpdated?: (balance: number) => void;
+  onAuthProfileRefresh?: () => Promise<void>;
 };
 
 export default function SubscriptionsView({
   onRefresh,
+  onRdmBalanceUpdated,
+  onAuthProfileRefresh,
 }: SubscriptionsViewProps) {
   const { toast } = useToast();
 
@@ -27,6 +33,15 @@ export default function SubscriptionsView({
   const [userCoupons, setUserCoupons] = useState<any[]>([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [refreshingBalance, setRefreshingBalance] = useState(false);
+  const onRefreshRef = useRef(onRefresh);
+  const onRdmBalanceUpdatedRef = useRef(onRdmBalanceUpdated);
+  const onAuthProfileRefreshRef = useRef(onAuthProfileRefresh);
+
+  useEffect(() => {
+    onRefreshRef.current = onRefresh;
+    onRdmBalanceUpdatedRef.current = onRdmBalanceUpdated;
+    onAuthProfileRefreshRef.current = onAuthProfileRefresh;
+  });
 
   const loadUserCoupons = async () => {
     setCouponsLoading(true);
@@ -44,7 +59,33 @@ export default function SubscriptionsView({
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     void loadUserCoupons();
+
+    void (async () => {
+      try {
+        const res = await fetchWithClientAuth("/api/teacher/wallet/reconcile", {
+          method: "POST",
+        });
+        const body = (await res.json()) as { newBalance?: number; creditedRdm?: number };
+        if (!cancelled && res.ok && typeof body.newBalance === "number") {
+          onRdmBalanceUpdatedRef.current?.(body.newBalance);
+          const creditedRdm = typeof body.creditedRdm === "number" ? body.creditedRdm : 0;
+          if (creditedRdm > 0) {
+            await onAuthProfileRefreshRef.current?.();
+            await onRefreshRef.current({ silent: true });
+            await loadUserCoupons();
+          }
+        }
+      } catch {
+        /* non-fatal */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleManualRefresh = async () => {
@@ -72,9 +113,18 @@ export default function SubscriptionsView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
       });
-      const body = await res.json();
+      const body = await res.json() as {
+        error?: string;
+        message?: string;
+        newBalance?: number;
+      };
 
       if (!res.ok) throw new Error(body.error || "Failed to redeem coupon");
+
+      if (typeof body.newBalance === "number") {
+        onRdmBalanceUpdated?.(body.newBalance);
+        await onAuthProfileRefresh?.();
+      }
 
       toast({
         title: "Coupon Redeemed! 🎉",
@@ -85,7 +135,7 @@ export default function SubscriptionsView({
         setCouponCode("");
       }
 
-      await onRefresh();
+      await onRefresh({ silent: true });
       await loadUserCoupons();
     } catch (err) {
       toast({
@@ -128,6 +178,14 @@ export default function SubscriptionsView({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <TeacherPlanSubscriptionSection onPlanChanged={onRefresh} />
+          <TeacherRdmTopUpSection
+            onCreditsAdded={async (newBalance) => {
+              onRdmBalanceUpdated?.(newBalance);
+              await onAuthProfileRefresh?.();
+              await onRefresh({ silent: true });
+              await loadUserCoupons();
+            }}
+          />
         </div>
 
         <div className="space-y-6">

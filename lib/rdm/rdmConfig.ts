@@ -5,9 +5,11 @@ export type RdmConfigParams = {
   referral_referee_welcome: number;
   referral_weekly_bonus_threshold: number;
   referral_weekly_bonus_rdm: number;
-  /** RDM a teacher earns when a student signs up via the teacher referral link */
+  /** RDM a teacher earns when another teacher signs up via the teacher referral link */
   referral_teacher_signup_reward: number;
-  /** Extra RDM a teacher earns when their referred student goes paid within the window */
+  /** RDM a teacher earns when a student signs up via the teacher referral link */
+  referral_teacher_student_signup_reward: number;
+  /** Extra RDM when a referred teacher or student (teacher referrer) goes paid within the window */
   referral_teacher_paid_bonus: number;
   /** Days after signup in which a referred student must go paid for the teacher bonus */
   referral_teacher_paid_window_days: number;
@@ -95,6 +97,7 @@ export const DEFAULT_RDM_CONFIG: RdmConfigParams = {
   referral_weekly_bonus_threshold: 5,
   referral_weekly_bonus_rdm: 100,
   referral_teacher_signup_reward: 500,
+  referral_teacher_student_signup_reward: 500,
   referral_teacher_paid_bonus: 500,
   referral_teacher_paid_window_days: 30,
 
@@ -189,31 +192,36 @@ type RdmConfigClient = {
   };
 };
 
+/**
+ * `rdm_config` is global, admin-edited config — effectively static at request rate.
+ * Cache the merged result briefly so high-traffic paths (teacher bundle, play submit,
+ * referral claims) don't re-read the whole table on every call. Admin edits propagate
+ * within the TTL. Only successful reads are cached; errors fall back to defaults uncached.
+ */
+const RDM_CONFIG_CACHE_TTL_MS = 60_000;
+let rdmConfigCache: { value: RdmConfigParams; expiresAt: number } | null = null;
+
+function mergeRdmConfigRows(data: Array<{ key: string; value: number | null }>): RdmConfigParams {
+  const conf: Record<string, number> = { ...DEFAULT_RDM_CONFIG };
+  for (const row of data) {
+    if (typeof row.value === "number") {
+      conf[row.key] = row.value;
+    }
+  }
+  return conf as RdmConfigParams;
+}
+
 export async function fetchRdmConfig(customClient?: RdmConfigClient): Promise<RdmConfigParams> {
+  if (rdmConfigCache && rdmConfigCache.expiresAt > Date.now()) {
+    return rdmConfigCache.value;
+  }
   try {
-    if (customClient) {
-      const { data, error } = await customClient.from("rdm_config").select("key, value");
-      if (error || !data) return DEFAULT_RDM_CONFIG;
-
-      const conf: Record<string, number> = { ...DEFAULT_RDM_CONFIG };
-      for (const row of data) {
-        if (typeof row.value === "number") {
-          conf[row.key] = row.value;
-        }
-      }
-      return conf as RdmConfigParams;
-    }
-
-    const { data, error } = await supabase.from("rdm_config").select("key, value");
+    const client = customClient ?? (supabase as unknown as RdmConfigClient);
+    const { data, error } = await client.from("rdm_config").select("key, value");
     if (error || !data) return DEFAULT_RDM_CONFIG;
-
-    const conf: Record<string, number> = { ...DEFAULT_RDM_CONFIG };
-    for (const row of data) {
-      if (typeof row.value === "number") {
-        conf[row.key] = row.value;
-      }
-    }
-    return conf as RdmConfigParams;
+    const value = mergeRdmConfigRows(data);
+    rdmConfigCache = { value, expiresAt: Date.now() + RDM_CONFIG_CACHE_TTL_MS };
+    return value;
   } catch {
     return DEFAULT_RDM_CONFIG;
   }

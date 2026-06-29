@@ -27,11 +27,14 @@ import {
   assignmentInstructionsFromContentJson,
   getGyanEngagementStudentViewModel,
 } from "@/lib/classroom/gyanEngagementStudentUi";
+import { parseCompletionRewardFromContentJson } from "@/lib/teacherPortal/assignmentCompletionRdm";
+import { studentCompletionRewardLine } from "@/lib/teacherPortal/assignmentCompletionRdmCopy";
 import {
   parseAssignmentTasks,
   studentVisibleTasks,
   type AssignmentTaskStored,
 } from "@/lib/classroom/assignmentTasks";
+import { withAssignmentTrackingParams } from "@/lib/classroom/assignmentTrackingHref";
 
 function parseQuizSetFromHref(href: string): string | null {
   if (!href) return null;
@@ -70,31 +73,6 @@ function taskLinkLabel(task: AssignmentTaskStored): string {
       return "Open numerals practice";
     default:
       return "Open activity";
-  }
-}
-
-function withAssignmentTrackingParams(
-  href: string,
-  task: AssignmentTaskStored,
-  classroomId: string,
-  postId: string
-): string {
-  if (!href) return href;
-  const shouldTrack =
-    task.kind === "chapter_quiz" ||
-    task.kind === "mock_paper" ||
-    task.kind === "past_paper" ||
-    href.startsWith("/mock") ||
-    href.startsWith("/mock-test");
-  if (!shouldTrack) return href;
-  try {
-    const isAbsolute = /^https?:\/\//i.test(href);
-    const url = isAbsolute ? new URL(href) : new URL(href, "https://edublast.local");
-    if (!url.searchParams.get("classroomId")) url.searchParams.set("classroomId", classroomId);
-    if (!url.searchParams.get("postId")) url.searchParams.set("postId", postId);
-    return isAbsolute ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
-  } catch {
-    return href;
   }
 }
 
@@ -170,6 +148,15 @@ export default function PostDetailModal({
         : null,
     [post]
   );
+  const gyanOpenHref = useMemo(() => {
+    if (!post || !classroomId || !gyanStudent) return gyanStudent?.href ?? "/doubts?ask=1";
+    const json = (post.content_json as import("@/integrations/supabase/types").Json) ?? null;
+    const gyanTask = studentVisibleTasks(parseAssignmentTasks(json, post.type)).find(
+      (t) => t.kind === "gyan_engagement"
+    );
+    if (!gyanTask?.href) return gyanStudent.href;
+    return withAssignmentTrackingParams(gyanTask.href, gyanTask, classroomId, post.id);
+  }, [post, classroomId, gyanStudent]);
   const assignmentInstructions = useMemo(
     () =>
       post
@@ -280,6 +267,16 @@ export default function PostDetailModal({
 
   const cfg = typeConfig[post.type] || typeConfig.announcement;
   const videoUrl = (post.content_json as { videoUrl?: string } | null)?.videoUrl;
+  const completionRewardRdm = isAssignmentLike
+    ? parseCompletionRewardFromContentJson(post.content_json)
+    : 0;
+  const studentRewardLine =
+    !canEdit && completionRewardRdm > 0
+      ? studentCompletionRewardLine(
+          completionRewardRdm,
+          post.due_date ? format(new Date(post.due_date), "MMM d, yyyy h:mm a") : null
+        )
+      : null;
 
   const handleSave = async () => {
     setSaving(true);
@@ -339,6 +336,11 @@ export default function PostDetailModal({
                       {format(new Date(post.due_date), "MMM d, yyyy h:mm a")}
                     </p>
                   )}
+                  {studentRewardLine ? (
+                    <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1 mt-1">
+                      {studentRewardLine}
+                    </p>
+                  ) : null}
                 </>
               ) : (
                 <div className="space-y-2 mt-2">
@@ -420,8 +422,7 @@ export default function PostDetailModal({
                       Describe what you do not understand (topic, question, or where you got stuck).
                     </li>
                     <li>
-                      Submit your doubt, then come back here and tick the task in the checklist when
-                      you are done.
+                      Submit your doubt — the assignment completes automatically when you post.
                     </li>
                   </ol>
                   {(gyanStudent.topicFocus || gyanStudent.subtopicHint) && (
@@ -452,12 +453,12 @@ export default function PostDetailModal({
                       </p>
                     </div>
                   ) : null}
-                  {gyanStudent.href.startsWith("/") ? (
+                  {gyanOpenHref.startsWith("/") ? (
                     <Button
                       asChild
                       className="h-12 w-full rounded-xl text-base font-bold shadow-lg shadow-violet-500/20"
                     >
-                      <Link href={gyanStudent.href} onClick={() => onClose()}>
+                      <Link href={gyanOpenHref} onClick={() => onClose()}>
                         Open Gyan++
                       </Link>
                     </Button>
@@ -466,7 +467,7 @@ export default function PostDetailModal({
                       asChild
                       className="h-12 w-full rounded-xl text-base font-bold shadow-lg shadow-violet-500/20"
                     >
-                      <a href={gyanStudent.href} target="_blank" rel="noopener noreferrer">
+                      <a href={gyanOpenHref} target="_blank" rel="noopener noreferrer">
                         Open Gyan++
                       </a>
                     </Button>

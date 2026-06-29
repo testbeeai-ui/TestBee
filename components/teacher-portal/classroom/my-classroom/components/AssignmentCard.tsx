@@ -4,6 +4,7 @@ import type {
   TeacherPortalAssignmentItem,
   TeacherPortalClassroomSection,
 } from "@/lib/teacherPortal/types";
+import { CheckCircle2 } from "lucide-react";
 import {
   formatAssignmentCardDate,
   primaryAssignmentBadge,
@@ -29,7 +30,7 @@ export function AssignmentCard({
     (formatAssignmentCardDate(item.dueDateIso) ?? item.dueDateLabel?.trim()) || "No due date";
   const title =
     item.type === "Concept Focus"
-      ? `${item.chapterQuiz?.subtopicName ?? item.title} Complete`
+      ? (item.chapterQuiz?.subtopicName?.trim() || item.title)
       : item.title;
   const taskCount = visibleTaskCountForCard(item);
   const metaLine = `${taskCount} checklist task${taskCount === 1 ? "" : "s"} · ${item.assignedToLabel}`;
@@ -38,6 +39,8 @@ export function AssignmentCard({
     item.sectionId == null
       ? "Whole class (Posts)"
       : sections.find((s) => s.id === item.sectionId)?.name?.trim() || "Section (Posts)";
+  const allDone = totalCount > 0 && completedCount >= totalCount;
+  const someDone = completedCount > 0 && !allDone;
 
   return (
     <button
@@ -69,12 +72,30 @@ export function AssignmentCard({
       ) : null}
       <div className="min-h-1.5 flex-1" aria-hidden />
       <div className="mt-2.5 space-y-1.5 border-t border-white/10 pt-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-bold text-emerald-300">{completionPercent}%</span>
-          <span className="shrink-0 text-[11px] text-slate-500">
-            {completedCount}/{totalCount} done
-          </span>
-        </div>
+        {allDone ? (
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-400/35 bg-emerald-500/12 px-2.5 py-1.5">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" aria-hidden />
+            <span className="text-xs font-bold text-emerald-200">
+              {totalCount === 1
+                ? "Student completed"
+                : `All ${totalCount} students completed`}
+            </span>
+          </div>
+        ) : someDone ? (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-emerald-300">
+              {completedCount} of {totalCount} done
+            </span>
+            <span className="text-[11px] text-slate-500">{pct}%</span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-slate-400">Not started</span>
+            <span className="shrink-0 text-[11px] text-slate-500">
+              0/{totalCount} done
+            </span>
+          </div>
+        )}
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
           <div
             className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400/90 transition-[width] duration-300"

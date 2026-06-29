@@ -25,12 +25,13 @@ import { useTeacherVerificationActionGuard } from "@/hooks/useTeacherVerificatio
 import { TEACHER_VERIFICATION_REQUIRED_ERROR } from "@/lib/teacherPortal/queries";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { TeacherRdmCostsProvider, useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
+import { useUserStore } from "@/store/useUserStore";
 
 function TeacherPortalPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const normalizedRole = (profile?.role ?? "").toLowerCase().trim();
   const isTeacherRole = normalizedRole === "teacher";
   const isAdminRole = normalizedRole === "admin";
@@ -40,21 +41,7 @@ function TeacherPortalPageContent() {
   const targetTeacherId = isAdminImpersonation ? adminTeacherIdRaw : (user?.id ?? null);
   const { costs: teacherRdmCosts } = useTeacherRdmCosts();
 
-  const {
-    data,
-    loading,
-    error,
-    refresh,
-    submitTeacherSection,
-    saveProfile,
-    createClassroom,
-    createAssignment,
-    motivateStudents,
-    rewardTopStudents,
-    createSession,
-    updateClassroom,
-    deleteClassroom,
-  } = useTeacherPortalData(!isAdminImpersonation ? user?.id : null, {
+  const teacherPortalData = useTeacherPortalData(!isAdminImpersonation ? user?.id : null, {
     rdmCosts: teacherRdmCosts,
   });
 
@@ -66,6 +53,8 @@ function TeacherPortalPageContent() {
           loading: adminData.loading,
           error: adminData.error,
           refresh: adminData.refresh,
+          patchRdmBalance: () => {},
+          syncWalletBalance: async () => {},
           // Teacher-only capabilities (gyan wall posting/profile save) are not supported in admin-open mode yet.
           submitTeacherSection: async () => {},
           saveProfile: adminData.saveProfile,
@@ -78,36 +67,14 @@ function TeacherPortalPageContent() {
           deleteClassroom: adminData.deleteClassroom,
         }
       : {
-          data,
-          loading,
-          error,
-          refresh,
-          submitTeacherSection,
-          saveProfile,
-          createClassroom,
-          createAssignment,
-          motivateStudents,
-          rewardTopStudents,
-          createSession,
-          updateClassroom,
-          deleteClassroom,
+          ...teacherPortalData,
+          patchRdmBalance: teacherPortalData.patchRdmBalance ?? (() => {}),
+          syncWalletBalance: teacherPortalData.syncWalletBalance ?? (async () => {}),
         };
   }, [
     isAdminImpersonation,
     adminData,
-    data,
-    loading,
-    error,
-    refresh,
-    submitTeacherSection,
-    saveProfile,
-    createClassroom,
-    createAssignment,
-    motivateStudents,
-    rewardTopStudents,
-    createSession,
-    updateClassroom,
-    deleteClassroom,
+    teacherPortalData,
   ]);
 
   const sectionParam = searchParams.get("section");
@@ -124,6 +91,7 @@ function TeacherPortalPageContent() {
       ? sectionParam
       : null;
   const activeSection = (paramSection ?? section) as TeacherPortalSection;
+  const focusDoubtParam = searchParams.get("focusDoubt")?.trim() || null;
 
   /** Keep `section` query in sync so `activeSection` (URL-first) matches the tab you clicked. */
   const handleSectionChange = useCallback(
@@ -139,14 +107,23 @@ function TeacherPortalPageContent() {
         params.delete("reason");
       }
       const qs = params.toString();
-      router.replace(qs ? `/teacher-portal?${qs}` : "/teacher-portal");
+      const target = qs ? `/teacher-portal?${qs}` : "/teacher-portal";
+      const currentQs = searchParams.toString();
+      const current = currentQs ? `/teacher-portal?${currentQs}` : "/teacher-portal";
+      if (target === current) return;
+      router.replace(target);
     },
     [router, searchParams]
   );
   const verificationStatus = activeHook.data?.profile.details.verificationStatus ?? "unverified";
+  const teacherClassroomIds = useMemo(
+    () => (activeHook.data?.classrooms ?? []).map((c) => c.id).filter(Boolean),
+    [activeHook.data?.classrooms]
+  );
 
   useTeacherPortalBundleAutoRefresh({
     teacherUserId: targetTeacherId,
+    classroomIds: teacherClassroomIds,
     enabled: Boolean(activeHook.data),
     skipRealtime: isAdminImpersonation,
     refresh: activeHook.refresh,
@@ -222,6 +199,7 @@ function TeacherPortalPageContent() {
     },
     [guardAction]
   );
+  const storeRdm = useUserStore((s) => s.user?.rdm);
 
   if (!user) {
     return (
@@ -256,7 +234,8 @@ function TeacherPortalPageContent() {
     (isAdminImpersonation ? "Teacher" : (profile?.name ?? "Teacher"));
   const teacherSubtitle = activeHook.data?.profile?.subjects.join(" · ") || "EduBlast Teacher";
   const rdmBalance =
-    activeHook.data?.profile.rdm ?? (isAdminImpersonation ? 0 : (profile?.rdm ?? 0));
+    activeHook.data?.profile.rdm ??
+    (isAdminImpersonation ? 0 : (profile?.rdm ?? storeRdm ?? 0));
 
   return (
     <ProtectedRoute>
@@ -267,6 +246,7 @@ function TeacherPortalPageContent() {
         teacherName={teacherName}
         teacherSubtitle={teacherSubtitle}
         onOpenCreateTests={() => handleSectionChange("createTests")}
+        onSyncWallet={() => activeHook.syncWalletBalance()}
       >
         {activeHook.loading && !activeHook.data ? (
           <div className="flex min-h-[50vh] items-center justify-center gap-2 text-slate-400">
@@ -380,6 +360,7 @@ function TeacherPortalPageContent() {
                 summary={activeHook.data.summary}
                 wallItems={activeHook.data.wallItems}
                 teacherId={targetTeacherId ?? ""}
+                focusDoubtId={focusDoubtParam}
                 onPostTeacherSection={async (input) => {
                   await requireVerifiedAction(async () => {
                     await activeHook.submitTeacherSection(input);
@@ -426,7 +407,11 @@ function TeacherPortalPageContent() {
               />
             ) : null}
             {activeSection === "subscriptions" ? (
-              <SubscriptionsView onRefresh={activeHook.refresh} />
+              <SubscriptionsView
+                onRefresh={activeHook.refresh}
+                onRdmBalanceUpdated={activeHook.patchRdmBalance}
+                onAuthProfileRefresh={refreshProfile}
+              />
             ) : null}
             {activeSection === "profile" ? (
               <TeacherProfileView

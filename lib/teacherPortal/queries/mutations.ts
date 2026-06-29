@@ -18,6 +18,11 @@ import {
   trackLabelById,
   type DailyDoseStreakTrackId,
 } from "@/lib/teacherPortal/dailyDoseStreakTracks";
+import {
+  hrefContainsPostIdTemplate,
+  resolvePostIdInHref,
+} from "@/lib/teacherPortal/assignmentPostIdTemplate";
+import type { StudentMessageKind } from "@/lib/teacherPortal/studentNotificationCopy";
 import type {
   TeacherPortalChapterQuizRef,
   TeacherPortalDailyDoseStreakRef,
@@ -482,7 +487,15 @@ export async function createClassroomAssignment(
     const topic = (geIn.topicFocus ?? "").trim();
     const sub = (geIn.subtopicHint ?? "").trim();
     const focus = sub || topic || "today's class topic";
-    const href = "/doubts?ask=1";
+    const gyanTask = taskList.find((t) => t.kind === "gyan_engagement");
+    const href = gyanTask
+      ? appendQueryParams("/doubts", {
+          ask: "1",
+          postId: "{{POST_ID}}",
+          classroomId: input.classroomId,
+          taskId: gyanTask.id,
+        })
+      : "/doubts?ask=1";
     taskList = taskList.map((t) =>
       t.kind === "gyan_engagement" ? { ...t, label: `Gyan++ — post a doubt on: ${focus}`, href } : t
     );
@@ -614,7 +627,10 @@ export async function createClassroomAssignment(
       title,
       type: input.assignmentType,
       visibility: input.visibility?.trim() || "classroom",
-      description: `Assign to: ${input.assignToLabel} | Reward: +${input.rewardRdm} RDM | Notes: ${input.instructions.trim() || "None"}`,
+      description:
+        input.rewardRdm > 0
+          ? `Assign to: ${input.assignToLabel} | Completion reward: +${input.rewardRdm} RDM per student | Notes: ${input.instructions.trim() || "None"}`
+          : `Assign to: ${input.assignToLabel} | No completion reward | Notes: ${input.instructions.trim() || "None"}`,
       due_date: dueDateIso,
       content_json: mergedContentJson,
     })
@@ -622,43 +638,43 @@ export async function createClassroomAssignment(
     .single();
   if (error) throw error;
 
-  // Allow task links like "/classroom/{id}/assignment-test/{{POST_ID}}" by resolving after insert.
-  const rawTasks = Array.isArray(baseContentJson.tasks) ? baseContentJson.tasks : [];
-  const hasPostTemplate = rawTasks.some((entry) => {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
-    const href = (entry as Record<string, unknown>).href;
-    return typeof href === "string" && href.includes("{{POST_ID}}");
-  });
-  if (hasPostTemplate && insertedPost) {
+  // Resolve {{POST_ID}} placeholders after insert (stored hrefs are often URL-encoded).
+  if (insertedPost) {
     const existing =
       insertedPost.content_json && typeof insertedPost.content_json === "object"
         ? (insertedPost.content_json as Record<string, Json>)
         : {};
     const existingTasks = Array.isArray(existing.tasks) ? existing.tasks : [];
-    const resolvedTasks = existingTasks.map((entry) => {
-      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return entry;
-      const task = { ...(entry as Record<string, Json>) };
-      const href = task.href;
-      if (typeof href === "string" && href.includes("{{POST_ID}}")) {
-        task.href = href.replaceAll("{{POST_ID}}", insertedPost.id);
-      }
-      return task;
+    const needsResolve = existingTasks.some((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+      const href = (entry as Record<string, unknown>).href;
+      return typeof href === "string" && hrefContainsPostIdTemplate(href);
     });
-    const { error: updateErr } = await db
-      .from("posts")
-      .update({
-        content_json: {
-          ...existing,
-          tasks: resolvedTasks,
-        },
-      })
-      .eq("id", insertedPost.id)
-      .eq("teacher_id", input.teacherId);
-    if (updateErr) throw updateErr;
-    return { id: insertedPost.id };
+    if (needsResolve) {
+      const resolvedTasks = existingTasks.map((entry) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return entry;
+        const task = { ...(entry as Record<string, Json>) };
+        const href = task.href;
+        if (typeof href === "string" && hrefContainsPostIdTemplate(href)) {
+          task.href = resolvePostIdInHref(href, insertedPost.id);
+        }
+        return task;
+      });
+      const { error: updateErr } = await db
+        .from("posts")
+        .update({
+          content_json: {
+            ...existing,
+            tasks: resolvedTasks,
+          },
+        })
+        .eq("id", insertedPost.id)
+        .eq("teacher_id", input.teacherId);
+      if (updateErr) throw updateErr;
+    }
   }
 
-  return { id: insertedPost.id };
+  return { id: insertedPost!.id };
 }
 
 /** Wizard goal stored on motivation posts for student notification titles and routing. */
@@ -696,6 +712,7 @@ export async function createMotivationAction(
     /** Short title shown in the student notification bell (optional for legacy rows). */
     notificationTitle?: string;
     nudgeGoal?: MotivationNudgeGoal;
+    studentMessageKind?: StudentMessageKind;
   },
   client?: DbClient,
   options?: TeacherMutationGuardOptions
@@ -723,6 +740,7 @@ export async function createMotivationAction(
       ...(input.recommendActionUrl ? { recommendActionUrl: input.recommendActionUrl } : {}),
       ...(trimmedNotificationTitle ? { notificationTitle: trimmedNotificationTitle } : {}),
       ...(input.nudgeGoal ? { nudgeGoal: input.nudgeGoal } : {}),
+      ...(input.studentMessageKind ? { studentMessageKind: input.studentMessageKind } : {}),
     },
   });
   if (error) throw error;

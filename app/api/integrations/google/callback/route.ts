@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { exchangeAuthorizationCode } from "@/lib/integrations/googleCalendarServer";
+import { exchangeAuthorizationCode, fetchPrimaryCalendarEmail } from "@/lib/integrations/googleCalendarServer";
+import { persistTeacherGoogleCalendarEmail } from "@/lib/integrations/googleCalendarAccount";
 import { getGoogleOAuthEnv } from "@/lib/integrations/googleEnv";
 import { verifyGoogleOAuthState } from "@/lib/integrations/googleOAuthState";
 
@@ -97,6 +98,11 @@ export async function GET(request: NextRequest) {
       { onConflict: "user_id" }
     );
     if (upsertErr) throw upsertErr;
+
+    const calendarEmail = tokens.access_token
+      ? await fetchPrimaryCalendarEmail(tokens.access_token)
+      : null;
+    await persistTeacherGoogleCalendarEmail(admin, userId, calendarEmail);
 
     const { error: profileErr } = await admin
       .from("profiles")

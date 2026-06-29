@@ -255,24 +255,40 @@ function TeacherRdmGroupBlock({
     const isReward = meta.kind === "reward";
     return (
       <div key={key} className="flex flex-col gap-1.5 rounded-lg border bg-muted/10 p-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="text-sm font-medium text-foreground">{meta.title}</label>
-          <span
-            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-              isReward
-                ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
-                : "border-rose-400/30 bg-rose-500/10 text-rose-300"
-            }`}
-          >
-            {isReward ? "Reward (+RDM)" : "Charge (−RDM)"}
-          </span>
-        </div>
-        <div className="space-y-0.5 font-mono text-[11px] text-muted-foreground">
-          <div>
-            Config key: <span className="text-foreground/90">{key}</span>
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-sm font-medium text-foreground">{meta.title}</label>
+              <span
+                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                  isReward
+                    ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
+                    : "border-rose-400/30 bg-rose-500/10 text-rose-300"
+                }`}
+              >
+                {isReward ? "Reward (+RDM)" : "Charge (−RDM)"}
+              </span>
+            </div>
+            <p className="text-[11px] leading-snug text-muted-foreground">{meta.summary}</p>
           </div>
-          <div>Teacher UI: {meta.teacherSurface}</div>
-          {meta.serverPath ? <div>Server: {meta.serverPath}</div> : null}
+          <div className="group relative shrink-0">
+            <button
+              type="button"
+              aria-label={`Technical wiring for ${meta.title}`}
+              className="flex h-6 w-6 cursor-help items-center justify-center rounded-full border border-amber-400/35 bg-amber-500/10 text-[13px] font-black leading-none text-amber-300 transition hover:border-amber-300/60 hover:bg-amber-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50"
+            >
+              !
+            </button>
+            <div className="pointer-events-none absolute right-0 z-20 mt-2 hidden w-72 rounded-lg border border-white/10 bg-popover p-3 text-left shadow-xl group-hover:block group-focus-within:block">
+              <div className="space-y-1 font-mono text-[11px] text-muted-foreground">
+                <div>
+                  Config key: <span className="text-foreground/90">{key}</span>
+                </div>
+                <div>Teacher UI: {meta.teacherSurface}</div>
+                {meta.serverPath ? <div>Server: {meta.serverPath}</div> : null}
+              </div>
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Input
@@ -281,7 +297,9 @@ function TeacherRdmGroupBlock({
             onChange={(e) => onDraftChange(key, e.target.value)}
             className="bg-background font-mono"
           />
-          <span className="shrink-0 text-sm font-semibold text-amber-400">{meta.unit ?? "RDM"}</span>
+          <span className="shrink-0 text-sm font-semibold text-amber-400">
+            {meta.unit ?? "RDM"}
+          </span>
         </div>
         <div className="mt-1 text-[10px] text-muted-foreground">
           Last updated: {new Date(row.updated_at).toLocaleString()}
@@ -295,11 +313,11 @@ function TeacherRdmGroupBlock({
       <div className="border-b bg-muted/40 px-4 py-3">
         <h2 className="text-lg font-semibold">Teachers (portal charges &amp; rewards)</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-              Live-linked to the teacher portal: classroom, section, assignment, schedule, test
-          generation, Gyan++ teacher rewards, and section schedule class delivery (base + per-student, capped).
-          After{" "}
-          <span className="font-semibold">Save Changes</span>, amounts apply on the next teacher
-          action (wallet labels refresh when the teacher refocuses the tab).
+          Live-linked to the teacher portal: classroom, section, assignment, schedule, test
+          generation, Gyan++ teacher rewards, and section schedule class delivery (base +
+          per-student, capped). After <span className="font-semibold">Save Changes</span>, amounts
+          apply on the next teacher action (wallet labels refresh when the teacher refocuses the
+          tab).
         </p>
       </div>
       <div className="space-y-8 p-4">
@@ -710,8 +728,9 @@ function PlanInactivePenaltyGroupBlock({
       <div className="border-b bg-muted/40 px-4 py-3">
         <h2 className="text-lg font-semibold">Inactive day penalties (by plan)</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Separate values per plan tier. Deducted when on-site foreground time is under 30 minutes for
-          a completed calendar day (<span className="font-mono">reconcile_inactive_day_penalties</span>
+          Separate values per plan tier. Deducted when on-site foreground time is under 30 minutes
+          for a completed calendar day (
+          <span className="font-mono">reconcile_inactive_day_penalties</span>
           ). Set <span className="font-mono">0</span> to disable for a tier.
         </p>
       </div>
@@ -1260,7 +1279,11 @@ export default function RdmTablePage() {
           </div>
         </div>
         <FreeTrialRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />
-        <PlanInactivePenaltyGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />
+        <PlanInactivePenaltyGroupBlock
+          configs={configs}
+          drafts={drafts}
+          onDraftChange={onDraftChange}
+        />
       </div>
 
       <div
@@ -1274,10 +1297,10 @@ export default function RdmTablePage() {
           <p className="mt-1 text-xs text-muted-foreground">
             Same live connection as the teacher portal: My Classroom (class + sections), Create
             assignment, Schedule live class, Generate test, Gyan++ teacher rewards, and{" "}
-            <span className="font-semibold">section schedule class delivery</span> (base + per-student bonus,
-            capped). Edit amounts below and click <span className="font-semibold">Save Changes</span>{" "}
-            — the next charge or reward uses the new value; button labels refresh when teachers
-            refocus the portal tab.
+            <span className="font-semibold">section schedule class delivery</span> (base +
+            per-student bonus, capped). Edit amounts below and click{" "}
+            <span className="font-semibold">Save Changes</span> — the next charge or reward uses the
+            new value; button labels refresh when teachers refocus the portal tab.
           </p>
         </div>
         <TeacherRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />

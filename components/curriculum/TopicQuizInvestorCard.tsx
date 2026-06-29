@@ -37,6 +37,9 @@ export type TopicQuizInvestorCardProps = {
   bankSets?: TopicQuizBankSetRow[];
   reviewPreviousLabel?: string;
   onReviewPrevious?: () => void;
+  /** When teacher assigned a premium set, hide free Set 1 and show banner instead. */
+  hideSet1?: boolean;
+  assignmentUnlock?: { setIndex?: number; message: string; fullSubtopic?: boolean };
 };
 
 const SUBJECT_LABEL: Record<Subject, string> = {
@@ -112,6 +115,8 @@ export default function TopicQuizInvestorCard({
   bankSets = [],
   reviewPreviousLabel,
   onReviewPrevious,
+  hideSet1 = false,
+  assignmentUnlock,
 }: TopicQuizInvestorCardProps) {
   const subjectLabel = SUBJECT_LABEL[subject] ?? subject;
 
@@ -141,16 +146,29 @@ export default function TopicQuizInvestorCard({
 
       <div className="mb-4 border-t border-border" />
 
-      <QuizSetRow
-        setName="Set 1"
-        sublabel={
-          set1Sublabel ??
-          `Free · ${set1QuestionCount} question${set1QuestionCount === 1 ? "" : "s"}`
-        }
-        onPlay={onStartSet1}
-        playLabel="Start Set 1 quiz"
-        accent="free"
-      />
+      {assignmentUnlock ? (
+        <div className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-3 text-[12px] leading-relaxed text-emerald-900 dark:text-emerald-100">
+          <p className="font-semibold text-foreground">
+            {assignmentUnlock.fullSubtopic
+              ? "Full subtopic unlocked for this assignment"
+              : `Set ${assignmentUnlock.setIndex} unlocked for this assignment`}
+          </p>
+          <p className="mt-1 text-muted-foreground">{assignmentUnlock.message}</p>
+        </div>
+      ) : null}
+
+      {!hideSet1 ? (
+        <QuizSetRow
+          setName="Set 1"
+          sublabel={
+            set1Sublabel ??
+            `Free · ${set1QuestionCount} question${set1QuestionCount === 1 ? "" : "s"}`
+          }
+          onPlay={onStartSet1}
+          playLabel="Start Set 1 quiz"
+          accent="free"
+        />
+      ) : null}
 
       {bankSets.map((row) => (
         <QuizSetRow

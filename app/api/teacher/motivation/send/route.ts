@@ -9,6 +9,7 @@ import type {
   MotivationNudgeGoal,
   MotivationRecommendActionId,
 } from "@/lib/teacherPortal/queries/mutations";
+import { isStudentMessageKind } from "@/lib/teacherPortal/studentNotificationCopy";
 
 function parseActionKind(raw: unknown): SendTeacherMotivationInput["actionKind"] | null {
   if (
@@ -123,6 +124,11 @@ export async function POST(request: Request) {
         ? body.notificationTitle.trim()
         : undefined,
     nudgeGoal: parseNudgeGoal(body.nudgeGoal),
+    studentMessageKind:
+      isStudentMessageKind((body as { studentMessageKind?: unknown }).studentMessageKind) ?
+        (body as { studentMessageKind: SendTeacherMotivationInput["studentMessageKind"] })
+          .studentMessageKind
+      : undefined,
   };
 
   try {
