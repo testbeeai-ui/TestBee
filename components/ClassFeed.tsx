@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/integrations/supabase/client";
 import {
   FileText,
@@ -14,14 +15,21 @@ import { UserHoverCard } from "@/components/UserHoverCard";
 import { format } from "date-fns";
 import { getGyanEngagementStudentViewModel } from "@/lib/classroom/gyanEngagementStudentUi";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
-import { isConceptFocusLessonChecklistComplete } from "@/lib/classroom/conceptFocusLessonCompletion";
+import { isStudentAssignmentComplete } from "@/lib/classroom/assignmentStudentCompletion";
+import type { StudentLessonMarkCompletionRow } from "@/lib/classroom/conceptFocusLessonCompletion";
 import {
   CLASSROOM_ASSIGNMENT_PROGRESS_EVENT,
   type ClassroomAssignmentProgressDetail,
 } from "@/lib/classroom/assignmentProgressSync";
+import { withAssignmentTrackingParamsForKind } from "@/lib/classroom/assignmentTrackingHref";
 import { cn } from "@/lib/utils";
 import type { Json } from "@/integrations/supabase/types";
 import { CLASSROOM_FEED_PAGE_SIZE } from "@/lib/classroom/classroomFeedConstants";
+import {
+  readStudentFeedCache,
+  studentFeedPostsFingerprint,
+  writeStudentFeedCache,
+} from "@/lib/classroom/studentFeedCache";
 
 export interface Post {
   id: string;
@@ -106,70 +114,22 @@ function isReleasedForViewer(
   return nowMs >= ms;
 }
 
-function withAssignmentTrackingParams(
-  href: string,
-  postId: string,
-  classroomId: string,
-  kind?: string
-): string {
-  if (!href) return href;
-  if (!(kind === "chapter_quiz" || href.includes("panel=quiz"))) return href;
-  try {
-    const isAbsolute = /^https?:\/\//i.test(href);
-    const url = isAbsolute ? new URL(href) : new URL(href, "https://edublast.local");
-    if (!url.searchParams.get("postId")) url.searchParams.set("postId", postId);
-    if (!url.searchParams.get("classroomId")) url.searchParams.set("classroomId", classroomId);
-    return isAbsolute ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
-  } catch {
-    return href;
-  }
-}
-
 /** Whether every student-visible task for this post is satisfied (attempt row and/or task-progress ticks). */
 function studentVisibleAssignmentIsDone(
   post: Post,
   completedForPost: Set<string>,
   submittedPostIds: Set<string>,
-  subtopicEngagement: unknown
+  subtopicEngagement: unknown,
+  lessonMarks?: StudentLessonMarkCompletionRow[] | null
 ): boolean {
-  if (post.type === "Concept Focus") {
-    return (
-      completedForPost.has("concept-focus-subtopic") ||
-      isConceptFocusLessonChecklistComplete(subtopicEngagement, post.content_json)
-    );
-  }
-
-  const tasks = studentVisibleTasks(
-    parseAssignmentTasks((post.content_json as unknown as Json) ?? null, post.type)
-  );
-  if (tasks.length === 0) return false;
-
-  for (const t of tasks) {
-    if (t.kind === "chapter_quiz" || t.kind === "mock_paper" || t.kind === "past_paper") {
-      if (completedForPost.has(t.id) || submittedPostIds.has(post.id)) continue;
-      return false;
-    }
-    if (t.kind === "gyan_engagement") {
-      if (!completedForPost.has(t.id)) return false;
-      continue;
-    }
-    if (t.kind === "free_text" && !t.href && t.visible_to_student) {
-      if (!completedForPost.has(t.id)) return false;
-      continue;
-    }
-    if (
-      t.kind === "bits" ||
-      t.kind === "instacue" ||
-      t.kind === "daily_dose" ||
-      t.kind === "topic_path" ||
-      t.kind === "external_link" ||
-      (t.kind === "free_text" && t.href)
-    ) {
-      if (!completedForPost.has(t.id)) return false;
-      continue;
-    }
-  }
-  return true;
+  return isStudentAssignmentComplete({
+    postType: post.type,
+    contentJson: post.content_json,
+    completedTaskIds: completedForPost,
+    hasSubmittedAttempt: submittedPostIds.has(post.id),
+    subtopicEngagement,
+    lessonMarks: post.type === "Concept Focus" ? lessonMarks : undefined,
+  });
 }
 
 interface Props {
@@ -190,6 +150,16 @@ interface Props {
 
 type FeedTab = "active" | "upcoming" | "done";
 
+function isAssignmentLikePost(post: Post): boolean {
+  return (
+    post.type === "assignment" ||
+    post.type === "quiz" ||
+    post.type === "mock" ||
+    post.type === "past_paper" ||
+    post.type === "Concept Focus"
+  );
+}
+
 const ClassFeed = ({
   classroomId,
   refreshKey,
@@ -207,15 +177,56 @@ const ClassFeed = ({
   const [loading, setLoading] = useState(true);
   const [submittedPostIds, setSubmittedPostIds] = useState<Set<string>>(new Set());
   const [donePostIds, setDonePostIds] = useState<Set<string>>(new Set());
+  const [gyanDoneDoubtByPostId, setGyanDoneDoubtByPostId] = useState<
+    Record<string, { doubtId: string; title: string }>
+  >({});
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(0);
   const [feedTab, setFeedTab] = useState<FeedTab>("active");
   /** Bumped when a student completes a linked assignment from the topic page so Done/Active tabs refresh. */
   const [assignmentProgressBump, setAssignmentProgressBump] = useState(0);
+  /** Student feed: wait for done/active partition before first paint (cache can skip the wait). */
+  const [partitionReady, setPartitionReady] = useState(viewerIsTeacher);
+  const hadPartitionRef = useRef(viewerIsTeacher);
   const onFeedCountsChangeRef = useRef(onFeedCountsChange);
   useEffect(() => {
     onFeedCountsChangeRef.current = onFeedCountsChange;
   }, [onFeedCountsChange]);
+
+  useEffect(() => {
+    hadPartitionRef.current = viewerIsTeacher;
+    setPartitionReady(viewerIsTeacher);
+  }, [classroomId, viewerIsTeacher]);
+
+  /** Instant hydrate from session cache (stale-while-revalidate). */
+  useEffect(() => {
+    if (viewerIsTeacher) return;
+    let cancelled = false;
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      setCurrentUserId(user.id);
+      const cached = readStudentFeedCache(classroomId, user.id);
+      if (!cached?.posts.length) return;
+
+      if (initialPosts === undefined) {
+        setPosts(cached.posts);
+        setTotalPostCount(cached.posts.length);
+        setHasMorePosts(false);
+        setLoading(false);
+      }
+      setSubmittedPostIds(new Set(cached.submittedPostIds));
+      setDonePostIds(new Set(cached.donePostIds));
+      setGyanDoneDoubtByPostId(cached.gyanDoneDoubtByPostId);
+      setPartitionReady(true);
+      hadPartitionRef.current = true;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [classroomId, viewerIsTeacher, initialPosts]);
 
   const fetchPostsPage = useCallback(
     async (offset: number, append: boolean) => {
@@ -261,20 +272,25 @@ const ClassFeed = ({
       return;
     }
     let cancelled = false;
-    queueMicrotask(() => {
-      setLoading(true);
-      setHasMorePosts(false);
-      setTotalPostCount(null);
-      void (async () => {
-        try {
-          await fetchPostsPage(0, false);
-        } catch {
-          if (!cancelled) setPosts([]);
-        } finally {
-          if (!cancelled) setLoading(false);
-        }
-      })();
-    });
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const cached = user ? readStudentFeedCache(classroomId, user.id) : null;
+      const hasCachedPosts = Boolean(cached?.posts.length);
+      if (!hasCachedPosts) {
+        setLoading(true);
+        setHasMorePosts(false);
+        setTotalPostCount(null);
+      }
+      try {
+        await fetchPostsPage(0, false);
+      } catch {
+        if (!cancelled && !hasCachedPosts) setPosts([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -341,30 +357,55 @@ const ClassFeed = ({
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      const assignmentLike = posts.filter(
-        (p) =>
-          p.type === "assignment" ||
-          p.type === "quiz" ||
-          p.type === "mock" ||
-          p.type === "past_paper" ||
-          p.type === "Concept Focus"
-      );
+      const assignmentLike = posts.filter(isAssignmentLikePost);
+      const postsFingerprint = studentFeedPostsFingerprint(posts);
+      const cached = readStudentFeedCache(classroomId, user.id);
+      if (
+        cached &&
+        cached.postsFingerprint === postsFingerprint &&
+        postsFingerprint.length > 0
+      ) {
+        setDonePostIds(new Set(cached.donePostIds));
+        setSubmittedPostIds(new Set(cached.submittedPostIds));
+        setGyanDoneDoubtByPostId(cached.gyanDoneDoubtByPostId);
+        setPartitionReady(true);
+        hadPartitionRef.current = true;
+      }
+
       if (assignmentLike.length === 0) {
-        setDonePostIds(new Set(submittedPostIds));
+        if (posts.length === 0) return;
+        const doneFromAttempts = new Set(submittedPostIds);
+        setDonePostIds(doneFromAttempts);
+        setPartitionReady(true);
+        hadPartitionRef.current = true;
+        writeStudentFeedCache(classroomId, user.id, {
+          postsFingerprint,
+          posts,
+          donePostIds: [...doneFromAttempts],
+          submittedPostIds: [...submittedPostIds],
+          gyanDoneDoubtByPostId: {},
+          updatedAt: Date.now(),
+        });
         return;
       }
       const postIds = assignmentLike.map((p) => p.id);
 
+      const hasConceptFocus = posts.some((p) => p.type === "Concept Focus");
       let subtopicEngagement: unknown = null;
-      if (posts.some((p) => p.type === "Concept Focus")) {
-        const { data: profileRow } = await supabase
-          .from("profiles")
-          .select("subtopic_engagement")
-          .eq("id", user.id)
-          .maybeSingle();
+      let lessonMarks: StudentLessonMarkCompletionRow[] | null = null;
+      if (hasConceptFocus) {
+        const [{ data: profileRow }, { data: markRows }] = await Promise.all([
+          supabase.from("profiles").select("subtopic_engagement").eq("id", user.id).maybeSingle(),
+          supabase
+            .from("student_lesson_mark_completions" as never)
+            .select("board, subject, class_level, topic, subtopic, level, marked_complete_at")
+            .eq("user_id", user.id),
+        ]);
         subtopicEngagement = profileRow?.subtopic_engagement ?? null;
+        lessonMarks = (markRows ?? []) as StudentLessonMarkCompletionRow[];
       }
 
+      type ProgressRow = { post_id: string; task_id: string; doubt_id?: string | null };
       const genericClient = supabase as unknown as {
         from: (table: string) => {
           select: (columns: string) => {
@@ -376,7 +417,7 @@ const ClassFeed = ({
                 column: string,
                 values: string[]
               ) => Promise<{
-                data: Array<{ post_id: string; task_id: string }> | null;
+                data: ProgressRow[] | null;
                 error: { message?: string } | null;
               }>;
             };
@@ -384,11 +425,27 @@ const ClassFeed = ({
         };
       };
 
-      const { data: rows } = await genericClient
+      let rows: ProgressRow[] | null = null;
+      const withDoubt = await genericClient
         .from("classroom_assignment_task_progress")
-        .select("post_id, task_id")
+        .select("post_id, task_id, doubt_id")
         .eq("user_id", user.id)
         .in("post_id", postIds);
+      if (withDoubt.error) {
+        const fallback = await genericClient
+          .from("classroom_assignment_task_progress")
+          .select("post_id, task_id")
+          .eq("user_id", user.id)
+          .in("post_id", postIds);
+        if (fallback.error) {
+          setPartitionReady(true);
+          hadPartitionRef.current = true;
+          return;
+        }
+        rows = fallback.data;
+      } else {
+        rows = withDoubt.data;
+      }
 
       const completedByPost = new Map<string, Set<string>>();
       for (const r of rows ?? []) {
@@ -398,14 +455,66 @@ const ClassFeed = ({
       }
 
       const done = new Set<string>();
+      const gyanDoubtIds: string[] = [];
+      const gyanDoubtByPost = new Map<string, string>();
       for (const p of assignmentLike) {
         const completed = completedByPost.get(p.id) ?? new Set<string>();
-        if (studentVisibleAssignmentIsDone(p, completed, submittedPostIds, subtopicEngagement)) {
+        if (
+          studentVisibleAssignmentIsDone(
+            p,
+            completed,
+            submittedPostIds,
+            subtopicEngagement,
+            lessonMarks
+          )
+        ) {
           done.add(p.id);
+        }
+        const tasks = studentVisibleTasks(
+          parseAssignmentTasks(
+            (p.content_json as unknown as Json) ?? null,
+            p.type
+          )
+        );
+        const gyanTask = tasks.find((t) => t.kind === "gyan_engagement");
+        if (gyanTask) {
+          const row = (rows ?? []).find(
+            (r) => r.post_id === p.id && r.task_id === gyanTask.id && r.doubt_id
+          );
+          if (row?.doubt_id) {
+            gyanDoubtByPost.set(p.id, row.doubt_id);
+            gyanDoubtIds.push(row.doubt_id);
+          }
         }
       }
 
       setDonePostIds(done);
+      setPartitionReady(true);
+      hadPartitionRef.current = true;
+
+      const gyanNext: Record<string, { doubtId: string; title: string }> = {};
+      if (gyanDoubtIds.length > 0) {
+        const { data: doubtRows } = await supabase
+          .from("doubts")
+          .select("id, title")
+          .in("id", [...new Set(gyanDoubtIds)]);
+        const titleById = new Map((doubtRows ?? []).map((d) => [d.id, d.title]));
+        for (const [postId, doubtId] of gyanDoubtByPost) {
+          gyanNext[postId] = { doubtId, title: titleById.get(doubtId) ?? "Your doubt" };
+        }
+        setGyanDoneDoubtByPostId(gyanNext);
+      } else {
+        setGyanDoneDoubtByPostId({});
+      }
+
+      writeStudentFeedCache(classroomId, user.id, {
+        postsFingerprint: studentFeedPostsFingerprint(posts),
+        posts,
+        donePostIds: [...done],
+        submittedPostIds: [...submittedPostIds],
+        gyanDoneDoubtByPostId: gyanNext,
+        updatedAt: Date.now(),
+      });
     };
     void fetchTaskProgressDone();
   }, [classroomId, posts, submittedPostIds, viewerIsTeacher, assignmentProgressBump, refreshKey]);
@@ -449,8 +558,9 @@ const ClassFeed = ({
     return visiblePosts.filter((p) => donePostIds.has(p.id));
   }, [visiblePosts, donePostIds, viewerIsTeacher]);
 
-  useEffect(() => {
+  const emitFeedCounts = useCallback(() => {
     if (!onFeedCountsChangeRef.current || loading) return;
+    if (!viewerIsTeacher && !partitionReady) return;
     onFeedCountsChangeRef.current({
       total: totalPostCount ?? posts.length,
       active: viewerIsTeacher ? visiblePosts.length : activePosts.length,
@@ -458,15 +568,20 @@ const ClassFeed = ({
       done: donePosts.length,
     });
   }, [
-    posts.length,
+    loading,
+    partitionReady,
+    viewerIsTeacher,
     totalPostCount,
+    posts.length,
     visiblePosts.length,
     activePosts.length,
     upcomingPosts.length,
     donePosts.length,
-    viewerIsTeacher,
-    loading,
   ]);
+
+  useEffect(() => {
+    emitFeedCounts();
+  }, [emitFeedCounts]);
 
   const selectedPosts = useMemo(() => {
     if (viewerIsTeacher) return visiblePosts;
@@ -522,15 +637,38 @@ const ClassFeed = ({
           </h4>
           {gyanStudent ? (
             <div className="flex-1 min-h-0 space-y-1.5">
-              <p className="text-[11px] font-semibold leading-snug text-violet-300 line-clamp-2">
-                Post your doubt on Gyan++ to complete this assignment.
-              </p>
-              <p className="text-xs text-muted-foreground line-clamp-3 leading-snug">
-                {gyanStudent.taskLabel}
-              </p>
-              <p className="text-[10px] text-muted-foreground/90">
-                Tap the card for steps and the open button.
-              </p>
+              {isDone ? (
+                gyanDoneDoubtByPostId[post.id] ? (
+                  <>
+                    <p className="text-[11px] font-semibold leading-snug text-emerald-400 line-clamp-2">
+                      You posted: {gyanDoneDoubtByPostId[post.id].title}
+                    </p>
+                    <Link
+                      href={`/doubts/${gyanDoneDoubtByPostId[post.id].doubtId}`}
+                      className="inline-flex text-[11px] font-bold text-primary underline underline-offset-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      View your doubt on Gyan++
+                    </Link>
+                  </>
+                ) : (
+                  <p className="text-[11px] font-semibold leading-snug text-emerald-400">
+                    Gyan++ assignment completed.
+                  </p>
+                )
+              ) : (
+                <>
+                  <p className="text-[11px] font-semibold leading-snug text-violet-300 line-clamp-2">
+                    Post your doubt on Gyan++ to complete this assignment.
+                  </p>
+                  <p className="text-xs text-muted-foreground line-clamp-3 leading-snug">
+                    {gyanStudent.taskLabel}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/90">
+                    Tap the card for steps and the open button.
+                  </p>
+                </>
+              )}
             </div>
           ) : post.description ? (
             <p className="text-xs text-muted-foreground line-clamp-2 flex-1 min-h-0">
@@ -548,17 +686,20 @@ const ClassFeed = ({
             const linkTask = tasks.find((t) => t.href && t.visible_to_student);
             if (!linkTask) return null;
             if (post.type === "Concept Focus" && isDone) return null;
-            const trackedHref = withAssignmentTrackingParams(
+            if (isDone && gyanStudent) return null;
+            const trackedHref = withAssignmentTrackingParamsForKind(
               linkTask.href!,
               post.id,
               classroomId,
-              linkTask.kind
+              linkTask.kind,
+              linkTask.id
             );
             const isExternal = /^https?:\/\//i.test(linkTask.href ?? "");
             const isNewTab =
               isExternal ||
               linkTask.href?.includes("/assignment-test/") ||
-              linkTask.href?.includes("panel=quiz");
+              linkTask.href?.includes("panel=quiz") ||
+              linkTask.href?.includes("/mock-test");
             const primaryCtaLabel = post.type === "Concept Focus" ? "Open lesson" : "Open link";
             return (
               <div className="mt-2 flex items-center gap-2">
@@ -623,13 +764,30 @@ const ClassFeed = ({
         </div>
       );
     },
-    [classroomId, currentUserId, nowMs, onSelectPost, sectionOptions, donePostIds, viewerIsTeacher]
+    [classroomId, currentUserId, nowMs, onSelectPost, sectionOptions, donePostIds, gyanDoneDoubtByPostId, viewerIsTeacher]
   );
 
   if (loading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {Array.from({ length: 8 }).map((_, i) => (
+          <div
+            key={i}
+            className="edu-card rounded-2xl p-5 min-h-[180px] animate-pulse bg-muted/30"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  const needsPartition = !viewerIsTeacher && posts.some(isAssignmentLikePost);
+  const awaitingFirstPartition =
+    needsPartition && !partitionReady && !hadPartitionRef.current;
+
+  if (awaitingFirstPartition) {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        {Array.from({ length: Math.min(Math.max(posts.length, 4), 8) }).map((_, i) => (
           <div
             key={i}
             className="edu-card rounded-2xl p-5 min-h-[180px] animate-pulse bg-muted/30"

@@ -78,16 +78,6 @@ interface JoinRequest {
   profiles: { name: string } | null;
 }
 
-interface LiveSession {
-  id: string;
-  title: string;
-  scheduled_at: string;
-  duration_minutes: number;
-  meet_link: string | null;
-  status: string;
-  section_id?: string | null;
-}
-
 type Tab = "home" | "posts" | "live" | "members" | "reviews" | "settings";
 
 /** Session is joinable from 30 min before start until end of class (+ 15 min buffer). No joining earlier to avoid storage/bandwidth. */
@@ -116,6 +106,10 @@ const tabs: { id: Tab; label: string; icon: typeof Home; emoji: string }[] = [
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { getEmbedUrl } from "@/lib/video/videoEmbed";
 import { normalizeMeetLink } from "@/lib/meetLink";
+import {
+  fetchClassroomLiveSessionsClient,
+  type LiveSession,
+} from "@/lib/classroom/classroomLiveSessionsClient";
 import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
 import { OnboardingFlowHint } from "@/components/onboarding/OnboardingFlowHint";
 import { cn } from "@/lib/utils";
@@ -323,12 +317,12 @@ const ClassroomDetail = () => {
         .eq("classroom_id", id);
       setMembers((m as Member[]) || []);
 
-      const { data: sessions } = await supabase
-        .from("live_sessions")
-        .select("id, title, scheduled_at, duration_minutes, meet_link, status, section_id")
-        .eq("classroom_id", id)
-        .order("scheduled_at", { ascending: true });
-      setLiveSessions((sessions as LiveSession[]) || []);
+      if (user?.id) {
+        const live = await fetchClassroomLiveSessionsClient(id);
+        setLiveSessions(live);
+      } else {
+        setLiveSessions([]);
+      }
 
       const { count } = await supabase
         .from("posts")
@@ -350,7 +344,12 @@ const ClassroomDetail = () => {
       setLoading(false);
     };
     fetchData();
-  }, [id]);
+  }, [id, user?.id]);
+
+  useEffect(() => {
+    if (activeTab !== "live" || !id || !user?.id) return;
+    void fetchClassroomLiveSessionsClient(id).then(setLiveSessions);
+  }, [activeTab, id, user?.id]);
 
   useEffect(() => {
     if (!user?.id || !classroom) return;
@@ -638,6 +637,29 @@ const ClassroomDetail = () => {
         });
         return;
       }
+
+      const joinStatus = getSessionJoinStatus(s.scheduled_at, s.duration_minutes);
+      if (joinStatus === "upcoming") {
+        toast({
+          title: "Cannot open meeting yet",
+          description: "You can join from 30 minutes before the class starts.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (joinStatus === "ended") {
+        toast({
+          title: "This class has ended",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (s.fromSectionSchedule) {
+        window.open(href, "_blank", "noopener,noreferrer");
+        return;
+      }
+
       setJoiningSessionId(s.id);
       try {
         const headers: HeadersInit = { "Content-Type": "application/json" };
@@ -645,7 +667,9 @@ const ClassroomDetail = () => {
         const res = await fetch("/api/live/join", {
           method: "POST",
           headers,
-          body: JSON.stringify({ sessionId: s.id }),
+          body: JSON.stringify(
+            s.fromLiveClassSlot ? { slotId: s.id } : { sessionId: s.id }
+          ),
         });
         const data = (await res.json()) as {
           error?: string;
@@ -693,12 +717,8 @@ const ClassroomDetail = () => {
         return;
       }
       setExplorerPosts(null);
-      const { data: sessions } = await supabase
-        .from("live_sessions")
-        .select("id, title, scheduled_at, duration_minutes, meet_link, status")
-        .eq("classroom_id", id)
-        .order("scheduled_at", { ascending: true });
-      setLiveSessions((sessions as LiveSession[]) || []);
+      const live = await fetchClassroomLiveSessionsClient(id);
+      setLiveSessions(live);
       const { count } = await supabase
         .from("posts")
         .select("*", { count: "exact", head: true })
@@ -1172,41 +1192,6 @@ const ClassroomDetail = () => {
           {/* Tab content */}
           {activeTab === "home" && (isOwner || explorationAllowed !== false) && (
             <div className="space-y-6">
-              {upcomingLiveSessions.length > 0 && (
-                <div className="edu-card rounded-2xl border border-primary/25 bg-primary/5 p-4 dark:bg-primary/10">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-extrabold uppercase tracking-wider text-primary">
-                        Upcoming live class
-                      </p>
-                      <p className="mt-1 font-display text-lg font-bold text-foreground">
-                        {upcomingLiveSessions[0].title}
-                      </p>
-                      <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Clock className="h-3.5 w-3.5 shrink-0" />
-                        {new Date(upcomingLiveSessions[0].scheduled_at).toLocaleString(undefined, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}{" "}
-                        · {upcomingLiveSessions[0].duration_minutes} min
-                      </p>
-                      {upcomingLiveSessions.length > 1 ? (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          +{upcomingLiveSessions.length - 1} more scheduled — open Live for the full
-                          list.
-                        </p>
-                      ) : null}
-                    </div>
-                    <Button
-                      type="button"
-                      className="rounded-xl edu-btn-primary shrink-0 font-bold"
-                      onClick={() => handleTabSelect("live")}
-                    >
-                      View Live tab
-                    </Button>
-                  </div>
-                </div>
-              )}
               {/* About this class (larger) + Class Overview (compact) side by side */}
               <div className="grid grid-cols-1 md:grid-cols-[1fr_340px] gap-4 items-start">
                 {/* About this class - takes most space */}
@@ -1486,10 +1471,8 @@ const ClassroomDetail = () => {
               <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
                 <p className="font-medium text-foreground">Google Meet or Zoom</p>
                 <p className="mt-1">
-                  Students see scheduled classes on{" "}
-                  <span className="font-semibold text-foreground">Home</span> and here. They can
-                  open the meeting during the join window (from 30 minutes before start until the
-                  class ends).
+                  Scheduled classes and join links are listed below. You can open the meeting
+                  during the join window (from 30 minutes before start until the class ends).
                 </p>
               </div>
               <div className="edu-card p-6">

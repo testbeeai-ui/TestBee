@@ -82,6 +82,11 @@ import {
 } from "@/lib/teacherPortal/chapterQuizUtils";
 import type { MotivationNudgeGoal, MotivationRecommendActionId } from "@/lib/teacherPortal/queries";
 import {
+  buildNudgeMessage,
+  buildStudentNotificationTitle,
+  type StudentMessageKind,
+} from "@/lib/teacherPortal/studentNotificationCopy";
+import {
   DAILYDOSE_STREAK_TRACK_IDS,
   trackLabelById,
   type DailyDoseStreakTrackId,
@@ -264,7 +269,7 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
   const [watchRecordedUrl, setWatchRecordedUrl] = useState("");
   const [messageTouched, setMessageTouched] = useState(false);
   const [message, setMessage] = useState(
-    "Hey [name]! I noticed you haven't studied in 2 days. Your last score was great — don't let the streak break now. Come back today and I'm giving you a RDM boost to restart! 🔥"
+    buildNudgeMessage({ nudgeGoal: "restart_streak", rdmDelta: 10 })
   );
   const [sending, setSending] = useState(false);
   const [noRecipientsDialogOpen, setNoRecipientsDialogOpen] = useState(false);
@@ -576,38 +581,23 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
 
   useEffect(() => {
     if (messageTouched) return;
-    const rdmPart = rdmDelta > 0 ? ` (+${rdmDelta} RDM)` : "";
     const pendingTitle =
       classroomAssignments.find((a) => a.id === pendingAssignmentPostId)?.title?.trim() ?? "";
     const mockTitle =
       attemptMockMode === "existing"
         ? (classroomAssignments.find((a) => a.id === mockExistingPostId)?.title?.trim() ?? "")
         : nudgeCreatedTitle.trim();
-    const reviseBit = reviseConceptFocusSummary;
-    const base = (() => {
-      switch (goal) {
-        case "restart_streak":
-          return `Hey [name]! Let's keep the momentum going — continuing the streak you've started together really matters. Come back today and I'm giving you a RDM boost${rdmPart}! 🔥`;
-        case "complete_pending_assignment":
-          return `Hey [name]!${pendingTitle ? ` Please complete "${pendingTitle}"` : " Your pending assignment is waiting"} — finish it today and I'm giving you a RDM boost${rdmPart}!`;
-        case "attempt_mock":
-          return mockTitle
-            ? `Hey [name]! Please attempt "${mockTitle}" today — I'm giving you a RDM boost${rdmPart}!`
-            : `Hey [name]! I recommend a quick Testbee mock or chapter quiz to build momentum. Attempt it today and I'm giving you a RDM boost${rdmPart}!`;
-        case "answer_doubts":
-          return `Hey [name]! Post your doubts on Gyan++ today so we can clear them together — I'm giving you a RDM boost${rdmPart}!`;
-        case "revise_chapter":
-          return reviseBit
-            ? `Hey [name]! Let's focus on ${reviseBit} and lock in concepts today — I'm giving you a RDM boost${rdmPart}!`
-            : `Hey [name]! Let's lock in today's concept focus — I'm giving you a RDM boost${rdmPart}!`;
-        case "watch_recorded_class":
-          return `Hey [name]! Watch the recorded lesson${watchRecordedUrl.trim() ? " I've linked" : ""} and catch up quickly — I'm giving you a RDM boost${rdmPart}!`;
-        default:
-          return `Hey [name]! I'm nudging you to keep learning momentum going. Complete the next step and earn${rdmPart} 🎯`;
-      }
-    })();
 
-    setMessage(base);
+    setMessage(
+      buildNudgeMessage({
+        nudgeGoal: goal,
+        rdmDelta,
+        pendingAssignmentTitle: pendingTitle,
+        mockTitle,
+        conceptFocusSummary: reviseConceptFocusSummary,
+        hasRecordingLink: Boolean(watchRecordedUrl.trim()),
+      })
+    );
   }, [
     goal,
     rdmDelta,
@@ -659,43 +649,57 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
 
   const motivationNudgeMeta = useMemo((): {
     nudgeGoal: MotivationNudgeGoal;
-    notificationTitle?: string;
+    studentMessageKind: StudentMessageKind;
+    notificationTitle: string;
   } => {
-    switch (goal) {
-      case "restart_streak":
-        return {
-          nudgeGoal: "restart_streak",
-          notificationTitle: "Teacher nudge: get back on your study streak",
-        };
-      case "complete_pending_assignment": {
-        const t =
-          classroomAssignments.find((a) => a.id === pendingAssignmentPostId)?.title?.trim() ?? "";
-        return {
-          nudgeGoal: "complete_pending_assignment",
-          notificationTitle: t
-            ? `Teacher nudge: complete this assignment — ${t}`
-            : "Teacher nudge: complete this assignment",
-        };
-      }
-      case "attempt_mock":
-        return { nudgeGoal: "attempt_mock" };
-      case "answer_doubts":
-        return {
-          nudgeGoal: "answer_doubts",
-          notificationTitle: "Teacher nudge: share your doubt on Gyan++",
-        };
-      case "revise_chapter":
-        return {
-          nudgeGoal: "revise_chapter",
-          notificationTitle: "Teacher nudge: focus this topic",
-        };
-      case "watch_recorded_class":
-        return {
-          nudgeGoal: "watch_recorded_class",
-          notificationTitle: "Teacher nudge: watch the class recording",
-        };
+    let studentMessageKind: StudentMessageKind = "teacher_nudge";
+    if (goal === "complete_pending_assignment" || goal === "attempt_mock") {
+      studentMessageKind = "assignment_reminder";
+    } else if (goal === "restart_streak" && actionKind === "urgent_nudge") {
+      studentMessageKind = "urgent_checkin";
     }
-  }, [goal, classroomAssignments, pendingAssignmentPostId]);
+
+    let relatedPostTitle: string | undefined;
+    switch (goal) {
+      case "complete_pending_assignment":
+        relatedPostTitle =
+          classroomAssignments.find((a) => a.id === pendingAssignmentPostId)?.title?.trim() ??
+          undefined;
+        break;
+      case "attempt_mock":
+        relatedPostTitle =
+          attemptMockMode === "existing"
+            ? (classroomAssignments.find((a) => a.id === mockExistingPostId)?.title?.trim() ??
+              undefined)
+            : nudgeCreatedTitle.trim() || undefined;
+        break;
+      case "revise_chapter":
+        relatedPostTitle = reviseConceptFocusSummary.trim() || undefined;
+        break;
+      default:
+        break;
+    }
+
+    return {
+      nudgeGoal: goal,
+      studentMessageKind,
+      notificationTitle: buildStudentNotificationTitle({
+        kind: studentMessageKind,
+        nudgeGoal: goal,
+        relatedPostTitle,
+        actionKind,
+      }),
+    };
+  }, [
+    goal,
+    actionKind,
+    classroomAssignments,
+    pendingAssignmentPostId,
+    attemptMockMode,
+    mockExistingPostId,
+    nudgeCreatedTitle,
+    reviseConceptFocusSummary,
+  ]);
 
   const motivateExtras = useMemo(() => {
     switch (goal) {
@@ -1725,6 +1729,7 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
                 sectionId: null as string | null,
                 ...motivateExtras,
                 nudgeGoal: motivationNudgeMeta.nudgeGoal,
+                studentMessageKind: motivationNudgeMeta.studentMessageKind,
               };
 
               if (goal === "revise_chapter" && props.allowStructuredAssignmentCreate) {
@@ -1774,7 +1779,11 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
                   recommendActionUrl: `/classroom/${encodeURIComponent(classroomId)}?tab=posts&post=${encodeURIComponent(created.id)}`,
                   notificationTitle:
                     metaNotificationTitle ??
-                    `Teacher nudge: focus — ${subtopicLabel.length > 72 ? `${subtopicLabel.slice(0, 69)}…` : subtopicLabel}`,
+                    buildStudentNotificationTitle({
+                      kind: "assignment_reminder",
+                      nudgeGoal: "revise_chapter",
+                      relatedPostTitle: subtopicLabel,
+                    }),
                 });
               } else {
                 await props.onMotivateStudents({

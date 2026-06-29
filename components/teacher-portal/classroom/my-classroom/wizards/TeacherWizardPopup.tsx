@@ -41,6 +41,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import InviteStudents from "@/components/InviteStudents";
 import { useToast } from "@/hooks/use-toast";
+import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import { supabase } from "@/integrations/supabase/client";
 import { safeGetSession } from "@/lib/auth/safeSession";
@@ -127,6 +128,11 @@ import {
 } from "./TeacherNudgeWithRdmWizard";
 import { TeacherAssignmentProgressWizard } from "./TeacherAssignmentProgressWizard";
 import { TeacherCounselStudentWizard } from "./TeacherCounselStudentWizard";
+import {
+  chargeTeacherRdm,
+  formatTeacherRdmDeductionCompact,
+  refundTeacherRdm,
+} from "@/lib/teacherPortal/rdmCharges";
 
 export function TeacherWizardPopup(props: {
   onClose: () => void;
@@ -149,6 +155,11 @@ export function TeacherWizardPopup(props: {
 }) {
   const toast = props.toast;
   const router = useRouter();
+  const { costs: teacherRdmCosts } = useTeacherRdmCosts();
+  const createSectionRdmCompact = formatTeacherRdmDeductionCompact(
+    "create_section",
+    teacherRdmCosts
+  );
   const nudgeWizardRef = useRef<TeacherNudgeWithRdmWizardHandle>(null);
   const GOOGLE_CONNECT_PROMPTED_SESSION_KEY = `teacherPortal.googleConnectPrompted.session.v1:${props.teacherId}`;
   const GOOGLE_CONNECT_GATE_DISMISSED_SESSION_KEY = `teacherPortal.googleConnectGateDismissed.session.v1:${props.teacherId}`;
@@ -182,6 +193,13 @@ export function TeacherWizardPopup(props: {
   );
   const [cwAllowAdhocTrial, setCwAllowAdhocTrial] = useState(wsInitial.cwAllowAdhocTrial);
   const [cwSections, setCwSections] = useState<WizardSectionDraft[]>(wsInitial.cwSections);
+  const wizardLaunchRdmLabel = useMemo(() => {
+    const sectionCount = cwSections[0]?.name?.trim() ? 1 : 0;
+    const total =
+      Math.max(0, teacherRdmCosts.create_classroom) +
+      sectionCount * Math.max(0, teacherRdmCosts.create_section);
+    return total > 0 ? `(−${total} RDM)` : null;
+  }, [cwSections, teacherRdmCosts.create_classroom, teacherRdmCosts.create_section]);
   const [cwSectionName, setCwSectionName] = useState(wsInitial.cwSectionName);
   const [cwSectionScheduleDate, setCwSectionScheduleDate] = useState(
     wsInitial.cwSectionScheduleDate
@@ -612,18 +630,24 @@ export function TeacherWizardPopup(props: {
           if (!secName) continue;
 
           try {
-            const { data: created, error } = await supabase
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              .from("classroom_sections" as any)
-              .insert({
-                classroom_id: classroomId,
-                name: secName,
-                sort_order: i,
-              })
-              .select("id")
-              .single();
-            const createdRow = created as { id?: string } | null;
-            if (error || !createdRow?.id) throw error ?? new Error("Could not create section.");
+            await chargeTeacherRdm("create_section", teacherRdmCosts);
+            try {
+              const { data: created, error } = await supabase
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                .from("classroom_sections" as any)
+                .insert({
+                  classroom_id: classroomId,
+                  name: secName,
+                  sort_order: i,
+                })
+                .select("id")
+                .single();
+              const createdRow = created as { id?: string } | null;
+              if (error || !createdRow?.id) throw error ?? new Error("Could not create section.");
+            } catch (secInsertErr) {
+              await refundTeacherRdm("create_section", teacherRdmCosts).catch(() => {});
+              throw secInsertErr;
+            }
           } catch (secErr) {
             props.toast({
               title: "Section could not be created",
@@ -909,12 +933,22 @@ export function TeacherWizardPopup(props: {
                         setActiveTask(null);
                       }}
                       onPublish={async (input) => {
-                        await props.onCreateAssignment(
-                          input as Parameters<MyClassroomViewProps["onCreateAssignment"]>[0]
-                        );
-                        props.toast({ title: "Assignment created" });
-                        await props.onRefreshTeacherPortal({ silent: true });
-                        setActiveTask(null);
+                        try {
+                          await props.onCreateAssignment(
+                            input as Parameters<MyClassroomViewProps["onCreateAssignment"]>[0]
+                          );
+                          props.toast({ title: "Assignment created" });
+                          await props.onRefreshTeacherPortal({ silent: true });
+                          setActiveTask(null);
+                        } catch (e) {
+                          const message = e instanceof Error ? e.message : "Could not publish assignment";
+                          props.toast({
+                            title: "Assignment not published",
+                            description: message,
+                            variant: "destructive",
+                          });
+                          throw e;
+                        }
                       }}
                     />
                   </div>
@@ -1299,9 +1333,14 @@ export function TeacherWizardPopup(props: {
                                                 beginAddSectionDraft();
                                                 setCwSectionFormOpen(false);
                                               }}
-                                              className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+                                              className="inline-flex items-baseline justify-center gap-1 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
                                             >
                                               {cwSections[0] ? "Save changes" : "+ Add section"}
+                                              {!cwSections[0] && createSectionRdmCompact ? (
+                                                <span className="text-[10px] font-normal opacity-80">
+                                                  {createSectionRdmCompact}
+                                                </span>
+                                              ) : null}
                                             </button>
                                           </div>
                                         </div>
@@ -1412,10 +1451,15 @@ export function TeacherWizardPopup(props: {
                                     void createClassroomFromWizard();
                                   }}
                                   disabled={creating || !cwName.trim()}
-                                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:text-sm"
+                                  className="inline-flex w-full items-center justify-center gap-1 rounded-full bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:text-sm"
                                 >
                                   {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                                   {creating ? "Launching..." : "Launch classroom"}
+                                  {!creating && wizardLaunchRdmLabel ? (
+                                    <span className="text-xs font-normal opacity-85">
+                                      {wizardLaunchRdmLabel}
+                                    </span>
+                                  ) : null}
                                 </button>
                               </div>
                             ) : null}

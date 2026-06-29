@@ -1,11 +1,14 @@
 import { createAdminClient } from "@/integrations/supabase/server";
 import {
+  assignmentQuotaExceededMessage,
   canBookMoreLiveClasses,
   canCreateMoreAssignments,
   fetchTeacherPlanConfig,
   getTeacherPlanLimits,
   istMonthBoundsForDate,
+  liveClassQuotaExceededMessage,
   normalizeTeacherPlanTier,
+  teacherAssignmentPublishChargeWaived,
   type TeacherPlanKey,
   type TeacherPlanLimits,
 } from "@/lib/teacherPortal/teacherPlan";
@@ -99,15 +102,9 @@ export async function assertTeacherCanBookSlot(
   const booked = await countTeacherSlotsThisMonth(teacherId, slotAt);
   const quota = canBookMoreLiveClasses(booked, ctx.limits);
   if (!quota.allowed) {
-    const upgrade =
-      ctx.tier === "free"
-        ? "Upgrade to Starter to book live classes."
-        : ctx.tier === "starter"
-          ? "You've used all 4 live classes this month. Upgrade to Pro for 12/month."
-          : "You've used all live class slots this month.";
     return {
       ok: false,
-      error: upgrade,
+      error: liveClassQuotaExceededMessage(ctx.tier, quota.cap),
       code: "live_class_cap_reached",
     };
   }
@@ -120,20 +117,12 @@ export async function assertTeacherCanCreateAssignment(
   const ctx = await loadTeacherPlanContext(teacherId);
   if (!ctx) return { ok: false, error: "Could not load plan", code: "plan_load_failed" };
 
-  if (ctx.tier === "free") {
-    return {
-      ok: false,
-      error: "Upgrade to Starter to publish assignments.",
-      code: "assignment_cap_reached",
-    };
-  }
-
   const created = await countTeacherAssignmentsThisMonth(teacherId);
   const quota = canCreateMoreAssignments(created, ctx.limits);
   if (!quota.allowed) {
     return {
       ok: false,
-      error: "Monthly assignment limit reached. Upgrade to Pro for unlimited assignments.",
+      error: assignmentQuotaExceededMessage(ctx.tier, quota.cap),
       code: "assignment_cap_reached",
     };
   }
@@ -190,4 +179,11 @@ export async function assertSectionHasStudentCapacity(
     };
   }
   return { ok: true };
+}
+
+export async function shouldWaiveTeacherAssignmentPublishCharge(
+  teacherId: string
+): Promise<boolean> {
+  const ctx = await loadTeacherPlanContext(teacherId);
+  return ctx ? teacherAssignmentPublishChargeWaived(ctx.tier) : false;
 }

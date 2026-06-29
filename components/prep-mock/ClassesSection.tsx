@@ -9,6 +9,10 @@ import { OnboardingFlowHint } from "@/components/onboarding/OnboardingFlowHint";
 import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
 import { incrementPrepCalendarDay, localDayISO } from "@/lib/dashboard/prepCalendarClient";
 import { cn } from "@/lib/utils";
+import {
+  mergeClassroomLiveSessions,
+  upcomingClassroomLiveSessions,
+} from "@/lib/classroom/classroomLiveSessions";
 
 interface ClassInfo {
   id: string;
@@ -26,6 +30,7 @@ interface SessionInfo {
   meet_link: string | null;
   status: string;
   classroom_id: string;
+  fromLiveClassSlot?: boolean;
 }
 
 interface ClassesSectionProps {
@@ -74,7 +79,7 @@ export default function ClassesSection({
         return;
       }
 
-      const [classRes, sessionRes] = await Promise.all([
+      const [classRes, sessionRes, slotRes] = await Promise.all([
         supabase
           .from("classrooms")
           .select("id, name, subject, type, teacher_id")
@@ -82,15 +87,24 @@ export default function ClassesSection({
           .limit(3),
         supabase
           .from("live_sessions")
-          .select("id, title, scheduled_at, duration_minutes, meet_link, status, classroom_id")
+          .select("id, title, scheduled_at, duration_minutes, meet_link, status, classroom_id, section_id")
           .in("classroom_id", classroomIds)
           .gte("scheduled_at", new Date().toISOString())
           .order("scheduled_at", { ascending: true })
-          .limit(10),
+          .limit(20),
+        (supabase as any)
+          .from("live_class_slots")
+          .select("id, classroom_id, section_id, slot_at, duration_minutes, meet_link, status")
+          .in("classroom_id", classroomIds)
+          .eq("status", "scheduled")
+          .gte("slot_at", new Date().toISOString())
+          .order("slot_at", { ascending: true })
+          .limit(20),
       ]);
 
       const classList = classRes.data ?? [];
-      const sessionList = sessionRes.data ?? [];
+      const merged = mergeClassroomLiveSessions(sessionRes.data ?? [], slotRes.data ?? []);
+      const sessionList = upcomingClassroomLiveSessions(merged).slice(0, 10) as SessionInfo[];
 
       // Fetch teacher names
       const teacherIds = [...new Set(classList.map((c) => c.teacher_id))];
@@ -140,14 +154,23 @@ export default function ClassesSection({
   const getSessionForClass = (classroomId: string) =>
     sessions.find((s) => s.classroom_id === classroomId);
 
+  const isJoinWindowOpen = (session: SessionInfo) => {
+    const start = new Date(session.scheduled_at).getTime();
+    const joinFrom = start - 30 * 60 * 1000;
+    const joinUntil = start + (session.duration_minutes + 15) * 60 * 1000;
+    const now = Date.now();
+    return now >= joinFrom && now <= joinUntil;
+  };
+
   const getStatus = (session: SessionInfo | undefined): "live" | "upcoming" | "recorded" | null => {
     if (!session) return null;
     const start = new Date(session.scheduled_at).getTime();
     const end = start + session.duration_minutes * 60 * 1000;
     const now = Date.now();
-    if (now >= start && now <= end) return "live";
+    if (isJoinWindowOpen(session)) return "live";
     if (now < start) return "upcoming";
-    return "recorded";
+    if (now > end) return "recorded";
+    return "upcoming";
   };
 
   const formatSessionTime = (dateStr: string) => {

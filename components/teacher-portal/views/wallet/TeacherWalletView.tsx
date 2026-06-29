@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Coins, Gift, Star, TrendingUp, Users, Zap } from "lucide-react";
+import { ArrowRight, Coins, Gift, Star, Users, Zap } from "lucide-react";
 import type {
   TeacherPortalReferStats,
   TeacherPortalSection,
@@ -8,6 +8,7 @@ import type {
 } from "@/lib/teacherPortal/types";
 import { DEFAULT_LIVE_CLASS_DELIVERY_RDM_CONFIG } from "@/lib/teacherPortal/liveClassDeliveryRdm";
 import { DEFAULT_RDM_CONFIG } from "@/lib/rdm/rdmConfig";
+import { TEACHER_RDM_PACKS } from "@/lib/subscription/teacherRdmPacks";
 
 interface TeacherWalletViewProps {
   rdmBalance: number;
@@ -31,46 +32,16 @@ const EARNING_RATES = [
     color: "text-emerald-300",
   },
   { label: "Refer a teacher", amount: 100, icon: Users, color: "text-violet-300" },
-  { label: "Content co-creation", amount: 20, icon: TrendingUp, color: "text-sky-300" },
 ] as const;
 
-const TEACHER_PLANS = [
-  {
-    id: "starter",
-    name: "Starter",
-    price: "Rs 199",
-    rdm: 500,
-    recommended: false,
-    features: ["Boost student engagement", "Basic analytics", "Standard support"],
-  },
-  {
-    id: "growth",
-    name: "Growth",
-    price: "Rs 499",
-    rdm: 2000,
-    recommended: true,
-    features: [
-      "Priority Gyan++ placement",
-      "Advanced analytics",
-      "Priority support",
-      "Custom assignments",
-    ],
-  },
-  {
-    id: "leader",
-    name: "Leader",
-    price: "Rs 999",
-    rdm: 5000,
-    recommended: false,
-    features: [
-      "Top placement on Gyan++",
-      "Full analytics suite",
-      "Dedicated support",
-      "Unlimited assignments",
-      "Early access features",
-    ],
-  },
-] as const;
+const TEACHER_PLANS = TEACHER_RDM_PACKS.map((pack) => ({
+  id: pack.id,
+  name: `${pack.rdm.toLocaleString("en-IN")} RDM`,
+  price: `₹${pack.priceInr.toLocaleString("en-IN")}`,
+  rdm: pack.rdm,
+  recommended: pack.recommended === true,
+  features: ["Instant wallet credit via Razorpay", "Use for classrooms & assignments"],
+}));
 
 export default function TeacherWalletView({
   rdmBalance,
@@ -157,7 +128,7 @@ export default function TeacherWalletView({
           Top Up Plans
         </h2>
         <p className="mb-3 text-xs text-slate-500">
-          Display plans for reference. Contact admin for top-up requests.
+          Buy RDM credits in Subscriptions — pay via Razorpay (UPI, cards, wallets).
         </p>
         <div className="grid gap-3 sm:grid-cols-3">
           {TEACHER_PLANS.map((plan) => (
@@ -208,10 +179,11 @@ export default function TeacherWalletView({
           <Gift className="h-5 w-5 text-violet-300" />
           <div>
             <div className="text-sm font-semibold text-slate-200">
-              Earn more RDM by referring colleagues
+              Refer fellow teachers &amp; students
             </div>
             <div className="text-xs text-slate-400">
-              +{referStats.teacherRewardRdm} RDM per teacher referral
+              +{referStats.teacherSignupRewardRdm} RDM per teacher · +
+              {referStats.teacherStudentSignupRewardRdm} RDM per student
             </div>
           </div>
         </div>

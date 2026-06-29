@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/integrations/supabase/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { parseTeacherProfileMetaFromBio } from "@/lib/profile/teacherProfileMeta";
 
 /**
  * Lists classrooms for the Explore grid on /classrooms (students).
@@ -50,27 +51,75 @@ export async function GET(request: Request) {
     }
 
     const teacherIds = [...new Set(list.map((c) => c.teacher_id))];
-    const profileMap = new Map<string, { id: string; name: string | null; visibility: string }>();
+    type TeacherProfileRow = {
+      id: string;
+      name: string | null;
+      visibility: string;
+      avatar_url: string | null;
+      bio: string | null;
+      subjects: string[] | null;
+      exam_tags: string[] | null;
+      teaching_levels: number[] | null;
+    };
+    type TeacherDetailsRow = {
+      teacher_id: string;
+      location: string | null;
+      qualification: string | null;
+      experience: string | null;
+      verification_status: string | null;
+    };
+    const profileMap = new Map<string, TeacherProfileRow>();
+    const detailsMap = new Map<string, TeacherDetailsRow>();
 
     if (teacherIds.length > 0) {
       const { data: teacherProfiles, error: pErr } = await db
         .from("profiles")
-        .select("id, name, visibility")
+        .select("id, name, visibility, avatar_url, bio, subjects, exam_tags, teaching_levels")
         .in("id", teacherIds);
 
       if (pErr) {
         return NextResponse.json({ error: pErr.message }, { status: 500 });
       }
-      (teacherProfiles ?? []).forEach((p) => profileMap.set(p.id, p));
+      (teacherProfiles ?? []).forEach((p) => profileMap.set(p.id, p as TeacherProfileRow));
+
+      // Public profile preview fields only; do not expose private email/phone/doc links here.
+      const { data: teacherDetails } = await (
+        db as unknown as {
+          from: (table: "teacher_profile_details") => {
+            select: (columns: string) => {
+              in: (
+                column: "teacher_id",
+                values: string[]
+              ) => PromiseLike<{ data: TeacherDetailsRow[] | null }>;
+            };
+          };
+        }
+      )
+        .from("teacher_profile_details")
+        .select("teacher_id, location, qualification, experience, verification_status")
+        .in("teacher_id", teacherIds);
+      (teacherDetails ?? []).forEach((p: TeacherDetailsRow) => detailsMap.set(p.teacher_id, p));
     }
 
     const withTeacher = list
       .map((c) => {
         const p = profileMap.get(c.teacher_id);
+        const details = detailsMap.get(c.teacher_id);
+        const profileMeta = parseTeacherProfileMetaFromBio(p?.bio);
+        const metaDetails = profileMeta.details;
         return {
           ...c,
           teacher_name: p?.name ?? null,
           teacher_visibility: p?.visibility ?? null,
+          teacher_avatar_url: p?.avatar_url ?? null,
+          teacher_bio: profileMeta.studentBio || null,
+          teacher_subjects: p?.subjects ?? null,
+          teacher_exam_tags: p?.exam_tags ?? null,
+          teacher_teaching_levels: p?.teaching_levels ?? null,
+          teacher_location: details?.location ?? metaDetails.location ?? null,
+          teacher_qualification: details?.qualification ?? metaDetails.qualification ?? null,
+          teacher_experience: details?.experience ?? metaDetails.experience ?? null,
+          teacher_verification_status: details?.verification_status ?? null,
         };
       })
       .filter((c) => c.teacher_visibility !== "invite_only")

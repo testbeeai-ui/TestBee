@@ -6,6 +6,7 @@ import {
 } from "@/integrations/supabase/server";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
 import { tryFulfillAssignmentMotivationGrants } from "@/lib/teacherPortal/motivationRdm";
+import { tryFulfillAssignmentCompletionReward } from "@/lib/teacherPortal/assignmentCompletionRdm";
 import {
   isAdvancedQuizSetIndex,
   type AdvancedQuizSetIndex,
@@ -583,8 +584,11 @@ export async function POST(
 
   const genericClient = authedClient as unknown as GenericFrom;
 
-  // Branch for Chapter Quiz flow that just reports score/total
-  if (body.chapterQuizScore && access.post.type === "quiz") {
+  // Chapter Quiz + Concept Focus lesson quiz: report score/total from topic page submit.
+  if (
+    body.chapterQuizScore &&
+    (access.post.type === "quiz" || access.post.type === "Concept Focus")
+  ) {
     if (body.submit !== true) return NextResponse.json({ ok: true });
 
     const submittedAt = new Date().toISOString();
@@ -618,27 +622,33 @@ export async function POST(
       return NextResponse.json({ error: upsertErr.message }, { status: 500 });
     }
 
-    // Attempt to tick off the assignment task
-    const content = access.post.content_json as Record<string, unknown>;
-    const tasksRaw = Array.isArray(content.tasks) ? content.tasks : [];
-    const chapterQuizTask = tasksRaw.find(
-      (t: Record<string, unknown>) => t?.kind === "chapter_quiz"
-    );
+    const chapterQuizTask =
+      access.post.type === "quiz"
+        ? studentVisibleTasks(parseAssignmentTasks(access.post.content_json, access.post.type)).find(
+            (t) => t.kind === "chapter_quiz"
+          )
+        : undefined;
     if (chapterQuizTask?.id) {
-      await authedClient.from("classroom_assignment_task_progress").upsert(
-        {
-          post_id: postId,
-          task_id: chapterQuizTask.id,
-          user_id: user.id,
-        },
-        { onConflict: "post_id,task_id,user_id" }
-      );
+      const { error: progErr } = await authedClient
+        .from("classroom_assignment_task_progress")
+        .upsert(
+          {
+            post_id: postId,
+            task_id: chapterQuizTask.id,
+            user_id: user.id,
+          },
+          { onConflict: "post_id,task_id,user_id" }
+        );
+      if (progErr) {
+        console.warn("[generated-test-attempt] task progress upsert:", progErr.message);
+      }
     }
 
     const adminAfterQuiz = createAdminClient();
     if (adminAfterQuiz) {
       try {
         await tryFulfillAssignmentMotivationGrants(adminAfterQuiz, user.id, postId);
+        await tryFulfillAssignmentCompletionReward(adminAfterQuiz, user.id, postId);
       } catch {
         // non-fatal
       }
@@ -709,6 +719,7 @@ export async function POST(
     if (adminAfterMcq) {
       try {
         await tryFulfillAssignmentMotivationGrants(adminAfterMcq, user.id, postId);
+        await tryFulfillAssignmentCompletionReward(adminAfterMcq, user.id, postId);
       } catch {
         // non-fatal
       }

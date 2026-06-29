@@ -13,6 +13,7 @@ import type {
   TeacherPortalSummary,
 } from "@/lib/teacherPortal/types";
 import type { MotivationNudgeGoal, MotivationRecommendActionId } from "@/lib/teacherPortal/queries";
+import type { StudentMessageKind } from "@/lib/teacherPortal/studentNotificationCopy";
 
 export interface MyClassroomViewProps {
   summary: TeacherPortalSummary;
@@ -49,6 +50,8 @@ export interface MyClassroomViewProps {
     chapterQuiz?: TeacherPortalChapterQuizRef | null;
     dailyDoseStreak?: TeacherPortalDailyDoseStreakRef | null;
     gyanEngagement?: TeacherPortalGyanEngagementRef | null;
+    confirmCompletionEscrow?: boolean;
+    confirmSubtopicUnlock?: boolean;
   }) => Promise<{ id: string }>;
   onMotivateStudents: (input: {
     classroomId: string;
@@ -64,6 +67,7 @@ export interface MyClassroomViewProps {
     recommendActionUrl?: string;
     notificationTitle?: string;
     nudgeGoal?: MotivationNudgeGoal;
+    studentMessageKind?: StudentMessageKind;
   }) => Promise<void>;
   onRewardTopStudents: (input: {
     classroomId: string;

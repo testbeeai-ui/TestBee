@@ -114,6 +114,17 @@ export async function insertCalendarEventWithMeet(input: {
   return { id, meetLink: meetUriFromEvent(raw), raw };
 }
 
+/** Primary calendar id is the connected Google account email for most users. */
+export async function fetchPrimaryCalendarEmail(accessToken: string): Promise<string | null> {
+  const res = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return null;
+  const raw = (await res.json().catch(() => ({}))) as { id?: string };
+  const id = typeof raw.id === "string" ? raw.id.trim() : "";
+  return id.includes("@") ? id : null;
+}
+
 export async function getCalendarEvent(input: {
   accessToken: string;
   calendarId: string;

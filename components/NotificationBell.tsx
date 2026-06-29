@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,6 +6,13 @@ import {
   personalizeTeacherMotivationMessage,
   studentFirstNameForMotivationGreeting,
 } from "@/lib/teacherPortal/motivationMessagePersonalization";
+import {
+  buildStudentNotificationPreview,
+  buildStudentNotificationTitle,
+  getStudentNotificationPresentation,
+  resolveStudentMessageKind,
+  type StudentMessageKind,
+} from "@/lib/teacherPortal/studentNotificationCopy";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,9 +25,15 @@ interface Notification {
   action_url: string | null;
   created_at: string;
   type: string;
-  kind: "assignment_reminder" | "counsel_message";
+  studentMessageKind: StudentMessageKind;
+  categoryLabel: string;
+  chipClass: string;
+  icon: string;
+  preview: string;
+  ctaLabel: string;
   rdmDelta?: number;
   actionKind?: string;
+  nudgeGoal?: string;
   recommendActionId?:
     | "attempt_targeted_mock"
     | "post_doubt"
@@ -29,6 +42,20 @@ interface Notification {
     | "none";
   recommendActionLabel?: string;
   recommendActionUrl?: string;
+}
+
+function renderMotivationRichText(text: string): ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={i} className="font-semibold text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part;
+  });
 }
 
 const NotificationBell = () => {
@@ -136,7 +163,6 @@ const NotificationBell = () => {
               ? o.message.trim()
               : (p.title ?? "New message");
 
-          const isAssignmentReminder = Boolean(relatedPostId);
           const rdmDelta = typeof o?.rdmDelta === "number" ? o.rdmDelta : 0;
           const actionKind =
             typeof o?.actionKind === "string" && o.actionKind.trim() ? o.actionKind.trim() : null;
@@ -154,31 +180,48 @@ const NotificationBell = () => {
               : null;
 
           const nudgeGoalRaw = typeof o?.nudgeGoal === "string" ? o.nudgeGoal.trim() : "";
-          const notificationTitle =
+          const storedNotificationTitle =
             typeof o?.notificationTitle === "string" && o.notificationTitle.trim()
               ? o.notificationTitle.trim()
               : null;
 
-          const actionUrl = isAssignmentReminder
+          const studentMessageKind = resolveStudentMessageKind({
+            studentMessageKind: o?.studentMessageKind,
+            actionKind,
+            relatedPostId,
+            nudgeGoal: nudgeGoalRaw || null,
+            rdmDelta,
+            recommendActionId,
+          });
+
+          const presentation = getStudentNotificationPresentation(
+            studentMessageKind,
+            nudgeGoalRaw || null
+          );
+
+          const actionUrl = relatedPostId
             ? `/classroom/${encodeURIComponent(
                 p.classroom_id
-              )}?tab=posts&post=${encodeURIComponent(relatedPostId ?? p.id)}`
+              )}?tab=posts&post=${encodeURIComponent(relatedPostId)}`
             : nudgeGoalRaw === "restart_streak"
               ? "/home"
-              : null;
+              : recommendActionUrl?.startsWith("/")
+                ? recommendActionUrl
+                : null;
 
-          let title: string;
-          if (isAssignmentReminder) {
-            if (nudgeGoalRaw === "attempt_mock") {
-              title = relatedTitle ? `Reminder: ${relatedTitle}` : "Assignment reminder";
-            } else if (notificationTitle) {
-              title = notificationTitle;
-            } else {
-              title = relatedTitle ? `Reminder: ${relatedTitle}` : "Assignment reminder";
-            }
-          } else {
-            title = notificationTitle ?? "Advice from teacher";
-          }
+          const title =
+            storedNotificationTitle ??
+            buildStudentNotificationTitle({
+              kind: studentMessageKind,
+              nudgeGoal: nudgeGoalRaw || null,
+              relatedPostTitle: relatedTitle,
+              actionKind,
+            });
+
+          const dueHint =
+            studentMessageKind === "assignment_reminder" && message.includes("due ")
+              ? message.match(/due ([^.!\n]+)/i)?.[1]?.trim() ?? null
+              : null;
 
           const notif: Notification = {
             id: p.id,
@@ -188,9 +231,21 @@ const NotificationBell = () => {
             action_url: actionUrl,
             created_at: p.created_at,
             type: "motivation",
-            kind: isAssignmentReminder ? "assignment_reminder" : "counsel_message",
+            studentMessageKind,
+            categoryLabel: presentation.categoryLabel,
+            chipClass: presentation.chipClass,
+            icon: presentation.icon,
+            preview: buildStudentNotificationPreview({
+              kind: studentMessageKind,
+              body: message,
+              studentFirstName: motivationStudentFirstName,
+              rdmDelta,
+              dueHint,
+            }),
+            ctaLabel: presentation.ctaLabel,
             rdmDelta,
             actionKind: actionKind ?? undefined,
+            nudgeGoal: nudgeGoalRaw || undefined,
             recommendActionId:
               recommendActionId === "attempt_targeted_mock" ||
               recommendActionId === "post_doubt" ||
@@ -352,16 +407,33 @@ const NotificationBell = () => {
                     n.read ? "" : "bg-primary/5"
                   }`}
                 >
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${n.chipClass}`}
+                    >
+                      <span aria-hidden>{n.icon}</span>
+                      {n.categoryLabel}
+                    </span>
+                    {!n.read ? (
+                      <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                    ) : null}
+                  </div>
                   <p
-                    className={`text-sm font-bold ${n.read ? "text-muted-foreground" : "text-foreground"}`}
+                    className={`text-sm font-bold leading-snug ${n.read ? "text-muted-foreground" : "text-foreground"}`}
                   >
                     {n.title}
                   </p>
-                  {n.body && (
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      {personalizeTeacherMotivationMessage(n.body, motivationStudentFirstName)}
-                    </p>
-                  )}
+                  <p
+                    className={`mt-1 text-xs leading-relaxed line-clamp-2 ${
+                      n.studentMessageKind === "counsel"
+                        ? "italic text-muted-foreground"
+                        : n.studentMessageKind === "assignment_reminder"
+                          ? "font-medium text-sky-700/90 dark:text-sky-200/90"
+                          : "text-muted-foreground"
+                    }`}
+                  >
+                    {n.preview}
+                  </p>
                 </button>
               ))
             )}
@@ -384,13 +456,25 @@ const NotificationBell = () => {
           </DialogHeader>
           {selected ? (
             <div className="space-y-3">
-              {selected.kind === "counsel_message" ? (
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${selected.chipClass}`}
+                >
+                  <span aria-hidden>{selected.icon}</span>
+                  {selected.categoryLabel}
+                </span>
+              </div>
+
+              {selected.studentMessageKind === "counsel" ||
+              selected.studentMessageKind === "recognition" ? (
                 <>
-                  <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground shadow-sm">
+                  <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground shadow-sm">
                     {selected.body
-                      ? personalizeTeacherMotivationMessage(
-                          selected.body,
-                          motivationStudentFirstName
+                      ? renderMotivationRichText(
+                          personalizeTeacherMotivationMessage(
+                            selected.body,
+                            motivationStudentFirstName
+                          )
                         )
                       : ""}
                   </div>
@@ -402,22 +486,49 @@ const NotificationBell = () => {
                     </div>
                   ) : null}
                 </>
-              ) : (
-                <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+              ) : selected.studentMessageKind === "assignment_reminder" ? (
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-sky-500/25 bg-sky-500/5 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
                     {selected.body
-                      ? personalizeTeacherMotivationMessage(
-                          selected.body,
-                          motivationStudentFirstName
+                      ? renderMotivationRichText(
+                          personalizeTeacherMotivationMessage(
+                            selected.body,
+                            motivationStudentFirstName
+                          )
                         )
                       : ""}
                   </div>
-                  {selected.kind === "assignment_reminder" &&
-                  typeof selected.rdmDelta === "number" &&
-                  selected.rdmDelta > 0 ? (
-                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs font-semibold text-amber-100">
-                      Earn +{selected.rdmDelta} RDM when you finish the linked assignment
+                  {typeof selected.rdmDelta === "number" && selected.rdmDelta > 0 ? (
+                    <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-xs font-semibold text-amber-950 dark:text-amber-100">
+                      Submit to earn +{selected.rdmDelta} RDM on this assignment
                     </div>
+                  ) : null}
+                </div>
+              ) : selected.studentMessageKind === "urgent_checkin" ? (
+                <div className="rounded-2xl border border-rose-500/25 bg-rose-500/5 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+                  {selected.body
+                    ? renderMotivationRichText(
+                        personalizeTeacherMotivationMessage(
+                          selected.body,
+                          motivationStudentFirstName
+                        )
+                      )
+                    : ""}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+                  {selected.body
+                    ? renderMotivationRichText(
+                        personalizeTeacherMotivationMessage(
+                          selected.body,
+                          motivationStudentFirstName
+                        )
+                      )
+                    : ""}
+                  {typeof selected.rdmDelta === "number" && selected.rdmDelta > 0 ? (
+                    <p className="mt-3 text-xs font-semibold text-amber-800 dark:text-amber-200">
+                      Complete the step to earn +{selected.rdmDelta} RDM
+                    </p>
                   ) : null}
                 </div>
               )}
@@ -447,7 +558,7 @@ const NotificationBell = () => {
                   setOpen(false);
                 }}
               >
-                Open link →
+                {selected?.ctaLabel ?? "Open link →"}
               </button>
             ) : null}
           </div>

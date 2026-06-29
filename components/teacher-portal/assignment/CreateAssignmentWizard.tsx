@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, Check, Loader2 } from "lucide-react";
 import type {
   TeacherPortalChapterQuizRef,
@@ -15,6 +16,21 @@ import {
   buildDefaultTasksForAssignmentType,
   normalizeTaskPositions,
 } from "@/lib/classroom/assignmentTasks";
+import {
+  TEACHER_ASSIGNMENT_INCENTIVE_HELP,
+  TEACHER_ASSIGNMENT_INCENTIVE_LABEL,
+  TEACHER_ASSIGNMENT_NO_RDM_LABEL,
+  formatCompletionEscrowSummary,
+  teacherAssignmentPublishIncentiveLine,
+} from "@/lib/teacherPortal/assignmentCompletionRdmCopy";
+import { formatSubtopicUnlockSummary } from "@/lib/teacherPortal/subtopicUnlockRdmCopy";
+import SubtopicUnlockCostPanel, {
+  conceptFocusPublishGrandTotal,
+} from "@/components/teacher-portal/assignment/SubtopicUnlockCostPanel";
+import AssignmentCompletionRewardPanel, {
+  assignmentCompletionPublishGrandTotal,
+} from "@/components/teacher-portal/assignment/AssignmentCompletionRewardPanel";
+import AssignmentInfoHelp from "@/components/teacher-portal/assignment/AssignmentInfoHelp";
 import ChapterQuizAssignmentFields from "@/components/teacher-portal/assignment/fields/ChapterQuizAssignmentFields";
 import ConceptFocusAssignmentFields, {
   conceptFocusSelectionComplete,
@@ -33,6 +49,8 @@ import { fetchMockPapersFromSupabase } from "@/lib/mock/mockPapersFromSupabase";
 import { fetchPastPapersFromSupabase } from "@/lib/mock/pastPapersFromSupabase";
 import type { MockPaper, PastPaper } from "@/types";
 import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
+import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
+import { type TeacherPlanKey, teacherAssignmentPublishChargeWaived } from "@/lib/teacherPortal/teacherPlan";
 
 type WizardTypeKey = "quiz" | "concept_focus" | "gyan" | "mock" | "past_paper";
 type AssignScope = "full" | "section" | "students";
@@ -52,6 +70,8 @@ type PublishInput = {
   pastPaper?: TeacherPortalPastPaperRef | null;
   chapterQuiz?: TeacherPortalChapterQuizRef | null;
   gyanEngagement?: TeacherPortalGyanEngagementRef | null;
+  confirmCompletionEscrow?: boolean;
+  confirmSubtopicUnlock?: boolean;
 };
 
 const TYPE_META: Record<
@@ -105,7 +125,7 @@ function sectionTitle(step: number) {
   if (step === 1) return "Choose assignment type & topic";
   if (step === 2) return "Configure questions, resources & duration";
   if (step === 3) return "Assign to students, section, or full class";
-  return "Set due date, RDM reward & publish";
+  return "Set due date, student reward & publish";
 }
 
 type EmbeddedAssignmentDraftV1 = {
@@ -144,6 +164,7 @@ export default function CreateAssignmentWizard(props: {
   onCancel: () => void;
   onPublish: (input: Omit<PublishInput, "title"> & { title: string }) => Promise<void>;
 }) {
+  const router = useRouter();
   const { costs: teacherRdmCosts } = useTeacherRdmCosts();
   const { taxonomy, loading: taxonomyLoading, error: taxonomyError } = useTopicTaxonomy();
   const variant = props.variant ?? "page";
@@ -203,9 +224,59 @@ export default function CreateAssignmentWizard(props: {
   const [studentSearch, setStudentSearch] = useState("");
 
   const [dueDate, setDueDate] = useState<string>("");
-  const [rewardRdm, setRewardRdm] = useState<number>(15);
+  const [rewardRdm, setRewardRdm] = useState<number>(0);
   const [instructions, setInstructions] = useState<string>("");
   const [publishing, setPublishing] = useState(false);
+  const [assignmentQuota, setAssignmentQuota] = useState<{
+    tier: TeacherPlanKey;
+    allowed: boolean;
+    remaining: number;
+    cap: number;
+  } | null>(null);
+  const [assignmentQuotaLoading, setAssignmentQuotaLoading] = useState(true);
+
+  const loadAssignmentQuota = useCallback(async () => {
+    setAssignmentQuotaLoading(true);
+    try {
+      const res = await fetchWithClientAuth("/api/teacher/plan/limits");
+      const body = (await res.json()) as {
+        tier?: TeacherPlanKey;
+        assignments?: { allowed: boolean; remaining: number; cap: number };
+      };
+      if (res.ok && body.assignments) {
+        setAssignmentQuota({
+          tier: body.tier ?? "free",
+          allowed: body.assignments.allowed,
+          remaining: body.assignments.remaining,
+          cap: body.assignments.cap,
+        });
+      }
+    } finally {
+      setAssignmentQuotaLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAssignmentQuota();
+  }, [loadAssignmentQuota]);
+
+  const canPublishAssignment =
+    assignmentQuota?.allowed !== false && assignmentQuota?.cap !== 0;
+  const assignmentQuotaLabel =
+    assignmentQuota && assignmentQuota.cap < 9999
+      ? `${assignmentQuota.remaining}/${assignmentQuota.cap} assignments left this month (IST)`
+      : assignmentQuota && assignmentQuota.cap >= 9999
+        ? "Unlimited assignments on your plan"
+        : null;
+  const assignmentUpgradeHint =
+    assignmentQuota && !assignmentQuota.allowed
+      ? assignmentQuota.tier === "free"
+        ? "Upgrade to Starter for unlimited assignments (RDM charged each publish)."
+        : "Monthly assignment limit reached on your plan."
+      : null;
+
+  const assignmentPublishWaived =
+    assignmentQuota?.tier != null && teacherAssignmentPublishChargeWaived(assignmentQuota.tier);
 
   const lastEmbeddedAssignmentDraftMarkerRef = useRef<string>("");
 
@@ -433,6 +504,51 @@ export default function CreateAssignmentWizard(props: {
     return `Custom (${studentIds.length})`;
   }, [detail?.sections, scope, sectionId, studentIds.length]);
 
+  const audienceStudentCount = useMemo(() => {
+    const rows = (detail?.students ?? []).filter((s) => s.role !== "teacher");
+    if (scope === "students") return studentIds.length;
+    if (scope === "section" && sectionId) {
+      return rows.filter((s) => s.sectionId === sectionId).length;
+    }
+    return rows.length;
+  }, [detail?.students, scope, sectionId, studentIds.length]);
+
+  const escrowPreview = useMemo(
+    () => formatCompletionEscrowSummary(rewardRdm, audienceStudentCount),
+    [rewardRdm, audienceStudentCount]
+  );
+  const subtopicUnlockPreview = useMemo(
+    () =>
+      typeKey === "concept_focus"
+        ? formatSubtopicUnlockSummary(teacherRdmCosts.create_assignment, audienceStudentCount)
+        : { perStudent: 0, total: 0, studentCount: audienceStudentCount },
+    [typeKey, teacherRdmCosts.create_assignment, audienceStudentCount]
+  );
+  const isConceptFocusPublish = typeKey === "concept_focus";
+
+  const publishButtonLabel = assignmentPublishWaived
+    ? "Publish assignment (included on Pro)"
+    : isConceptFocusPublish
+      ? audienceStudentCount > 0
+        ? `Create assignment (${conceptFocusPublishGrandTotal(
+            teacherRdmCosts.create_assignment,
+            audienceStudentCount,
+            rewardRdm
+          )} RDM)`
+        : "Publish assignment"
+      : audienceStudentCount > 0 &&
+          assignmentCompletionPublishGrandTotal(
+            teacherRdmCosts.create_assignment,
+            audienceStudentCount,
+            rewardRdm
+          ) > 0
+        ? `Publish assignment (${assignmentCompletionPublishGrandTotal(
+            teacherRdmCosts.create_assignment,
+            audienceStudentCount,
+            rewardRdm
+          )} RDM)`
+        : `Publish assignment (-${teacherRdmCosts.create_assignment} RDM)`;
+
   const selectedMock = useMemo(
     () => mockPapers.find((p) => p.id === selectedMockPaperId) ?? null,
     [mockPapers, selectedMockPaperId]
@@ -468,7 +584,10 @@ export default function CreateAssignmentWizard(props: {
     return normalizeTaskPositions(buildDefaultTasksForAssignmentType(meta.assignmentTypeLabel));
   }, [meta.assignmentTypeLabel]);
 
-  const publish = async () => {
+  const runPublish = async (
+    confirmCompletionEscrow: boolean,
+    confirmSubtopicUnlock: boolean
+  ) => {
     if (!classroomId || !title.trim()) return;
     setPublishing(true);
     try {
@@ -506,6 +625,8 @@ export default function CreateAssignmentWizard(props: {
             ? chapterQuizRef
             : null,
         gyanEngagement,
+        confirmCompletionEscrow,
+        confirmSubtopicUnlock,
       });
       if (props.sessionDraftKey) {
         try {
@@ -514,9 +635,17 @@ export default function CreateAssignmentWizard(props: {
           // ignore
         }
       }
+      await loadAssignmentQuota();
     } finally {
       setPublishing(false);
     }
+  };
+
+  const publish = () => {
+    if (!classroomId || !title.trim()) return;
+    const confirmEscrow = rewardRdm > 0 && audienceStudentCount > 0;
+    const confirmUnlock = isConceptFocusPublish && audienceStudentCount > 0;
+    void runPublish(confirmEscrow, confirmUnlock);
   };
 
   const filteredStudents = useMemo(() => {
@@ -937,7 +1066,22 @@ export default function CreateAssignmentWizard(props: {
 
         {step === 4 ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {isConceptFocusPublish ? (
+              <SubtopicUnlockCostPanel
+                perStudentUnlock={teacherRdmCosts.create_assignment}
+                studentCount={audienceStudentCount}
+                rewardRdm={rewardRdm}
+              />
+            ) : (
+              <AssignmentCompletionRewardPanel
+                rewardRdm={rewardRdm}
+                studentCount={audienceStudentCount}
+                publishFeeRdm={
+                  assignmentPublishWaived ? 0 : teacherRdmCosts.create_assignment
+                }
+              />
+            )}
+            <div className={isConceptFocusPublish ? "grid grid-cols-1 gap-3" : "grid grid-cols-1 gap-3 sm:grid-cols-2"}>
               <div>
                 <label className="mb-1 block text-sm font-semibold text-slate-300">Due date</label>
                 <input
@@ -948,18 +1092,25 @@ export default function CreateAssignmentWizard(props: {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-300">
-                  RDM reward
-                </label>
+                <div className="mb-1 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-slate-300">
+                    {TEACHER_ASSIGNMENT_INCENTIVE_LABEL}
+                  </label>
+                  <AssignmentInfoHelp title={TEACHER_ASSIGNMENT_INCENTIVE_LABEL} tone="slate">
+                    {TEACHER_ASSIGNMENT_INCENTIVE_HELP}
+                  </AssignmentInfoHelp>
+                </div>
                 <div className="relative">
                   <select
                     value={String(rewardRdm)}
                     onChange={(e) => setRewardRdm(Number(e.target.value))}
                     className="w-full appearance-none rounded-xl border border-white/15 bg-[#070b17] px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-400"
                   >
-                    <option value="10">+10 RDM</option>
+                    <option value="0">{TEACHER_ASSIGNMENT_NO_RDM_LABEL}</option>
                     <option value="15">+15 RDM (standard)</option>
-                    <option value="25">+25 RDM</option>
+                    <option value="25">+25 RDM (medium)</option>
+                    <option value="40">+40 RDM (high value)</option>
+                    <option value="50">+50 RDM (special)</option>
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 </div>
@@ -980,23 +1131,55 @@ export default function CreateAssignmentWizard(props: {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="min-w-0">
+              <div className="min-w-0 space-y-1">
                 <div className="text-sm font-semibold text-slate-100">Ready to publish</div>
                 <div className="mt-0.5 text-xs text-slate-400">
-                  {assignToLabel} · Reward {rewardRdm} RDM{" "}
-                  {dueDate ? `· Due ${dueDate}` : "· No due date"}
+                  {assignToLabel}
+                  {dueDate ? ` · Due ${dueDate}` : " · No due date"}
+                  {isConceptFocusPublish && subtopicUnlockPreview.total > 0
+                    ? ` · Unlock ${subtopicUnlockPreview.total} RDM (${subtopicUnlockPreview.perStudent}×${subtopicUnlockPreview.studentCount})`
+                    : ""}
+                  {rewardRdm > 0 ? (
+                    <>
+                      {" "}
+                      · {teacherAssignmentPublishIncentiveLine(rewardRdm)}
+                      {escrowPreview.total > 0
+                        ? ` · Reserve ${escrowPreview.total} RDM (${escrowPreview.perStudent}×${escrowPreview.studentCount})`
+                        : ""}
+                    </>
+                  ) : !isConceptFocusPublish ? (
+                    <> · {teacherAssignmentPublishIncentiveLine(rewardRdm)}</>
+                  ) : null}
                 </div>
+                {assignmentQuotaLoading ? (
+                  <div className="text-[11px] text-slate-500">Checking monthly assignment quota…</div>
+                ) : assignmentQuotaLabel ? (
+                  <div className="text-[11px] font-medium text-slate-400">{assignmentQuotaLabel}</div>
+                ) : null}
+                {assignmentUpgradeHint ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push("/teacher-portal?section=subscriptions")}
+                    className="text-left text-[11px] font-semibold text-violet-300 underline-offset-2 hover:underline"
+                  >
+                    {assignmentUpgradeHint}
+                  </button>
+                ) : null}
               </div>
               <button
                 type="button"
                 onClick={() => void publish()}
                 disabled={
-                  publishing || !classroomId || !title.trim() || (step === 4 && !canContinueStep3)
+                  publishing ||
+                  !classroomId ||
+                  !title.trim() ||
+                  (step === 4 && !canContinueStep3) ||
+                  !canPublishAssignment
                 }
                 className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-100 enabled:hover:bg-emerald-500/20 disabled:opacity-50"
               >
                 {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Publish assignment (-{teacherRdmCosts.create_assignment} RDM)
+                {publishButtonLabel}
               </button>
             </div>
           </div>

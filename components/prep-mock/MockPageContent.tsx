@@ -77,6 +77,7 @@ import {
   fetchPastQuestionsForPaper,
 } from "@/lib/mock/pastPapersFromSupabase";
 import { useToast } from "@/hooks/use-toast";
+import { isValidAssignmentPostId } from "@/lib/teacherPortal/assignmentPostIdTemplate";
 
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Input } from "@/components/ui/input";
@@ -411,7 +412,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
         return typeof v === "number" ? v : -1;
       });
 
-      if (resolvedClassroomId && resolvedPostId) {
+      if (resolvedClassroomId && resolvedPostId && isValidAssignmentPostId(resolvedPostId)) {
         try {
           const token = session?.access_token;
           const res = await fetch(

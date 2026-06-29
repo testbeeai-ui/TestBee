@@ -286,6 +286,8 @@ export type TeacherVerificationStatus = "unverified" | "pending" | "approved" | 
 export interface TeacherPortalSummary {
   /** Teacher has completed Google Calendar OAuth (refresh token stored server-side). */
   googleCalendarConnected: boolean;
+  /** Google account email connected for Calendar/Meet (Meet host). */
+  googleCalendarEmail?: string | null;
   activeClassrooms: number;
   totalStudents: number;
   assignmentsActive: number;
@@ -306,14 +308,19 @@ export interface TeacherPortalReferStats {
   referralLink: string;
   teachersReferred: number;
   studentsReferred: number;
+  /** Total RDM credited from teacher→teacher signup + paid bonuses. */
+  teacherReferralRdmEarned: number;
+  /** Total RDM credited from teacher→student signup + paid bonuses. */
+  studentReferralRdmEarned: number;
   teacherRewardRdm: number;
   studentRewardRdm: number;
   teacherMilestoneBonusRdm: number;
-  /** RDM the teacher earns when a referred student completes signup/onboarding. */
+  /** RDM when a referred teacher completes signup/onboarding. */
   teacherSignupRewardRdm: number;
-  /** RDM the teacher earns when a referred student goes paid within the window. */
+  /** RDM when a referred student completes signup via the teacher link. */
+  teacherStudentSignupRewardRdm: number;
+  /** RDM when a referred teacher or student goes paid within the window. */
   teacherPaidBonusRdm: number;
-  /** Days after signup in which the referred student must go paid for the bonus. */
   teacherPaidWindowDays: number;
 }
 

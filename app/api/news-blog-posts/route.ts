@@ -8,9 +8,71 @@ import {
 } from "@/lib/news-blog/supabase";
 import { createClient } from "@/integrations/supabase/server";
 import { isAdminUser } from "@/lib/admin/admin";
-import { isValidBlogSectionId } from "@/lib/news-blog/news-blog-sections";
+import { isValidBlogSectionId, isValidNewsSectionId } from "@/lib/news-blog/news-blog-sections";
 
 export const runtime = "nodejs";
+
+function validateNewsBlogPostPayload(input: {
+  portal: "news" | "blog";
+  section: string;
+  title: string;
+  summary: string;
+  bodyText: string;
+  author: string;
+  revisionPlan: string;
+  sourceLink: string;
+  examDate: string;
+  contentFormat: "text" | "html";
+  rawHtml: string;
+}): string | null {
+  const {
+    portal,
+    section,
+    title,
+    summary,
+    bodyText,
+    author,
+    revisionPlan,
+    sourceLink,
+    examDate,
+    contentFormat,
+    rawHtml,
+  } = input;
+
+  if (portal === "news" && !isValidNewsSectionId(section)) {
+    return "Invalid news section";
+  }
+  if (portal === "blog" && !isValidBlogSectionId(section)) {
+    return "Invalid blog section";
+  }
+
+  const hasHtml = contentFormat === "html" && rawHtml.trim().length > 0;
+  const hasBody = hasHtml || bodyText.trim().length > 0;
+
+  if (section === "ndates") {
+    if (!title) return "Key dates posts require a title";
+    if (!summary) return "Key dates posts require a non-empty summary";
+    if (!examDate) return "Key dates posts require an end date";
+    if (!sourceLink) return "Key dates posts require an official link";
+    return null;
+  }
+
+  if (!summary || !hasBody || !author) {
+    return "Posts require author, summary, and body (or uploaded HTML)";
+  }
+
+  if (section === "nbuzz" && !sourceLink) {
+    return "Exam buzz posts require a source link";
+  }
+
+  if (section === "blast") {
+    if (revisionPlan !== "180" && revisionPlan !== "60" && revisionPlan !== "3") {
+      return "Last 180/60/3d posts require a plan (180, 60, or 3 days)";
+    }
+  }
+
+  return null;
+}
 
 async function verifyAdmin(): Promise<
   { authorized: true } | { authorized: false; error: NextResponse }
@@ -91,39 +153,39 @@ export async function POST(req: NextRequest) {
     if (portal === "blog" && !isValidBlogSectionId(section)) {
       return NextResponse.json({ error: "Invalid blog section" }, { status: 400 });
     }
+    if (portal === "news" && !isValidNewsSectionId(section)) {
+      return NextResponse.json({ error: "Invalid news section" }, { status: 400 });
+    }
 
     const summary = String(body.summary ?? "").trim();
     const bodyText = String(body.body ?? "");
     const author = String(body.author ?? "").trim();
     const revisionPlan = String(body.revisionPlan ?? "").trim();
+    const sourceLink = String(body.sourceLink ?? "").trim();
+    const examDate = String(body.examDate ?? "").trim();
+    const contentFormat = body.contentFormat === "html" ? "html" : "text";
+    const rawHtml = String(body.rawHtml ?? "");
     const rawFeatured = String(body.featured ?? "feed").trim();
     const featured =
       rawFeatured === "hero" || rawFeatured === "sidebar" || rawFeatured === "feed"
         ? (rawFeatured as "feed" | "hero" | "sidebar")
         : "feed";
 
-    if (section === "ndates") {
-      if (!summary) {
-        return NextResponse.json(
-          { error: "Key dates posts require a non-empty summary" },
-          { status: 400 }
-        );
-      }
-    } else {
-      if (!summary || !bodyText.trim() || !author) {
-        return NextResponse.json(
-          { error: "Posts require author, summary, and body" },
-          { status: 400 }
-        );
-      }
-      if (section === "blast") {
-        if (revisionPlan !== "180" && revisionPlan !== "60" && revisionPlan !== "3") {
-          return NextResponse.json(
-            { error: "Last 180/60/3d posts require a plan (180, 60, or 3 days)" },
-            { status: 400 }
-          );
-        }
-      }
+    const validationError = validateNewsBlogPostPayload({
+      portal,
+      section,
+      title,
+      summary,
+      bodyText,
+      author,
+      revisionPlan,
+      sourceLink,
+      examDate,
+      contentFormat,
+      rawHtml,
+    });
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
     await insertNewsBlogPost({
@@ -136,8 +198,8 @@ export async function POST(req: NextRequest) {
       body: bodyText,
       author: section === "ndates" ? "" : author,
       role: String(body.role ?? ""),
-      examDate: String(body.examDate ?? ""),
-      sourceLink: String(body.sourceLink ?? ""),
+      examDate,
+      sourceLink,
       heroImageUrl: String(body.heroImageUrl ?? ""),
       inlineImageUrl: String(body.inlineImageUrl ?? ""),
       heroImageCaption: String(body.heroImageCaption ?? ""),
@@ -146,8 +208,8 @@ export async function POST(req: NextRequest) {
       featured,
       tags: String(body.tags ?? "").trim(),
       publishDate,
-      contentFormat: body.contentFormat === "html" ? "html" : "text",
-      rawHtml: String(body.rawHtml ?? ""),
+      contentFormat,
+      rawHtml,
       createdAt,
       updatedAt: new Date().toISOString(),
     });
@@ -196,39 +258,39 @@ export async function PUT(req: NextRequest) {
     if (portal === "blog" && !isValidBlogSectionId(section)) {
       return NextResponse.json({ error: "Invalid blog section" }, { status: 400 });
     }
+    if (portal === "news" && !isValidNewsSectionId(section)) {
+      return NextResponse.json({ error: "Invalid news section" }, { status: 400 });
+    }
 
     const summary = String(body.summary ?? "").trim();
     const bodyText = String(body.body ?? "");
     const author = String(body.author ?? "").trim();
     const revisionPlan = String(body.revisionPlan ?? "").trim();
+    const sourceLink = String(body.sourceLink ?? "").trim();
+    const examDate = String(body.examDate ?? "").trim();
+    const contentFormat = body.contentFormat === "html" ? "html" : "text";
+    const rawHtml = String(body.rawHtml ?? "");
     const rawFeatured = String(body.featured ?? "feed").trim();
     const featured =
       rawFeatured === "hero" || rawFeatured === "sidebar" || rawFeatured === "feed"
         ? (rawFeatured as "feed" | "hero" | "sidebar")
         : "feed";
 
-    if (section === "ndates") {
-      if (!summary) {
-        return NextResponse.json(
-          { error: "Key dates posts require a non-empty summary" },
-          { status: 400 }
-        );
-      }
-    } else {
-      if (!summary || !bodyText.trim() || !author) {
-        return NextResponse.json(
-          { error: "Posts require author, summary, and body" },
-          { status: 400 }
-        );
-      }
-      if (section === "blast") {
-        if (revisionPlan !== "180" && revisionPlan !== "60" && revisionPlan !== "3") {
-          return NextResponse.json(
-            { error: "Last 180/60/3d posts require a plan (180, 60, or 3 days)" },
-            { status: 400 }
-          );
-        }
-      }
+    const validationError = validateNewsBlogPostPayload({
+      portal,
+      section,
+      title,
+      summary,
+      bodyText,
+      author,
+      revisionPlan,
+      sourceLink,
+      examDate,
+      contentFormat,
+      rawHtml,
+    });
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
     const row: NewsBlogPostRow = {
@@ -241,8 +303,8 @@ export async function PUT(req: NextRequest) {
       body: bodyText,
       author: section === "ndates" ? "" : author,
       role: String(body.role ?? ""),
-      examDate: String(body.examDate ?? ""),
-      sourceLink: String(body.sourceLink ?? ""),
+      examDate,
+      sourceLink,
       heroImageUrl: String(body.heroImageUrl ?? ""),
       inlineImageUrl: String(body.inlineImageUrl ?? ""),
       heroImageCaption: String(body.heroImageCaption ?? ""),
@@ -251,8 +313,8 @@ export async function PUT(req: NextRequest) {
       featured,
       tags: String(body.tags ?? "").trim(),
       publishDate,
-      contentFormat: body.contentFormat === "html" ? "html" : "text",
-      rawHtml: String(body.rawHtml ?? ""),
+      contentFormat,
+      rawHtml,
       createdAt,
       updatedAt: new Date().toISOString(),
     };

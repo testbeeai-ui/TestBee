@@ -30,6 +30,7 @@ import {
   SlidersHorizontal,
   ChevronDown,
   ChevronUp,
+  UserRound,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { StarRatingBadge } from "@/components/StarRating";
@@ -45,6 +46,7 @@ import {
   maybeMarkPrepClassesOnboardingFromClassroomsVisit,
   ONBOARDING_PROGRESS_EVENT,
 } from "@/lib/subscription/freeTrialClient";
+import { formatTeachingLevelsForDisplay } from "@/lib/profile/profileTeacherOptions";
 
 interface Classroom {
   id: string;
@@ -68,13 +70,124 @@ interface ExploreClassroom {
   teacher_id: string;
   teacher_name?: string | null;
   teacher_visibility?: string | null;
+  teacher_avatar_url?: string | null;
+  teacher_bio?: string | null;
+  teacher_subjects?: string[] | null;
+  teacher_exam_tags?: string[] | null;
+  teacher_teaching_levels?: number[] | null;
+  teacher_location?: string | null;
+  teacher_qualification?: string | null;
+  teacher_experience?: string | null;
+  teacher_verification_status?: string | null;
   avg_rating?: number;
   review_count?: number;
 }
 
 /** Normalized text from class fields for client-side filter/search (lowercase). */
 function exploreHaystack(c: ExploreClassroom): string {
-  return [c.name, c.subject, c.section, c.description].filter(Boolean).join(" ").toLowerCase();
+  return [
+    c.name,
+    c.subject,
+    c.section,
+    c.description,
+    c.teacher_name,
+    ...(c.teacher_subjects ?? []),
+    ...(c.teacher_exam_tags ?? []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function shortProfileText(text?: string | null, max = 110): string | null {
+  const cleaned = text?.replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+  return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned;
+}
+
+function TeacherHoverProfile({ classroom }: { classroom: ExploreClassroom }) {
+  const teacherName = classroom.teacher_name?.trim() || "Teacher";
+  const subjects = classroom.teacher_subjects?.filter(Boolean) ?? [];
+  const exams = classroom.teacher_exam_tags?.filter(Boolean) ?? [];
+  const levels = formatTeachingLevelsForDisplay(classroom.teacher_teaching_levels ?? null);
+  const profileLine =
+    shortProfileText(classroom.teacher_bio) ??
+    shortProfileText(classroom.teacher_qualification) ??
+    shortProfileText(classroom.teacher_experience) ??
+    "Basic teacher profile details are not filled yet.";
+  const verified = classroom.teacher_verification_status === "approved";
+  const infoBlocks = [
+    subjects.length ? { label: "Subjects", value: subjects.join(", ") } : null,
+    exams.length ? { label: "Exam focus", value: exams.join(", ") } : null,
+    levels !== "—" ? { label: "Teaches", value: levels } : null,
+    classroom.teacher_location ? { label: "Location", value: classroom.teacher_location } : null,
+    classroom.teacher_qualification
+      ? { label: "Qualification", value: classroom.teacher_qualification }
+      : null,
+    classroom.teacher_experience ? { label: "Experience", value: classroom.teacher_experience } : null,
+    classroom.review_count && classroom.review_count > 0
+      ? {
+          label: "Class rating",
+          value: `${(classroom.avg_rating ?? 0).toFixed(1)}★ · ${classroom.review_count} review${
+            classroom.review_count === 1 ? "" : "s"
+          }`,
+        }
+      : { label: "Class rating", value: "No reviews yet" },
+  ].filter((item): item is { label: string; value: string } => Boolean(item));
+
+  return (
+    <div className="group/teacher absolute right-4 top-4 z-10">
+      <button
+        type="button"
+        aria-label={`Preview teacher profile for ${teacherName}`}
+        className="inline-flex h-9 w-9 cursor-help items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-primary shadow-sm transition hover:border-primary/50 hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 group-hover/teacher:opacity-0 group-focus-within/teacher:opacity-0"
+      >
+        <UserRound className="h-4 w-4" />
+      </button>
+      <div className="pointer-events-none absolute left-full top-1/2 z-30 ml-3 hidden w-80 -translate-y-1/2 rounded-2xl border border-border bg-popover p-4 text-left text-popover-foreground shadow-2xl group-hover/teacher:block group-focus-within/teacher:block">
+        <div className="border-b border-border/60 pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-base font-extrabold text-foreground">{teacherName}</div>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Teacher profile
+            </p>
+          </div>
+          {verified ? (
+            <span className="shrink-0 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500">
+              Verified
+            </span>
+          ) : null}
+        </div>
+        {levels !== "—" ? (
+          <div className="mt-2 inline-flex rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+            {levels}
+          </div>
+        ) : null}
+        </div>
+
+        <p className="mt-3 rounded-xl border border-border/60 bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
+          {profileLine}
+        </p>
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {infoBlocks.map((item) => (
+            <div
+              key={item.label}
+              className="rounded-xl border border-border/60 bg-background/70 p-2.5"
+            >
+              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                {item.label}
+              </div>
+              <div className="mt-1 text-xs font-semibold leading-snug text-foreground/90">
+                {item.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -423,8 +536,9 @@ function ExploreClassesSection({
                   <motion.div
                     key={c.id}
                     layout
-                    className="edu-card p-5 rounded-2xl border border-border hover:border-primary/30 hover:shadow-md transition-all flex flex-col min-h-[200px]"
+                    className="edu-card relative p-5 pr-14 rounded-2xl border border-border hover:border-primary/30 hover:shadow-md transition-all flex flex-col min-h-[200px]"
                   >
+                    {c.teacher_name ? <TeacherHoverProfile classroom={c} /> : null}
                     <div className="flex-1 min-h-0 flex flex-col">
                       <h3 className="font-extrabold text-foreground text-base line-clamp-2">
                         {c.name}

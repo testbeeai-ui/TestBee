@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { createAdminClient } from "@/integrations/supabase/server";
+import { tryFulfillConceptFocusRewardsForLessonScope } from "@/lib/teacherPortal/assignmentCompletionRdm";
 import type { Json } from "@/integrations/supabase/types";
 import type { SubtopicEngagementSnapshot } from "@/lib/curriculum/subtopicEngagementService";
 import { parseEngagementStore } from "@/lib/curriculum/subtopicEngagementStoreParse";
@@ -228,6 +230,22 @@ export async function POST(request: Request) {
           }
         );
       if (markErr) return NextResponse.json({ error: markErr.message }, { status: 500 });
+
+      const admin = createAdminClient();
+      if (admin) {
+        try {
+          await tryFulfillConceptFocusRewardsForLessonScope(admin, user.id, {
+            board,
+            subject,
+            classLevel: classLevel as 11 | 12,
+            topic,
+            subtopicName,
+            level,
+          });
+        } catch (e) {
+          console.warn("Concept Focus completion reward sync:", e);
+        }
+      }
     } else {
       const { error: delErr } = await supabase
         .from("student_lesson_mark_completions" as never)

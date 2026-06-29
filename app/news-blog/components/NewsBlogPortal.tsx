@@ -555,8 +555,8 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
                     No posts yet in this section
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
-                    Use <span className="font-semibold text-emerald-300">Add post</span> to create a
-                    new post (saved locally).
+                    Use <span className="font-semibold text-emerald-300">Add post</span> (admin) to
+                    publish to the live feed.
                   </p>
                 </div>
               ) : isKeyDatesPortalView ? (

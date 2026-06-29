@@ -6,6 +6,7 @@ import {
   getSupabaseAdminEnvDiagnostics,
   normalizeServiceRoleKey,
 } from "@/integrations/supabase/server";
+import { ensureTeacherGoogleCalendarEmail } from "@/lib/integrations/googleCalendarAccount";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
   };
 
   let calendarConnected = false;
+  let googleAccountEmail: string | null = null;
   let tokenLookupFailed = false;
   const admin = createAdminClient();
   if (admin) {
@@ -57,6 +59,25 @@ export async function GET(request: Request) {
       calendarConnected = Boolean(
         tok?.refresh_token && String(tok.refresh_token).trim().length > 0
       );
+      if (calendarConnected) {
+        try {
+          googleAccountEmail = await ensureTeacherGoogleCalendarEmail(admin, user.id);
+        } catch (e) {
+          console.warn("[google/status] ensureTeacherGoogleCalendarEmail:", e);
+        }
+        // Self-heal: tokens exist but profiles.google_connected was never set (legacy connects).
+        const { data: profRow } = await admin
+          .from("profiles")
+          .select("google_connected")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (!(profRow as { google_connected?: boolean | null } | null)?.google_connected) {
+          await admin
+            .from("profiles")
+            .update({ google_connected: true, updated_at: new Date().toISOString() })
+            .eq("id", user.id);
+        }
+      }
     }
   } else {
     // Never infer Calendar access from profiles.google_connected — it was historically conflated with
@@ -70,6 +91,7 @@ export async function GET(request: Request) {
   return NextResponse.json(
     {
       connected: calendarConnected,
+      googleAccountEmail,
       /** Supabase auth originally used Google as identity provider — not Calendar access. */
       signupGoogle: Boolean((profile as { signup_google?: boolean | null } | null)?.signup_google),
       /** True when admin client could not read the tokens row (schema/RLS/key invalid/etc.). */

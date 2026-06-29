@@ -54,16 +54,16 @@ export function actionClass(action: "boost" | "nudge" | "urgent_nudge"): string 
 export function messageTemplate(
   action: "boost" | "nudge" | "urgent_nudge",
   type: MotivationMessageType,
-  targetLabel: string
+  _targetLabel: string
 ): string {
   if (type === "top_performer") {
-    return `Brilliant work this week ${targetLabel}! You are consistently among the top performers. Keep this momentum and earn +25 RDM.`;
+    return `Hi [name],\n\nYou’ve been one of our top performers this week. Your consistency stands out — keep the same rhythm and you’ll keep earning strong RDM rewards.`;
   }
   if (type === "custom") {
-    return `${targetLabel}, keep your learning momentum going.`;
+    return `Hi [name],\n\nI wanted to check in and encourage you to keep your learning momentum going today.`;
   }
   if (action === "urgent_nudge") {
-    return `Hey ${targetLabel}, your streak is at risk. Come back today, complete one focused task, and earn +10 RDM.`;
+    return `Hi [name],\n\nYour study streak is at risk. Even one focused 20-minute session today will get you back on track — and you can earn +10 RDM when you complete it.`;
   }
-  return `Hey ${targetLabel}! You have not been active recently. Your last score was strong - do not let the streak break. Come back and earn +10 RDM.`;
+  return `Hi [name],\n\nI noticed you haven’t been active recently, but your last results were strong. Don’t let the streak slip — come back today and earn +10 RDM on your next completed task.`;
 }

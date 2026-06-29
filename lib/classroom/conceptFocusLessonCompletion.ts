@@ -3,6 +3,27 @@ import { isValidLevel } from "@/lib/slugs";
 
 const SUBJECTS = new Set(["physics", "chemistry", "math"]);
 
+function normalizeMatchPart(value: unknown, maxLen = 300): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen)
+    .toLowerCase();
+}
+
+/** Row from `student_lesson_mark_completions` (written by subtopic-engagement API). */
+export type StudentLessonMarkCompletionRow = {
+  board: string;
+  subject: string;
+  class_level: number;
+  topic: string;
+  subtopic: string;
+  level: string;
+  marked_complete_at?: string | null;
+};
+
 export type ChapterQuizRefLite = {
   board: string;
   subject: "physics" | "chemistry" | "math";
@@ -69,10 +90,52 @@ export function getConceptFocusLessonMarkedAtIso(
   return markedAt || null;
 }
 
+export function chapterQuizMatchesLessonMark(
+  ref: ChapterQuizRefLite,
+  mark: StudentLessonMarkCompletionRow
+): boolean {
+  const boardNorm = ref.board.toLowerCase() === "icse" ? "icse" : "cbse";
+  return (
+    normalizeMatchPart(mark.board, 40) === boardNorm &&
+    normalizeMatchPart(mark.subject, 80) === ref.subject &&
+    Number(mark.class_level) === ref.classLevel &&
+    normalizeMatchPart(mark.topic) === normalizeMatchPart(ref.topic) &&
+    normalizeMatchPart(mark.subtopic) === normalizeMatchPart(ref.subtopicName) &&
+    normalizeMatchPart(mark.level, 30) === ref.level
+  );
+}
+
+/** ISO timestamp from normalized `student_lesson_mark_completions` rows. */
+export function getConceptFocusLessonMarkedAtFromLessonMarks(
+  marks: StudentLessonMarkCompletionRow[] | undefined | null,
+  contentJson: unknown
+): string | null {
+  const ref = parseChapterQuizRefFromContentJson(contentJson);
+  if (!ref || !marks?.length) return null;
+  let best: string | null = null;
+  for (const mark of marks) {
+    if (!chapterQuizMatchesLessonMark(ref, mark)) continue;
+    const at = String(mark.marked_complete_at ?? "").trim();
+    if (!at) continue;
+    if (!best) {
+      best = at;
+      continue;
+    }
+    const a = new Date(at).getTime();
+    const b = new Date(best).getTime();
+    if (!Number.isNaN(a) && (Number.isNaN(b) || a >= b)) best = at;
+  }
+  return best;
+}
+
 /** True when the student saved "Mark as complete" for this subtopic (profiles.subtopic_engagement). */
 export function isConceptFocusLessonChecklistComplete(
   subtopicEngagementColumn: unknown,
-  contentJson: unknown
+  contentJson: unknown,
+  lessonMarks?: StudentLessonMarkCompletionRow[] | null
 ): boolean {
-  return Boolean(getConceptFocusLessonMarkedAtIso(subtopicEngagementColumn, contentJson));
+  return Boolean(
+    getConceptFocusLessonMarkedAtIso(subtopicEngagementColumn, contentJson) ||
+      getConceptFocusLessonMarkedAtFromLessonMarks(lessonMarks, contentJson)
+  );
 }

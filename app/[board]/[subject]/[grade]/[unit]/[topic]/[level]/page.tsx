@@ -60,9 +60,14 @@ import {
   getAdvancedQuizSetLockState,
   hasQuestionBankPlanAccess,
   hasTopicReferencesAccess,
+  isTeacherAssignmentQuizSet,
   isTopicQuestionBankUnlocked,
   markTopicQuestionBankUnlocked,
+  parseQuizSetSearchParam,
   resolvePlanTierFromProfile,
+  resolveTeacherAssignmentQuizAccess,
+  TEACHER_ASSIGNMENT_QUIZ_UNLOCK_MESSAGE,
+  TEACHER_SPONSORED_SUBTOPIC_UNLOCK_MESSAGE,
   TOPIC_QUESTION_BANK_UPGRADE_PATH,
   canAccessAdvancedQuizSet,
   type TopicQuestionBankScope,
@@ -186,6 +191,7 @@ import {
   getNonEmptyAdvancedSetIndices,
   hasAdvancedQuestionBankSets,
   isAdvancedMultiSet,
+  isLastNonEmptyAdvancedSet,
   type AdvancedQuizSetIndex,
 } from "@/lib/play/quiz/advancedQuizSets";
 import { getBitsSignature } from "@/lib/play/bits/bitsSignature";
@@ -224,6 +230,7 @@ import { makeSubtopicEngagementStorageKey } from "@/lib/curriculum/subtopicEngag
 import { isSubtopicLessonCompleteAtAdvanced } from "@/lib/curriculum/lessonCompletionRollup";
 import { fetchAdvancedLessonCompletionKeys } from "@/lib/curriculum/lessonCompletionClient";
 import { dispatchClassroomAssignmentProgressChanged } from "@/lib/classroom/assignmentProgressSync";
+import { isValidAssignmentPostId } from "@/lib/teacherPortal/assignmentPostIdTemplate";
 import SubtopicWheelDialog from "@/components/SubtopicWheelDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -542,6 +549,8 @@ function isAdminRole(role: string | undefined | null): boolean {
 
 /** Subtopic focus timer: 10 minutes */
 const FOCUS_TIMER_INITIAL_SECONDS = 600;
+/** Persist running lesson timer at most every 30s (tab-hide still saves immediately). */
+const LESSON_FOCUS_TIMER_PERSIST_INTERVAL_MS = 30_000;
 
 const TOPIC_PROGRESS_CHECKLIST = [
   {
@@ -613,6 +622,20 @@ function TopicPageInner() {
   /** Primitives only — do not put `searchParams` in effect deps (new object ref most renders; wiped InstaCue lesson progress to 0/32). */
   const quizSetParam = searchParams.get("quizSet");
   const postIdParam = searchParams.get("postId");
+  const classroomIdParam = searchParams.get("classroomId")?.trim() ?? "";
+  const teacherAssignmentQuiz = useMemo(
+    () =>
+      resolveTeacherAssignmentQuizAccess({
+        panel: panelParam,
+        postId: postIdParam,
+        quizSetParam: quizSetParam,
+      }),
+    [panelParam, postIdParam, quizSetParam]
+  );
+  const isClassroomAssignmentLesson = useMemo(
+    () => Boolean(classroomIdParam) && isValidAssignmentPostId(postIdParam),
+    [classroomIdParam, postIdParam]
+  );
   const onboardingLessonsParam = searchParams.get(LESSONS_ONBOARDING_QUERY);
   type PanelTab = "instacue" | "quiz" | "numerals" | "concepts";
   const initialPanelTab: PanelTab =
@@ -674,8 +697,12 @@ function TopicPageInner() {
   const lastLessonTimerScopeRef = useRef<string>("");
   const focusTimerSecondsRef = useRef(focusTimerSeconds);
   const focusTimerRunningRef = useRef(focusTimerRunning);
+  const focusTimerEverStartedRef = useRef(focusTimerEverStarted);
+  const focusTimerNaturallyFinishedRef = useRef(focusTimerNaturallyFinished);
   /** Remember if countdown was running before tab blur so we can resume on focus. */
   const lessonTimerRunningBeforeHideRef = useRef(false);
+  /** Auto-start focus timer once per subtopic visit (manual pause still allowed). */
+  const focusTimerAutoStartedForScopeRef = useRef<string>("");
 
   useEffect(() => {
     setRightPanelTab(initialPanelTab);
@@ -857,7 +884,9 @@ function TopicPageInner() {
   useEffect(() => {
     focusTimerSecondsRef.current = focusTimerSeconds;
     focusTimerRunningRef.current = focusTimerRunning;
-  }, [focusTimerSeconds, focusTimerRunning]);
+    focusTimerEverStartedRef.current = focusTimerEverStarted;
+    focusTimerNaturallyFinishedRef.current = focusTimerNaturallyFinished;
+  }, [focusTimerSeconds, focusTimerRunning, focusTimerEverStarted, focusTimerNaturallyFinished]);
 
   useEffect(() => {
     if (focusTimerRunning) setFocusTimerEverStarted(true);
@@ -878,12 +907,6 @@ function TopicPageInner() {
     return () => clearInterval(interval);
   }, [isOverview, focusTimerRunning]);
 
-  useEffect(() => {
-    if (progressQueueOpen && !isOverview && focusTimerSeconds > 0) {
-      setFocusTimerRunning(true);
-    }
-  }, [progressQueueOpen, isOverview, focusTimerSeconds]);
-
   // 3-column subtopic dashboard: left theory nav + main + right InstaCue/Quiz/Numerals/Concepts
   const isSubtopicDashboardLayout = !isOverview;
   // Approved topic-hub layout override for all overview pages.
@@ -902,6 +925,57 @@ function TopicPageInner() {
 
   const planTier = useMemo(() => resolvePlanTierFromProfile(profile), [profile]);
   const hasPaidQuestionBank = hasQuestionBankPlanAccess(planTier);
+
+  const [sponsoredFullSubtopic, setSponsoredFullSubtopic] = useState(false);
+  const [subtopicUnlockMessage, setSubtopicUnlockMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!classroomIdParam || !isValidAssignmentPostId(postIdParam) || !session?.access_token) {
+      setSponsoredFullSubtopic(false);
+      setSubtopicUnlockMessage(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/classroom/${classroomIdParam}/posts/${postIdParam!.trim()}/subtopic-unlock`,
+          {
+            credentials: "include",
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          }
+        );
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { unlocked?: boolean; message?: string };
+        if (cancelled) return;
+        setSponsoredFullSubtopic(data.unlocked === true);
+        setSubtopicUnlockMessage(
+          typeof data.message === "string" && data.message.trim()
+            ? data.message.trim()
+            : data.unlocked
+              ? TEACHER_SPONSORED_SUBTOPIC_UNLOCK_MESSAGE
+              : null
+        );
+      } catch {
+        if (!cancelled) {
+          setSponsoredFullSubtopic(false);
+          setSubtopicUnlockMessage(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [classroomIdParam, postIdParam, session?.access_token]);
+
+  const assignmentQuizOnlyAccess = useMemo(
+    () =>
+      !sponsoredFullSubtopic &&
+      teacherAssignmentQuiz.active &&
+      teacherAssignmentQuiz.assignedSet != null &&
+      !hasPaidQuestionBank,
+    [teacherAssignmentQuiz, hasPaidQuestionBank, sponsoredFullSubtopic]
+  );
 
   const questionBankScope = useMemo((): TopicQuestionBankScope | null => {
     if (!profile?.id || !pathname) return null;
@@ -958,8 +1032,9 @@ function TopicPageInner() {
         plan: planTier,
         questionBankUnlocked,
         isAssignmentSet,
+        sponsoredFullSubtopic,
       }),
-    [planTier, questionBankUnlocked]
+    [planTier, questionBankUnlocked, sponsoredFullSubtopic]
   );
 
   const boardNormalizedForLessons = useMemo(() => String(board).trim().toLowerCase(), [board]);
@@ -1286,6 +1361,19 @@ function TopicPageInner() {
   const showPreviousQuizAttempt = Boolean(displayBitsAttempt);
 
   const handleStartQuizSet1 = useCallback(() => {
+    if (
+      teacherAssignmentQuiz.active &&
+      teacherAssignmentQuiz.assignedSet != null &&
+      teacherAssignmentQuiz.assignedSet > 1
+    ) {
+      const assigned = teacherAssignmentQuiz.assignedSet;
+      setActiveQuizSet(assigned);
+      const b = getAdvancedSetBounds(dbBitsQuestions.length, assigned);
+      setBitsCurrentIdx(b.start);
+      setBitsReviewMode(false);
+      setBitsDialogOpen(true);
+      return;
+    }
     if (!useAdvancedSetsUi) {
       if (showPreviousQuizAttempt && bitsAttempt) {
         setBitsCurrentIdx(0);
@@ -1302,7 +1390,13 @@ function TopicPageInner() {
     setBitsCurrentIdx(b1.start);
     setBitsReviewMode(false);
     setBitsDialogOpen(true);
-  }, [useAdvancedSetsUi, showPreviousQuizAttempt, bitsAttempt, dbBitsQuestions.length]);
+  }, [
+    useAdvancedSetsUi,
+    showPreviousQuizAttempt,
+    bitsAttempt,
+    dbBitsQuestions.length,
+    teacherAssignmentQuiz,
+  ]);
 
   const handleQuestionBankButtonClick = useCallback(() => {
     if (!hasPaidQuestionBank) {
@@ -1313,24 +1407,42 @@ function TopicPageInner() {
   }, [hasPaidQuestionBank, unlockTopicQuestionBank]);
 
   const quizBankSetRows = useMemo((): TopicQuizBankSetRow[] => {
-    if (!useAdvancedSetsUi || !hasQuestionBankSets || !hasPaidQuestionBank || !questionBankUnlocked) {
+    if (!useAdvancedSetsUi || !hasQuestionBankSets) {
       return [];
     }
-    return ADVANCED_QUIZ_BANK_SET_INDICES.flatMap((s): TopicQuizBankSetRow[] => {
+    const showStandardBank =
+      (hasPaidQuestionBank && questionBankUnlocked) || sponsoredFullSubtopic;
+    const assignmentSet = teacherAssignmentQuiz.assignedSet;
+    const showAssignmentOnly =
+      !sponsoredFullSubtopic &&
+      teacherAssignmentQuiz.active &&
+      assignmentSet != null &&
+      assignmentSet > 1 &&
+      !showStandardBank;
+    if (!showStandardBank && !showAssignmentOnly) {
+      return [];
+    }
+    const indicesToShow = showStandardBank
+      ? ADVANCED_QUIZ_BANK_SET_INDICES
+      : assignmentSet != null && assignmentSet > 1
+        ? [assignmentSet]
+        : [];
+    return indicesToShow.flatMap((s): TopicQuizBankSetRow[] => {
         const len = getAdvancedSetBounds(dbBitsQuestions.length, s).length;
         if (len === 0) return [];
-        const isAssignmentSet =
-          searchParams.get("panel") === "quiz" &&
-          searchParams.get("quizSet") === String(s) &&
-          !!searchParams.get("postId");
+        const isAssignmentSet = isTeacherAssignmentQuizSet(s, teacherAssignmentQuiz);
         const { locked, reason: lockReason } = resolveAdvancedQuizSetLock(s, isAssignmentSet);
         const attempt = bitsAttemptBySet[s];
         const lockLabel =
-          lockReason === "needs_starter_or_pro"
-            ? "Question bank · Premium"
-            : lockReason === "needs_question_bank_unlock"
-              ? "Question bank · unlock above"
-              : undefined;
+          lockReason === "sponsored_subtopic"
+            ? "Teacher assignment · full subtopic"
+            : lockReason === "assignment"
+              ? "Teacher assignment · unlocked"
+              : lockReason === "needs_starter_or_pro"
+                ? "Question bank · Premium"
+                : lockReason === "needs_question_bank_unlock"
+                  ? "Question bank · unlock above"
+                  : undefined;
         const sublabel = attempt
           ? formatQuizSetScoreSublabel(attempt)
           : formatQuizSetPendingSublabel(len, { locked, lockLabel });
@@ -1367,8 +1479,9 @@ function TopicPageInner() {
     hasQuestionBankSets,
     hasPaidQuestionBank,
     questionBankUnlocked,
+    sponsoredFullSubtopic,
+    teacherAssignmentQuiz,
     dbBitsQuestions.length,
-    searchParams,
     resolveAdvancedQuizSetLock,
     unlockTopicQuestionBank,
     bitsAttemptBySet,
@@ -1443,12 +1556,13 @@ function TopicPageInner() {
     setBitsDialogOpen(false);
     setBitsReviewMode(false);
     setBitsAttemptBySet({});
-    const qs = quizSetParam;
+    const assignedSet = parseQuizSetSearchParam(quizSetParam);
     const fromAssignmentLink =
       panelParam === "quiz" &&
       difficultyLevel === "advanced" &&
-      (qs === "1" || qs === "2" || qs === "3");
-    setActiveQuizSet(fromAssignmentLink ? (Number(qs) as AdvancedQuizSetIndex) : 1);
+      isValidAssignmentPostId(postIdParam) &&
+      assignedSet != null;
+    setActiveQuizSet(fromAssignmentLink ? assignedSet : 1);
     setInstaCueValidatedIndices(new Set());
     setInstaCueNavIndices(new Set());
     setFormulaByIdx({});
@@ -1474,17 +1588,18 @@ function TopicPageInner() {
     const openQuizDirect = searchParams.get("openQuiz") === "1";
     if (panel !== "quiz") return;
 
-    const fromAssignment = Boolean(postId) && (qs === "1" || qs === "2" || qs === "3");
+    const assignedSet = parseQuizSetSearchParam(qs);
+    const fromAssignment = isValidAssignmentPostId(postId) && assignedSet != null;
     const fromDirectStart = openQuizDirect;
     if (!fromAssignment && !fromDirectStart) return;
 
-    const setNum: AdvancedQuizSetIndex =
-      qs === "1" || qs === "2" || qs === "3" ? (Number(qs) as AdvancedQuizSetIndex) : 1;
+    const setNum: AdvancedQuizSetIndex = assignedSet ?? 1;
     if (
-      !fromAssignment &&
       !canAccessAdvancedQuizSet(setNum, {
         plan: planTier,
         questionBankUnlocked,
+        isAssignmentSet: fromAssignment,
+        sponsoredFullSubtopic,
       })
     ) {
       return;
@@ -1494,7 +1609,7 @@ function TopicPageInner() {
     setBitsCurrentIdx(b.start);
     setBitsDialogOpen(true);
     hasAutoOpenedQuizRef.current = true;
-  }, [searchParams, difficultyLevel, dbBitsQuestions.length, planTier, questionBankUnlocked]);
+  }, [searchParams, difficultyLevel, dbBitsQuestions.length, planTier, questionBankUnlocked, sponsoredFullSubtopic]);
 
   useEffect(() => {
     if (!bitsDialogOpen || dbBitsQuestions.length === 0) return;
@@ -1528,8 +1643,8 @@ function TopicPageInner() {
   }, [router, toast]);
 
   const hasReferencesAccess = useMemo(
-    () => hasTopicReferencesAccess(planTier) || canEditTheory,
-    [planTier, canEditTheory],
+    () => hasTopicReferencesAccess(planTier) || canEditTheory || sponsoredFullSubtopic,
+    [planTier, canEditTheory, sponsoredFullSubtopic]
   );
 
   const openReferencesDialog = useCallback(() => {
@@ -1912,9 +2027,40 @@ function TopicPageInner() {
         }>;
       }
     ) => {
-      const postId = searchParams.get("postId");
-      const classroomId = searchParams.get("classroomId");
-      if (!postId || !classroomId) return;
+      const classroomId = searchParams.get("classroomId")?.trim() ?? "";
+      if (!classroomId) return;
+
+      let postId = searchParams.get("postId")?.trim() ?? "";
+      let chapterQuizTaskId: string | null = null;
+
+      if (!isValidAssignmentPostId(postId) && topicNode && subtopicName.trim()) {
+        try {
+          const qs = new URLSearchParams({
+            subject: topicNode.subject,
+            classLevel: String(topicNode.classLevel),
+            topic: topicNode.topic,
+            subtopicName: subtopicName.trim(),
+            level: difficultyLevel,
+          });
+          if (activeQuizSet >= 1) qs.set("quizSet", String(activeQuizSet));
+          const resolveRes = await fetch(
+            `/api/classroom/${classroomId}/resolve-quiz-assignment?${qs.toString()}`,
+            { credentials: "include" }
+          );
+          if (resolveRes.ok) {
+            const data = (await resolveRes.json()) as { postId?: string; taskId?: string };
+            if (isValidAssignmentPostId(data.postId)) postId = data.postId!.trim();
+            if (typeof data.taskId === "string" && data.taskId.trim()) {
+              chapterQuizTaskId = data.taskId.trim();
+            }
+          }
+        } catch {
+          // Fall through — invalid postId means we cannot report yet.
+        }
+      }
+
+      if (!isValidAssignmentPostId(postId)) return;
+
       try {
         const {
           data: { session },
@@ -1936,13 +2082,23 @@ function TopicPageInner() {
           }
         );
         if (res.ok) {
+          if (chapterQuizTaskId) {
+            void fetch(`/api/classroom/${classroomId}/posts/${postId}/task-progress`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ taskId: chapterQuizTaskId, completed: true }),
+            }).catch(() => {});
+          }
           dispatchClassroomAssignmentProgressChanged({ classroomId, postId });
         }
       } catch (e) {
         console.error("Failed to report assignment score", e);
       }
     },
-    [searchParams]
+    [searchParams, topicNode, subtopicName, difficultyLevel, activeQuizSet]
   );
 
   const handlePublishQuizPost = useCallback(async () => {
@@ -3041,12 +3197,23 @@ function TopicPageInner() {
     }
     if (lastLessonTimerScopeRef.current === lessonTimerScopeKey) return;
     lastLessonTimerScopeRef.current = lessonTimerScopeKey;
+    focusTimerAutoStartedForScopeRef.current = "";
     setFocusTimerSeconds(FOCUS_TIMER_INITIAL_SECONDS);
     setFocusTimerRunning(false);
     setFocusTimerNaturallyFinished(false);
     setFocusTimerEverStarted(false);
     setLessonChecklistMarkedCompleteAt(null);
   }, [lessonTimerScopeKey, isOverview]);
+
+  /** Start the 10-minute focus timer as soon as the learner lands on a subtopic (Progress panel optional). */
+  useEffect(() => {
+    if (isOverview || !lessonTimerScopeKey) return;
+    if (focusTimerNaturallyFinished || focusTimerSeconds <= 0) return;
+    if (focusTimerAutoStartedForScopeRef.current === lessonTimerScopeKey) return;
+    focusTimerAutoStartedForScopeRef.current = lessonTimerScopeKey;
+    setFocusTimerRunning(true);
+    setFocusTimerEverStarted(true);
+  }, [isOverview, lessonTimerScopeKey, focusTimerSeconds, focusTimerNaturallyFinished]);
 
   /** One deduped daily checklist (b) credit per subtopic key; revoked on Reset so it cannot stack. */
   const syncDailyChecklistLessonBCredit = useCallback(
@@ -3110,12 +3277,13 @@ function TopicPageInner() {
             setBitsAttemptBySet({});
           }
         } else {
+          const setIndices = getNonEmptyAdvancedSetIndices(total);
           const attempts = await Promise.all(
-            ([1, 2, 3] as const).map((set) => fetchBitsAttempt({ ...scopeBase, set }))
+            setIndices.map((set) => fetchBitsAttempt({ ...scopeBase, set }))
           );
           if (cancelled) return;
           const next: Partial<Record<AdvancedQuizSetIndex, BitsAttemptRecord | null>> = {};
-          ([1, 2, 3] as const).forEach((s, i) => {
+          setIndices.forEach((s, i) => {
             const a = attempts[i];
             if (a && a.bitsSignature === bitsSignature) {
               next[s] = a;
@@ -3127,6 +3295,7 @@ function TopicPageInner() {
 
         if (!engagementScope || !session?.access_token) return;
         if (engagementHydratedRef.current === bitsSignature) return;
+        const timerScopeKey = makeSubtopicEngagementStorageKey(engagementScope);
 
         try {
           const e = await fetchSubtopicEngagement(engagementScope);
@@ -3179,22 +3348,32 @@ function TopicPageInner() {
               0,
               Math.min(FOCUS_TIMER_INITIAL_SECONDS, Math.round(lt.secondsRemaining))
             );
-            const running = Boolean(lt.running) && sec > 0;
-            setFocusTimerSeconds(sec);
-            setFocusTimerRunning(running);
             const hasStrictEverStarted = "everStarted" in lt;
-            if (hasStrictEverStarted) {
-              setFocusTimerEverStarted(Boolean(lt.everStarted));
-              setFocusTimerNaturallyFinished(
-                Boolean(lt.everStarted) && sec === 0 && !Boolean(lt.running)
-              );
+            const naturallyDone = hasStrictEverStarted
+              ? Boolean(lt.everStarted) && sec === 0 && !Boolean(lt.running)
+              : sec === 0 && !Boolean(lt.running);
+            setFocusTimerSeconds(sec);
+            setFocusTimerEverStarted(
+              hasStrictEverStarted
+                ? Boolean(lt.everStarted)
+                : sec < FOCUS_TIMER_INITIAL_SECONDS || Boolean(lt.running)
+            );
+            setFocusTimerNaturallyFinished(naturallyDone);
+            if (!naturallyDone && sec > 0) {
+              setFocusTimerRunning(true);
+              setFocusTimerEverStarted(true);
+              focusTimerAutoStartedForScopeRef.current = timerScopeKey;
             } else {
-              setFocusTimerEverStarted(sec < FOCUS_TIMER_INITIAL_SECONDS || running);
-              setFocusTimerNaturallyFinished(sec === 0 && !Boolean(lt.running));
+              setFocusTimerRunning(false);
             }
           } else {
             setFocusTimerNaturallyFinished(false);
             setFocusTimerEverStarted(false);
+            if (focusTimerSecondsRef.current > 0) {
+              setFocusTimerRunning(true);
+              setFocusTimerEverStarted(true);
+              focusTimerAutoStartedForScopeRef.current = timerScopeKey;
+            }
           }
         } catch {
           /* column may be missing on older DBs */
@@ -3501,7 +3680,7 @@ function TopicPageInner() {
         : Math.min(total, Math.max(bitsVisitedIndices.size, bitsFilledQuestionCount));
     }
     let done = 0;
-    for (const s of [1, 2, 3] as const) {
+    for (const s of getNonEmptyAdvancedSetIndices(total)) {
       const { start, end, length: len } = getAdvancedSetBounds(total, s);
       if (len === 0) continue;
       const att = bitsAttemptBySet[s];
@@ -3635,12 +3814,48 @@ function TopicPageInner() {
     formulaChecklistProgress >= formulaChecklistTotal &&
     conceptsChecklistProgress >= conceptsChecklistTotal;
 
+  const incompleteChecklistHints = useMemo(() => {
+    const hints: string[] = [];
+    if (!focusTimerNaturallyFinished) {
+      hints.push("Wait for the 10-minute timer to reach 0:00");
+    }
+    if (bitsChecklistTotal > 0 && bitsChecklistProgress < bitsChecklistTotal) {
+      hints.push(`Quiz — answer all ${bitsChecklistTotal} questions (${bitsChecklistProgress}/${bitsChecklistTotal} so far)`);
+    }
+    if (instaCueChecklistTotal > 0 && instaCueChecklistProgress < instaCueChecklistTotal) {
+      hints.push(
+        `Insta Que — view all ${instaCueChecklistTotal} cards (${instaCueChecklistProgress}/${instaCueChecklistTotal})`
+      );
+    }
+    if (formulaChecklistTotal > 0 && formulaChecklistProgress < formulaChecklistTotal) {
+      hints.push(
+        `Numerals — practice all ${formulaChecklistTotal} formulae (${formulaChecklistProgress}/${formulaChecklistTotal})`
+      );
+    }
+    if (conceptsChecklistTotal > 0 && conceptsChecklistProgress < conceptsChecklistTotal) {
+      hints.push(
+        `Concepts — browse all ${conceptsChecklistTotal} pages (${conceptsChecklistProgress}/${conceptsChecklistTotal})`
+      );
+    }
+    return hints;
+  }, [
+    focusTimerNaturallyFinished,
+    bitsChecklistTotal,
+    bitsChecklistProgress,
+    instaCueChecklistTotal,
+    instaCueChecklistProgress,
+    formulaChecklistTotal,
+    formulaChecklistProgress,
+    conceptsChecklistTotal,
+    conceptsChecklistProgress,
+  ]);
+
   const bitsAllSetsSubmitted = useMemo(() => {
     if (!useAdvancedSetsUi) return Boolean(bitsAttempt);
     const n = dbBitsQuestions.length;
-    for (const s of [1, 2, 3] as const) {
-      const { length: len } = getAdvancedSetBounds(n, s);
-      if (len === 0) continue;
+    const setIndices = getNonEmptyAdvancedSetIndices(n);
+    if (setIndices.length === 0) return false;
+    for (const s of setIndices) {
       if (!bitsAttemptBySet[s]) return false;
     }
     return true;
@@ -3660,7 +3875,7 @@ function TopicPageInner() {
     }
     let c = 0;
     let t = 0;
-    for (const s of [1, 2, 3] as const) {
+    for (const s of getNonEmptyAdvancedSetIndices(dbBitsQuestions.length)) {
       const a = bitsAttemptBySet[s];
       if (a) {
         c += a.correctCount;
@@ -3669,7 +3884,7 @@ function TopicPageInner() {
     }
     if (t === 0) return null;
     return { correct: c, total: t, pct: Math.round((c / t) * 100) };
-  }, [useAdvancedSetsUi, bitsAttempt, bitsAttemptBySet]);
+  }, [useAdvancedSetsUi, bitsAttempt, bitsAttemptBySet, dbBitsQuestions.length]);
 
   const setResultsHeading = useMemo(() => {
     if (!useAdvancedSetsUi) return "Previous submission found";
@@ -3678,6 +3893,7 @@ function TopicPageInner() {
 
   const nextQuizSetNumber = useMemo((): AdvancedQuizSetIndex | null => {
     if (!useAdvancedSetsUi || !displayBitsAttempt) return null;
+    if (assignmentQuizOnlyAccess) return null;
     const n = dbBitsQuestions.length;
     if (activeQuizSet >= 3) return null;
     const next = (activeQuizSet + 1) as AdvancedQuizSetIndex;
@@ -3686,6 +3902,8 @@ function TopicPageInner() {
       !canAccessAdvancedQuizSet(next, {
         plan: planTier,
         questionBankUnlocked,
+        isAssignmentSet: isTeacherAssignmentQuizSet(next, teacherAssignmentQuiz),
+        sponsoredFullSubtopic,
       })
     ) {
       return null;
@@ -3694,10 +3912,13 @@ function TopicPageInner() {
   }, [
     useAdvancedSetsUi,
     displayBitsAttempt,
+    assignmentQuizOnlyAccess,
     activeQuizSet,
     dbBitsQuestions.length,
     planTier,
     questionBankUnlocked,
+    teacherAssignmentQuiz,
+    sponsoredFullSubtopic,
   ]);
 
   const buildEngagementSnapshot = useCallback((): SubtopicEngagementSnapshot | null => {
@@ -3750,15 +3971,19 @@ function TopicPageInner() {
     const flipped = Array.from(instaCueValidatedIndices.values()).sort((a, b) => a - b);
     const conceptsPages = Array.from(viewedConceptPages.values()).sort((a, b) => a - b);
     const lessonAt = lessonChecklistMarkedCompleteAt;
+    const timerSeconds = focusTimerSecondsRef.current;
+    const timerRunning = focusTimerRunningRef.current;
+    const timerEverStarted = focusTimerEverStartedRef.current;
+    const timerNaturallyFinished = focusTimerNaturallyFinishedRef.current;
     const lessonFocusTimerSnap =
-      focusTimerRunning ||
-      focusTimerSeconds !== FOCUS_TIMER_INITIAL_SECONDS ||
-      focusTimerNaturallyFinished ||
-      focusTimerEverStarted
+      timerRunning ||
+      timerSeconds !== FOCUS_TIMER_INITIAL_SECONDS ||
+      timerNaturallyFinished ||
+      timerEverStarted
         ? {
-            secondsRemaining: Math.max(0, Math.min(FOCUS_TIMER_INITIAL_SECONDS, focusTimerSeconds)),
-            running: focusTimerRunning,
-            everStarted: focusTimerEverStarted || focusTimerRunning,
+            secondsRemaining: Math.max(0, Math.min(FOCUS_TIMER_INITIAL_SECONDS, timerSeconds)),
+            running: timerRunning,
+            everStarted: timerEverStarted || timerRunning,
           }
         : undefined;
     return {
@@ -3791,10 +4016,6 @@ function TopicPageInner() {
     bitsSignature,
     useAdvancedSetsUi,
     activeQuizSet,
-    focusTimerSeconds,
-    focusTimerRunning,
-    focusTimerNaturallyFinished,
-    focusTimerEverStarted,
     lessonChecklistMarkedCompleteAt,
   ]);
 
@@ -3847,6 +4068,21 @@ function TopicPageInner() {
     void saveSubtopicEngagement(engagementScope, snap).catch(() => {});
   }, [buildEngagementSnapshot, engagementScope, session?.access_token, isOverview]);
 
+  const buildEngagementSnapshotRef = useRef(buildEngagementSnapshot);
+  const engagementScopeRef = useRef(engagementScope);
+  const engagementSessionRef = useRef(session?.access_token);
+  const isOverviewEngagementRef = useRef(isOverview);
+
+  useEffect(() => {
+    buildEngagementSnapshotRef.current = buildEngagementSnapshot;
+  }, [buildEngagementSnapshot]);
+
+  useEffect(() => {
+    engagementScopeRef.current = engagementScope;
+    engagementSessionRef.current = session?.access_token;
+    isOverviewEngagementRef.current = isOverview;
+  }, [engagementScope, session?.access_token, isOverview]);
+
   useEffect(() => {
     if (!engagementScope || !session?.access_token || isOverview) return;
     if (engagementSaveTimerRef.current) clearTimeout(engagementSaveTimerRef.current);
@@ -3859,13 +4095,47 @@ function TopicPageInner() {
       if (engagementSaveTimerRef.current) {
         clearTimeout(engagementSaveTimerRef.current);
         engagementSaveTimerRef.current = null;
-        const snap = buildEngagementSnapshot();
-        if (snap) {
-          void saveSubtopicEngagement(engagementScope, snap).catch(() => {});
-        }
       }
     };
   }, [buildEngagementSnapshot, engagementScope, session?.access_token, isOverview]);
+
+  /** Flush engagement on leave/navigation — not on every debounce dependency tick. */
+  useEffect(() => {
+    return () => {
+      const scope = engagementScopeRef.current;
+      const token = engagementSessionRef.current;
+      if (!scope || !token || isOverviewEngagementRef.current) return;
+      const snap = buildEngagementSnapshotRef.current();
+      if (!snap) return;
+      void saveSubtopicEngagement(scope, snap).catch(() => {});
+    };
+  }, []);
+
+  /** Running lesson timer: coarse persist so refresh does not lose minutes of progress. */
+  useEffect(() => {
+    if (isOverview || !focusTimerRunning) return;
+    if (!engagementScope || !session?.access_token) return;
+    const interval = setInterval(() => {
+      const snap = buildEngagementSnapshotRef.current();
+      if (!snap) return;
+      void saveSubtopicEngagement(engagementScope, snap).catch(() => {});
+    }, LESSON_FOCUS_TIMER_PERSIST_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [isOverview, focusTimerRunning, engagementScope, session?.access_token]);
+
+  useEffect(() => {
+    if (!focusTimerNaturallyFinished) return;
+    if (!engagementScope || !session?.access_token || isOverview) return;
+    const snap = buildEngagementSnapshot();
+    if (!snap) return;
+    void saveSubtopicEngagement(engagementScope, snap).catch(() => {});
+  }, [
+    focusTimerNaturallyFinished,
+    buildEngagementSnapshot,
+    engagementScope,
+    session?.access_token,
+    isOverview,
+  ]);
 
   /** Other browser tab: pause countdown and persist remaining seconds; return to tab: resume if it was running. */
   useEffect(() => {
@@ -3880,7 +4150,11 @@ function TopicPageInner() {
         ...snap,
         lessonFocusTimer: lt
           ? { ...lt, secondsRemaining: sec, running: false }
-          : { secondsRemaining: sec, running: false, everStarted: focusTimerEverStarted },
+          : {
+              secondsRemaining: sec,
+              running: false,
+              everStarted: focusTimerEverStartedRef.current,
+            },
         updatedAt: new Date().toISOString(),
       }).catch(() => {});
     };
@@ -3912,7 +4186,6 @@ function TopicPageInner() {
     engagementScope,
     session?.access_token,
     buildEngagementSnapshot,
-    focusTimerEverStarted,
   ]);
 
   // Refs for scroll-sync between theory and concepts panel
@@ -4460,16 +4733,29 @@ function TopicPageInner() {
                               </div>
                             ) : item.number === 4 ? (
                               <div className="shrink-0 flex flex-wrap items-center justify-end gap-1.5">
-                                <span className="rounded-md border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-[11px] font-bold text-amber-300 tabular-nums">
-                                  {formulaChecklistProgress}/{formulaChecklistTotal}
-                                </span>
-                                {formulaChecklistTotal > 0 &&
-                                formulaChecklistProgress >= formulaChecklistTotal ? (
-                                  <span className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 text-[11px] font-bold text-emerald-300">
-                                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-                                    Done
-                                  </span>
-                                ) : null}
+                                {formulaChecklistTotal === 0 ? (
+                                  <>
+                                    <span className="rounded-md border border-muted-foreground/30 bg-muted/20 px-2 py-1 text-[11px] font-bold text-muted-foreground tabular-nums">
+                                      N/A
+                                    </span>
+                                    <span className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 text-[11px] font-bold text-emerald-300">
+                                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                                      Skipped
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="rounded-md border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-[11px] font-bold text-amber-300 tabular-nums">
+                                      {formulaChecklistProgress}/{formulaChecklistTotal}
+                                    </span>
+                                    {formulaChecklistProgress >= formulaChecklistTotal ? (
+                                      <span className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 text-[11px] font-bold text-emerald-300">
+                                        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                                        Done
+                                      </span>
+                                    ) : null}
+                                  </>
+                                )}
                               </div>
                             ) : item.number === 5 ? (
                               <div className="shrink-0 flex flex-wrap items-center justify-end gap-1.5">
@@ -4509,7 +4795,9 @@ function TopicPageInner() {
                             toast({
                               title: "Complete all progress first",
                               description:
-                                "Finish every checklist step above (timer, quiz, Insta Que, numerals, concepts). Then mark as complete.",
+                                incompleteChecklistHints.length > 0
+                                  ? incompleteChecklistHints.join(" · ")
+                                  : "Finish every checklist step above, then mark as complete.",
                               className:
                                 "border-2 border-primary shadow-xl shadow-primary/25 ring-2 ring-primary/50 ring-offset-2 ring-offset-background",
                               duration: 5500,
@@ -4547,7 +4835,11 @@ function TopicPageInner() {
                               );
                               const assignPostId = searchParams.get("postId");
                               const assignClassroomId = searchParams.get("classroomId");
-                              if (assignPostId && assignClassroomId && session?.access_token) {
+                              if (
+                                isValidAssignmentPostId(assignPostId) &&
+                                assignClassroomId &&
+                                session?.access_token
+                              ) {
                                 try {
                                   const progRes = await fetch(
                                     `/api/classroom/${assignClassroomId}/posts/${assignPostId}/task-progress`,
@@ -4571,6 +4863,34 @@ function TopicPageInner() {
                                       "Assignment task-progress sync:",
                                       errJson.error ?? progRes.status
                                     );
+                                  }
+                                  try {
+                                    const rewardRes = await fetch(
+                                      `/api/classroom/${assignClassroomId}/posts/${assignPostId}/task-progress`,
+                                      {
+                                        headers: {
+                                          Authorization: `Bearer ${session.access_token}`,
+                                        },
+                                      }
+                                    );
+                                    if (rewardRes.ok) {
+                                      const rewardJson = (await rewardRes.json()) as {
+                                        completionReward?: {
+                                          grantStatus?: string;
+                                          amount?: number;
+                                        };
+                                      };
+                                      const cr = rewardJson.completionReward;
+                                      if (cr?.grantStatus === "paid" && cr.amount) {
+                                        toast({
+                                          title: `+${cr.amount} RDM earned`,
+                                          description:
+                                            "Your teacher's completion reward was added to your wallet.",
+                                        });
+                                      }
+                                    }
+                                  } catch {
+                                    /* non-fatal */
                                   }
                                 } catch (e) {
                                   console.warn("Assignment task-progress sync failed", e);
@@ -6513,8 +6833,32 @@ function TopicPageInner() {
                           }
                           set1Sublabel={quizSet1CardMeta.sublabel}
                           onStartSet1={handleStartQuizSet1}
+                          hideSet1={
+                            assignmentQuizOnlyAccess &&
+                            teacherAssignmentQuiz.assignedSet != null &&
+                            teacherAssignmentQuiz.assignedSet > 1
+                          }
+                          assignmentUnlock={
+                            sponsoredFullSubtopic
+                              ? {
+                                  fullSubtopic: true,
+                                  message:
+                                    subtopicUnlockMessage ??
+                                    TEACHER_SPONSORED_SUBTOPIC_UNLOCK_MESSAGE,
+                                }
+                              : assignmentQuizOnlyAccess && teacherAssignmentQuiz.assignedSet
+                                ? {
+                                    setIndex: teacherAssignmentQuiz.assignedSet,
+                                    message: TEACHER_ASSIGNMENT_QUIZ_UNLOCK_MESSAGE,
+                                  }
+                                : undefined
+                          }
                           showQuestionBank={
-                            useAdvancedSetsUi && hasQuestionBankSets && !questionBankUnlocked
+                            useAdvancedSetsUi &&
+                            hasQuestionBankSets &&
+                            !questionBankUnlocked &&
+                            !assignmentQuizOnlyAccess &&
+                            !sponsoredFullSubtopic
                           }
                           questionBankUpsellOpen={questionBankUpsellOpen}
                           onQuestionBankClick={handleQuestionBankButtonClick}
@@ -6570,7 +6914,12 @@ function TopicPageInner() {
                               </MathText>
                             </DialogTitle>
                             <DialogDescription className="text-xs">
-                              Test your understanding
+                              {sponsoredFullSubtopic
+                                ? subtopicUnlockMessage ??
+                                  TEACHER_SPONSORED_SUBTOPIC_UNLOCK_MESSAGE
+                                : assignmentQuizOnlyAccess && teacherAssignmentQuiz.assignedSet
+                                  ? `Teacher assignment · Set ${teacherAssignmentQuiz.assignedSet} only`
+                                  : "Test your understanding"}
                             </DialogDescription>
                           </DialogHeader>
                           <div className="min-w-0 max-w-full space-y-3">
@@ -6704,6 +7053,7 @@ function TopicPageInner() {
                                   )}
                                 </div>
                                 {useAdvancedSetsUi &&
+                                !assignmentQuizOnlyAccess &&
                                 (activeQuizSet > 1 || nextQuizSetNumber !== null) ? (
                                   <div className="flex w-full flex-row gap-2 pt-1">
                                     {activeQuizSet > 1 ? (
@@ -7262,9 +7612,13 @@ function TopicPageInner() {
                                                 description: `Correct: ${correctCount}, Wrong: ${wrongCount}`,
                                               });
                                               if (
-                                                activeQuizSet === 3 &&
+                                                isLastNonEmptyAdvancedSet(
+                                                  dbBitsQuestions.length,
+                                                  activeQuizSet
+                                                ) &&
                                                 topicNode &&
-                                                subtopicName
+                                                subtopicName &&
+                                                !isClassroomAssignmentLesson
                                               ) {
                                                 try {
                                                   const reward =
@@ -7293,9 +7647,20 @@ function TopicPageInner() {
                                                     });
                                                   } else if (
                                                     reward.reason &&
-                                                    reward.reason !== "below_threshold" &&
-                                                    reward.reason !== "not_multiset_advanced" &&
-                                                    reward.reason !== "content_not_found"
+                                                    ![
+                                                      "below_threshold",
+                                                      "not_multiset_advanced",
+                                                      "content_not_found",
+                                                      "missing_set_1",
+                                                      "missing_set_2",
+                                                      "missing_set_3",
+                                                      "no_attempts_store",
+                                                    ].includes(reward.reason) &&
+                                                    !reward.reason.startsWith("missing_set_") &&
+                                                    !reward.reason.startsWith(
+                                                      "incomplete_or_invalid_counts_set_"
+                                                    ) &&
+                                                    !reward.reason.startsWith("signature_mismatch_set_")
                                                   ) {
                                                     toast({
                                                       variant: "destructive",

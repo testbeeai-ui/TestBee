@@ -82,6 +82,10 @@ import {
 } from "@/lib/teacherPortal/chapterQuizUtils";
 import type { MotivationNudgeGoal, MotivationRecommendActionId } from "@/lib/teacherPortal/queries";
 import {
+  buildAssignmentReminderMessage,
+  buildStudentNotificationTitle,
+} from "@/lib/teacherPortal/studentNotificationCopy";
+import {
   DAILYDOSE_STREAK_TRACK_IDS,
   trackLabelById,
   type DailyDoseStreakTrackId,
@@ -215,8 +219,12 @@ export function TeacherAssignmentProgressWizard(props: {
       const days = Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
       duePart = days === 0 ? "today" : `in ${days} day${days === 1 ? "" : "s"}`;
     }
-    const extraPart = extra > 0 ? ` (+${extra} extra RDM)` : "";
-    return `Hi! ⚡ Quick reminder — ${assignmentDraft.title} is due ${duePart}.\nTakes about 20 minutes and you earn +${totalRdm} RDM on completion${extraPart}. Go for it!`;
+    return buildAssignmentReminderMessage({
+      assignmentTitle: assignmentDraft.title,
+      dueLabel: duePart,
+      totalRdm,
+      extraRdm: extra,
+    });
   }, [assignmentDraft, extraRdm]);
 
   useEffect(() => {
@@ -854,9 +862,12 @@ export function TeacherAssignmentProgressWizard(props: {
                     relatedPostId: assignmentId,
                     relatedPostTitle: assignmentDraft.title,
                     nudgeGoal: "complete_pending_assignment",
-                    notificationTitle: assignmentDraft.title?.trim()
-                      ? `Teacher nudge: complete this assignment — ${assignmentDraft.title.trim()}`
-                      : "Teacher nudge: complete this assignment",
+                    studentMessageKind: "assignment_reminder",
+                    notificationTitle: buildStudentNotificationTitle({
+                      kind: "assignment_reminder",
+                      nudgeGoal: "complete_pending_assignment",
+                      relatedPostTitle: assignmentDraft.title,
+                    }),
                   });
                   toast({
                     title: targetIds.length > 1 ? "Reminders sent" : "Reminder sent",

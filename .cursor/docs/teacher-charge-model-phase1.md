@@ -4,7 +4,7 @@
 
 - **Tiers:** `profiles.teacher_plan_tier` (`free` | `starter` | `pro`) + `teacher_plan_started_at` / `teacher_plan_expires_at` (separate from student `plan_tier`).
 - **Pricing:** Starter ₹999/mo, Pro ₹1,999/mo + 18% GST via Razorpay (`purpose: teacher_subscription`).
-- **Live classes:** Explicit `live_class_slots` booking (one Google Calendar event + Meet per slot, no RRULE). Monthly caps: Free 0, Starter 4, Pro 12 (IST month, `rdm_config`-tunable).
+- **Live classes:** Explicit `live_class_slots` booking (one Google Calendar event + Meet per slot, no RRULE). Monthly caps: Free 24, Starter 60, Pro unlimited (9999 sentinel; IST month, `rdm_config`-tunable).
 - **Gates:** Starter 10 assignments/mo; Pro unlimited (9999 sentinel); 30 students/class on join approve + bulk invite; Free blocked from assignments.
 - **Coupons:** `teacher_subscription_coupons` (Basic=starter, Premium=pro); admin generator + teacher claim on Subscriptions.
 - **RDM repoint:** Delivery + quality RDM + student rating RPCs key off `live_class_slots.slot_at` as `occurrence_at`. TS math in `liveClassDeliveryRdm.ts` / `liveClassQualityRdm.ts` unchanged.

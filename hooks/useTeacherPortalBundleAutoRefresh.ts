@@ -4,29 +4,30 @@ import { useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TEACHER_PORTAL_POLL_MS } from "@/lib/dashboard/connectionRealtimeConstants";
 
-/** Polling while the teacher portal is open — backs up Realtime if the connection drops. */
+/** Rare safety-net poll if Realtime disconnects (not the primary update path). */
 const POLL_INTERVAL_MS = TEACHER_PORTAL_POLL_MS;
 /** Batch rapid DB events into one bundle reload. */
 const REALTIME_DEBOUNCE_MS = 650;
 
 /**
- * Keeps `loadTeacherPortalBundle` fresh while the teacher portal is open (any section):
- * - Supabase Realtime on student attempt + task-progress rows (respects RLS)
- * - Refresh when the tab becomes visible or the window gains focus
- * - Light interval polling only while the document is visible
+ * Keeps `loadTeacherPortalBundle` fresh while the teacher portal is open:
+ * - **Primary:** Supabase Realtime on student attempts + task-progress (one debounced refresh per burst)
+ * - **Fallback:** tab focus / visibility + long-interval poll (120s default)
  *
- * Admin impersonation skips Realtime (session is the admin; bundle loads via API).
+ * No per-card polling — student submit → DB row → Realtime → single silent bundle reload.
  */
 export function useTeacherPortalBundleAutoRefresh(opts: {
   teacherUserId: string | null | undefined;
+  classroomIds: string[];
   enabled: boolean;
   skipRealtime: boolean;
   refresh: (opts?: { silent?: boolean }) => Promise<void>;
 }) {
-  const { teacherUserId, enabled, skipRealtime, refresh } = opts;
+  const { teacherUserId, classroomIds, enabled, skipRealtime, refresh } = opts;
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const classroomIdsKey = classroomIds.filter(Boolean).sort().join(",");
 
   const scheduleSilentRefresh = useCallback(() => {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
@@ -62,27 +63,37 @@ export function useTeacherPortalBundleAutoRefresh(opts: {
   useEffect(() => {
     if (!enabled || skipRealtime || !teacherUserId?.trim()) return;
 
-    const channel = supabase
-      .channel(`teacher_portal_bundle:${teacherUserId}`)
-      .on(
+    const channel = supabase.channel(`teacher_portal_bundle:${teacherUserId}:${classroomIdsKey}`);
+
+    channel.on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "classroom_assignment_task_progress",
+      },
+      () => scheduleSilentRefresh()
+    );
+
+    for (const classroomId of classroomIds) {
+      if (!classroomId.trim()) continue;
+      channel.on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "classroom_generated_test_attempts",
+          filter: `classroom_id=eq.${classroomId}`,
         },
         () => scheduleSilentRefresh()
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "classroom_assignment_task_progress",
-        },
-        () => scheduleSilentRefresh()
-      )
-      .subscribe();
+      );
+    }
+
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        void refreshRef.current({ silent: true });
+      }
+    });
 
     return () => {
       if (debounceTimerRef.current) {
@@ -91,5 +102,12 @@ export function useTeacherPortalBundleAutoRefresh(opts: {
       }
       void supabase.removeChannel(channel);
     };
-  }, [enabled, skipRealtime, teacherUserId, scheduleSilentRefresh]);
+  }, [
+    enabled,
+    skipRealtime,
+    teacherUserId,
+    classroomIdsKey,
+    classroomIds,
+    scheduleSilentRefresh,
+  ]);
 }

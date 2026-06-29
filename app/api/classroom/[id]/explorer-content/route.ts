@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/integrations/supabase/server";
 import { createAdminClient } from "@/integrations/supabase/server";
+import { fetchClassroomLiveSessionsForClassroom } from "@/lib/classroom/fetchClassroomLiveSessionsServer";
 
-/** Returns posts and live_sessions for explorers (bypasses RLS). Ensures explorers always see content. */
+/** Returns posts and live sessions for explorers (bypasses RLS). Ensures explorers always see content. */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: classroomId } = await params;
   if (!classroomId) {
@@ -74,28 +75,26 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "No active exploration" }, { status: 403 });
   }
 
-  const [postsRes, sessionsRes] = await Promise.all([
-    admin
-      .from("posts")
-      .select("*, profiles!posts_teacher_id_fkey(name)")
-      .eq("classroom_id", classroomId)
-      .order("created_at", { ascending: false }),
-    admin
-      .from("live_sessions")
-      .select("id, title, scheduled_at, duration_minutes, meet_link, status")
-      .eq("classroom_id", classroomId)
-      .order("scheduled_at", { ascending: true }),
-  ]);
+  const postsRes = await admin
+    .from("posts")
+    .select("*, profiles!posts_teacher_id_fkey(name)")
+    .eq("classroom_id", classroomId)
+    .order("created_at", { ascending: false });
 
   if (postsRes.error) {
     return NextResponse.json({ error: postsRes.error.message }, { status: 500 });
   }
-  if (sessionsRes.error) {
-    return NextResponse.json({ error: sessionsRes.error.message }, { status: 500 });
+
+  let liveSessions;
+  try {
+    liveSessions = await fetchClassroomLiveSessionsForClassroom(admin, classroomId);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Failed to load sessions";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   return NextResponse.json({
     posts: postsRes.data ?? [],
-    liveSessions: sessionsRes.data ?? [],
+    liveSessions,
   });
 }

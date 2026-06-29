@@ -5,8 +5,15 @@ import {
   createClientWithToken,
 } from "@/integrations/supabase/server";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
-import { isConceptFocusLessonChecklistComplete } from "@/lib/classroom/conceptFocusLessonCompletion";
+import {
+  isConceptFocusLessonChecklistComplete,
+} from "@/lib/classroom/conceptFocusLessonCompletion";
 import { tryFulfillAssignmentMotivationGrants } from "@/lib/teacherPortal/motivationRdm";
+import {
+  syncStudentCompletionRewardStatus,
+  tryFulfillAssignmentCompletionReward,
+} from "@/lib/teacherPortal/assignmentCompletionRdm";
+import { hasActiveSubtopicUnlockGrant } from "@/lib/teacherPortal/subtopicUnlockRdm";
 import { parseBitsTestAttemptsStore } from "@/lib/play/bits/parseBitsTestAttemptsStore";
 
 function isMissingProgressTableError(err: { code?: string; message?: string } | null | undefined) {
@@ -16,6 +23,27 @@ function isMissingProgressTableError(err: { code?: string; message?: string } | 
     typeof err.message === "string" && err.message.includes("classroom_assignment_task_progress")
   );
 }
+
+type ProgressProgressRow = {
+  task_id: string;
+  user_id: string;
+  doubt_id?: string | null;
+  completed_at?: string | null;
+};
+
+type ProgressFrom = {
+  from: (table: string) => {
+    select: (columns: string) => {
+      eq: (
+        column: string,
+        value: string
+      ) => Promise<{
+        data: ProgressProgressRow[] | null;
+        error: { code?: string; message?: string } | null;
+      }>;
+    };
+  };
+};
 
 type GenericFrom = {
   from: (table: string) => {
@@ -81,7 +109,7 @@ export async function GET(
 
   const { data: post, error: postErr } = await authedClient
     .from("posts")
-    .select("id, classroom_id, teacher_id, type, content_json")
+    .select("id, classroom_id, teacher_id, type, content_json, due_date")
     .eq("id", postId)
     .maybeSingle();
   if (postErr || !post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
@@ -103,15 +131,16 @@ export async function GET(
   const allTasks = parseAssignmentTasks(post.content_json, post.type);
   const tasksForClient = isTeacher ? allTasks : studentVisibleTasks(allTasks);
 
-  const { data: progressRows, error: progErr } = await authedClient
+  const progressClient = authedClient as unknown as ProgressFrom;
+  const { data: progressRows, error: progErr } = await progressClient
     .from("classroom_assignment_task_progress")
-    .select("task_id, user_id")
+    .select("task_id, user_id, doubt_id, completed_at")
     .eq("post_id", postId);
   if (progErr && !isMissingProgressTableError(progErr)) {
     return NextResponse.json({ error: progErr.message }, { status: 500 });
   }
 
-  const rows = (progressRows ?? []) as Array<{ task_id: string; user_id: string }>;
+  const rows = progressRows ?? [];
   const completedTaskIdSet = new Set<string>(
     isTeacher ? [] : rows.filter((r) => r.user_id === user.id).map((r) => r.task_id)
   );
@@ -172,6 +201,22 @@ export async function GET(
       }
     }
 
+    const paperTasks = tasksForClient.filter(
+      (t) => t.kind === "mock_paper" || t.kind === "past_paper"
+    );
+    if (paperTasks.length > 0) {
+      const genericClient = authedClient as unknown as GenericFrom;
+      const { data: attempt, error: attemptErr } = await genericClient
+        .from("classroom_generated_test_attempts")
+        .select("submitted_at")
+        .eq("post_id", postId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!attemptErr && attempt?.submitted_at) {
+        for (const task of paperTasks) completedTaskIdSet.add(task.id);
+      }
+    }
+
     // Concept Focus: collapsed client task id `concept-focus-subtopic` — infer from lesson checklist
     // saved on the subtopic page (profiles.subtopic_engagement.lessonChecklistMarkedCompleteAt).
     if (post.type === "Concept Focus") {
@@ -182,8 +227,77 @@ export async function GET(
         .maybeSingle();
       const engagement = (profileRow as { subtopic_engagement?: unknown } | null)
         ?.subtopic_engagement;
-      if (isConceptFocusLessonChecklistComplete(engagement, post.content_json)) {
+
+      const { data: markRows } = await authedClient
+        .from("student_lesson_mark_completions" as never)
+        .select(
+          "board, subject, class_level, topic, subtopic, level, marked_complete_at"
+        )
+        .eq("user_id", user.id);
+
+      const lessonMarks = (markRows ?? []) as Array<{
+        board: string;
+        subject: string;
+        class_level: number;
+        topic: string;
+        subtopic: string;
+        level: string;
+        marked_complete_at?: string | null;
+      }>;
+
+      if (isConceptFocusLessonChecklistComplete(engagement, post.content_json, lessonMarks)) {
         completedTaskIdSet.add("concept-focus-subtopic");
+      }
+    }
+  }
+
+  let completionReward: Awaited<ReturnType<typeof syncStudentCompletionRewardStatus>> | undefined;
+  if (!isTeacher) {
+    const admin = createAdminClient();
+    try {
+      completionReward = await syncStudentCompletionRewardStatus(admin, authedClient, {
+        studentId: user.id,
+        assignmentPostId: postId,
+        contentJson: post.content_json,
+        postDueAt:
+          typeof (post as { due_date?: unknown }).due_date === "string"
+            ? String((post as { due_date: string }).due_date)
+            : null,
+      });
+    } catch {
+      completionReward = undefined;
+    }
+  }
+
+  let gyanDoubtsByTaskId: Record<
+    string,
+    { doubtId: string; title: string; body: string; subject: string | null; createdAt: string }
+  > = {};
+
+  if (!isTeacher) {
+    const gyanTaskIds = tasksForClient
+      .filter((t) => t.kind === "gyan_engagement")
+      .map((t) => t.id);
+    const myGyanRows = rows.filter(
+      (r) => r.user_id === user.id && gyanTaskIds.includes(r.task_id) && r.doubt_id
+    );
+    const doubtIds = [...new Set(myGyanRows.map((r) => String(r.doubt_id)))];
+    if (doubtIds.length > 0) {
+      const { data: doubtRows } = await authedClient
+        .from("doubts")
+        .select("id, title, body, subject, created_at")
+        .in("id", doubtIds);
+      const doubtMap = new Map((doubtRows ?? []).map((d) => [d.id, d]));
+      for (const row of myGyanRows) {
+        const d = doubtMap.get(String(row.doubt_id));
+        if (!d) continue;
+        gyanDoubtsByTaskId[row.task_id] = {
+          doubtId: d.id,
+          title: d.title,
+          body: d.body ?? "",
+          subject: d.subject,
+          createdAt: d.created_at,
+        };
       }
     }
   }
@@ -194,6 +308,8 @@ export async function GET(
       completedTaskIds: Array.from(completedTaskIdSet),
       isTeacher,
       progressAvailable: !isMissingProgressTableError(progErr),
+      ...(Object.keys(gyanDoubtsByTaskId).length > 0 ? { gyanDoubtsByTaskId } : {}),
+      ...(completionReward ? { completionReward } : {}),
     },
     { headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=60" } }
   );
@@ -259,7 +375,22 @@ export async function POST(
       .maybeSingle();
     const engagement = (profileRow as { subtopic_engagement?: unknown } | null)
       ?.subtopic_engagement;
-    if (!isConceptFocusLessonChecklistComplete(engagement, post.content_json)) {
+
+    const { data: markRows } = await authedClient
+      .from("student_lesson_mark_completions" as never)
+      .select("board, subject, class_level, topic, subtopic, level, marked_complete_at")
+      .eq("user_id", user.id);
+    const lessonMarks = (markRows ?? []) as Array<{
+      board: string;
+      subject: string;
+      class_level: number;
+      topic: string;
+      subtopic: string;
+      level: string;
+      marked_complete_at?: string | null;
+    }>;
+
+    if (!isConceptFocusLessonChecklistComplete(engagement, post.content_json, lessonMarks)) {
       return NextResponse.json(
         {
           error:
@@ -267,6 +398,26 @@ export async function POST(
         },
         { status: 400 }
       );
+    }
+
+    const hasUnlock = await hasActiveSubtopicUnlockGrant(authedClient, user.id, postId);
+    if (!hasUnlock) {
+      const admin = createAdminClient();
+      if (admin) {
+        try {
+          await tryFulfillAssignmentMotivationGrants(admin, user.id, postId);
+          await tryFulfillAssignmentCompletionReward(admin, user.id, postId);
+        } catch {
+          /* non-fatal */
+        }
+      }
+      return NextResponse.json({
+        ok: true,
+        progressAvailable: true,
+        unlockBlocked: true,
+        message:
+          "Completion saved for your lesson progress. Assignment sync skipped — open this task from your classroom feed if the teacher assigned an unlock.",
+      });
     }
   }
 
@@ -278,12 +429,32 @@ export async function POST(
     });
     if (insErr) {
       if (isMissingProgressTableError(insErr)) {
+        const admin = createAdminClient();
+        if (admin) {
+          try {
+            await tryFulfillAssignmentMotivationGrants(admin, user.id, postId);
+            await tryFulfillAssignmentCompletionReward(admin, user.id, postId);
+          } catch {
+            /* non-fatal */
+          }
+        }
         return NextResponse.json({
           ok: true,
           progressAvailable: false,
         });
       }
-      if (insErr.code === "23505") return NextResponse.json({ ok: true, duplicate: true });
+      if (insErr.code === "23505") {
+        const admin = createAdminClient();
+        if (admin) {
+          try {
+            await tryFulfillAssignmentMotivationGrants(admin, user.id, postId);
+            await tryFulfillAssignmentCompletionReward(admin, user.id, postId);
+          } catch {
+            /* non-fatal */
+          }
+        }
+        return NextResponse.json({ ok: true, duplicate: true });
+      }
       return NextResponse.json({ error: insErr.message }, { status: 500 });
     }
 
@@ -291,6 +462,7 @@ export async function POST(
     if (admin) {
       try {
         await tryFulfillAssignmentMotivationGrants(admin, user.id, postId);
+        await tryFulfillAssignmentCompletionReward(admin, user.id, postId);
       } catch {
         // Non-fatal: progress saved even if grant fulfillment fails
       }

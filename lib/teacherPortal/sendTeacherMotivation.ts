@@ -3,6 +3,7 @@ import type {
   MotivationNudgeGoal,
   MotivationRecommendActionId,
 } from "@/lib/teacherPortal/queries/mutations";
+import type { StudentMessageKind } from "@/lib/teacherPortal/studentNotificationCopy";
 import {
   assertTeacherApprovedForMutations,
   type TeacherMutationGuardOptions,
@@ -28,6 +29,8 @@ export type SendTeacherMotivationInput = {
   recommendActionUrl?: string;
   notificationTitle?: string;
   nudgeGoal?: MotivationNudgeGoal;
+  /** Student bell category + layout (assignment vs counsel vs nudge). */
+  studentMessageKind?: StudentMessageKind;
 };
 
 export type SendTeacherMotivationResult = {
@@ -70,6 +73,7 @@ async function insertMotivationPost(
         ...(input.recommendActionUrl ? { recommendActionUrl: input.recommendActionUrl } : {}),
         ...(trimmedNotificationTitle ? { notificationTitle: trimmedNotificationTitle } : {}),
         ...(input.nudgeGoal ? { nudgeGoal: input.nudgeGoal } : {}),
+        ...(input.studentMessageKind ? { studentMessageKind: input.studentMessageKind } : {}),
       },
     })
     .select("id")
