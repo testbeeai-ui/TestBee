@@ -150,7 +150,7 @@ export const SITE_TOUR_CAROUSEL_MENUS: SiteTourMenu[] = [
         "ico": "ti-calendar",
         "c": "#85B7EB",
         "rdm": 1,
-        "tip": "Mocks + live classes",
+        "tip": "Mocks + live lessons",
         "ey": "Dashboard · Events",
         "ti": "Upcoming mocks and classes",
         "de": "Right sidebar shows next 3 Testbee mocks and scheduled classes. One-click Start Now launches any paper in NTA-style interface.",
@@ -485,12 +485,12 @@ export const SITE_TOUR_CAROUSEL_MENUS: SiteTourMenu[] = [
         "tip": "4 live/month on Pro",
         "ey": "Prep + Mock · Classes",
         "ti": "Live and recorded classes",
-        "de": "4 live classes per month on Pro. Unlimited recorded library, chapter-tagged so you can watch exactly what you need before a mock.",
+        "de": "4 live lessons per month on Pro. Unlimited recorded library, chapter-tagged so you can watch exactly what you need before a mock.",
         "rows": [
           {
             "i": "ti-video",
             "c": "#F09595",
-            "t": "4 live classes per month on Pro",
+            "t": "4 live lessons per month on Pro",
             "b": null
           },
           {

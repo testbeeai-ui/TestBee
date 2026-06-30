@@ -19,7 +19,6 @@ import {
   Pencil,
   Loader2,
   MessageCircle,
-  BookOpen,
 } from "lucide-react";
 import { format } from "date-fns";
 import AssignmentTaskChecklist from "@/components/classroom/AssignmentTaskChecklist";
@@ -28,7 +27,10 @@ import {
   getGyanEngagementStudentViewModel,
 } from "@/lib/classroom/gyanEngagementStudentUi";
 import { parseCompletionRewardFromContentJson } from "@/lib/teacherPortal/assignmentCompletionRdm";
-import { studentCompletionRewardLine } from "@/lib/teacherPortal/assignmentCompletionRdmCopy";
+import {
+  studentCompletionRewardBadge,
+  studentCompletionRewardLine,
+} from "@/lib/teacherPortal/assignmentCompletionRdmCopy";
 import {
   parseAssignmentTasks,
   studentVisibleTasks,
@@ -247,22 +249,6 @@ export default function PostDetailModal({
       });
   }, [post, classroomId, canEdit, isAssignmentLike, gyanStudent]);
 
-  const assignmentTaskHints = useMemo(() => {
-    if (!post || !isAssignmentLike) return { hasLink: false, hasMcq: false, hasCustom: false };
-    const tasks = studentVisibleTasks(
-      parseAssignmentTasks(
-        (post.content_json as unknown as import("@/integrations/supabase/types").Json) ?? null,
-        post.type
-      )
-    );
-    const hasLink = tasks.some((t) => Boolean(t.href));
-    const hasMcq = tasks.some(
-      (t) => t.kind === "chapter_quiz" || t.kind === "mock_paper" || t.kind === "past_paper"
-    );
-    const hasCustom = tasks.some((t) => t.kind === "free_text" && !t.href);
-    return { hasLink, hasMcq, hasCustom };
-  }, [post, isAssignmentLike]);
-
   if (!post) return null;
 
   const cfg = typeConfig[post.type] || typeConfig.announcement;
@@ -270,8 +256,12 @@ export default function PostDetailModal({
   const completionRewardRdm = isAssignmentLike
     ? parseCompletionRewardFromContentJson(post.content_json)
     : 0;
-  const studentRewardLine =
+  const studentRewardBadge =
     !canEdit && completionRewardRdm > 0
+      ? studentCompletionRewardBadge(completionRewardRdm)
+      : null;
+  const studentRewardLine =
+    canEdit && completionRewardRdm > 0
       ? studentCompletionRewardLine(
           completionRewardRdm,
           post.due_date ? format(new Date(post.due_date), "MMM d, yyyy h:mm a") : null
@@ -310,7 +300,13 @@ export default function PostDetailModal({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         className={`max-h-[90vh] overflow-y-auto rounded-2xl w-[96vw] ${
-          gyanStudent ? "max-w-xl sm:max-w-2xl" : isAssignmentLike ? "max-w-5xl" : "max-w-lg"
+          gyanStudent
+            ? "max-w-xl sm:max-w-2xl"
+            : isAssignmentLike && !canEdit
+              ? "max-w-md sm:max-w-lg"
+              : isAssignmentLike
+                ? "max-w-3xl"
+                : "max-w-lg"
         }`}
       >
         <DialogHeader>
@@ -330,17 +326,31 @@ export default function PostDetailModal({
               {!editing ? (
                 <>
                   <h2 className="font-extrabold text-foreground text-lg mt-0.5">{post.title}</h2>
-                  {post.due_date && (
-                    <p className="text-xs text-destructive flex items-center gap-1 mt-1">
-                      <Calendar className="w-3 h-3" /> Due{" "}
-                      {format(new Date(post.due_date), "MMM d, yyyy h:mm a")}
+                  {!canEdit && isAssignmentLike && !gyanStudent ? (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {post.due_date ? (
+                        <>Due {format(new Date(post.due_date), "MMM d, h:mm a")}</>
+                      ) : null}
+                      {post.due_date && studentRewardBadge ? " · " : null}
+                      {studentRewardBadge ? (
+                        <span className="font-semibold text-emerald-600">{studentRewardBadge}</span>
+                      ) : null}
                     </p>
+                  ) : (
+                    <>
+                      {post.due_date && (
+                        <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                          <Calendar className="w-3 h-3" /> Due{" "}
+                          {format(new Date(post.due_date), "MMM d, yyyy h:mm a")}
+                        </p>
+                      )}
+                      {studentRewardLine ? (
+                        <p className="text-xs font-semibold text-emerald-600 mt-1">
+                          {studentRewardLine}
+                        </p>
+                      ) : null}
+                    </>
                   )}
-                  {studentRewardLine ? (
-                    <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1 mt-1">
-                      {studentRewardLine}
-                    </p>
-                  ) : null}
                 </>
               ) : (
                 <div className="space-y-2 mt-2">
@@ -475,35 +485,10 @@ export default function PostDetailModal({
                 </div>
               ) : null}
               {isAssignmentLike && !gyanStudent ? (
-                <div className="rounded-2xl border-2 border-primary/25 bg-gradient-to-b from-primary/8 to-background p-3 sm:p-5">
-                  <div className="grid gap-3 md:grid-cols-[1.15fr_0.85fr] lg:grid-cols-[1.1fr_0.9fr] md:gap-4">
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary">
-                          <BookOpen className="h-5 w-5" aria-hidden />
-                        </div>
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <p className="text-[11px] font-extrabold uppercase tracking-wider text-primary/80">
-                            How to complete
-                          </p>
-                          <p className="text-sm leading-relaxed text-muted-foreground">
-                            {canEdit ? (
-                              "Use the resource buttons below to open the assignment content and review student submissions."
-                            ) : (
-                              <>
-                                Complete the tasks on the right. You can either{" "}
-                                <span className="font-semibold text-foreground">
-                                  submit a response
-                                </span>{" "}
-                                (text/links) or simply{" "}
-                                <span className="font-semibold text-foreground">Mark as done</span>{" "}
-                                when finished.
-                              </>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      {canEdit && teacherResourceLinks.length > 0 ? (
+                <div className="space-y-3">
+                  {canEdit ? (
+                    <>
+                      {teacherResourceLinks.length > 0 ? (
                         <div className="rounded-xl border border-border/80 bg-muted/40 px-3 py-3 text-sm">
                           <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-2">
                             Resources
@@ -539,30 +524,6 @@ export default function PostDetailModal({
                           </div>
                         </div>
                       ) : null}
-                      <ul className="space-y-2 text-sm leading-relaxed text-foreground/95 sm:text-[15px]">
-                        {assignmentTaskHints.hasLink ? (
-                          <li>
-                            -{" "}
-                            {canEdit
-                              ? "Use the Resources buttons above to open the link."
-                              : "Click the task button on the right to open the link."}
-                          </li>
-                        ) : null}
-                        {assignmentTaskHints.hasMcq ? (
-                          <li>
-                            - For MCQs/mock: submit to record your score (retry anytime to improve).
-                          </li>
-                        ) : null}
-                        {assignmentTaskHints.hasCustom ? (
-                          <li>
-                            - For custom response: type your answer and/or paste links, then click{" "}
-                            <span className="font-semibold">Submit response</span>.
-                          </li>
-                        ) : null}
-                        <li>
-                          - Complete what the task asks, then come back and you’ll see it tracked.
-                        </li>
-                      </ul>
                       {assignmentInstructions ? (
                         <div className="rounded-xl border border-border/80 bg-muted/40 px-3 py-3 text-sm">
                           <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1.5">
@@ -573,7 +534,7 @@ export default function PostDetailModal({
                           </p>
                         </div>
                       ) : null}
-                      {post.description?.trim() && (
+                      {post.description?.trim() ? (
                         <div className="rounded-xl border border-border/80 bg-muted/40 px-3 py-3 text-sm">
                           <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1.5">
                             Details
@@ -582,29 +543,33 @@ export default function PostDetailModal({
                             {post.description.trim()}
                           </p>
                         </div>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      {classroomId &&
-                      (post.type === "assignment" ||
-                        post.type === "quiz" ||
-                        post.type === "mock" ||
-                        post.type === "past_paper" ||
-                        post.type === "Concept Focus") ? (
-                        canEdit ? null : (
-                          <AssignmentTaskChecklist
-                            key={post.id}
-                            classroomId={classroomId}
-                            postId={post.id}
-                            postType={post.type}
-                            postTitle={post.title}
-                            isTeacherView={canEdit}
-                            initialTasks={checklistInitialTasks}
-                          />
-                        )
                       ) : null}
-                    </div>
-                  </div>
+                    </>
+                  ) : null}
+                  {classroomId &&
+                  (post.type === "assignment" ||
+                    post.type === "quiz" ||
+                    post.type === "mock" ||
+                    post.type === "past_paper" ||
+                    post.type === "Concept Focus") ? (
+                    <AssignmentTaskChecklist
+                      key={post.id}
+                      classroomId={classroomId}
+                      postId={post.id}
+                      postType={post.type}
+                      postTitle={post.title}
+                      isTeacherView={canEdit}
+                      initialTasks={checklistInitialTasks}
+                      studentUx={canEdit ? "default" : "action-first"}
+                      completionRewardRdm={completionRewardRdm}
+                      teacherName={post.profiles?.name ?? null}
+                    />
+                  ) : null}
+                  {!canEdit && assignmentInstructions ? (
+                    <p className="text-xs leading-relaxed text-muted-foreground line-clamp-3 px-0.5">
+                      {assignmentInstructions}
+                    </p>
+                  ) : null}
                 </div>
               ) : (
                 <>
@@ -662,10 +627,12 @@ export default function PostDetailModal({
                   initialTasks={checklistInitialTasks}
                 />
               ) : null}
-              <p className="text-[11px] text-muted-foreground/80">
-                {post.profiles?.name || "Teacher"} ·{" "}
-                {format(new Date(post.created_at), "MMM d, yyyy h:mm a")}
-              </p>
+              {!(isAssignmentLike && !canEdit && !gyanStudent) ? (
+                <p className="text-[11px] text-muted-foreground/80">
+                  {post.profiles?.name || "Teacher"} ·{" "}
+                  {format(new Date(post.created_at), "MMM d, yyyy h:mm a")}
+                </p>
+              ) : null}
             </>
           )}
 

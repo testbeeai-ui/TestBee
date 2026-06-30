@@ -55,7 +55,7 @@ export function mergeClassroomLiveSessions(
     .filter((s) => !isCancelledStatus(s.status))
     .map((s) => ({
       id: s.id,
-      title: "Live class",
+      title: "Live lesson",
       scheduled_at: s.slot_at,
       duration_minutes: s.duration_minutes,
       meet_link: s.meet_link ?? null,
@@ -74,7 +74,7 @@ export function mergeClassroomLiveSessions(
     .filter((s) => !slotKeys.has(occurrenceKey(s.section_id, s.scheduled_at)))
     .map((s) => ({
       id: s.id,
-      title: (s.title ?? "").trim() || "Live class",
+      title: (s.title ?? "").trim() || "Live lesson",
       scheduled_at: s.scheduled_at,
       duration_minutes: s.duration_minutes,
       meet_link: s.meet_link ?? null,

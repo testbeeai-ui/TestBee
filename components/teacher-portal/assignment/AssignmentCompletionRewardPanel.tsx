@@ -79,7 +79,7 @@ export default function AssignmentCompletionRewardPanel({
         {escrow.total > 0 ? (
           <div className="flex justify-between gap-3 border-t border-white/10 pt-2">
             <span className="text-slate-400">Completion rewards (reserved)</span>
-            <span className="font-bold text-emerald-300">{escrow.total} RDM</span>
+            <span className="font-bold text-emerald-300">−{escrow.total} RDM</span>
           </div>
         ) : (
           <div className="border-t border-white/10 pt-2 text-xs text-slate-500">
@@ -88,14 +88,14 @@ export default function AssignmentCompletionRewardPanel({
         )}
         {fee > 0 ? (
           <div className="flex justify-between gap-3 border-t border-white/10 pt-2">
-            <span className="text-slate-400">Publish fee</span>
-            <span className="font-semibold text-slate-200">{fee} RDM</span>
+            <span className="text-slate-400">Publish fee (from your wallet)</span>
+            <span className="font-semibold text-amber-200">−{fee} RDM</span>
           </div>
         ) : null}
         {grandTotal > 0 ? (
           <div className="flex justify-between gap-3 border-t border-amber-500/30 pt-2">
-            <span className="font-semibold text-amber-100">Total at publish</span>
-            <span className="text-lg font-bold text-amber-200">{grandTotal} RDM</span>
+            <span className="font-semibold text-amber-100">Total deducted at publish</span>
+            <span className="text-lg font-bold text-amber-200">−{grandTotal} RDM</span>
           </div>
         ) : null}
       </div>

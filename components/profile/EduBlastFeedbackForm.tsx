@@ -114,7 +114,7 @@ const DATA: Record<FeedbackRole, RoleData> = {
       { id: "mock", Icon: PenLine, lbl: "Mock tests" },
       { id: "gyan", Icon: HelpCircle, lbl: "Gyan++ wall" },
       { id: "analytics", Icon: BarChart3, lbl: "Student analytics" },
-      { id: "live", Icon: Video, lbl: "Live classes" },
+      { id: "live", Icon: Video, lbl: "Live lessons" },
     ],
     extraLabel: "How many students do you manage on EduBlast?",
     extraOptions: ["1 – 10", "11 – 30", "31 – 100", "100+"],

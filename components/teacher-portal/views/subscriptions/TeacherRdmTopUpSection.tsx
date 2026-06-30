@@ -62,7 +62,7 @@ export function TeacherRdmTopUpSection({ onCreditsAdded }: Props) {
           <div>
             <h2 className="text-lg font-bold tracking-tight text-white md:text-xl">RDM top-up</h2>
             <p className="mt-0.5 max-w-xl text-xs leading-relaxed text-slate-400 md:text-sm">
-              Buy RDM credits for classroom actions, live classes, and assignments. Pay instantly
+              Buy RDM credits for classroom actions, live lessons, and assignments. Pay instantly
               via Razorpay — UPI, cards, or wallets.
             </p>
           </div>

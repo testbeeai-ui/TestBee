@@ -11,7 +11,16 @@ import {
 import { getGoogleOAuthEnv } from "@/lib/integrations/googleEnv";
 import { persistTeacherGoogleCalendarEmail } from "@/lib/integrations/googleCalendarAccount";
 import { wallClockInTimeZoneToUtc } from "@/lib/datetime/wallClockInTimeZone";
-import { assertTeacherCanBookSlot } from "@/lib/teacherPortal/teacherPlanServer";
+import {
+  assertTeacherCanBookSlot,
+  computeTeacherLiveClassScheduleCharge,
+} from "@/lib/teacherPortal/teacherPlanServer";
+import {
+  fetchTeacherRdmCosts,
+  getChargeAmountForAction,
+} from "@/lib/teacherPortal/teacherRdmConfig";
+import { readTeacherRdmBalance } from "@/lib/teacherPortal/creditTeacherRdmBalance";
+import { awardLiveClassDeliveryOnSchedule } from "@/lib/teacherPortal/awardLiveClassDeliveryOnSchedule";
 
 export const runtime = "nodejs";
 
@@ -106,20 +115,66 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: tokenRow } = await admin
-    .from("teacher_google_calendar_tokens")
-    .select("refresh_token")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!tokenRow?.refresh_token) {
+  const costs = await fetchTeacherRdmCosts(admin);
+  const flatScheduleFee = getChargeAmountForAction(costs, "schedule_session");
+  const scheduleCharge = await computeTeacherLiveClassScheduleCharge(
+    user.id,
+    slotAt,
+    flatScheduleFee
+  );
+  if (!scheduleCharge.ok) {
     return NextResponse.json(
-      { error: "Connect Google Calendar before booking live classes." },
-      { status: 409 }
+      { error: scheduleCharge.error, code: scheduleCharge.code },
+      { status: 403 }
     );
   }
 
+  let scheduleCharged = 0;
+  const refundScheduleCharge = async () => {
+    if (scheduleCharged <= 0) return;
+    try {
+      await admin.rpc("add_rdm", { uid: user.id, amt: scheduleCharged });
+    } catch {
+      /* best-effort */
+    }
+    scheduleCharged = 0;
+  };
+
+  if (scheduleCharge.amount > 0) {
+    const { data: newRdm, error: deductErr } = await admin.rpc("deduct_rdm", {
+      uid: user.id,
+      amt: scheduleCharge.amount,
+    });
+    if (deductErr) {
+      return NextResponse.json({ error: deductErr.message }, { status: 500 });
+    }
+    if (newRdm === null) {
+      return NextResponse.json(
+        {
+          error: `Insufficient RDM. Booking costs ${scheduleCharge.amount} RDM.`,
+          amount: scheduleCharge.amount,
+        },
+        { status: 402 }
+      );
+    }
+    scheduleCharged = scheduleCharge.amount;
+  }
+
   try {
+    const { data: tokenRow } = await admin
+      .from("teacher_google_calendar_tokens")
+      .select("refresh_token")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!tokenRow?.refresh_token) {
+      await refundScheduleCharge();
+      return NextResponse.json(
+        { error: "Connect Google Calendar before booking live lessons." },
+        { status: 409 }
+      );
+    }
+
     const { clientId, clientSecret } = getGoogleOAuthEnv();
     const refreshed = await refreshAccessToken({
       refreshToken: tokenRow.refresh_token,
@@ -172,19 +227,56 @@ export async function POST(request: Request) {
       .single();
 
     if (slotErr) {
+      await refundScheduleCharge();
       if (slotErr.code === "23505") {
         return NextResponse.json({ error: "This slot is already booked" }, { status: 409 });
       }
       return NextResponse.json({ error: slotErr.message }, { status: 500 });
     }
 
+    const deliveryAward = await awardLiveClassDeliveryOnSchedule(admin, {
+      sectionId,
+      occurrenceAtIso: slotAtIso,
+    });
+
+    const deliveryOk =
+      deliveryAward.ok === true || deliveryAward.already_awarded === true;
+    const deliveryWarning =
+      !deliveryOk && deliveryAward.error
+        ? deliveryAward.error
+        : undefined;
+
+    const walletRdm =
+      typeof deliveryAward.balance === "number"
+        ? deliveryAward.balance
+        : await readTeacherRdmBalance(admin, user.id);
+
     return NextResponse.json({
       ok: true,
       slot: slotRow,
       remainingThisMonth: quotaCheck.remaining,
+      scheduleFee: scheduleCharged,
+      isOverage: scheduleCharge.isOverage,
       meetLink,
+      rdm: walletRdm,
+      deliveryRdm:
+        deliveryOk && typeof deliveryAward.total_rdm === "number"
+          ? deliveryAward.total_rdm
+          : 0,
+      deliveryWarning,
+      deliveryBaseRdm:
+        typeof deliveryAward.base_rdm === "number" ? deliveryAward.base_rdm : undefined,
+      deliveryStudentBonusRdm:
+        typeof deliveryAward.student_bonus_rdm === "number"
+          ? deliveryAward.student_bonus_rdm
+          : undefined,
+      deliveryStudentCount:
+        typeof deliveryAward.student_count === "number"
+          ? deliveryAward.student_count
+          : undefined,
     });
   } catch (e) {
+    await refundScheduleCharge();
     const message = e instanceof Error ? e.message : "Booking failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }

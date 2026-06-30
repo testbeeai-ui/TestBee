@@ -236,7 +236,8 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
   const [selectedLowScorerIds, setSelectedLowScorerIds] = useState<Set<string>>(new Set());
   const [selectedSpecificIds, setSelectedSpecificIds] = useState<Set<string>>(new Set());
   const [goal, setGoal] = useState<NudgeGoal>("restart_streak");
-  const rdmBonusAllowed = goal === "complete_pending_assignment";
+  const rdmBonusAllowed =
+    goal === "complete_pending_assignment" || goal === "attempt_mock";
   const [rdmDelta, setRdmDelta] = useState(10);
   useEffect(() => {
     if (!rdmBonusAllowed && rdmDelta !== 0) setRdmDelta(0);
@@ -1632,10 +1633,9 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
   const step4 = (
     <div className="mt-3 space-y-2 sm:space-y-3">
       <div className="text-xs leading-relaxed text-slate-300">
-        For &quot;Complete pending assignment&quot;, students earn the RDM bonus only after they
-        finish that assignment. You are charged upfront when you send (bonus × students). Other
-        nudge goals are message-only — RDM bonus is not available until those goals are wired to
-        completion tracking.
+        For &quot;Complete pending assignment&quot; and &quot;Attempt mock / quiz&quot;, students
+        earn the RDM bonus after they finish the linked assignment. You are charged upfront when
+        you send (bonus × students). Other nudge goals are message-only.
       </div>
 
       <div>
@@ -1732,6 +1732,25 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
                 studentMessageKind: motivationNudgeMeta.studentMessageKind,
               };
 
+              const describeMotivationRdm = (result: {
+                grantsPaid: number;
+                grantsPending: number;
+                instantRdmPaid: number;
+                effectiveRdmDelta: number;
+              }) => {
+                if (result.instantRdmPaid > 0) {
+                  return ` Students received +${result.instantRdmPaid} RDM.`;
+                }
+                if (result.effectiveRdmDelta <= 0) return "";
+                if (result.grantsPaid > 0 && result.grantsPending === 0) {
+                  return ` All ${result.grantsPaid} bonus(es) paid (+${result.effectiveRdmDelta} RDM each).`;
+                }
+                if (result.grantsPaid > 0) {
+                  return ` ${result.grantsPaid} paid now; ${result.grantsPending} pay when students finish the assignment.`;
+                }
+                return ` +${result.effectiveRdmDelta} RDM per student when they complete the linked assignment.`;
+              };
+
               if (goal === "revise_chapter" && props.allowStructuredAssignmentCreate) {
                 if (onRequireVerifiedAction) {
                   const ok = await onRequireVerifiedAction("Create assignment");
@@ -1770,7 +1789,7 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
                   tasks: defaultTasks.length ? defaultTasks : undefined,
                   chapterQuiz: cqRef,
                 });
-                await props.onMotivateStudents({
+                const result = await props.onMotivateStudents({
                   ...baseMotivate,
                   relatedPostId: created.id,
                   relatedPostTitle: assignTitle,
@@ -1785,13 +1804,14 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
                       relatedPostTitle: subtopicLabel,
                     }),
                 });
+                toast({ title: "Nudges sent", description: describeMotivationRdm(result).trim() || undefined });
               } else {
-                await props.onMotivateStudents({
+                const result = await props.onMotivateStudents({
                   ...baseMotivate,
                   ...(metaNotificationTitle ? { notificationTitle: metaNotificationTitle } : {}),
                 });
+                toast({ title: "Nudges sent", description: describeMotivationRdm(result).trim() || undefined });
               }
-              toast({ title: "Nudges sent" });
               props.onDone();
             } catch (e) {
               const msg = e instanceof Error ? e.message : "Try again.";

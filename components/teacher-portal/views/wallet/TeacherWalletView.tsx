@@ -1,13 +1,15 @@
 "use client";
 
-import { ArrowRight, Coins, Gift, Star, Users, Zap } from "lucide-react";
+import { useMemo } from "react";
+import { ArrowRight, Coins, Gift } from "lucide-react";
 import type {
   TeacherPortalReferStats,
   TeacherPortalSection,
   TeacherPortalSummary,
 } from "@/lib/teacherPortal/types";
-import { DEFAULT_LIVE_CLASS_DELIVERY_RDM_CONFIG } from "@/lib/teacherPortal/liveClassDeliveryRdm";
-import { DEFAULT_RDM_CONFIG } from "@/lib/rdm/rdmConfig";
+import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
+import { buildTeacherWalletGuide } from "@/lib/teacherPortal/teacherWalletGuide";
+import TeacherWalletBreakdown from "@/components/teacher-portal/wallet/TeacherWalletBreakdown";
 import { TEACHER_RDM_PACKS } from "@/lib/subscription/teacherRdmPacks";
 
 interface TeacherWalletViewProps {
@@ -17,22 +19,6 @@ interface TeacherWalletViewProps {
   teacherName: string;
   onNavigateToSection?: (section: TeacherPortalSection) => void;
 }
-
-const EARNING_RATES = [
-  {
-    label: "Gyan++ answer",
-    amount: DEFAULT_RDM_CONFIG.gyan_teacher_answer_rdm,
-    icon: Star,
-    color: "text-amber-300",
-  },
-  {
-    label: "Section schedule class",
-    amount: DEFAULT_LIVE_CLASS_DELIVERY_RDM_CONFIG.baseRdm,
-    icon: Zap,
-    color: "text-emerald-300",
-  },
-  { label: "Refer a teacher", amount: 100, icon: Users, color: "text-violet-300" },
-] as const;
 
 const TEACHER_PLANS = TEACHER_RDM_PACKS.map((pack) => ({
   id: pack.id,
@@ -49,6 +35,19 @@ export default function TeacherWalletView({
   referStats,
   onNavigateToSection,
 }: TeacherWalletViewProps) {
+  const { costs, liveClassDelivery } = useTeacherRdmCosts();
+  const walletGuide = useMemo(
+    () =>
+      buildTeacherWalletGuide({
+        costs,
+        delivery: liveClassDelivery,
+        referralTeacherSignup: referStats.teacherSignupRewardRdm,
+        referralStudentSignup: referStats.teacherStudentSignupRewardRdm,
+        referralPaidBonus: referStats.teacherPaidBonusRdm,
+      }),
+    [costs, liveClassDelivery, referStats]
+  );
+
   return (
     <div className="w-full space-y-4 sm:space-y-5">
       <div>
@@ -56,7 +55,7 @@ export default function TeacherWalletView({
           RDM <span className="text-amber-300 italic">Wallet</span>
         </h1>
         <p className="text-xs text-slate-400 sm:text-sm">
-          Track your earnings and see how you can grow your RDM balance.
+          Balance, earnings, and where RDM is used in the teacher portal.
         </p>
       </div>
 
@@ -106,21 +105,7 @@ export default function TeacherWalletView({
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-[#0d0d22] p-4 sm:p-5">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.1em] text-slate-300">
-          Ways to earn
-        </h2>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {EARNING_RATES.map(({ label, amount, icon: Icon, color }) => (
-            <div
-              key={label}
-              className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5"
-            >
-              <Icon className={"h-4 w-4 shrink-0 " + color} />
-              <div className="flex-1 text-sm text-slate-200">{label}</div>
-              <div className="font-serif text-sm font-semibold text-amber-300">+{amount}</div>
-            </div>
-          ))}
-        </div>
+        <TeacherWalletBreakdown guide={walletGuide} />
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-[#0d0d22] p-4 sm:p-5">

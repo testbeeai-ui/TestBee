@@ -9,7 +9,6 @@ import {
   fetchTeacherRdmCosts,
   getChargeAmountForAction,
 } from "@/lib/teacherPortal/teacherRdmConfig";
-import { shouldWaiveTeacherAssignmentPublishCharge } from "@/lib/teacherPortal/teacherPlanServer";
 
 const CHARGE_ACTIONS: TeacherRdmChargeAction[] = [
   "create_classroom",
@@ -38,6 +37,7 @@ export async function POST(request: Request) {
   }
 
   const action = (body as { action?: unknown })?.action;
+  const explicitAmount = (body as { amount?: unknown })?.amount;
   if (!isChargeAction(action)) {
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   }
@@ -48,7 +48,10 @@ export async function POST(request: Request) {
   }
 
   const costs = await fetchTeacherRdmCosts(admin);
-  const amount = getChargeAmountForAction(costs, action);
+  const amount =
+    typeof explicitAmount === "number" && Number.isFinite(explicitAmount) && explicitAmount > 0
+      ? Math.round(explicitAmount)
+      : getChargeAmountForAction(costs, action);
 
   const { data: profile } = await admin
     .from("profiles")
@@ -62,17 +65,6 @@ export async function POST(request: Request) {
 
   if (amount <= 0) {
     return NextResponse.json({ ok: true, rdm: null, amount, action, skipped: true });
-  }
-
-  if (action === "create_assignment" && (await shouldWaiveTeacherAssignmentPublishCharge(auth.user.id))) {
-    return NextResponse.json({
-      ok: true,
-      rdm: null,
-      amount: 0,
-      action,
-      skipped: true,
-      reason: "pro_plan",
-    });
   }
 
   const { data: newRdm, error: rpcErr } = await admin.rpc("add_rdm", {

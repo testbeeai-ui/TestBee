@@ -43,6 +43,7 @@ export function track(eventName: string, data?: Record<string, unknown>, userId?
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body,
+        credentials: "include",
         keepalive: true,
       }).catch(() => {});
     }

@@ -798,8 +798,8 @@ export function TeacherAssignmentProgressWizard(props: {
               <option value="0">
                 No extra RDM (they already earn +{baseRewardRdm} on completion)
               </option>
-              <option value="5">Add +5 RDM extra for submitting today</option>
-              <option value="10">Add +10 RDM extra for submitting today</option>
+              <option value="5">Add +5 RDM bonus when they complete this assignment</option>
+              <option value="10">Add +10 RDM bonus when they complete this assignment</option>
             </select>
             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
           </div>
@@ -852,7 +852,7 @@ export function TeacherAssignmentProgressWizard(props: {
                 }
                 try {
                   setSendingReminder(true);
-                  await props.onMotivateStudents({
+                  const result = await props.onMotivateStudents({
                     classroomId,
                     sectionId: sectionId ?? undefined,
                     actionKind,
@@ -869,12 +869,18 @@ export function TeacherAssignmentProgressWizard(props: {
                       relatedPostTitle: assignmentDraft.title,
                     }),
                   });
+                  const bonusNote =
+                    extraRdm > 0
+                      ? result.grantsPaid > 0
+                        ? ` +${result.grantsPaid * extraRdm} RDM credited to students who already finished.`
+                        : ` +${extraRdm} RDM bonus per student when they complete this assignment.`
+                      : "";
                   toast({
                     title: targetIds.length > 1 ? "Reminders sent" : "Reminder sent",
                     description:
-                      targetIds.length > 1
+                      (targetIds.length > 1
                         ? `Sent to ${targetIds.length} students.`
-                        : "Sent to 1 student.",
+                        : "Sent to 1 student.") + bonusNote,
                   });
                   setSentToastKey((k) => k + 1);
                   window.setTimeout(() => setSentToastKey(0), 2200);

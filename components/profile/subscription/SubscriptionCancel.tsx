@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { normalizePlanTier } from "@/lib/subscription/subscriptionConfig";
 import {
   computePaidSubscriptionPeriod,
+  parseProfilePaymentDetails,
   resolveSubscriptionNowMs,
 } from "@/lib/subscription/subscriptionBilling";
 
@@ -74,14 +75,8 @@ export default function SubscriptionCancel({ profile, onNavigate }: Props) {
     if (!profile?.id) return;
     setLoading(true);
     try {
-      let currentCardDetails: Record<string, any> = {};
-      if (profile.payment_card_details) {
-        try {
-          currentCardDetails = typeof profile.payment_card_details === "string"
-            ? JSON.parse(profile.payment_card_details)
-            : profile.payment_card_details;
-        } catch {}
-      }
+      const currentCardDetails =
+        parseProfilePaymentDetails(profile.payment_card_details) ?? {};
 
       const { error } = await supabase
         .from("profiles")
@@ -89,7 +84,7 @@ export default function SubscriptionCancel({ profile, onNavigate }: Props) {
           payment_card_details: {
             ...currentCardDetails,
             autoRenew: false,
-          }
+          },
         })
         .eq("id", profile.id);
 
@@ -118,14 +113,8 @@ export default function SubscriptionCancel({ profile, onNavigate }: Props) {
     if (!profile?.id) return;
     setLoading(true);
     try {
-      let currentCardDetails: Record<string, any> = {};
-      if (profile.payment_card_details) {
-        try {
-          currentCardDetails = typeof profile.payment_card_details === "string"
-            ? JSON.parse(profile.payment_card_details)
-            : profile.payment_card_details;
-        } catch {}
-      }
+      const currentCardDetails =
+        parseProfilePaymentDetails(profile.payment_card_details) ?? {};
 
       const { error } = await supabase
         .from("profiles")
@@ -133,7 +122,7 @@ export default function SubscriptionCancel({ profile, onNavigate }: Props) {
           payment_card_details: {
             ...currentCardDetails,
             autoRenew: true,
-          }
+          },
         })
         .eq("id", profile.id);
 
@@ -231,7 +220,7 @@ export default function SubscriptionCancel({ profile, onNavigate }: Props) {
             {[
               "Testbee adaptive mocks — reverts to 3 mocks/month",
               "Full Instacue library — limited to 20 saved cards",
-              "Live classes access — loses enrolment ability",
+              "Live lessons access — loses enrolment ability",
               "EduFund Starter eligibility — reverts to Sprout tier",
             ].map((item) => (
               <div key={item} className="flex items-start gap-2 text-xs text-rose-300/80">
@@ -275,7 +264,7 @@ export default function SubscriptionCancel({ profile, onNavigate }: Props) {
           {[
             "Testbee adaptive mocks — reverts to 3 mocks/month",
             "Full Instacue library — limited to 20 saved cards",
-            "Live classes access — loses enrolment ability",
+            "Live lessons access — loses enrolment ability",
             "EduFund Starter eligibility — reverts to Sprout tier",
           ].map((item) => (
             <div key={item} className="flex items-start gap-1.5 text-xs text-rose-300/80">

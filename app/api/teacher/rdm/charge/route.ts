@@ -9,7 +9,11 @@ import {
   fetchTeacherRdmCosts,
   getChargeAmountForAction,
 } from "@/lib/teacherPortal/teacherRdmConfig";
-import { shouldWaiveTeacherAssignmentPublishCharge } from "@/lib/teacherPortal/teacherPlanServer";
+import {
+  assertTeacherCanCreateAssignment,
+  computeTeacherAssignmentPublishCharge,
+  computeTeacherLiveClassScheduleCharge,
+} from "@/lib/teacherPortal/teacherPlanServer";
 
 const CHARGE_ACTIONS: TeacherRdmChargeAction[] = [
   "create_classroom",
@@ -21,6 +25,15 @@ const CHARGE_ACTIONS: TeacherRdmChargeAction[] = [
 
 function isChargeAction(x: unknown): x is TeacherRdmChargeAction {
   return typeof x === "string" && CHARGE_ACTIONS.includes(x as TeacherRdmChargeAction);
+}
+
+function parseScheduledAt(body: unknown): Date {
+  const raw = (body as { scheduledAt?: unknown })?.scheduledAt;
+  if (typeof raw === "string" && raw.trim()) {
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date();
 }
 
 export async function POST(request: Request) {
@@ -48,7 +61,7 @@ export async function POST(request: Request) {
   }
 
   const costs = await fetchTeacherRdmCosts(admin);
-  const amount = getChargeAmountForAction(costs, action);
+  const flatAmount = getChargeAmountForAction(costs, action);
 
   const { data: profile } = await admin
     .from("profiles")
@@ -60,18 +73,47 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Teacher account required" }, { status: 403 });
   }
 
-  if (amount <= 0) {
-    return NextResponse.json({ ok: true, rdm: null, amount, action, skipped: true });
+  let amount = flatAmount;
+  let skipped = false;
+  let skipReason: string | undefined;
+
+  if (action === "create_assignment") {
+    const quota = await assertTeacherCanCreateAssignment(auth.user.id);
+    if (!quota.ok) {
+      return NextResponse.json({ error: quota.error, code: quota.code }, { status: 403 });
+    }
+    const charge = await computeTeacherAssignmentPublishCharge(auth.user.id, flatAmount);
+    if (!charge.ok) {
+      return NextResponse.json({ error: charge.error, code: charge.code }, { status: 403 });
+    }
+    amount = charge.amount;
+    if (amount <= 0) {
+      skipped = true;
+      skipReason = charge.isOverage ? undefined : "pro_plan_included";
+    }
   }
 
-  if (action === "create_assignment" && (await shouldWaiveTeacherAssignmentPublishCharge(auth.user.id))) {
+  if (action === "schedule_session") {
+    const refDate = parseScheduledAt(body);
+    const charge = await computeTeacherLiveClassScheduleCharge(
+      auth.user.id,
+      refDate,
+      flatAmount
+    );
+    if (!charge.ok) {
+      return NextResponse.json({ error: charge.error, code: charge.code }, { status: 403 });
+    }
+    amount = charge.amount;
+  }
+
+  if (amount <= 0) {
     return NextResponse.json({
       ok: true,
       rdm: null,
       amount: 0,
       action,
       skipped: true,
-      reason: "pro_plan",
+      reason: skipReason ?? "zero_cost",
     });
   }
 
@@ -88,5 +130,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Insufficient RDM", amount, action }, { status: 402 });
   }
 
-  return NextResponse.json({ ok: true, rdm: newRdm, amount, action });
+  return NextResponse.json({ ok: true, rdm: newRdm, amount, action, skipped });
 }

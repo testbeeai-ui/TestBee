@@ -68,7 +68,7 @@ export const SITE_TOUR_DASHBOARD_INFO: SiteTourInfoSlideContent = {
     {
       tablerIcon: "ti-writing",
       color: "#378ADD",
-      text: "Upcoming mocks and live classes in sidebar",
+      text: "Upcoming mocks and live lessons in sidebar",
       badge: "info",
     },
     {

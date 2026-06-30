@@ -1,6 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
 
 import { wallClockInTimeZoneToUtc } from "@/lib/datetime/wallClockInTimeZone";
+import {
+  quotaToLegacyShape,
+  resolveMonthlyQuota,
+  type QuotaOutcome,
+} from "@/lib/teacherPortal/teacherPlanQuotaPolicy";
 
 export type TeacherPlanKey = "free" | "starter" | "pro";
 
@@ -22,16 +27,18 @@ export const TEACHER_PLAN_PRICING_INR = {
   pro: 1999,
 } as const;
 
-/** Values at or above this cap are treated as unlimited live classes (Pro). */
+/** @deprecated Legacy display helper; plan quotas use real caps (12/24/60). */
 export const TEACHER_LIVE_CLASSES_UNLIMITED_CAP = 9999;
 
 export const TEACHER_PLAN_CONFIG_DEFAULTS: TeacherPlanConfig = {
-  teacher_free_live_classes_per_month: 24,
-  teacher_starter_live_classes_per_month: 60,
-  teacher_pro_live_classes_per_month: TEACHER_LIVE_CLASSES_UNLIMITED_CAP,
-  teacher_free_assignments_per_month: 10,
-  teacher_starter_assignments_per_month: 9999,
-  teacher_pro_assignments_per_month: 9999,
+  teacher_free_live_classes_per_month: 12,
+  teacher_starter_live_classes_per_month: 24,
+  teacher_pro_live_classes_per_month: 60,
+  teacher_free_assignments_per_month: 12,
+  teacher_starter_assignments_per_month: 24,
+  teacher_pro_assignments_per_month: 60,
+  teacher_assignment_overage_rdm: 20,
+  teacher_live_class_overage_rdm: 100,
   teacher_class_students_cap: 30,
 };
 
@@ -64,18 +71,18 @@ export const TEACHER_PLAN_TIERS: TeacherPlanTierMeta[] = [
       "Basic teacher profile",
       "Gyan++ Teacher Section posts",
       "Invite students & earn RDM",
-      "Up to 10 assignments / month (RDM charge per publish)",
-      "Up to 24 live classes / month (30 students each)",
+      "Up to 12 assignments / month (RDM charge per publish)",
+      "Up to 12 live lessons / month (30 students each)",
     ],
   },
   {
     id: "starter",
     name: "Starter Teacher",
-    tagline: "Conduct up to 60 live classes per month.",
+    tagline: "Conduct up to 24 live lessons per month.",
     priceInr: TEACHER_PLAN_PRICING_INR.starter,
     features: [
-      "Up to 60 live classes / month (30 students each)",
-      "Unlimited assignments (RDM charged every publish)",
+      "Up to 24 live lessons / month (30 students each)",
+      "Up to 24 assignments / month (RDM charged every publish)",
       "Student performance for referred students",
       "Basic public Teachers directory listing",
     ],
@@ -83,11 +90,11 @@ export const TEACHER_PLAN_TIERS: TeacherPlanTierMeta[] = [
   {
     id: "pro",
     name: "Pro Teacher",
-    tagline: "Unlimited live classes and priority visibility.",
+    tagline: "60 included live lessons & assignments; overage RDM after that.",
     priceInr: TEACHER_PLAN_PRICING_INR.pro,
     features: [
-      "Unlimited live classes / month (30 students each)",
-      "Unlimited assignments (no RDM publish fee)",
+      "Up to 60 live lessons / month (100 RDM each after cap)",
+      "Up to 60 assignments / month (no publish fee; 20 RDM each after cap)",
       "Priority Teachers directory listing",
       "Verified badge on Gyan++",
       "Chapter-level weak-area assignment analytics",
@@ -156,6 +163,18 @@ export function teacherPlanConfigFromRows(
       d.teacher_pro_assignments_per_month,
       0,
       10000
+    ),
+    teacher_assignment_overage_rdm: clampInt(
+      byKey.get("teacher_assignment_overage_rdm"),
+      d.teacher_assignment_overage_rdm,
+      0,
+      500
+    ),
+    teacher_live_class_overage_rdm: clampInt(
+      byKey.get("teacher_live_class_overage_rdm"),
+      d.teacher_live_class_overage_rdm,
+      0,
+      500
     ),
     teacher_class_students_cap: clampInt(
       byKey.get("teacher_class_students_cap"),
@@ -271,60 +290,96 @@ export function isUnlimitedLiveClassesCap(cap: number): boolean {
 export function formatTeacherLiveClassQuotaLabel(quota: {
   remaining: number;
   cap: number;
+  isOverage?: boolean;
+  tier?: TeacherPlanKey;
+  overageRdm?: number;
 }): string {
-  if (isUnlimitedLiveClassesCap(quota.cap)) {
-    return "Unlimited live classes this month";
+  if (quota.isOverage && quota.tier === "pro") {
+    const amt = Math.max(0, Math.round(quota.overageRdm ?? 100));
+    return `Included ${quota.cap} used — next booking −${amt} RDM (overage)`;
   }
-  return `${quota.remaining}/${quota.cap} left this month`;
+  return `${quota.remaining} of ${quota.cap} live lessons left this month (IST)`;
 }
 
 export function liveClassQuotaExceededMessage(tier: TeacherPlanKey, cap: number): string {
   if (tier === "free") {
-    return `You've used all ${cap} free live classes this month. Upgrade to Starter (60/month) or Pro (unlimited).`;
+    return `You've used all ${cap} free live lessons this month. Upgrade to Starter for up to 24/month.`;
   }
   if (tier === "starter") {
-    return `You've used all ${cap} live classes this month. Upgrade to Pro for unlimited live classes.`;
+    return `You've used all ${cap} live lessons this month. Upgrade to Pro for up to 60/month.`;
   }
-  return "Monthly live class limit reached.";
+  return "Monthly live lesson limit reached.";
+}
+
+export function resolveLiveClassQuota(
+  tier: TeacherPlanKey,
+  bookedThisMonth: number,
+  limits: TeacherPlanLimits,
+  overageRdm: number
+): QuotaOutcome {
+  return resolveMonthlyQuota({
+    tier,
+    used: bookedThisMonth,
+    cap: limits.liveClassesPerMonth,
+    resource: "live_class",
+    overageRdm,
+  });
+}
+
+export function resolveAssignmentQuota(
+  tier: TeacherPlanKey,
+  createdThisMonth: number,
+  limits: TeacherPlanLimits,
+  overageRdm: number
+): QuotaOutcome {
+  return resolveMonthlyQuota({
+    tier,
+    used: createdThisMonth,
+    cap: limits.assignmentsPerMonth,
+    resource: "assignment",
+    overageRdm,
+  });
 }
 
 export function canBookMoreLiveClasses(
   bookedThisMonth: number,
-  limits: TeacherPlanLimits
-): { allowed: boolean; remaining: number; cap: number } {
-  const cap = limits.liveClassesPerMonth;
-  if (isUnlimitedLiveClassesCap(cap)) {
-    return { allowed: true, remaining: TEACHER_LIVE_CLASSES_UNLIMITED_CAP, cap };
-  }
-  const remaining = Math.max(0, cap - bookedThisMonth);
-  return { allowed: bookedThisMonth < cap, remaining, cap };
+  limits: TeacherPlanLimits,
+  tier: TeacherPlanKey = "free",
+  overageRdm = TEACHER_PLAN_CONFIG_DEFAULTS.teacher_live_class_overage_rdm
+): { allowed: boolean; remaining: number; cap: number; isOverage: boolean } {
+  const outcome = resolveLiveClassQuota(tier, bookedThisMonth, limits, overageRdm);
+  return quotaToLegacyShape(outcome);
 }
 
 export function canCreateMoreAssignments(
   createdThisMonth: number,
-  limits: TeacherPlanLimits
-): { allowed: boolean; remaining: number; cap: number } {
-  const cap = limits.assignmentsPerMonth;
-  if (cap >= 9999) {
-    return { allowed: true, remaining: 9999, cap };
-  }
-  const remaining = Math.max(0, cap - createdThisMonth);
-  return { allowed: createdThisMonth < cap, remaining, cap };
+  limits: TeacherPlanLimits,
+  tier: TeacherPlanKey = "free",
+  overageRdm = TEACHER_PLAN_CONFIG_DEFAULTS.teacher_assignment_overage_rdm
+): { allowed: boolean; remaining: number; cap: number; isOverage: boolean } {
+  const outcome = resolveAssignmentQuota(tier, createdThisMonth, limits, overageRdm);
+  return quotaToLegacyShape(outcome);
 }
 
 export function assignmentQuotaExceededMessage(tier: TeacherPlanKey, cap: number): string {
   if (tier === "free") {
-    return `You've used all ${cap} free assignments this month. Upgrade to Starter for unlimited assignments (RDM charged each publish).`;
+    return `You've used all ${cap} free assignments this month. Upgrade to Starter for up to 24/month (RDM charged each publish).`;
   }
   if (tier === "starter") {
-    return "Monthly assignment limit reached. Contact support or upgrade your plan.";
+    return `You've used all ${cap} Starter assignments this month. Upgrade to Pro for up to 60/month.`;
   }
   return "Monthly assignment limit reached.";
 }
 
-export function teacherAssignmentPublishChargeWaived(tier: TeacherPlanKey): boolean {
-  return tier === "pro";
+/** Pro included quota has no flat publish fee; overage uses assignment_overage_rdm instead. */
+export function teacherAssignmentPublishChargeWaived(
+  tier: TeacherPlanKey,
+  isOverage = false
+): boolean {
+  return tier === "pro" && !isOverage;
 }
+
+export type { QuotaOutcome };
 
 export function teacherPlanDisplayName(tier: TeacherPlanKey): string {
   return TEACHER_PLAN_TIERS.find((t) => t.id === tier)?.name ?? "Grassroots (Free)";

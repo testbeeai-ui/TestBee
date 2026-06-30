@@ -6,8 +6,10 @@ export const TEACHER_VERIFICATION_REQUIRED_ERROR =
 
 export type TeacherMutationGuardOptions = {
   skipVerificationCheck?: boolean;
-  /** Admin overrides and pre-checked UI flows may skip monthly assignment quota. */
+  /** Admin overrides and pre-checked API flows may skip monthly assignment quota. */
   skipPlanQuotaCheck?: boolean;
+  /** API routes that already enforced live-class quota may skip the duplicate check. */
+  skipLiveClassQuotaCheck?: boolean;
 };
 
 /** Server/API use: blocks mutations when `teacher_profile_details.verification_status !== 'approved'`. */

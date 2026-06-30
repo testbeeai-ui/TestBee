@@ -8,7 +8,10 @@ import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assig
 import {
   isConceptFocusLessonChecklistComplete,
 } from "@/lib/classroom/conceptFocusLessonCompletion";
-import { tryFulfillAssignmentMotivationGrants } from "@/lib/teacherPortal/motivationRdm";
+import {
+  syncStudentMotivationGrantsForAssignment,
+  tryFulfillAssignmentMotivationGrants,
+} from "@/lib/teacherPortal/motivationRdm";
 import {
   syncStudentCompletionRewardStatus,
   tryFulfillAssignmentCompletionReward,
@@ -252,6 +255,7 @@ export async function GET(
   }
 
   let completionReward: Awaited<ReturnType<typeof syncStudentCompletionRewardStatus>> | undefined;
+  let motivationBonus: Awaited<ReturnType<typeof syncStudentMotivationGrantsForAssignment>> | undefined;
   if (!isTeacher) {
     const admin = createAdminClient();
     try {
@@ -264,8 +268,12 @@ export async function GET(
             ? String((post as { due_date: string }).due_date)
             : null,
       });
+      if (admin) {
+        motivationBonus = await syncStudentMotivationGrantsForAssignment(admin, user.id, postId);
+      }
     } catch {
       completionReward = undefined;
+      motivationBonus = undefined;
     }
   }
 
@@ -310,6 +318,7 @@ export async function GET(
       progressAvailable: !isMissingProgressTableError(progErr),
       ...(Object.keys(gyanDoubtsByTaskId).length > 0 ? { gyanDoubtsByTaskId } : {}),
       ...(completionReward ? { completionReward } : {}),
+      ...(motivationBonus && motivationBonus.paidTotal > 0 ? { motivationBonus } : {}),
     },
     { headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=60" } }
   );

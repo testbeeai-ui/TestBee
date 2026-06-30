@@ -38,7 +38,7 @@ function appendInferredSectionSessions(
     keys.add(key);
     inferred.push({
       id: `inferred:${sec.id}:${hit.iso}`,
-      title: `Live class · ${sec.name}`,
+      title: `Live lesson · ${sec.name}`,
       scheduled_at: hit.iso,
       duration_minutes: hit.durationMinutes,
       meet_link: sec.google_meet_link ?? null,

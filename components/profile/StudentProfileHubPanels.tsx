@@ -2888,7 +2888,7 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
             value={laN(la?.challengesAttempted ?? 0)}
             sub="timed speed challenges"
           />
-          <AttendanceKpiCell label="Live classes attended" value={laN(liveAtt)} sub={liveSub} />
+          <AttendanceKpiCell label="Live lessons attended" value={laN(liveAtt)} sub={liveSub} />
           <AttendanceKpiCell label="Assignments done" value={laN(asgDone)} sub={asgSub} />
           <AttendanceKpiCell label="Lectures reviewed" value={laN(lec)} sub={lecturesSub} />
         </div>

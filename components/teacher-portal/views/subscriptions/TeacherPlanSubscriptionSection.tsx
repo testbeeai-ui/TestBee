@@ -135,7 +135,7 @@ export function TeacherPlanSubscriptionSection({ onPlanChanged }: Props) {
               </h2>
             </div>
             <p className="max-w-xl text-xs leading-relaxed text-slate-400 md:text-sm">
-              Unlock live class slots, assignment limits, and directory visibility. Pay monthly via
+              Unlock live lesson slots, assignment limits, and directory visibility. Pay monthly via
               Razorpay — UPI, cards, or wallets.
             </p>
           </div>

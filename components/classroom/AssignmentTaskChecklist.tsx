@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BookOpen, CheckCircle2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { safeGetSession } from "@/lib/auth/safeSession";
@@ -13,6 +13,10 @@ import {
 } from "@/lib/classroom/assignmentProgressSync";
 import { supabase } from "@/integrations/supabase/client";
 import { withAssignmentTrackingParams } from "@/lib/classroom/assignmentTrackingHref";
+import {
+  studentAssignmentActionHint,
+  studentAssignmentRewardHint,
+} from "@/lib/classroom/studentAssignmentModalCopy";
 import type { StudentCompletionRewardStatus } from "@/lib/teacherPortal/assignmentCompletionRdm";
 import { studentCompletionRewardStatusLine } from "@/lib/teacherPortal/assignmentCompletionRdmCopy";
 
@@ -68,6 +72,11 @@ interface AssignmentTaskChecklistProps {
   isTeacherView: boolean;
   /** When set, render checklist immediately; progress hydrates from API in the background */
   initialTasks?: AssignmentTaskStored[];
+  /** Gen-Z student modal: big CTAs, minimal copy (reward line lives in post header). */
+  studentUx?: "default" | "action-first";
+  /** Completion reward advertised on the post (for one-line hint in modal card). */
+  completionRewardRdm?: number;
+  teacherName?: string | null;
 }
 
 function collapseConceptFocusTasks(input: {
@@ -120,6 +129,33 @@ function parseQuizSetFromHref(href: string): string | null {
   }
 }
 
+function studentPrimaryActionLabel(task: AssignmentTaskStored, postType?: string): string {
+  if (postType === "Concept Focus") return "Open lesson";
+  switch (task.kind) {
+    case "chapter_quiz":
+      return "Start quiz";
+    case "mock_paper":
+      return "Start mock test";
+    case "past_paper":
+      return "Start past paper";
+    case "gyan_engagement":
+      return "Open Gyan++";
+    case "daily_dose":
+      return "Open DailyDose";
+    case "topic_path":
+      return "Open lesson";
+    case "instacue":
+      return "Open InstaCue";
+    case "bits":
+      return "Start practice";
+    default:
+      return "Open";
+  }
+}
+
+const studentActionButtonClass =
+  "inline-flex h-11 min-w-[9.5rem] items-center justify-center rounded-xl border-0 bg-primary px-6 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition hover:bg-primary/90 active:scale-[0.99]";
+
 function taskLinkLabel(task: AssignmentTaskStored): string {
   // Use the actual task label which contains subtopic info (e.g., "Quiz on Photosynthesis")
   // Fall back to generic labels only if no label is set (legacy tasks)
@@ -165,7 +201,11 @@ export default function AssignmentTaskChecklist({
   postTitle,
   isTeacherView,
   initialTasks,
+  studentUx = "default",
+  completionRewardRdm = 0,
+  teacherName,
 }: AssignmentTaskChecklistProps) {
+  const actionFirstStudent = !isTeacherView && studentUx === "action-first";
   const hasInitialShell = Boolean(initialTasks?.length);
   const shouldCollapseConceptFocus = !isTeacherView && postType === "Concept Focus";
   const [tasks, setTasks] = useState<AssignmentTaskStored[]>(() => initialTasks ?? []);
@@ -188,11 +228,6 @@ export default function AssignmentTaskChecklist({
   );
   const hasLoadedOnceRef = useRef(false);
   const isInteractingRef = useRef(false);
-
-  const responseTasks = useMemo(
-    () => tasks.filter((t) => !t.href && t.kind === "free_text"),
-    [tasks]
-  );
 
   const responsesHydratedRef = useRef(false);
 
@@ -407,7 +442,7 @@ export default function AssignmentTaskChecklist({
         if (!silent) setLoading(false);
       }
     },
-    [classroomId, postId, isTeacherView, hasInitialShell]
+    [classroomId, postId, isTeacherView, hasInitialShell, postTitle, shouldCollapseConceptFocus]
   );
 
   useEffect(() => {
@@ -580,6 +615,181 @@ export default function AssignmentTaskChecklist({
     ? studentCompletionRewardStatusLine(completionReward)
     : null;
 
+  const renderTaskOpenButton = (t: AssignmentTaskStored, label: string) => {
+    const href = withAssignmentTrackingParams(String(t.href), t, classroomId, postId);
+    const external =
+      /^https?:\/\//i.test(href) ||
+      t.href?.includes("/assignment-test/") ||
+      t.href?.includes("panel=quiz") ||
+      t.href?.startsWith("/mock?paper=") ||
+      t.href?.startsWith("/mock-test?paper=");
+
+    if (external) {
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={actionFirstStudent ? studentActionButtonClass : "mt-2 inline-flex rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/15"}
+          aria-label={label}
+        >
+          {label}
+        </a>
+      );
+    }
+    return (
+      <Link
+        href={href}
+        className={actionFirstStudent ? studentActionButtonClass : "mt-2 inline-flex rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/15"}
+        aria-label={label}
+      >
+        {label}
+      </Link>
+    );
+  };
+
+  if (actionFirstStudent) {
+    const visibleTasks = tasks.filter((t) => t.visible_to_student !== false);
+    const singleTask = visibleTasks.length === 1 ? visibleTasks[0] : null;
+    const actionHint = studentAssignmentActionHint(
+      postType ?? "assignment",
+      visibleTasks.map((t) => ({
+        kind: t.kind,
+        href: t.href,
+        visible_to_student: t.visible_to_student,
+      }))
+    );
+    const rewardHint = studentAssignmentRewardHint(completionRewardRdm);
+    const allDone =
+      visibleTasks.length > 0 && visibleTasks.every((t) => completed.has(t.id));
+    const anyScore = visibleTasks.some((t) => quizScores[t.id]);
+
+    return (
+      <div className="w-full space-y-3 rounded-2xl border border-border/60 bg-muted/15 p-4">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                allDone
+                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                  : "bg-amber-500/15 text-amber-800 dark:text-amber-200"
+              }`}
+            >
+              {allDone ? "Completed" : "To do"}
+            </span>
+            {anyScore && singleTask && quizScores[singleTask.id] ? (
+              <span className="text-xs font-semibold text-emerald-600">
+                Score {quizScores[singleTask.id].score}/{quizScores[singleTask.id].total}
+              </span>
+            ) : null}
+          </div>
+          <p className="text-sm leading-snug text-foreground/90">{actionHint}</p>
+          {rewardHint ? (
+            <p className="text-xs font-medium text-emerald-600/95">{rewardHint}</p>
+          ) : null}
+        </div>
+
+        {singleTask?.href ? (
+          <div>{renderTaskOpenButton(singleTask, studentPrimaryActionLabel(singleTask, postType))}</div>
+        ) : null}
+
+        {visibleTasks.length > 1 ? (
+          <ul className="space-y-4">
+            {visibleTasks.map((t) => {
+              const showResponseBox = t.kind === "free_text" && !t.href;
+              const responseRow = responsesByTaskId[t.id] ?? null;
+              return (
+                <li key={t.id} className="rounded-2xl border border-border/80 bg-muted/15 p-4">
+                  <p className="text-sm font-semibold text-foreground line-clamp-2">{t.label}</p>
+                  {t.href ? (
+                    renderTaskOpenButton(t, studentPrimaryActionLabel(t, postType))
+                  ) : null}
+                  {quizScores[t.id] ? (
+                    <p className="mt-2 text-center text-sm font-bold text-emerald-600">
+                      Score {quizScores[t.id].score}/{quizScores[t.id].total}
+                    </p>
+                  ) : completed.has(t.id) ? (
+                    <p className="mt-2 text-center text-sm font-bold text-emerald-600">Done</p>
+                  ) : null}
+                  {showResponseBox ? (
+                    <div className="mt-3 space-y-2">
+                      <textarea
+                        value={draftTextByTaskId[t.id] ?? ""}
+                        onChange={(e) =>
+                          setDraftTextByTaskId((prev) => ({ ...prev, [t.id]: e.target.value }))
+                        }
+                        rows={3}
+                        placeholder="Your answer…"
+                        className="w-full resize-y rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                        disabled={submitBusyTaskId === t.id}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void submitResponse(t.id)}
+                        disabled={submitBusyTaskId !== null}
+                        className={studentActionButtonClass}
+                      >
+                        {submitBusyTaskId === t.id ? "Submitting…" : "Submit"}
+                      </button>
+                      {responseRow?.updated_at ? (
+                        <p className="text-center text-[11px] text-muted-foreground">
+                          Saved {new Date(responseRow.updated_at).toLocaleString()}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : !t.href && progressAvailable ? (
+                    <button
+                      type="button"
+                      onClick={() => void toggle(t.id, !completed.has(t.id))}
+                      disabled={busyId !== null}
+                      className={`${studentActionButtonClass} ${
+                        completed.has(t.id) ? "bg-emerald-600 hover:bg-emerald-600/90" : ""
+                      }`}
+                    >
+                      {completed.has(t.id) ? "Marked done" : "Mark as done"}
+                    </button>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+
+        {!singleTask?.href && visibleTasks.length === 1 && visibleTasks[0].kind === "free_text" ? (
+          <div className="space-y-2 rounded-2xl border border-border/80 bg-muted/15 p-4">
+            <textarea
+              value={draftTextByTaskId[visibleTasks[0].id] ?? ""}
+              onChange={(e) =>
+                setDraftTextByTaskId((prev) => ({
+                  ...prev,
+                  [visibleTasks[0].id]: e.target.value,
+                }))
+              }
+              rows={4}
+              placeholder="Your answer…"
+              className="w-full resize-y rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              disabled={submitBusyTaskId === visibleTasks[0].id}
+            />
+            <button
+              type="button"
+              onClick={() => void submitResponse(visibleTasks[0].id)}
+              disabled={submitBusyTaskId !== null}
+              className={studentActionButtonClass}
+            >
+              {submitBusyTaskId === visibleTasks[0].id ? "Submitting…" : "Submit"}
+            </button>
+          </div>
+        ) : null}
+
+        {teacherName?.trim() ? (
+          <p className="border-t border-border/50 pt-3 text-[11px] text-muted-foreground">
+            From {teacherName.trim()}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
       {!isTeacherView && completionRewardLine ? (
@@ -702,8 +912,8 @@ export default function AssignmentTaskChecklist({
                           : t.kind === "gyan_engagement"
                             ? "Open Gyan++, post your doubt, and it will mark this assignment complete."
                             : postType === "Concept Focus"
-                            ? "Open the lesson, complete the checklist, then tap Mark as complete on the topic page."
-                            : "Open the link, complete the task, then come back here."}
+                            ? "Finish the checklist on the topic page — progress syncs here automatically."
+                            : "Open the link and complete the activity. Progress updates when you are done."}
                   </div>
                 ) : null}
                 {showResponseBox ? (

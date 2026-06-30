@@ -177,7 +177,7 @@ export function TeacherSubscriptionStatusCard({ tier, subscription, onChanged }:
             <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
             <p className="text-xs leading-relaxed text-sky-100/90">
               This plan was granted via admin coupon. It does not auto-renew — subscribe below
-              before {expiresLabel} to keep live classes and assignment limits.
+              before {expiresLabel} to keep live lessons and assignment limits.
             </p>
           </div>
         ) : subscription.autoRenewActive ? (

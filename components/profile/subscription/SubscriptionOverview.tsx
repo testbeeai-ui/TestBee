@@ -150,7 +150,7 @@ export default function SubscriptionOverview({ profile, onNavigate }: Props) {
     starter: [
       "Testbee adaptive mocks — unlimited",
       "Instacue spaced revision library — full access",
-      "Live classes + recorded library",
+      "Live lessons + recorded library",
       "MentaMill quant speed training",
       "AI Calendar — smart study planner",
       "EduFund Starter tier eligibility",
@@ -158,7 +158,7 @@ export default function SubscriptionOverview({ profile, onNavigate }: Props) {
     pro: [
       "Testbee adaptive mocks — unlimited",
       "Instacue spaced revision library — full access",
-      "Live classes + recorded library (unlimited)",
+      "Live lessons + recorded library (unlimited)",
       "Topper community access & 1-on-1 mentor sessions",
       "AI Calendar — smart study planner",
       "EduFund Pro tier eligibility",

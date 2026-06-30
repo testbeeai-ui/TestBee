@@ -13,6 +13,60 @@ export function effectiveMotivationRdmDelta(
   return Math.min(n, 500);
 }
 
+/** Direct teacher→student credit (recognition / top students) — not gated on assignment completion. */
+export function normalizeInstantMotivationRdm(raw: number): number {
+  const n = Math.round(raw);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(n, 500);
+}
+
+export async function payInstantMotivationRdmToStudents(
+  admin: SupabaseClient,
+  teacherId: string,
+  studentIds: string[],
+  amountPerStudent: number
+): Promise<{ charged: number; paidTotal: number; studentCount: number }> {
+  const per = normalizeInstantMotivationRdm(amountPerStudent);
+  const targets = [...new Set(studentIds.map((id) => id.trim()).filter(Boolean))];
+  if (per <= 0 || targets.length === 0) {
+    return { charged: 0, paidTotal: 0, studentCount: 0 };
+  }
+
+  const totalCharge = per * targets.length;
+  const { data: newRdm, error: deductErr } = await admin.rpc("deduct_rdm", {
+    uid: teacherId,
+    amt: totalCharge,
+  });
+  if (deductErr) throw new Error(deductErr.message);
+  if (newRdm === null) {
+    throw new Error(
+      `Insufficient RDM. This reward requires ${totalCharge} RDM (${per} × ${targets.length} students).`
+    );
+  }
+
+  let paidTotal = 0;
+  let paidCount = 0;
+  for (const studentId of targets) {
+    const { error: rpcErr } = await admin.rpc("add_rdm", { uid: studentId, amt: per });
+    if (rpcErr) continue;
+    paidTotal += per;
+    paidCount += 1;
+  }
+
+  if (paidCount < targets.length) {
+    const refund = (targets.length - paidCount) * per;
+    if (refund > 0) {
+      try {
+        await admin.rpc("add_rdm", { uid: teacherId, amt: refund });
+      } catch {
+        /* best-effort */
+      }
+    }
+  }
+
+  return { charged: paidCount * per, paidTotal, studentCount: paidCount };
+}
+
 const ASSIGNMENT_POST_TYPES = new Set([
   "assignment",
   "quiz",
@@ -111,4 +165,18 @@ export async function tryFulfillAssignmentMotivationGrants(
   }
 
   return { fulfilled: amounts.length, amounts };
+}
+
+/** Retry pending motivation bonuses when a student opens an assignment (mirrors completion reward sync). */
+export async function syncStudentMotivationGrantsForAssignment(
+  admin: SupabaseClient,
+  studentId: string,
+  assignmentPostId: string
+): Promise<{ fulfilled: number; paidTotal: number }> {
+  const { fulfilled, amounts } = await tryFulfillAssignmentMotivationGrants(
+    admin,
+    studentId,
+    assignmentPostId
+  );
+  return { fulfilled, paidTotal: amounts.reduce((sum, n) => sum + n, 0) };
 }

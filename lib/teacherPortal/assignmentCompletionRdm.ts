@@ -629,6 +629,14 @@ export async function tryFulfillConceptFocusRewardsForLessonScope(
   for (const post of posts ?? []) {
     const ref = parseChapterQuizRefFromContentJson(post.content_json);
     if (!ref || !chapterQuizMatchesLessonMark(ref, markRow)) continue;
+    try {
+      const { tryFulfillAssignmentMotivationGrants } = await import(
+        "@/lib/teacherPortal/motivationRdm"
+      );
+      await tryFulfillAssignmentMotivationGrants(admin, studentId, post.id);
+    } catch {
+      /* non-fatal */
+    }
     const { fulfilled, amount } = await tryFulfillAssignmentCompletionReward(
       admin,
       studentId,

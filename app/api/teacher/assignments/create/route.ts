@@ -21,15 +21,22 @@ import {
 } from "@/lib/teacherPortal/assignmentCompletionRdm";
 import {
   createSubtopicUnlockGrantsOnPublish,
+  chargeChapterQuizMcqSponsorship,
   fetchSubtopicUnlockRdmPerStudent,
+  refundMcqSponsorshipChargeForPost,
   refundSubtopicUnlockGrantsForPost,
 } from "@/lib/teacherPortal/subtopicUnlockRdm";
-import { assertTeacherCanCreateAssignment } from "@/lib/teacherPortal/teacherPlanServer";
+import {
+  assignmentRequiresMcqSponsorshipCharge,
+  mcqSponsorshipChargeTotal,
+  splitAudienceForMcqSponsorshipBilling,
+} from "@/lib/teacherPortal/mcqSponsorshipBilling";
+import { assertTeacherCanCreateAssignment, computeTeacherAssignmentPublishCharge } from "@/lib/teacherPortal/teacherPlanServer";
 import {
   fetchTeacherRdmCosts,
   getChargeAmountForAction,
 } from "@/lib/teacherPortal/teacherRdmConfig";
-import { shouldWaiveTeacherAssignmentPublishCharge } from "@/lib/teacherPortal/teacherPlanServer";
+import { readTeacherRdmBalance } from "@/lib/teacherPortal/creditTeacherRdmBalance";
 
 export const runtime = "nodejs";
 
@@ -96,6 +103,10 @@ export async function POST(request: Request) {
   }
 
   const isConceptFocus = assignmentType === "Concept Focus";
+  const needsMcqSponsorship = assignmentRequiresMcqSponsorshipCharge({
+    assignmentType,
+    chapterQuiz: body.chapterQuiz ?? null,
+  });
   const rewardRdm = normalizeCompletionRewardRdm(body.rewardRdm ?? 0);
   const assignToLabel =
     typeof body.assignToLabel === "string" && body.assignToLabel.trim()
@@ -113,22 +124,31 @@ export async function POST(request: Request) {
     targetStudentIds: body.targetStudentIds ?? null,
   });
 
-  const unlockPerStudent = isConceptFocus ? await fetchSubtopicUnlockRdmPerStudent(admin) : 0;
-  const unlockTotal = isConceptFocus ? unlockPerStudent * studentIds.length : 0;
+  const sponsorshipSplit =
+    needsMcqSponsorship && studentIds.length > 0
+      ? await splitAudienceForMcqSponsorshipBilling(admin, studentIds)
+      : null;
 
-  if (isConceptFocus && studentIds.length === 0) {
+  const unlockPerStudent = needsMcqSponsorship ? await fetchSubtopicUnlockRdmPerStudent(admin) : 0;
+  const billableStudentCount = sponsorshipSplit?.billableStudentIds.length ?? 0;
+  const premiumStudentCount = sponsorshipSplit?.premiumStudentIds.length ?? 0;
+  const unlockTotal = mcqSponsorshipChargeTotal(unlockPerStudent, billableStudentCount);
+
+  if (needsMcqSponsorship && studentIds.length === 0) {
     return NextResponse.json(
-      { error: "No students in the selected audience for subtopic unlock." },
+      { error: "No students in the selected audience for MCQ sponsorship." },
       { status: 400 }
     );
   }
-  if (isConceptFocus && unlockTotal > 0 && body.confirmSubtopicUnlock !== true) {
+  if (needsMcqSponsorship && unlockTotal > 0 && body.confirmSubtopicUnlock !== true) {
     return NextResponse.json(
       {
-        error: "Confirmation required for subtopic unlock charge.",
+        error: "Confirmation required for MCQ unlock.",
         code: "subtopic_unlock_confirmation_required",
         unlockPerStudent,
         studentCount: studentIds.length,
+        billableStudentCount,
+        premiumStudentCount,
         unlockTotal,
       },
       { status: 428 }
@@ -156,7 +176,22 @@ export async function POST(request: Request) {
   }
 
   const costs = await fetchTeacherRdmCosts(admin);
-  const publishAmount = isConceptFocus ? 0 : getChargeAmountForAction(costs, "create_assignment");
+  const flatPublishFee = getChargeAmountForAction(costs, "create_assignment");
+  const chargePreview = await computeTeacherAssignmentPublishCharge(teacherId, flatPublishFee);
+  if (!chargePreview.ok) {
+    return NextResponse.json(
+      { error: chargePreview.error, code: chargePreview.code },
+      { status: 403 }
+    );
+  }
+
+  let publishAmount = 0;
+  if (chargePreview.isOverage) {
+    publishAmount = chargePreview.amount;
+  } else if (!isConceptFocus) {
+    publishAmount = chargePreview.amount;
+  }
+
   let publishCharged = 0;
   let postId: string | null = null;
 
@@ -171,8 +206,7 @@ export async function POST(request: Request) {
   };
 
   try {
-    const waivePublish = isConceptFocus || (await shouldWaiveTeacherAssignmentPublishCharge(teacherId));
-    if (!waivePublish && publishAmount > 0) {
+    if (publishAmount > 0) {
       const { data: newRdm, error: pubErr } = await admin.rpc("deduct_rdm", {
         uid: teacherId,
         amt: publishAmount,
@@ -219,19 +253,35 @@ export async function POST(request: Request) {
     postId = created.id;
 
     let unlockResult = { unlockTotal: 0, grantCount: 0, amountPerStudent: 0 };
-    if (isConceptFocus && studentIds.length > 0) {
+    if (needsMcqSponsorship && sponsorshipSplit) {
       const { data: postRow } = await admin
         .from("posts")
         .select("content_json")
         .eq("id", created.id)
         .maybeSingle();
-      unlockResult = await createSubtopicUnlockGrantsOnPublish(admin, {
-        teacherId,
-        assignmentPostId: created.id,
-        contentJson: postRow?.content_json ?? null,
-        studentIds,
-        amountPerStudent: unlockPerStudent,
-      });
+
+      if (isConceptFocus && sponsorshipSplit.billableStudentIds.length > 0) {
+        unlockResult = await createSubtopicUnlockGrantsOnPublish(admin, {
+          teacherId,
+          assignmentPostId: created.id,
+          contentJson: postRow?.content_json ?? null,
+          studentIds: sponsorshipSplit.billableStudentIds,
+          amountPerStudent: unlockPerStudent,
+          premiumStudentCount,
+        });
+      } else if (
+        !isConceptFocus &&
+        assignmentType === "quiz" &&
+        sponsorshipSplit.billableStudentIds.length > 0
+      ) {
+        unlockResult = await chargeChapterQuizMcqSponsorship(admin, {
+          teacherId,
+          assignmentPostId: created.id,
+          billableStudentIds: sponsorshipSplit.billableStudentIds,
+          amountPerStudent: unlockPerStudent,
+          premiumStudentCount,
+        });
+      }
     }
 
     let escrowResult = { escrowed: 0, grantCount: 0, amountPerStudent: 0 };
@@ -245,6 +295,8 @@ export async function POST(request: Request) {
       });
     }
 
+    const walletRdm = await readTeacherRdmBalance(admin, teacherId);
+
     return NextResponse.json({
       ok: true,
       id: created.id,
@@ -254,10 +306,14 @@ export async function POST(request: Request) {
       unlockTotal: unlockResult.unlockTotal,
       unlockGrantCount: unlockResult.grantCount,
       publishFee: publishCharged,
+      isOverage: chargePreview.isOverage,
+      rdm: walletRdm,
+      totalDeducted: publishCharged + escrowResult.escrowed + unlockResult.unlockTotal,
     });
   } catch (e) {
     if (postId) {
       await refundSubtopicUnlockGrantsForPost(admin, postId, teacherId);
+      await refundMcqSponsorshipChargeForPost(admin, postId, teacherId);
       await admin.from("posts").delete().eq("id", postId).eq("teacher_id", teacherId);
     }
     await refundPublishCharge();

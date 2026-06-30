@@ -1,3 +1,4 @@
+import type { SubscriptionPlanKey } from "@/lib/subscription/subscriptionConfig";
 import type { TeacherPlanKey } from "@/lib/teacherPortal/teacherPlan";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
@@ -75,6 +76,8 @@ export interface TeacherPortalClassroomStudent {
   avgScorePercent: number | null;
   streakDays: number;
   status: "active" | "off_streak" | "at_risk";
+  /** Resolved student subscription tier (for MCQ sponsorship billing previews). */
+  subscriptionPlan?: SubscriptionPlanKey;
 }
 
 export interface TeacherPortalClassroomSection {

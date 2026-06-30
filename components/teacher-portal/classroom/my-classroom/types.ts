@@ -1,7 +1,6 @@
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import type { ScheduleLiveSessionPayload } from "@/components/teacher-portal/live/ScheduleLiveSessionPanel";
 import type {
-  TeacherPortalAssignmentItem,
   TeacherPortalClassroomCard,
   TeacherPortalClassroomDetail,
   TeacherPortalChapterQuizRef,
@@ -12,6 +11,7 @@ import type {
   TeacherPortalMockPaperRef,
   TeacherPortalSummary,
 } from "@/lib/teacherPortal/types";
+import type { SendTeacherMotivationResult } from "@/lib/teacherPortal/sendTeacherMotivation";
 import type { MotivationNudgeGoal, MotivationRecommendActionId } from "@/lib/teacherPortal/queries";
 import type { StudentMessageKind } from "@/lib/teacherPortal/studentNotificationCopy";
 
@@ -68,14 +68,14 @@ export interface MyClassroomViewProps {
     notificationTitle?: string;
     nudgeGoal?: MotivationNudgeGoal;
     studentMessageKind?: StudentMessageKind;
-  }) => Promise<void>;
+  }) => Promise<SendTeacherMotivationResult>;
   onRewardTopStudents: (input: {
     classroomId: string;
     targetStudentIds: string[];
     message: string;
     rdmDelta: number;
     sectionId?: string | null;
-  }) => Promise<void>;
+  }) => Promise<SendTeacherMotivationResult>;
   teacherId: string;
   onUpdateClassroom: (input: {
     classroomId: string;

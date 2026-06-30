@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
   Bell,
   BookOpen,
@@ -15,15 +15,15 @@ import {
   Star,
   User,
   X,
-  Zap,
-  Users,
 } from "lucide-react";
 import type { TeacherPortalSection } from "@/lib/teacherPortal/types";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
-import { DEFAULT_LIVE_CLASS_DELIVERY_RDM_CONFIG } from "@/lib/teacherPortal/liveClassDeliveryRdm";
-import { DEFAULT_RDM_CONFIG } from "@/lib/rdm/rdmConfig";
+import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
+import { buildTeacherWalletGuide } from "@/lib/teacherPortal/teacherWalletGuide";
+import TeacherWalletBreakdown from "@/components/teacher-portal/wallet/TeacherWalletBreakdown";
+import RdmWalletBalanceStrip from "@/components/wallet/RdmWalletBalanceStrip";
 
 interface TeacherPortalShellProps {
   activeSection: TeacherPortalSection;
@@ -47,22 +47,6 @@ const sections: Array<{ key: TeacherPortalSection; label: string; icon: typeof L
   { key: "profile", label: "Profile", icon: User },
 ];
 
-const WALLET_EARNING_RATES = [
-  {
-    label: "Gyan++ answer",
-    amount: DEFAULT_RDM_CONFIG.gyan_teacher_answer_rdm,
-    icon: Star,
-    color: "text-amber-300",
-  },
-  {
-    label: "Section schedule class",
-    amount: DEFAULT_LIVE_CLASS_DELIVERY_RDM_CONFIG.baseRdm,
-    icon: Zap,
-    color: "text-emerald-300",
-  },
-  { label: "Refer a teacher", amount: 100, icon: Users, color: "text-violet-300" },
-] as const;
-
 const EDUBLAST_WORDMARK_SRC = "/images/logo-2.png";
 /** Teacher portal only: larger visual logo without increasing header height. */
 const TEACHER_LOGO_CLASSNAME = "h-8 w-auto origin-left scale-[1.28] sm:h-9 sm:scale-[1.3]";
@@ -79,6 +63,11 @@ export default function TeacherPortalShell({
 }: TeacherPortalShellProps) {
   const [walletOpen, setWalletOpen] = useState(false);
   const router = useRouter();
+  const { costs, liveClassDelivery } = useTeacherRdmCosts();
+  const walletGuide = useMemo(
+    () => buildTeacherWalletGuide({ costs, delivery: liveClassDelivery }),
+    [costs, liveClassDelivery]
+  );
 
   const openWallet = () => {
     void onSyncWallet?.();
@@ -260,10 +249,10 @@ export default function TeacherPortalShell({
           onClick={() => setWalletOpen(false)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-amber-400/20 bg-[#0d0d22] p-5 shadow-2xl"
+            className="flex max-h-[min(90vh,760px)] w-full max-w-lg flex-col rounded-2xl border border-amber-400/20 bg-[#0d0d22] shadow-2xl md:max-w-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-4 flex items-center justify-between">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-4">
               <div className="flex items-center gap-2">
                 <Coins className="h-5 w-5 text-amber-300" />
                 <h2 className="text-lg font-semibold text-slate-100">RDM Wallet</h2>
@@ -277,36 +266,13 @@ export default function TeacherPortalShell({
               </button>
             </div>
 
-            <div className="mb-4 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-center">
-              <div className="font-serif text-3xl text-amber-300">
-                {rdmBalance.toLocaleString("en-IN")}
-              </div>
-              <div className="text-sm text-slate-400">RDM balance</div>
-            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              <RdmWalletBalanceStrip balance={rdmBalance} variant="dark" />
 
-            <div className="mb-4">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Ways to earn
-              </div>
-              <div className="space-y-1.5">
-                {WALLET_EARNING_RATES.map(({ label, amount, icon: Icon, color }) => (
-                  <div
-                    key={label}
-                    className="flex items-center gap-2.5 rounded-lg border border-white/10 bg-black/20 px-3 py-2"
-                  >
-                    <Icon className={"h-3.5 w-3.5 shrink-0 " + color} />
-                    <span className="flex-1 text-sm text-slate-300">{label}</span>
-                    <span className="font-serif text-sm font-semibold text-amber-300">
-                      +{amount}
-                    </span>
-                  </div>
-                ))}
+              <div className="mt-4">
+                <TeacherWalletBreakdown guide={walletGuide} compact popup />
               </div>
             </div>
-
-            <p className="text-center text-[11px] text-slate-500">
-              Top up in Subscriptions — Razorpay checkout for 500 / 1,000 / 2,200 RDM packs.
-            </p>
           </div>
         </div>
       ) : null}

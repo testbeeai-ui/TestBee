@@ -226,7 +226,7 @@ export const TEACHER_STORIES = [
     rdm: "+30 RDM per expert comment",
   },
   {
-    title: "Run live classes to a national student base",
+    title: "Run live lessons to a national student base",
     text: "Your classes are no longer limited to the 30 students in your room. List a live session on EduBlast, and students across Karnataka join. Your reputation grows beyond your city. Recorded sessions continue earning engagement long after you finish.",
   },
   {
@@ -245,7 +245,7 @@ export const TEACHER_MOCK_FEED = [
   },
   {
     initials: "DS",
-    name: "Live class \u2014 Mechanics \u00b7 Newton\u2019s Laws deep dive",
+    name: "Live lesson \u2014 Mechanics \u00b7 Newton\u2019s Laws deep dive",
     text: "61 students attended \u00b7 4.9 \u2605 rating \u00b7 312 recorded views",
     meta: "+30 RDM per attendee \u00b7 top-rated this week",
   },
@@ -413,7 +413,7 @@ export const PRICING_PLANS = [
       "MentaMill quant training",
       "Full Instacue library (unlimited)",
       "Calendar \u2014 smart study planner",
-      "Live classes + recorded library",
+      "Live lessons + recorded library",
       "EduFund Scholar tier eligibility",
     ],
     cta: "Start Scholar",

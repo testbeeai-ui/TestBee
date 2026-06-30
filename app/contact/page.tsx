@@ -650,7 +650,7 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                             <option>MentaMill — Quant speed drill</option>
                             <option>DailyDose — Daily 5 questions</option>
                             <option>Play Arena — Academic or Funbrain</option>
-                            <option>Live classes</option>
+                            <option>Live lessons</option>
                           </optgroup>
                           <optgroup label="Platform">
                             <option>Home / Feed / Leaderboard</option>

@@ -5,6 +5,7 @@ import {
   type TeacherProfileDetails,
 } from "@/lib/profile/teacherProfileMeta";
 import { appendQueryParams, buildTopicPath } from "@/lib/curriculum/topicRoutes";
+import { resolvePlanTierFromProfile } from "@/lib/curriculum/topicQuestionBankAccess";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
 import {
   countStudentsAssignmentComplete,
@@ -247,7 +248,7 @@ export async function loadTeacherPortalBundle(
     id: row.id,
     classroom_id: row.classroom_id,
     section_id: row.section_id,
-    title: "Live class",
+    title: "Live lesson",
     scheduled_at: row.slot_at,
     duration_minutes: row.duration_minutes,
     meet_link: row.meet_link,
@@ -758,7 +759,7 @@ export async function loadTeacherPortalBundle(
     ? await db
         .from("classroom_members")
         .select(
-          "classroom_id, user_id, role, joined_at, section_id, profiles(name, avatar_url, rdm)"
+          "classroom_id, user_id, role, joined_at, section_id, profiles(name, avatar_url, rdm, plan_tier, free_trial_activated, subscription_expires_at, subscription_started_at, payment_card_details, time_travel_offset_ms)"
         )
         .in("classroom_id", classroomIds)
     : { data: [], error: null };
@@ -775,7 +776,17 @@ export async function loadTeacherPortalBundle(
       role: string;
       joined_at: string;
       section_id: string | null;
-      profiles: { name: string; avatar_url: string | null; rdm: number | null } | null;
+      profiles: {
+        name: string;
+        avatar_url: string | null;
+        rdm: number | null;
+        plan_tier?: string | null;
+        free_trial_activated?: boolean | null;
+        subscription_expires_at?: string | null;
+        subscription_started_at?: string | null;
+        payment_card_details?: unknown;
+        time_travel_offset_ms?: number | null;
+      } | null;
     }>) ?? [];
 
   const detailMap: Record<string, TeacherPortalClassroomDetail> = {};
@@ -895,6 +906,7 @@ export async function loadTeacherPortalBundle(
       avgScorePercent,
       streakDays,
       status,
+      subscriptionPlan: resolvePlanTierFromProfile(row.profiles ?? undefined),
     });
   });
 

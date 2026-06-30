@@ -3,7 +3,7 @@ import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { createAdminClient } from "@/integrations/supabase/server";
 import {
   countTeacherAssignmentsThisMonth,
-  countTeacherSlotsThisMonth,
+  countTeacherLiveClassesThisMonth,
   loadTeacherPlanContext,
 } from "@/lib/teacherPortal/teacherPlanServer";
 import {
@@ -62,19 +62,33 @@ export async function GET(request: Request) {
     }
   }
 
-  const [slotsBooked, assignmentsCreated] = await Promise.all([
-    countTeacherSlotsThisMonth(user.id, new Date()),
+  const [liveBooked, assignmentsCreated] = await Promise.all([
+    countTeacherLiveClassesThisMonth(user.id, new Date()),
     countTeacherAssignmentsThisMonth(user.id),
   ]);
 
-  const liveQuota = canBookMoreLiveClasses(slotsBooked, planCtx.limits);
-  const assignmentQuota = canCreateMoreAssignments(assignmentsCreated, planCtx.limits);
+  const liveQuota = canBookMoreLiveClasses(
+    liveBooked,
+    planCtx.limits,
+    planCtx.tier,
+    planCtx.liveClassOverageRdm
+  );
+  const assignmentQuota = canCreateMoreAssignments(
+    assignmentsCreated,
+    planCtx.limits,
+    planCtx.tier,
+    planCtx.assignmentOverageRdm
+  );
 
   return NextResponse.json({
     tier: planCtx.tier,
     limits: planCtx.limits,
+    overage: {
+      assignmentRdm: planCtx.assignmentOverageRdm,
+      liveClassRdm: planCtx.liveClassOverageRdm,
+    },
     usage: {
-      liveClassesBookedThisMonth: slotsBooked,
+      liveClassesBookedThisMonth: liveBooked,
       assignmentsCreatedThisMonth: assignmentsCreated,
     },
     liveClasses: liveQuota,
