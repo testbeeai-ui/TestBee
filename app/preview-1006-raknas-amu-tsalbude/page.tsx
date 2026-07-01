@@ -23,6 +23,10 @@ import {
   isVercelPreviewHostname,
 } from "@/lib/auth/canonicalSignInOrigin";
 import { isOAuthAuthorizationCode } from "@/lib/auth/oauthCallbackRedirect";
+import {
+  isAllowedMobileOAuthReturn,
+  resolveMobileAppOAuthReturnTarget,
+} from "@/lib/auth/mobileOAuthReturn";
 import { PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
 
 const PREVIEW_AUTH_BASE = PREVIEW_AUTH_PATH;
@@ -66,6 +70,8 @@ function PreviewAuthContent() {
   const { user, profile, loading, signInWithGoogle, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const returnTo = searchParams.get("return_to");
+  const isMobileOAuthReturn = isAllowedMobileOAuthReturn(returnTo);
   const roleParam = searchParams.get("role");
   const modeParam = searchParams.get("mode");
   const nextParam = searchParams.get("next");
@@ -116,12 +122,33 @@ function PreviewAuthContent() {
       window.location.replace(target.toString());
       return;
     }
+
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = params.get("return_to");
     const hash = window.location.hash;
+
+    if (isAllowedMobileOAuthReturn(returnTo)) {
+      const appTarget = resolveMobileAppOAuthReturnTarget(returnTo, window.location.search, hash);
+      if (appTarget) {
+        window.location.replace(appTarget);
+        return;
+      }
+      const oauthError = params.get("error");
+      if (oauthError) {
+        const errUrl = new URL(returnTo.trim());
+        errUrl.searchParams.set("error", oauthError);
+        const desc = params.get("error_description");
+        if (desc) errUrl.searchParams.set("error_description", desc);
+        window.location.replace(errUrl.toString());
+        return;
+      }
+      return;
+    }
+
     if (hash && hash.includes("access_token")) {
       window.location.replace("/auth/callback/finish" + hash);
       return;
     }
-    const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     if (isOAuthAuthorizationCode(code)) {
       window.location.replace(`/auth/callback?${params.toString()}`);
@@ -144,6 +171,15 @@ function PreviewAuthContent() {
       router.replace(dest);
     }
   }, [user, profile, profile?.onboarding_complete, profile?.role, loading, router]);
+
+  if (isMobileOAuthReturn) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#0f1117] px-6 text-center text-white">
+        <span className="text-4xl">📱</span>
+        <p className="max-w-sm text-sm text-white/70">Returning to EduBlast app…</p>
+      </div>
+    );
+  }
 
   const loadingOrRedirecting = loading || (user != null && profile === null && !profileWaitDone);
   if (loadingOrRedirecting)

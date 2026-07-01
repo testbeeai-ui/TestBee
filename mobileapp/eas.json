@@ -1,0 +1,43 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://www.edublast.in",
+        "EXPO_PUBLIC_WEB_ORIGIN": "https://www.edublast.in",
+        "EXPO_PUBLIC_OAUTH_BRIDGE_ORIGIN": "https://www.edublast.in"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://www.edublast.in",
+        "EXPO_PUBLIC_WEB_ORIGIN": "https://www.edublast.in",
+        "EXPO_PUBLIC_OAUTH_BRIDGE_ORIGIN": "https://www.edublast.in"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "track": "internal"
+      }
+    }
+  }
+}

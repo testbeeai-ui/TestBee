@@ -136,7 +136,21 @@ Anything that is not Next.js / tooling config now lives under:
 | Teacher DB | `supabase/migrations/20260807000000_create_coupons_table.sql` |
 | Student plan DB | `supabase/migrations/20260808120000_subscription_coupons.sql` |
 
+## Key paths (Mobile app — Expo)
+| Area | Files |
+|------|--------|
+| Root | `mobileapp/` (isolated from Next.js) |
+| Routes | `mobileapp/app/` |
+| Features | `mobileapp/features/{dashboard,lessons,gyan,chatbot,earn,edufund,news,blogs,profile,settings}/` |
+| API client | `mobileapp/services/api/client.ts` |
+| Supabase auth | `mobileapp/services/supabase/` |
+| Providers | `mobileapp/providers/AppProviders.tsx` |
+| Setup | `mobileapp/README.md`, `mobileapp/.env.example` |
+
 ## Decisions Log
+- 2026-06-30: **Mobile native Google auth** — `signInWithIdToken` via expo-auth-session (no Supabase/edublast.in OAuth redirect); Google Cloud redirect URI = exp://…/auth/google.
+- 2026-06-30: **Mobile app Phase 1** — Dashboard daily checklist + study streak APIs; Gyan++ Supabase feed + doubt post + Prof-Pi polling detail; Lessons curriculum from Supabase + topic content API + lesson player routes.
+- 2026-06-30: **Mobile app Phase 0 scaffold** — `mobileapp/` Expo SDK 57 + TypeScript; folder layout `app/`, `features/*`, `shared/`, `core/`, `services/`, `providers/`; Supabase Google OAuth (`edublast://auth/callback`), Bearer API client to Next.js; tab shell (Home/Learn/Gyan++/Earn/You); feature stubs for all student modules; website untouched.
 - 2026-06-28: **Dashboard community feed live** — replaced `MOCK_FEED_POSTS` with `RawCommunityFeed` embedded preview (`lessons_raw_posts`); links → `/explore/community`.
 - 2026-06-28: **Teacher Wizard close snooze** — X close stores 1h dismiss in localStorage per teacher; auto-open respects expiry (`lib/teacherPortal/teacherWizardDismiss.ts`). — Step-2 right column shows per-student completion reward × audience + publish fee (Gyan++/mock/quiz/etc.); Concept Focus panel now includes completion reward in total. — claim runs on last advanced set submit (`isLastNonEmptyAdvancedSet`), not hardcoded set 3 (6-set quizzes never credited after set 3-only bug). — payout eligibility uses same rules as UI (incl. bits_test_attempts); task-progress GET retries grant fulfillment + returns `completionReward` status for students (`no_escrow` when pre-escrow assignments).
 - 2026-06-28: **Assignment completion parity (Concept Focus / quiz / mock)** — shared `lib/classroom/assignmentStudentCompletion.ts` (matches ClassFeed done rules); `loadBundle` uses custom audience + engagement/submitted fallbacks; mock `catalog-paper-attempt` upserts task progress; ClassFeed adds mock tracking params; teacher detail modal shows Done banner + syncs concept-focus cache.
@@ -350,3 +364,9 @@ Anything that is not Next.js / tooling config now lives under:
 - 2026-06-30: **Live lesson terminology** — user-facing copy renamed from “live class” to “live lesson” across teacher portal (schedule modal, wallet, quotas, wizard), student rating, subscriptions, and admin RDM table.
 - 2026-06-30: **`/api/user/track` 401** — route uses `getSupabaseAndUser` (chunked cookies); anonymous → 204; `PageViewTracker` only fires when signed in.
 - 2026-06-30: **`teacher_create_classroom_rdm` = 30** — migration `20260630130000`; wallet/charge read live `rdm_config` (was 28 in DB).
+- 2026-06-30: **Mobile app Phase 2** — `mobileapp/`: Subject Chat, Earn & Learn, EduFund, News/Blogs readers, notifications inbox + dashboard bell, Settings; `npx tsc --noEmit` green.
+- 2026-06-30: **Mobile app Phase 3** — offline query persist + banner, Expo push token registration (`mobile_push_tokens`, `/api/user/mobile-push-token`), `eas.json` + Play Store build profiles.
+- 2026-06-30: **Mobile app Phase 4** — motivation Expo push delivery (`lib/mobile/`), Profile hub (wallet/stats/activity), push tap → notifications.
+- 2026-06-30: **Migration applied remote** — `mobile_push_tokens` on TestBee (`bytsiknhtcnlxwzgqkrd`) via Supabase MCP.
+- 2026-06-30: **Mobile app completion pass** — checklist deep links, subscription summary, notification action routing, push foreground refresh, README audit; `tsc` green.
+- 2026-06-30: **Mobile .env production** — API/web/OAuth bridge → `https://www.edublast.in`; removed LAN + Google client ID from mobile env; `eas.json` preview/production env aligned.

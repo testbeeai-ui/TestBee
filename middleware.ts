@@ -88,8 +88,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  /** Let the route handler exchange PKCE without middleware touching the session first. */
-  if (pathname === "/auth/callback" && isOAuthAuthorizationCode(oauthCode)) {
+  /** Let OAuth landing pages handle PKCE without middleware rewriting to /auth/callback. */
+  if (
+    (pathname === "/auth/callback" ||
+      pathname === "/auth/mobile-callback" ||
+      pathname === "/preview-raknas-amu") &&
+    isOAuthAuthorizationCode(oauthCode)
+  ) {
     return NextResponse.next();
   }
 

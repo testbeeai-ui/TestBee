@@ -15,6 +15,7 @@ import {
   payInstantMotivationRdmToStudents,
   tryFulfillAssignmentMotivationGrants,
 } from "@/lib/teacherPortal/motivationRdm";
+import { sendMotivationPushToStudents } from "@/lib/mobile/sendMotivationPush";
 
 export type SendTeacherMotivationInput = {
   teacherId: string;
@@ -195,6 +196,16 @@ export async function sendTeacherMotivation(
       throw e;
     }
   }
+
+  const pushTitle =
+    input.notificationTitle?.trim() ||
+    (input.actionKind === "reward_top_students" ? "Recognition from your teacher" : "Message from your teacher");
+  void sendMotivationPushToStudents(admin, {
+    targetStudentIds,
+    title: pushTitle,
+    body: input.message.trim() || "Keep going!",
+    motivationPostId,
+  });
 
   return {
     motivationPostId,
