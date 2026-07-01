@@ -12,7 +12,6 @@ import {
   type TeacherRdmCosts,
 } from "@/lib/teacherPortal/teacherRdmConfig";
 import {
-  createTeacherLiveSession,
   createTeacherClassroom,
   deleteTeacherClassroom,
   loadTeacherPortalBundle,
@@ -22,6 +21,7 @@ import {
   type MotivationNudgeGoal,
   type MotivationRecommendActionId,
 } from "@/lib/teacherPortal/queries";
+import type { SendTeacherMotivationResult } from "@/lib/teacherPortal/sendTeacherMotivation";
 import type { StudentMessageKind } from "@/lib/teacherPortal/studentNotificationCopy";
 import type {
   TeacherPortalChapterQuizRef,
@@ -149,14 +149,14 @@ interface UseTeacherPortalDataResult {
     notificationTitle?: string;
     nudgeGoal?: MotivationNudgeGoal;
     studentMessageKind?: StudentMessageKind;
-  }) => Promise<void>;
+  }) => Promise<SendTeacherMotivationResult>;
   rewardTopStudents: (input: {
     teacherId: string;
     classroomId: string;
     targetStudentIds: string[];
     message: string;
     rdmDelta: number;
-  }) => Promise<void>;
+  }) => Promise<SendTeacherMotivationResult>;
   createSession: (input: {
     teacherId: string;
     classroomId: string;
@@ -352,7 +352,10 @@ export function useTeacherPortalData(
       scheduleEndDate?: string | null;
       allowAdhocTrial: boolean;
     }) => {
-      await chargeTeacherRdm("create_classroom", rdmCosts);
+      const charge = await chargeTeacherRdm("create_classroom", rdmCosts);
+      if (typeof charge.rdm === "number") {
+        patchRdmBalance(charge.rdm);
+      }
       let classroomId: string;
       try {
         ({ classroomId } = await createTeacherClassroom(input));
@@ -392,7 +395,7 @@ export function useTeacherPortalData(
       }
       await refresh();
     },
-    [refresh, rdmCosts]
+    [refresh, rdmCosts, patchRdmBalance]
   );
 
   const createAssignment = useCallback(
@@ -440,14 +443,19 @@ export function useTeacherPortalData(
         id?: string;
         code?: string;
         escrowTotal?: number;
+        rdm?: number;
+        totalDeducted?: number;
       };
       if (!res.ok) {
         throw new Error(payload.error ?? `Create assignment failed (${res.status})`);
       }
+      if (typeof payload.rdm === "number") {
+        patchRdmBalance(payload.rdm);
+      }
       await refresh();
       return { id: payload.id as string };
     },
-    [refresh]
+    [refresh, patchRdmBalance]
   );
 
   const postTeacherMotivation = useCallback(
@@ -474,14 +482,15 @@ export function useTeacherPortalData(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
-      const payload = (await res.json().catch(() => ({}))) as {
+      const payload = (await res.json().catch(() => ({}))) as SendTeacherMotivationResult & {
         error?: string;
-        teacherCharged?: number;
+        ok?: boolean;
       };
       if (!res.ok) {
         throw new Error(payload.error ?? `Send failed (${res.status}).`);
       }
       await refresh();
+      return payload;
     },
     [refresh]
   );
@@ -492,7 +501,7 @@ export function useTeacherPortalData(
         actionKind: "boost" | "nudge" | "urgent_nudge";
       }
     ) => {
-      await postTeacherMotivation(input);
+      return postTeacherMotivation(input);
     },
     [postTeacherMotivation]
   );
@@ -503,7 +512,7 @@ export function useTeacherPortalData(
         actionKind?: never;
       }
     ) => {
-      await postTeacherMotivation({ ...input, actionKind: "reward_top_students" });
+      return postTeacherMotivation({ ...input, actionKind: "reward_top_students" });
     },
     [postTeacherMotivation]
   );
@@ -545,16 +554,26 @@ export function useTeacherPortalData(
       } | null;
       postWorkDelayDays?: number;
     }) => {
-      await chargeTeacherRdm("schedule_session", rdmCosts);
-      try {
-        await createTeacherLiveSession(input);
-        await refresh();
-      } catch (e) {
-        await refundTeacherRdm("schedule_session", rdmCosts).catch(() => {});
-        throw e;
+      const res = await fetchWithClientAuth("/api/teacher/live-sessions/create", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        rdm?: number;
+        scheduleFee?: number;
+      };
+      if (!res.ok) {
+        throw new Error(payload.error ?? `Schedule session failed (${res.status})`);
       }
+      if (typeof payload.rdm === "number") {
+        patchRdmBalance(payload.rdm);
+      }
+      await refresh();
     },
-    [refresh, rdmCosts]
+    [refresh, patchRdmBalance]
   );
 
   const updateClassroom = useCallback(

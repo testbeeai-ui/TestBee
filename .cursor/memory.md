@@ -136,7 +136,22 @@ Anything that is not Next.js / tooling config now lives under:
 | Teacher DB | `supabase/migrations/20260807000000_create_coupons_table.sql` |
 | Student plan DB | `supabase/migrations/20260808120000_subscription_coupons.sql` |
 
+## Key paths (Mobile app — Expo)
+| Area | Files |
+|------|--------|
+| Root | `mobileapp/` (isolated from Next.js) |
+| Routes | `mobileapp/app/` |
+| Features | `mobileapp/features/{dashboard,lessons,gyan,chatbot,earn,edufund,news,blogs,profile,settings}/` |
+| API client | `mobileapp/services/api/client.ts` |
+| Supabase auth | `mobileapp/services/supabase/` |
+| Providers | `mobileapp/providers/AppProviders.tsx` |
+| Setup | `mobileapp/README.md`, `mobileapp/.env.example` |
+
 ## Decisions Log
+- 2026-06-30: **Mobile native Google auth** — `signInWithIdToken` via expo-auth-session (no Supabase/edublast.in OAuth redirect); Google Cloud redirect URI = exp://…/auth/google.
+- 2026-06-30: **Mobile app Phase 1** — Dashboard daily checklist + study streak APIs; Gyan++ Supabase feed + doubt post + Prof-Pi polling detail; Lessons curriculum from Supabase + topic content API + lesson player routes.
+- 2026-06-30: **Mobile app Phase 0 scaffold** — `mobileapp/` Expo SDK 57 + TypeScript; folder layout `app/`, `features/*`, `shared/`, `core/`, `services/`, `providers/`; Supabase Google OAuth (`edublast://auth/callback`), Bearer API client to Next.js; tab shell (Home/Learn/Gyan++/Earn/You); feature stubs for all student modules; website untouched.
+- 2026-06-28: **Dashboard community feed live** — replaced `MOCK_FEED_POSTS` with `RawCommunityFeed` embedded preview (`lessons_raw_posts`); links → `/explore/community`.
 - 2026-06-28: **Teacher Wizard close snooze** — X close stores 1h dismiss in localStorage per teacher; auto-open respects expiry (`lib/teacherPortal/teacherWizardDismiss.ts`). — Step-2 right column shows per-student completion reward × audience + publish fee (Gyan++/mock/quiz/etc.); Concept Focus panel now includes completion reward in total. — claim runs on last advanced set submit (`isLastNonEmptyAdvancedSet`), not hardcoded set 3 (6-set quizzes never credited after set 3-only bug). — payout eligibility uses same rules as UI (incl. bits_test_attempts); task-progress GET retries grant fulfillment + returns `completionReward` status for students (`no_escrow` when pre-escrow assignments).
 - 2026-06-28: **Assignment completion parity (Concept Focus / quiz / mock)** — shared `lib/classroom/assignmentStudentCompletion.ts` (matches ClassFeed done rules); `loadBundle` uses custom audience + engagement/submitted fallbacks; mock `catalog-paper-attempt` upserts task progress; ClassFeed adds mock tracking params; teacher detail modal shows Done banner + syncs concept-focus cache.
 - 2026-06-28: **Teacher portal hooks fix** — moved `useUserStore` above early returns in `app/teacher-portal/page.tsx` (was after auth guards, causing Rules of Hooks violation).
@@ -338,3 +353,20 @@ Anything that is not Next.js / tooling config now lives under:
 - 2026-06-28: **ClassFeed Active/Done fix** — feed completion now loads `student_lesson_mark_completions` (Concept Focus parity with task-progress API); progress query errors no longer wipe done state; empty posts during load skip done reset.
 - 2026-06-28: **ClassFeed session cache (SWR)** — `lib/classroom/studentFeedCache.ts` hydrates posts + Active/Done partition from sessionStorage; skeleton until first partition (no all-posts flash); background revalidate on fetch.
 - 2026-06-28: **`npm run build` green** — untyped Supabase client for `doubt_id` progress reads (`task-progress`, `gyan-completions`); `fund-completion-reward` uses `SupabaseClient` cast for `classroom_assignment_completion_rdm_grants` (types not yet regen after migration restore).
+- 2026-06-29: **Teacher plan 12/24/60 quotas + RDM fixes** — investor ladder (Free/Starter/Pro included 12/24/60 assignments & live classes); Pro overage 20/assignment + 100/live class; flat publish/schedule fees within quota; `deduct_rdm` NULL fix; live book + `/api/teacher/live-sessions/create` server charges; `teacherPlanQuotaPolicy.ts`; admin `rdm_config` keys; Concept Focus unlock uses `subtopic_unlock_per_student` in UI.
+- 2026-06-29: **Student assignment modal UX** — single-column action-first layout; removed side-by-side “How to complete” wall; full-width **Start quiz** CTAs; teacher meta hidden from students.
+- 2026-06-29: **Teacher RDM UX (+/− labels, upgrade banners, overage confirms)** — inline `−N`/`+N` on publish & live book buttons; quota upgrade banners at cap; confirm modals before Pro overage (20/100 RDM) and wallet deductions; `teacherRdmUxCopy.ts`, `useTeacherPlanLimits`, `TeacherQuotaUpgradeBanner`, `TeacherLiveClassChargeConfirm`.
+- 2026-06-29: **Live class earn-at-schedule** — within monthly cap teachers earn **+100 + 10×roster** on book (no −30 fee); credited immediately via `award_teacher_section_schedule_occurrence_rdm` (`p_force_before_end`); Pro overage still **−100**/extra class; UI `Schedule (+N RDM)` + confirm breakdown; `BookLiveClassSlotPanel` + `live-classes/book`.
+- 2026-06-29: **Admin ↔ live class schedule RDM** — `/admin/rdm-table` subsection for schedule earn + quota keys; teacher UI reads `liveClassDelivery` from `/api/teacher/rdm/costs` (admin `rdm_config`: base, per-student, cap); server award RPC uses same keys.
+- 2026-06-30: **MCQ sponsorship billing (free students only)** — Concept Focus + chapter quiz sets 2–6 charge teacher `subtopic_unlock_per_student` × free-plan students only; Starter/Pro skipped; `mcqSponsorshipBilling.ts`; UI split in `SubtopicUnlockCostPanel`; student `subscriptionPlan` on teacher bundle.
+- 2026-06-30: **Teacher RDM Wallet breakdown** — header popup + `TeacherWalletView` show earn/spend rows from `teacherWalletGuide.ts` (live costs from `/api/teacher/rdm/costs`).
+- 2026-06-30: **Student RDM Wallet popup** — header RDM badge opens earn/spend guide (`studentWalletGuide.ts`, `StudentRdmWalletDialog`) instead of `/pricing`; link to Profile → Activity for transaction history.
+- 2026-06-30: **Live lesson terminology** — user-facing copy renamed from “live class” to “live lesson” across teacher portal (schedule modal, wallet, quotas, wizard), student rating, subscriptions, and admin RDM table.
+- 2026-06-30: **`/api/user/track` 401** — route uses `getSupabaseAndUser` (chunked cookies); anonymous → 204; `PageViewTracker` only fires when signed in.
+- 2026-06-30: **`teacher_create_classroom_rdm` = 30** — migration `20260630130000`; wallet/charge read live `rdm_config` (was 28 in DB).
+- 2026-06-30: **Mobile app Phase 2** — `mobileapp/`: Subject Chat, Earn & Learn, EduFund, News/Blogs readers, notifications inbox + dashboard bell, Settings; `npx tsc --noEmit` green.
+- 2026-06-30: **Mobile app Phase 3** — offline query persist + banner, Expo push token registration (`mobile_push_tokens`, `/api/user/mobile-push-token`), `eas.json` + Play Store build profiles.
+- 2026-06-30: **Mobile app Phase 4** — motivation Expo push delivery (`lib/mobile/`), Profile hub (wallet/stats/activity), push tap → notifications.
+- 2026-06-30: **Migration applied remote** — `mobile_push_tokens` on TestBee (`bytsiknhtcnlxwzgqkrd`) via Supabase MCP.
+- 2026-06-30: **Mobile app completion pass** — checklist deep links, subscription summary, notification action routing, push foreground refresh, README audit; `tsc` green.
+- 2026-06-30: **Mobile .env production** — API/web/OAuth bridge → `https://www.edublast.in`; removed LAN + Google client ID from mobile env; `eas.json` preview/production env aligned.

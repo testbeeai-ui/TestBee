@@ -45,51 +45,63 @@ describe("istMonthBoundsForDate", () => {
 describe("getTeacherPlanLimits", () => {
   const cfg = { ...TEACHER_PLAN_CONFIG_DEFAULTS };
 
-  it("free tier has 24 live classes and 10 assignments", () => {
+  it("free tier has 12 live classes and 12 assignments", () => {
     const limits = getTeacherPlanLimits(cfg, "free");
-    expect(limits.liveClassesPerMonth).toBe(24);
-    expect(limits.assignmentsPerMonth).toBe(10);
+    expect(limits.liveClassesPerMonth).toBe(12);
+    expect(limits.assignmentsPerMonth).toBe(12);
   });
 
-  it("starter has 60 live classes and unlimited assignments", () => {
+  it("starter has 24 live classes and 24 assignments", () => {
     const limits = getTeacherPlanLimits(cfg, "starter");
-    expect(limits.liveClassesPerMonth).toBe(60);
-    expect(limits.assignmentsPerMonth).toBe(9999);
+    expect(limits.liveClassesPerMonth).toBe(24);
+    expect(limits.assignmentsPerMonth).toBe(24);
   });
 
-  it("pro has unlimited live classes", () => {
-    expect(getTeacherPlanLimits(cfg, "pro").liveClassesPerMonth).toBe(9999);
+  it("pro has 60 included live classes and assignments", () => {
+    const pro = getTeacherPlanLimits(cfg, "pro");
+    expect(pro.liveClassesPerMonth).toBe(60);
+    expect(pro.assignmentsPerMonth).toBe(60);
   });
 });
 
 describe("quota helpers", () => {
   const starterLimits = getTeacherPlanLimits(TEACHER_PLAN_CONFIG_DEFAULTS, "starter");
 
-  it("allows free teacher until 24 bookings", () => {
+  it("allows free teacher until 12 bookings", () => {
     const freeLimits = getTeacherPlanLimits(TEACHER_PLAN_CONFIG_DEFAULTS, "free");
-    expect(canBookMoreLiveClasses(0, freeLimits).allowed).toBe(true);
-    expect(canBookMoreLiveClasses(23, freeLimits).allowed).toBe(true);
-    expect(canBookMoreLiveClasses(24, freeLimits).allowed).toBe(false);
+    expect(canBookMoreLiveClasses(0, freeLimits, "free").allowed).toBe(true);
+    expect(canBookMoreLiveClasses(11, freeLimits, "free").allowed).toBe(true);
+    expect(canBookMoreLiveClasses(12, freeLimits, "free").allowed).toBe(false);
   });
 
-  it("allows starter until 60 bookings", () => {
-    expect(canBookMoreLiveClasses(59, starterLimits).allowed).toBe(true);
-    expect(canBookMoreLiveClasses(60, starterLimits).allowed).toBe(false);
+  it("allows starter until 24 bookings", () => {
+    expect(canBookMoreLiveClasses(23, starterLimits, "starter").allowed).toBe(true);
+    expect(canBookMoreLiveClasses(24, starterLimits, "starter").allowed).toBe(false);
   });
 
-  it("pro live classes are unlimited", () => {
+  it("pro live classes allow overage at cap", () => {
     const proLimits = getTeacherPlanLimits(TEACHER_PLAN_CONFIG_DEFAULTS, "pro");
-    expect(canBookMoreLiveClasses(500, proLimits).allowed).toBe(true);
+    const atCap = canBookMoreLiveClasses(60, proLimits, "pro");
+    expect(atCap.allowed).toBe(true);
+    expect(atCap.isOverage).toBe(true);
   });
 
-  it("starter assignments are effectively unlimited", () => {
-    expect(canCreateMoreAssignments(100, starterLimits).allowed).toBe(true);
+  it("starter assignments block at 24", () => {
+    expect(canCreateMoreAssignments(23, starterLimits, "starter").allowed).toBe(true);
+    expect(canCreateMoreAssignments(24, starterLimits, "starter").allowed).toBe(false);
   });
 
-  it("allows free tier until 10 assignments", () => {
+  it("allows free tier until 12 assignments", () => {
     const freeLimits = getTeacherPlanLimits(TEACHER_PLAN_CONFIG_DEFAULTS, "free");
-    expect(canCreateMoreAssignments(9, freeLimits).allowed).toBe(true);
-    expect(canCreateMoreAssignments(10, freeLimits).allowed).toBe(false);
+    expect(canCreateMoreAssignments(11, freeLimits, "free").allowed).toBe(true);
+    expect(canCreateMoreAssignments(12, freeLimits, "free").allowed).toBe(false);
+  });
+
+  it("pro assignments allow overage at cap", () => {
+    const proLimits = getTeacherPlanLimits(TEACHER_PLAN_CONFIG_DEFAULTS, "pro");
+    const atCap = canCreateMoreAssignments(60, proLimits, "pro");
+    expect(atCap.allowed).toBe(true);
+    expect(atCap.isOverage).toBe(true);
   });
 });
 
@@ -122,9 +134,10 @@ describe("calendar series gating", () => {
     );
   });
 
-  it("waives assignment publish charge only on Pro", () => {
+  it("waives assignment publish charge only on Pro within included quota", () => {
     expect(teacherAssignmentPublishChargeWaived("free")).toBe(false);
     expect(teacherAssignmentPublishChargeWaived("starter")).toBe(false);
     expect(teacherAssignmentPublishChargeWaived("pro")).toBe(true);
+    expect(teacherAssignmentPublishChargeWaived("pro", true)).toBe(false);
   });
 });

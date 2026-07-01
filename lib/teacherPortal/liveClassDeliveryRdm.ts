@@ -75,6 +75,22 @@ export function formatLiveClassDeliveryRdmBreakdown(
   return `${breakdown.baseRdm} RDM`;
 }
 
+export function formatLiveClassScheduleEarningLabel(
+  breakdown: ReturnType<typeof computeLiveClassDeliveryRdm>
+): string {
+  const { totalRdm, baseRdm, cappedStudentCount, perStudentRdm } = breakdown;
+  if (totalRdm <= 0) return "No delivery RDM for this lesson";
+  if (cappedStudentCount > 0) {
+    return `+${baseRdm} + ${cappedStudentCount}×${perStudentRdm} = +${totalRdm} RDM when you schedule`;
+  }
+  return `+${totalRdm} RDM when you schedule`;
+}
+
+export function formatLiveClassScheduleButtonLabel(totalRdm: number): string {
+  if (totalRdm <= 0) return "Schedule lesson";
+  return `Schedule (+${totalRdm} RDM)`;
+}
+
 export function formatSectionScheduleDeliveryRdmLabel(input: {
   expectedDeliveryRdm?: number;
   deliveryRdmGrantedTotal?: number;

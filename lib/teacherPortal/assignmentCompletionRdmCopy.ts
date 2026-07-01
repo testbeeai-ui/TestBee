@@ -46,6 +46,13 @@ export function studentCompletionRewardLine(
   return `+${amount} RDM from your teacher when you complete this assignment`;
 }
 
+/** One short fragment for assignment modals (due date shown separately). */
+export function studentCompletionRewardBadge(rewardRdm: number): string | null {
+  const amount = Number.isFinite(rewardRdm) ? Math.max(0, Math.round(rewardRdm)) : 0;
+  if (amount <= 0) return null;
+  return `+${amount} RDM`;
+}
+
 /** Checklist status line after the server syncs completion-reward grants. */
 export function studentCompletionRewardStatusLine(
   status: import("@/lib/teacherPortal/assignmentCompletionRdm").StudentCompletionRewardStatus

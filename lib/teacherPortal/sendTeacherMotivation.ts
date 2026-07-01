@@ -8,11 +8,14 @@ import {
   assertTeacherApprovedForMutations,
   type TeacherMutationGuardOptions,
 } from "@/lib/teacherPortal/queries/guards";
-import { tryFulfillAssignmentMotivationGrants } from "@/lib/teacherPortal/motivationRdm";
 import {
   assertRelatedAssignmentPost,
   effectiveMotivationRdmDelta,
+  normalizeInstantMotivationRdm,
+  payInstantMotivationRdmToStudents,
+  tryFulfillAssignmentMotivationGrants,
 } from "@/lib/teacherPortal/motivationRdm";
+import { sendMotivationPushToStudents } from "@/lib/mobile/sendMotivationPush";
 
 export type SendTeacherMotivationInput = {
   teacherId: string;
@@ -38,6 +41,9 @@ export type SendTeacherMotivationResult = {
   effectiveRdmDelta: number;
   teacherCharged: number;
   grantsCreated: number;
+  grantsPaid: number;
+  grantsPending: number;
+  instantRdmPaid: number;
 };
 
 async function insertMotivationPost(
@@ -96,6 +102,13 @@ export async function sendTeacherMotivation(
 
   const relatedPostId = input.relatedPostId?.trim() || null;
   const effectiveDelta = effectiveMotivationRdmDelta(input.rdmDelta, relatedPostId);
+  const instantPerStudent =
+    !relatedPostId ? normalizeInstantMotivationRdm(input.rdmDelta) : 0;
+  const canInstantPay =
+    instantPerStudent > 0 &&
+    !relatedPostId &&
+    (input.actionKind === "reward_top_students" || input.actionKind === "boost");
+  const postRdmDelta = effectiveDelta > 0 ? effectiveDelta : canInstantPay ? instantPerStudent : 0;
 
   if (effectiveDelta > 0 && relatedPostId) {
     await assertRelatedAssignmentPost(admin, input.classroomId, relatedPostId, input.teacherId);
@@ -121,7 +134,7 @@ export async function sendTeacherMotivation(
 
   let motivationPostId: string;
   try {
-    motivationPostId = await insertMotivationPost(admin, input, effectiveDelta);
+    motivationPostId = await insertMotivationPost(admin, input, postRdmDelta);
   } catch (e) {
     if (teacherCharged > 0) {
       try {
@@ -134,6 +147,9 @@ export async function sendTeacherMotivation(
   }
 
   let grantsCreated = 0;
+  let grantsPaid = 0;
+  let instantRdmPaid = 0;
+
   if (effectiveDelta > 0 && relatedPostId) {
     const grantRows = targetStudentIds.map((studentId) => ({
       motivation_post_id: motivationPostId,
@@ -157,14 +173,47 @@ export async function sendTeacherMotivation(
     grantsCreated = grantRows.length;
 
     for (const studentId of targetStudentIds) {
-      await tryFulfillAssignmentMotivationGrants(admin, studentId, relatedPostId);
+      const { fulfilled, amounts } = await tryFulfillAssignmentMotivationGrants(
+        admin,
+        studentId,
+        relatedPostId
+      );
+      grantsPaid += fulfilled;
+      instantRdmPaid += amounts.reduce((sum, n) => sum + n, 0);
+    }
+  } else if (canInstantPay) {
+    try {
+      const instant = await payInstantMotivationRdmToStudents(
+        admin,
+        input.teacherId,
+        targetStudentIds,
+        instantPerStudent
+      );
+      teacherCharged = instant.charged;
+      instantRdmPaid = instant.paidTotal;
+    } catch (e) {
+      await admin.from("posts").delete().eq("id", motivationPostId);
+      throw e;
     }
   }
 
+  const pushTitle =
+    input.notificationTitle?.trim() ||
+    (input.actionKind === "reward_top_students" ? "Recognition from your teacher" : "Message from your teacher");
+  void sendMotivationPushToStudents(admin, {
+    targetStudentIds,
+    title: pushTitle,
+    body: input.message.trim() || "Keep going!",
+    motivationPostId,
+  });
+
   return {
     motivationPostId,
-    effectiveRdmDelta: effectiveDelta,
+    effectiveRdmDelta: postRdmDelta,
     teacherCharged,
     grantsCreated,
+    grantsPaid,
+    grantsPending: Math.max(0, grantsCreated - grantsPaid),
+    instantRdmPaid,
   };
 }

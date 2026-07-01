@@ -23,10 +23,15 @@ import {
   formatCompletionEscrowSummary,
   teacherAssignmentPublishIncentiveLine,
 } from "@/lib/teacherPortal/assignmentCompletionRdmCopy";
-import { formatSubtopicUnlockSummary } from "@/lib/teacherPortal/subtopicUnlockRdmCopy";
+import { formatMcqSponsorshipSummary } from "@/lib/teacherPortal/subtopicUnlockRdmCopy";
 import SubtopicUnlockCostPanel, {
   conceptFocusPublishGrandTotal,
 } from "@/components/teacher-portal/assignment/SubtopicUnlockCostPanel";
+import {
+  assignmentRequiresMcqSponsorshipCharge,
+  audienceStudentIdsFromClassroom,
+  splitClassroomAudienceForMcqSponsorship,
+} from "@/lib/teacherPortal/mcqSponsorshipBilling";
 import AssignmentCompletionRewardPanel, {
   assignmentCompletionPublishGrandTotal,
 } from "@/components/teacher-portal/assignment/AssignmentCompletionRewardPanel";
@@ -49,8 +54,14 @@ import { fetchMockPapersFromSupabase } from "@/lib/mock/mockPapersFromSupabase";
 import { fetchPastPapersFromSupabase } from "@/lib/mock/pastPapersFromSupabase";
 import type { MockPaper, PastPaper } from "@/types";
 import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
-import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
-import { type TeacherPlanKey, teacherAssignmentPublishChargeWaived } from "@/lib/teacherPortal/teacherPlan";
+import TeacherQuotaUpgradeBanner from "@/components/teacher-portal/rdm/TeacherQuotaUpgradeBanner";
+import {
+  assignmentPublishFeeLine,
+  formatRdmDeduction,
+  resolveClientAssignmentPublishFee,
+  teacherMonthlyQuotaRemainingLabel,
+} from "@/lib/teacherPortal/teacherRdmUxCopy";
+import { useTeacherPlanLimits } from "@/hooks/useTeacherPlanLimits";
 
 type WizardTypeKey = "quiz" | "concept_focus" | "gyan" | "mock" | "past_paper";
 type AssignScope = "full" | "section" | "students";
@@ -227,56 +238,53 @@ export default function CreateAssignmentWizard(props: {
   const [rewardRdm, setRewardRdm] = useState<number>(0);
   const [instructions, setInstructions] = useState<string>("");
   const [publishing, setPublishing] = useState(false);
-  const [assignmentQuota, setAssignmentQuota] = useState<{
-    tier: TeacherPlanKey;
-    allowed: boolean;
-    remaining: number;
-    cap: number;
-  } | null>(null);
-  const [assignmentQuotaLoading, setAssignmentQuotaLoading] = useState(true);
-
-  const loadAssignmentQuota = useCallback(async () => {
-    setAssignmentQuotaLoading(true);
-    try {
-      const res = await fetchWithClientAuth("/api/teacher/plan/limits");
-      const body = (await res.json()) as {
-        tier?: TeacherPlanKey;
-        assignments?: { allowed: boolean; remaining: number; cap: number };
-      };
-      if (res.ok && body.assignments) {
-        setAssignmentQuota({
-          tier: body.tier ?? "free",
-          allowed: body.assignments.allowed,
-          remaining: body.assignments.remaining,
-          cap: body.assignments.cap,
-        });
+  const { loading: assignmentQuotaLoading, limits: planLimits, refresh: refreshPlanLimits } =
+    useTeacherPlanLimits();
+  const assignmentQuota = planLimits
+    ? {
+        tier: planLimits.tier,
+        allowed: planLimits.assignments.allowed,
+        remaining: planLimits.assignments.remaining,
+        cap: planLimits.assignments.cap,
+        isOverage: planLimits.assignments.isOverage,
       }
-    } finally {
-      setAssignmentQuotaLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadAssignmentQuota();
-  }, [loadAssignmentQuota]);
+    : null;
+  const assignmentOverageRdm = planLimits?.overage.assignmentRdm ?? 20;
+  const assignmentsUsedThisMonth = planLimits?.usage.assignmentsCreatedThisMonth ?? 0;
 
   const canPublishAssignment =
     assignmentQuota?.allowed !== false && assignmentQuota?.cap !== 0;
-  const assignmentQuotaLabel =
-    assignmentQuota && assignmentQuota.cap < 9999
-      ? `${assignmentQuota.remaining}/${assignmentQuota.cap} assignments left this month (IST)`
-      : assignmentQuota && assignmentQuota.cap >= 9999
-        ? "Unlimited assignments on your plan"
-        : null;
-  const assignmentUpgradeHint =
-    assignmentQuota && !assignmentQuota.allowed
-      ? assignmentQuota.tier === "free"
-        ? "Upgrade to Starter for unlimited assignments (RDM charged each publish)."
-        : "Monthly assignment limit reached on your plan."
-      : null;
 
-  const assignmentPublishWaived =
-    assignmentQuota?.tier != null && teacherAssignmentPublishChargeWaived(assignmentQuota.tier);
+  const publishFeeResolved = useMemo(() => {
+    if (!assignmentQuota) {
+      return { amount: teacherRdmCosts.create_assignment, kind: "flat" as const };
+    }
+    return resolveClientAssignmentPublishFee({
+      tier: assignmentQuota.tier,
+      allowed: assignmentQuota.allowed,
+      isOverage: assignmentQuota.isOverage,
+      cap: assignmentQuota.cap,
+      used: assignmentsUsedThisMonth,
+      flatPublishFee: teacherRdmCosts.create_assignment,
+      overageRdm: assignmentOverageRdm,
+    });
+  }, [
+    assignmentQuota,
+    assignmentsUsedThisMonth,
+    assignmentOverageRdm,
+    teacherRdmCosts.create_assignment,
+  ]);
+
+  const assignmentQuotaLabel =
+    assignmentQuota && assignmentQuota.isOverage && assignmentQuota.tier === "pro"
+      ? `Included ${assignmentQuota.cap} used — next publish ${formatRdmDeduction(assignmentOverageRdm)} (overage)`
+      : assignmentQuota
+        ? teacherMonthlyQuotaRemainingLabel(
+            "assignments",
+            assignmentQuota.remaining,
+            assignmentQuota.cap
+          )
+        : null;
 
   const lastEmbeddedAssignmentDraftMarkerRef = useRef<string>("");
 
@@ -504,59 +512,48 @@ export default function CreateAssignmentWizard(props: {
     return `Custom (${studentIds.length})`;
   }, [detail?.sections, scope, sectionId, studentIds.length]);
 
-  const audienceStudentCount = useMemo(() => {
-    const rows = (detail?.students ?? []).filter((s) => s.role !== "teacher");
-    if (scope === "students") return studentIds.length;
-    if (scope === "section" && sectionId) {
-      return rows.filter((s) => s.sectionId === sectionId).length;
+  const audienceStudentIds = useMemo(() => {
+    const rows = detail?.students ?? [];
+    if (scope === "students") {
+      return audienceStudentIdsFromClassroom(rows, {
+        mode: "custom",
+        customStudentIds: studentIds,
+      });
     }
-    return rows.length;
-  }, [detail?.students, scope, sectionId, studentIds.length]);
+    if (scope === "section" && sectionId) {
+      return audienceStudentIdsFromClassroom(rows, { mode: "section", sectionId });
+    }
+    return audienceStudentIdsFromClassroom(rows, { mode: "full" });
+  }, [detail?.students, scope, sectionId, studentIds]);
+
+  const audienceStudentCount = audienceStudentIds.length;
+
+  const mcqSponsorshipSplit = useMemo(() => {
+    if (!detail?.students?.length || audienceStudentIds.length === 0) {
+      return { billableStudentIds: [], premiumStudentIds: [], allStudentIds: [] };
+    }
+    return splitClassroomAudienceForMcqSponsorship(detail.students, audienceStudentIds);
+  }, [detail?.students, audienceStudentIds]);
 
   const escrowPreview = useMemo(
     () => formatCompletionEscrowSummary(rewardRdm, audienceStudentCount),
     [rewardRdm, audienceStudentCount]
   );
-  const subtopicUnlockPreview = useMemo(
-    () =>
-      typeKey === "concept_focus"
-        ? formatSubtopicUnlockSummary(teacherRdmCosts.create_assignment, audienceStudentCount)
-        : { perStudent: 0, total: 0, studentCount: audienceStudentCount },
-    [typeKey, teacherRdmCosts.create_assignment, audienceStudentCount]
-  );
-  const isConceptFocusPublish = typeKey === "concept_focus";
-
-  const publishButtonLabel = assignmentPublishWaived
-    ? "Publish assignment (included on Pro)"
-    : isConceptFocusPublish
-      ? audienceStudentCount > 0
-        ? `Create assignment (${conceptFocusPublishGrandTotal(
-            teacherRdmCosts.create_assignment,
-            audienceStudentCount,
-            rewardRdm
-          )} RDM)`
-        : "Publish assignment"
-      : audienceStudentCount > 0 &&
-          assignmentCompletionPublishGrandTotal(
-            teacherRdmCosts.create_assignment,
-            audienceStudentCount,
-            rewardRdm
-          ) > 0
-        ? `Publish assignment (${assignmentCompletionPublishGrandTotal(
-            teacherRdmCosts.create_assignment,
-            audienceStudentCount,
-            rewardRdm
-          )} RDM)`
-        : `Publish assignment (-${teacherRdmCosts.create_assignment} RDM)`;
-
-  const selectedMock = useMemo(
-    () => mockPapers.find((p) => p.id === selectedMockPaperId) ?? null,
-    [mockPapers, selectedMockPaperId]
-  );
-  const selectedPast = useMemo(
-    () => pastPapers.find((p) => p.id === selectedPastPaperId) ?? null,
-    [pastPapers, selectedPastPaperId]
-  );
+  const mcqSponsorshipPreview = useMemo(() => {
+    return formatMcqSponsorshipSummary(
+      teacherRdmCosts.subtopic_unlock_per_student,
+      mcqSponsorshipSplit.billableStudentIds.length,
+      {
+        premiumStudentCount: mcqSponsorshipSplit.premiumStudentIds.length,
+        totalStudentCount: audienceStudentCount,
+      }
+    );
+  }, [
+    teacherRdmCosts.subtopic_unlock_per_student,
+    mcqSponsorshipSplit.billableStudentIds.length,
+    mcqSponsorshipSplit.premiumStudentIds.length,
+    audienceStudentCount,
+  ]);
 
   const chapterQuizRef: TeacherPortalChapterQuizRef | null = useMemo(() => {
     if (typeKey === "quiz") return chapterQuizToRef(chapterQuizSel, taxonomy);
@@ -572,6 +569,69 @@ export default function CreateAssignmentWizard(props: {
     }
     return null;
   }, [chapterQuizSel, conceptFocusSel, taxonomy, typeKey]);
+
+  const needsMcqSponsorship = useMemo(
+    () =>
+      assignmentRequiresMcqSponsorshipCharge({
+        assignmentType: meta.derivedType,
+        chapterQuiz: chapterQuizRef,
+      }),
+    [meta.derivedType, chapterQuizRef]
+  );
+  const isConceptFocusPublish = typeKey === "concept_focus";
+
+  const publishGrandTotal = useMemo(() => {
+    if (needsMcqSponsorship) {
+      const unlockTotal = conceptFocusPublishGrandTotal(
+        teacherRdmCosts.subtopic_unlock_per_student,
+        mcqSponsorshipSplit.billableStudentIds.length,
+        rewardRdm,
+        mcqSponsorshipSplit.premiumStudentIds.length,
+        audienceStudentCount
+      );
+      if (isConceptFocusPublish) return unlockTotal;
+      return unlockTotal + publishFeeResolved.amount;
+    }
+    return assignmentCompletionPublishGrandTotal(
+      publishFeeResolved.amount,
+      audienceStudentCount,
+      rewardRdm
+    );
+  }, [
+    needsMcqSponsorship,
+    isConceptFocusPublish,
+    teacherRdmCosts.subtopic_unlock_per_student,
+    mcqSponsorshipSplit.billableStudentIds.length,
+    mcqSponsorshipSplit.premiumStudentIds.length,
+    publishFeeResolved.amount,
+    audienceStudentCount,
+    rewardRdm,
+  ]);
+
+  const publishButtonLabel = useMemo(() => {
+    if (assignmentQuota && !assignmentQuota.allowed) {
+      return "Monthly limit reached — upgrade to continue";
+    }
+    if (publishFeeResolved.kind === "none" && publishGrandTotal <= 0) {
+      return "Publish assignment (included on Pro)";
+    }
+    if (publishGrandTotal > 0) {
+      return `Publish assignment (${formatRdmDeduction(publishGrandTotal)})`;
+    }
+    if (publishFeeResolved.amount > 0) {
+      return `Publish assignment (${formatRdmDeduction(publishFeeResolved.amount)})`;
+    }
+    return "Publish assignment";
+  }, [assignmentQuota, publishFeeResolved, publishGrandTotal]);
+
+  const selectedMock = useMemo(
+    () => mockPapers.find((p) => p.id === selectedMockPaperId) ?? null,
+    [mockPapers, selectedMockPaperId]
+  );
+  const selectedPast = useMemo(
+    () => pastPapers.find((p) => p.id === selectedPastPaperId) ?? null,
+    [pastPapers, selectedPastPaperId]
+  );
 
   const gyanEngagement: TeacherPortalGyanEngagementRef | null =
     typeKey === "gyan"
@@ -635,7 +695,7 @@ export default function CreateAssignmentWizard(props: {
           // ignore
         }
       }
-      await loadAssignmentQuota();
+      await refreshPlanLimits();
     } finally {
       setPublishing(false);
     }
@@ -644,7 +704,8 @@ export default function CreateAssignmentWizard(props: {
   const publish = () => {
     if (!classroomId || !title.trim()) return;
     const confirmEscrow = rewardRdm > 0 && audienceStudentCount > 0;
-    const confirmUnlock = isConceptFocusPublish && audienceStudentCount > 0;
+    const confirmUnlock =
+      needsMcqSponsorship && mcqSponsorshipPreview.total > 0 && audienceStudentCount > 0;
     void runPublish(confirmEscrow, confirmUnlock);
   };
 
@@ -1066,22 +1127,22 @@ export default function CreateAssignmentWizard(props: {
 
         {step === 4 ? (
           <div className="space-y-4">
-            {isConceptFocusPublish ? (
+            {needsMcqSponsorship ? (
               <SubtopicUnlockCostPanel
-                perStudentUnlock={teacherRdmCosts.create_assignment}
-                studentCount={audienceStudentCount}
+                perStudentUnlock={teacherRdmCosts.subtopic_unlock_per_student}
+                billableStudentCount={mcqSponsorshipSplit.billableStudentIds.length}
+                premiumStudentCount={mcqSponsorshipSplit.premiumStudentIds.length}
+                totalStudentCount={audienceStudentCount}
                 rewardRdm={rewardRdm}
               />
             ) : (
               <AssignmentCompletionRewardPanel
                 rewardRdm={rewardRdm}
                 studentCount={audienceStudentCount}
-                publishFeeRdm={
-                  assignmentPublishWaived ? 0 : teacherRdmCosts.create_assignment
-                }
+                publishFeeRdm={publishFeeResolved.amount}
               />
             )}
-            <div className={isConceptFocusPublish ? "grid grid-cols-1 gap-3" : "grid grid-cols-1 gap-3 sm:grid-cols-2"}>
+            <div className={needsMcqSponsorship ? "grid grid-cols-1 gap-3" : "grid grid-cols-1 gap-3 sm:grid-cols-2"}>
               <div>
                 <label className="mb-1 block text-sm font-semibold text-slate-300">Due date</label>
                 <input
@@ -1136,19 +1197,26 @@ export default function CreateAssignmentWizard(props: {
                 <div className="mt-0.5 text-xs text-slate-400">
                   {assignToLabel}
                   {dueDate ? ` · Due ${dueDate}` : " · No due date"}
-                  {isConceptFocusPublish && subtopicUnlockPreview.total > 0
-                    ? ` · Unlock ${subtopicUnlockPreview.total} RDM (${subtopicUnlockPreview.perStudent}×${subtopicUnlockPreview.studentCount})`
+                  {needsMcqSponsorship && mcqSponsorshipPreview.total > 0
+                    ? ` · Unlock ${formatRdmDeduction(mcqSponsorshipPreview.total)} · ${mcqSponsorshipPreview.billableStudentCount} free`
                     : ""}
                   {rewardRdm > 0 ? (
                     <>
                       {" "}
                       · {teacherAssignmentPublishIncentiveLine(rewardRdm)}
                       {escrowPreview.total > 0
-                        ? ` · Reserve ${escrowPreview.total} RDM (${escrowPreview.perStudent}×${escrowPreview.studentCount})`
+                        ? ` · Reserve ${formatRdmDeduction(escrowPreview.total)} (${escrowPreview.perStudent}×${escrowPreview.studentCount})`
                         : ""}
                     </>
-                  ) : !isConceptFocusPublish ? (
+                  ) : !needsMcqSponsorship ? (
                     <> · {teacherAssignmentPublishIncentiveLine(rewardRdm)}</>
+                  ) : null}
+                  {(!needsMcqSponsorship || !isConceptFocusPublish) && publishFeeResolved.amount > 0 ? (
+                    <> · {assignmentPublishFeeLine({
+                      kind: publishFeeResolved.kind,
+                      amount: publishFeeResolved.amount,
+                      tier: assignmentQuota?.tier ?? "free",
+                    })}</>
                   ) : null}
                 </div>
                 {assignmentQuotaLoading ? (
@@ -1156,14 +1224,14 @@ export default function CreateAssignmentWizard(props: {
                 ) : assignmentQuotaLabel ? (
                   <div className="text-[11px] font-medium text-slate-400">{assignmentQuotaLabel}</div>
                 ) : null}
-                {assignmentUpgradeHint ? (
-                  <button
-                    type="button"
-                    onClick={() => router.push("/teacher-portal?section=subscriptions")}
-                    className="text-left text-[11px] font-semibold text-violet-300 underline-offset-2 hover:underline"
-                  >
-                    {assignmentUpgradeHint}
-                  </button>
+                {assignmentQuota && !assignmentQuota.allowed ? (
+                  <TeacherQuotaUpgradeBanner
+                    resource="assignment"
+                    tier={assignmentQuota.tier}
+                    cap={assignmentQuota.cap}
+                    onUpgrade={() => router.push("/teacher-portal?section=subscriptions")}
+                    className="mt-2"
+                  />
                 ) : null}
               </div>
               <button

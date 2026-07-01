@@ -1,9 +1,13 @@
+import { PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
+
 /** Supabase Google OAuth PKCE `?code=` values are UUID-shaped (not classroom join codes). */
 const OAUTH_CODE_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const OAUTH_CODE_EXCLUDED_PREFIXES = [
   "/auth/callback",
+  "/auth/mobile-callback",
+  PREVIEW_AUTH_PATH,
   "/api/integrations/google",
   "/join",
 ] as const;

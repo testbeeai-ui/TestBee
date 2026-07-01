@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   BookOpen,
   Check,
@@ -40,6 +40,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import InviteStudents from "@/components/InviteStudents";
 import { useToast } from "@/hooks/use-toast";
+import { useUserStore } from "@/store/useUserStore";
 import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 import {
   chargeTeacherRdm,
@@ -124,9 +125,21 @@ import {
 import SubtopicUnlockCostPanel, {
   conceptFocusPublishGrandTotal,
 } from "@/components/teacher-portal/assignment/SubtopicUnlockCostPanel";
+import {
+  assignmentRequiresMcqSponsorshipCharge,
+  splitClassroomAudienceForMcqSponsorship,
+} from "@/lib/teacherPortal/mcqSponsorshipBilling";
 import AssignmentCompletionRewardPanel, {
   assignmentCompletionPublishGrandTotal,
 } from "@/components/teacher-portal/assignment/AssignmentCompletionRewardPanel";
+import TeacherQuotaUpgradeBanner from "@/components/teacher-portal/rdm/TeacherQuotaUpgradeBanner";
+import {
+  assignmentPublishFeeLine,
+  formatRdmDeduction,
+  resolveClientAssignmentPublishFee,
+  teacherMonthlyQuotaRemainingLabel,
+} from "@/lib/teacherPortal/teacherRdmUxCopy";
+import { useTeacherPlanLimits } from "@/hooks/useTeacherPlanLimits";
 import AssignmentInfoHelp from "@/components/teacher-portal/assignment/AssignmentInfoHelp";
 import { assignmentItemIsNudgeMcqTarget } from "@/lib/teacherPortal/nudgeMcqPosts";
 import { resolveAssignmentTrackingInHref } from "@/lib/teacherPortal/assignmentPostIdTemplate";
@@ -194,7 +207,9 @@ export default function MyClassroomView({
   allowNudgeStructuredAssignmentCreate = true,
 }: MyClassroomViewProps) {
   const { toast } = useToast();
+  const router = useRouter();
   const { costs: teacherRdmCosts } = useTeacherRdmCosts();
+  const { limits: planLimits, refresh: refreshPlanLimits } = useTeacherPlanLimits();
   const createClassroomRdmLabel = formatTeacherRdmCost("create_classroom", teacherRdmCosts);
   const createSectionRdmLabel = formatTeacherRdmCost("create_section", teacherRdmCosts);
   const createClassroomRdmCompact = formatTeacherRdmDeductionCompact(
@@ -1625,7 +1640,10 @@ export default function MyClassroomView({
     }
     setSectionCreating(true);
     try {
-      await chargeTeacherRdm("create_section", teacherRdmCosts);
+      const charge = await chargeTeacherRdm("create_section", teacherRdmCosts);
+      if (typeof charge.rdm === "number") {
+        useUserStore.getState().setRdmFromProfile(Math.max(0, Math.round(charge.rdm)));
+      }
       let createdRow: { id?: string } | null = null;
       try {
         const { data: created, error } = await supabase
@@ -1647,7 +1665,7 @@ export default function MyClassroomView({
 
       toast({
         title: "Section created",
-        description: "Book a Google Calendar live class below (Settings is open).",
+        description: "Book a Google Calendar live lesson below (Settings is open).",
       });
       setSectionDialogOpen(false);
       setNewSectionName("");
@@ -1961,31 +1979,126 @@ export default function MyClassroomView({
     setActingJoinRequestId(null);
   };
 
-  const assignmentAudienceStudentCount = useMemo(() => {
+  const assignmentAudienceStudentIds = useMemo(() => {
     const isCustom = assignToLabel.trim().toLowerCase().startsWith("custom");
-    if (isCustom) return assignmentCustomStudentIds.length;
-    return assignmentAudienceCandidates.length;
-  }, [assignToLabel, assignmentCustomStudentIds.length, assignmentAudienceCandidates.length]);
+    if (isCustom) return assignmentCustomStudentIds;
+    return assignmentAudienceCandidates.map((s) => s.userId);
+  }, [
+    assignToLabel,
+    assignmentCustomStudentIds,
+    assignmentAudienceCandidates,
+  ]);
 
-  const conceptFocusPublishTotalRdm = useMemo(
+  const assignmentAudienceStudentCount = assignmentAudienceStudentIds.length;
+
+  const assignmentChapterQuizRef = useMemo((): TeacherPortalChapterQuizRef | null => {
+    if (isQuizAssignmentTemplate) return chapterQuizToRef(chapterQuizSel, curriculumTaxonomy);
+    if (isConceptFocusTemplate) {
+      return chapterQuizToRef(
+        {
+          ...conceptFocusSel,
+          level: "advanced",
+          advancedSet: 1,
+        } as ChapterQuizSelectionState,
+        curriculumTaxonomy
+      );
+    }
+    return null;
+  }, [
+    isQuizAssignmentTemplate,
+    isConceptFocusTemplate,
+    chapterQuizSel,
+    conceptFocusSel,
+    curriculumTaxonomy,
+  ]);
+
+  const needsMcqSponsorship = useMemo(
+    () =>
+      assignmentRequiresMcqSponsorshipCharge({
+        assignmentType: isConceptFocusTemplate
+          ? "Concept Focus"
+          : isQuizAssignmentTemplate
+            ? "quiz"
+            : "",
+        chapterQuiz: assignmentChapterQuizRef,
+      }),
+    [isConceptFocusTemplate, isQuizAssignmentTemplate, assignmentChapterQuizRef]
+  );
+
+  const mcqSponsorshipSplit = useMemo(
+    () =>
+      splitClassroomAudienceForMcqSponsorship(
+        activeDetail.students,
+        assignmentAudienceStudentIds
+      ),
+    [activeDetail.students, assignmentAudienceStudentIds]
+  );
+
+  const assignmentQuota = planLimits
+    ? {
+        tier: planLimits.tier,
+        allowed: planLimits.assignments.allowed,
+        remaining: planLimits.assignments.remaining,
+        cap: planLimits.assignments.cap,
+        isOverage: planLimits.assignments.isOverage,
+      }
+    : null;
+  const assignmentOverageRdm = planLimits?.overage.assignmentRdm ?? 20;
+  const assignmentsUsedThisMonth = planLimits?.usage.assignmentsCreatedThisMonth ?? 0;
+
+  const publishFeeResolved = useMemo(() => {
+    if (!assignmentQuota) {
+      return { amount: teacherRdmCosts.create_assignment, kind: "flat" as const };
+    }
+    return resolveClientAssignmentPublishFee({
+      tier: assignmentQuota.tier,
+      allowed: assignmentQuota.allowed,
+      isOverage: assignmentQuota.isOverage,
+      cap: assignmentQuota.cap,
+      used: assignmentsUsedThisMonth,
+      flatPublishFee: teacherRdmCosts.create_assignment,
+      overageRdm: assignmentOverageRdm,
+    });
+  }, [
+    assignmentQuota,
+    assignmentsUsedThisMonth,
+    assignmentOverageRdm,
+    teacherRdmCosts.create_assignment,
+  ]);
+
+  const mcqSponsorshipPublishTotalRdm = useMemo(
     () =>
       conceptFocusPublishGrandTotal(
-        teacherRdmCosts.create_assignment,
-        assignmentAudienceStudentCount,
-        rewardRdm
+        teacherRdmCosts.subtopic_unlock_per_student,
+        mcqSponsorshipSplit.billableStudentIds.length,
+        rewardRdm,
+        mcqSponsorshipSplit.premiumStudentIds.length,
+        assignmentAudienceStudentCount
       ),
-    [teacherRdmCosts.create_assignment, assignmentAudienceStudentCount, rewardRdm]
+    [
+      teacherRdmCosts.subtopic_unlock_per_student,
+      mcqSponsorshipSplit.billableStudentIds.length,
+      mcqSponsorshipSplit.premiumStudentIds.length,
+      assignmentAudienceStudentCount,
+      rewardRdm,
+    ]
   );
 
   const standardAssignmentPublishTotalRdm = useMemo(
     () =>
       assignmentCompletionPublishGrandTotal(
-        teacherRdmCosts.create_assignment,
+        publishFeeResolved.amount,
         assignmentAudienceStudentCount,
         rewardRdm
       ),
-    [teacherRdmCosts.create_assignment, assignmentAudienceStudentCount, rewardRdm]
+    [publishFeeResolved.amount, assignmentAudienceStudentCount, rewardRdm]
   );
+
+  const assignmentPublishGrandTotal = needsMcqSponsorship
+    ? isConceptFocusTemplate
+      ? mcqSponsorshipPublishTotalRdm
+      : mcqSponsorshipPublishTotalRdm + publishFeeResolved.amount
+    : standardAssignmentPublishTotalRdm;
 
   const submitAssignment = async () => {
     if (!activeClassroomId) return;
@@ -2057,7 +2170,10 @@ export default function MyClassroomView({
       return;
     }
     const confirmEscrow = rewardRdm > 0 && assignmentAudienceStudentCount > 0;
-    const confirmUnlock = isConceptFocusTemplate && assignmentAudienceStudentCount > 0;
+    const mcqUnlockTotal =
+      teacherRdmCosts.subtopic_unlock_per_student *
+      mcqSponsorshipSplit.billableStudentIds.length;
+    const confirmUnlock = needsMcqSponsorship && mcqUnlockTotal > 0 && assignmentAudienceStudentCount > 0;
     await runAssignmentSubmit(confirmEscrow, confirmUnlock);
   };
 
@@ -2137,6 +2253,7 @@ export default function MyClassroomView({
       setAssignmentDueDate("");
       setAssignmentInstructions("");
       if (assignmentDraftKey) window.sessionStorage.removeItem(assignmentDraftKey);
+      await refreshPlanLimits();
     } finally {
       setAssignmentSubmitting(false);
     }
@@ -2210,12 +2327,19 @@ export default function MyClassroomView({
     if (topIds.length === 0) return;
     setRewardSubmitting(true);
     try {
-      await onRewardTopStudents({
+      const result = await onRewardTopStudents({
         classroomId: activeClassroomId,
         targetStudentIds: topIds,
         message: "Rewarded top tier students for highest streak consistency.",
-        rdmDelta: 0,
+        rdmDelta: 10,
         sectionId: cohortTab.kind === "section" ? cohortTab.id : null,
+      });
+      toast({
+        title: "Top students rewarded",
+        description:
+          result.instantRdmPaid > 0
+            ? `+${result.instantRdmPaid} RDM credited (${topIds.length} students).`
+            : "Recognition sent.",
       });
     } finally {
       setRewardSubmitting(false);
@@ -2762,7 +2886,7 @@ export default function MyClassroomView({
                 <span className="max-w-[200px] truncate leading-tight">{sec.name}</span>
                 <span className="text-[10px] font-semibold text-slate-500">
                   {sec.scheduleLabel?.trim() ||
-                    (sec.googleSeriesLinked ? "Legacy calendar series" : "No live class booked")}
+                    (sec.googleSeriesLinked ? "Legacy calendar series" : "No live lesson booked")}
                 </span>
                 {(() => {
                   const rdmLine = formatSectionScheduleDeliveryRdmLabel({
@@ -2955,6 +3079,9 @@ export default function MyClassroomView({
                         classroomId={activeClassroomId}
                         sectionId={sec.id}
                         sectionName={sec.name}
+                        sectionStudentCount={activeDetail.students.filter(
+                          (s) => s.role !== "teacher" && s.sectionId === sec.id
+                        ).length}
                         googleCalendarConnected={summary.googleCalendarConnected}
                         googleCalendarEmail={googleCalendarEmail}
                         onConnectGoogle={() => void connectGoogleCalendarFromToolbar()}
@@ -3526,11 +3653,10 @@ export default function MyClassroomView({
                             if (!rdmLine) return null;
                             return (
                               <div className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2.5 text-xs">
-                                <div className="font-semibold text-amber-200">Schedule class RDM</div>
+                                <div className="font-semibold text-amber-200">Schedule lesson RDM</div>
                                 <div className="mt-1 text-amber-100/90">{rdmLine}</div>
                                 <div className="mt-1 text-[10px] text-slate-500">
-                                  Credited after each Google Calendar / section occurrence ends (roster
-                                  in this section; student join not required).
+                                  Based on students enrolled in this section when you schedule.
                                 </div>
                               </div>
                             );
@@ -3547,6 +3673,9 @@ export default function MyClassroomView({
                               classroomId={activeClassroomId}
                               sectionId={sec.id}
                               sectionName={sec.name}
+                              sectionStudentCount={activeDetail.students.filter(
+                                (s) => s.role !== "teacher" && s.sectionId === sec.id
+                              ).length}
                               googleCalendarConnected={summary.googleCalendarConnected}
                               googleCalendarEmail={googleCalendarEmail}
                               onConnectGoogle={() => void connectGoogleCalendarFromToolbar()}
@@ -3785,7 +3914,7 @@ export default function MyClassroomView({
                               <li>
                                 Select a section tab, then use{" "}
                                 <span className="font-medium text-slate-300">
-                                  Book live class (Google Calendar + Meet)
+                                  Book live lesson (Google Calendar + Meet)
                                 </span>{" "}
                                 on Students or Settings to schedule a class.
                               </li>
@@ -3863,6 +3992,9 @@ export default function MyClassroomView({
                                       classroomId={activeClassroomId}
                                       sectionId={sec.id}
                                       sectionName={sec.name}
+                                      sectionStudentCount={activeDetail.students.filter(
+                                        (s) => s.role !== "teacher" && s.sectionId === sec.id
+                                      ).length}
                                       googleCalendarConnected={summary.googleCalendarConnected}
                                       googleCalendarEmail={googleCalendarEmail}
                                       onConnectGoogle={() => void connectGoogleCalendarFromToolbar()}
@@ -4411,7 +4543,7 @@ export default function MyClassroomView({
               Add section
             </DialogTitle>
             <p className="mt-1 text-sm text-slate-400">
-              Name your batch, then book live classes (Google Calendar + Meet) from the section tab.
+              Name your batch, then book live lessons (Google Calendar + Meet) from the section tab.
               {createSectionRdmCompact ? (
                 <span className="ml-1 text-xs text-slate-500">{createSectionRdmCompact} per section</span>
               ) : null}
@@ -4827,7 +4959,7 @@ export default function MyClassroomView({
                       <AssignmentCompletionRewardPanel
                         rewardRdm={rewardRdm}
                         studentCount={assignmentAudienceStudentCount}
-                        publishFeeRdm={teacherRdmCosts.create_assignment}
+                        publishFeeRdm={publishFeeResolved.amount}
                       />
                     </div>
                   ) : isPastPaperAssignmentTemplate ? (
@@ -4870,7 +5002,7 @@ export default function MyClassroomView({
                       <AssignmentCompletionRewardPanel
                         rewardRdm={rewardRdm}
                         studentCount={assignmentAudienceStudentCount}
-                        publishFeeRdm={teacherRdmCosts.create_assignment}
+                        publishFeeRdm={publishFeeResolved.amount}
                       />
                     </div>
                   ) : isQuizAssignmentTemplate ? (
@@ -4921,8 +5053,17 @@ export default function MyClassroomView({
                       <AssignmentCompletionRewardPanel
                         rewardRdm={rewardRdm}
                         studentCount={assignmentAudienceStudentCount}
-                        publishFeeRdm={teacherRdmCosts.create_assignment}
+                        publishFeeRdm={publishFeeResolved.amount}
                       />
+                      {needsMcqSponsorship ? (
+                        <SubtopicUnlockCostPanel
+                          perStudentUnlock={teacherRdmCosts.subtopic_unlock_per_student}
+                          billableStudentCount={mcqSponsorshipSplit.billableStudentIds.length}
+                          premiumStudentCount={mcqSponsorshipSplit.premiumStudentIds.length}
+                          totalStudentCount={assignmentAudienceStudentCount}
+                          rewardRdm={rewardRdm}
+                        />
+                      ) : null}
                     </div>
                   ) : isConceptFocusTemplate ? (
                     <div className="space-y-4">
@@ -4935,8 +5076,10 @@ export default function MyClassroomView({
                         selectClassName={selectClassName}
                       />
                       <SubtopicUnlockCostPanel
-                        perStudentUnlock={teacherRdmCosts.create_assignment}
-                        studentCount={assignmentAudienceStudentCount}
+                        perStudentUnlock={teacherRdmCosts.subtopic_unlock_per_student}
+                        billableStudentCount={mcqSponsorshipSplit.billableStudentIds.length}
+                        premiumStudentCount={mcqSponsorshipSplit.premiumStudentIds.length}
+                        totalStudentCount={assignmentAudienceStudentCount}
                         rewardRdm={rewardRdm}
                       />
                     </div>
@@ -4951,7 +5094,7 @@ export default function MyClassroomView({
                       <AssignmentCompletionRewardPanel
                         rewardRdm={rewardRdm}
                         studentCount={assignmentAudienceStudentCount}
-                        publishFeeRdm={teacherRdmCosts.create_assignment}
+                        publishFeeRdm={publishFeeResolved.amount}
                       />
                     </div>
                   ) : (
@@ -4963,7 +5106,7 @@ export default function MyClassroomView({
                       <AssignmentCompletionRewardPanel
                         rewardRdm={rewardRdm}
                         studentCount={assignmentAudienceStudentCount}
-                        publishFeeRdm={teacherRdmCosts.create_assignment}
+                        publishFeeRdm={publishFeeResolved.amount}
                       />
                     </div>
                   )}
@@ -5134,8 +5277,10 @@ export default function MyClassroomView({
                 {rewardRdm > 0 && assignmentAudienceStudentCount > 0 ? (
                   <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
                     Reserve{" "}
-                    {formatCompletionEscrowSummary(rewardRdm, assignmentAudienceStudentCount).total}{" "}
-                    RDM at publish.
+                    {formatRdmDeduction(
+                      formatCompletionEscrowSummary(rewardRdm, assignmentAudienceStudentCount).total
+                    )}{" "}
+                    from your wallet at publish.
                   </p>
                 ) : null}
               </div>
@@ -5154,6 +5299,38 @@ export default function MyClassroomView({
             </div>
           )}
 
+          {assignmentQuota && !assignmentQuota.allowed ? (
+            <div className="border-t border-white/10 px-3 py-3 sm:px-4">
+              <TeacherQuotaUpgradeBanner
+                resource="assignment"
+                tier={assignmentQuota.tier}
+                cap={assignmentQuota.cap}
+                onUpgrade={() => router.push("/teacher-portal?section=subscriptions")}
+              />
+            </div>
+          ) : assignmentQuota ? (
+            <div className="border-t border-white/10 px-3 py-2 text-[11px] text-slate-400 sm:px-4">
+              {assignmentQuota.isOverage && assignmentQuota.tier === "pro"
+                ? `Included ${assignmentQuota.cap} used — next publish ${formatRdmDeduction(assignmentOverageRdm)} (overage)`
+                : teacherMonthlyQuotaRemainingLabel(
+                    "assignments",
+                    assignmentQuota.remaining,
+                    assignmentQuota.cap
+                  )}
+              {!isConceptFocusTemplate && publishFeeResolved.amount > 0 ? (
+                <span className="text-slate-500">
+                  {" "}
+                  ·{" "}
+                  {assignmentPublishFeeLine({
+                    kind: publishFeeResolved.kind,
+                    amount: publishFeeResolved.amount,
+                    tier: assignmentQuota.tier,
+                  })}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="flex shrink-0 flex-col-reverse items-stretch justify-end gap-2 border-t border-white/10 p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-4">
             <button
               type="button"
@@ -5168,6 +5345,7 @@ export default function MyClassroomView({
               disabled={
                 !assignmentTitle.trim() ||
                 assignmentSubmitting ||
+                (assignmentQuota != null && !assignmentQuota.allowed) ||
                 (isMockAssignmentTemplate && mockPapersLoading) ||
                 (isMockAssignmentTemplate &&
                   !mockPapersLoading &&
@@ -5184,16 +5362,20 @@ export default function MyClassroomView({
             >
               {assignmentSubmitting
                 ? "Creating..."
+                : assignmentQuota && !assignmentQuota.allowed
+                  ? "Monthly limit reached"
                 : isConceptFocusTemplate && assignmentAudienceStudentCount > 0
-                  ? `Create assignment (${conceptFocusPublishTotalRdm} RDM)`
+                  ? `Create assignment (${formatRdmDeduction(assignmentPublishGrandTotal)})`
                   : (isMockAssignmentTemplate ||
-                      isPastPaperAssignmentTemplate ||
-                      isQuizAssignmentTemplate ||
-                      isGyanEngagementTemplate ||
-                      isDailyDoseAssignmentTemplate) &&
+                        isPastPaperAssignmentTemplate ||
+                        isQuizAssignmentTemplate ||
+                        isGyanEngagementTemplate ||
+                        isDailyDoseAssignmentTemplate) &&
                       assignmentAudienceStudentCount > 0 &&
-                      standardAssignmentPublishTotalRdm > 0
-                    ? `Create assignment (${standardAssignmentPublishTotalRdm} RDM)`
+                      assignmentPublishGrandTotal > 0
+                    ? `Create assignment (${formatRdmDeduction(assignmentPublishGrandTotal)})`
+                    : publishFeeResolved.amount > 0
+                      ? `Create assignment (${formatRdmDeduction(publishFeeResolved.amount)})`
                     : "Create assignment"}
             </button>
           </div>

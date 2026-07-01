@@ -53,7 +53,7 @@ function markDismissed(p: PendingRating): void {
 }
 
 /**
- * Asks an enrolled student to rate the most recent ended live class (section
+ * Asks an enrolled student to rate the most recent ended live lesson (section
  * schedule occurrence) 1-5 stars while the rating window is open. The rating
  * drives the teacher's credit-only quality bonus; a low rating never penalizes.
  */
@@ -81,7 +81,7 @@ export default function LiveClassRatingPrompt({ enabled }: { enabled: boolean })
           sectionId: data.sectionId,
           classroomId: data.classroomId,
           occurrenceAt: data.occurrenceAt,
-          title: data.title?.trim() || "your live class",
+          title: data.title?.trim() || "your live lesson",
         };
         if (isDismissed(p)) return;
         setPending(p);
@@ -150,7 +150,7 @@ export default function LiveClassRatingPrompt({ enabled }: { enabled: boolean })
               ?
             </DialogTitle>
             <DialogDescription className="text-sm">
-              Rate the live class you just attended. This helps your teacher — a low rating never
+              Rate the live lesson you just attended. This helps your teacher — a low rating never
               counts against them.
             </DialogDescription>
           </DialogHeader>

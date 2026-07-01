@@ -1,12 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { DbClient } from "@/lib/teacherPortal/queries/utils";
 import {
-  assignmentQuotaExceededMessage,
   canCreateMoreAssignments,
   fetchTeacherPlanConfig,
   getTeacherPlanLimits,
   istMonthBoundsForDate,
   normalizeTeacherPlanTier,
+  resolveAssignmentQuota,
   type TeacherPlanKey,
 } from "@/lib/teacherPortal/teacherPlan";
 
@@ -30,7 +30,11 @@ export class TeacherPlanQuotaError extends Error {
 async function loadTeacherTier(
   teacherId: string,
   db: DbClient
-): Promise<{ tier: TeacherPlanKey; limits: ReturnType<typeof getTeacherPlanLimits> }> {
+): Promise<{
+  tier: TeacherPlanKey;
+  limits: ReturnType<typeof getTeacherPlanLimits>;
+  assignmentOverageRdm: number;
+}> {
   const [profileRes, cfg] = await Promise.all([
     db
       .from("profiles")
@@ -48,7 +52,11 @@ async function loadTeacherTier(
   }
 
   const tier = normalizeTeacherPlanTier(profile.teacher_plan_tier, profile);
-  return { tier, limits: getTeacherPlanLimits(cfg, tier) };
+  return {
+    tier,
+    limits: getTeacherPlanLimits(cfg, tier),
+    assignmentOverageRdm: cfg.teacher_assignment_overage_rdm,
+  };
 }
 
 export async function assertTeacherCanCreateAssignmentWithDb(
@@ -56,7 +64,7 @@ export async function assertTeacherCanCreateAssignmentWithDb(
   db?: DbClient
 ): Promise<void> {
   const client = db ?? supabase;
-  const { tier, limits } = await loadTeacherTier(teacherId, client);
+  const { tier, limits, assignmentOverageRdm } = await loadTeacherTier(teacherId, client);
 
   const { start, end } = istMonthBoundsForDate(new Date());
   const { count } = await client
@@ -68,11 +76,8 @@ export async function assertTeacherCanCreateAssignmentWithDb(
     .lt("created_at", end.toISOString());
 
   const created = count ?? 0;
-  const quota = canCreateMoreAssignments(created, limits);
-  if (!quota.allowed) {
-    throw new TeacherPlanQuotaError(
-      assignmentQuotaExceededMessage(tier, quota.cap),
-      "assignment_cap_reached"
-    );
+  const outcome = resolveAssignmentQuota(tier, created, limits, assignmentOverageRdm);
+  if (outcome.kind === "blocked_upgrade") {
+    throw new TeacherPlanQuotaError(outcome.message, "assignment_cap_reached");
   }
 }

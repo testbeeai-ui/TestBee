@@ -81,11 +81,11 @@ export function useTeacherLiveClassQualityRdmAwards(opts: {
         markToastSeen(userId, sectionId, occurrenceAt);
         anyNew = true;
         const title =
-          typeof award.title === "string" && award.title.trim() ? award.title.trim() : "Live class";
+          typeof award.title === "string" && award.title.trim() ? award.title.trim() : "Live lesson";
         const stars = formatStarsX10(award.adjusted_x10 ?? 0);
         const count = award.rating_count ?? 0;
         toastRef.current({
-          title: `+${bonus} RDM · Class quality bonus`,
+          title: `+${bonus} RDM · Lesson quality bonus`,
           description: `${title} — ${stars}★ from ${count} ratings`,
         });
       }

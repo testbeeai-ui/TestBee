@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -33,6 +33,7 @@ import { SiteTourCarouselHost } from "@/components/onboarding/SiteTourCarouselHo
 import { SitePresenceProvider } from "@/components/providers/SitePresenceProvider";
 import { cn } from "@/lib/utils";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
+import StudentRdmWalletDialog from "@/components/wallet/StudentRdmWalletDialog";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -122,6 +123,7 @@ const AppLayout = ({
   const isTeacherPortalProfileActive = isTeacher && pathname.startsWith("/teacher-portal");
   const isStudentProfileNavActive =
     !isTeacher && (pathname === "/profile" || pathname.startsWith("/profile/"));
+  const [studentWalletOpen, setStudentWalletOpen] = useState(false);
 
   return (
     <SitePresenceProvider userId={presenceUserId}>
@@ -183,7 +185,20 @@ const AppLayout = ({
                     totalSeconds={streakTimer.totalSeconds}
                   />
                 )}
-                {(user || profile) && (
+                {(user || profile) && !isTeacher ? (
+                  <button
+                    type="button"
+                    onClick={() => setStudentWalletOpen(true)}
+                    className="flex items-center gap-1.5 bg-edu-yellow/15 hover:bg-edu-yellow/25 px-2.5 py-1 rounded-full transition-colors 2xl:px-3.5 2xl:py-1.5"
+                    aria-label={`RDM Wallet: ${rdm.toLocaleString("en-IN")} RDM`}
+                  >
+                    <Coins className="w-4 h-4 text-edu-orange" suppressHydrationWarning />
+                    <span className="font-extrabold text-sm text-foreground">{rdm}</span>
+                    <span className="text-xs text-muted-foreground hidden sm:inline font-bold">
+                      RDM
+                    </span>
+                  </button>
+                ) : (user || profile) && isTeacher ? (
                   <Link
                     href="/pricing"
                     className="flex items-center gap-1.5 bg-edu-yellow/15 hover:bg-edu-yellow/25 px-2.5 py-1 rounded-full transition-colors 2xl:px-3.5 2xl:py-1.5"
@@ -194,7 +209,7 @@ const AppLayout = ({
                       RDM
                     </span>
                   </Link>
-                )}
+                ) : null}
                 <NotificationBell />
                 {isTeacher ? (
                   <Link
@@ -305,6 +320,14 @@ const AppLayout = ({
         <FloatingTaskCompanion />
         <OnboardingNextTaskPrompt />
         <SiteTourCarouselHost />
+
+        {!isTeacher ? (
+          <StudentRdmWalletDialog
+            open={studentWalletOpen}
+            onClose={() => setStudentWalletOpen(false)}
+            balance={rdm}
+          />
+        ) : null}
 
         {/* Footer */}
         {!isTeacher ? (

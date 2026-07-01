@@ -9,8 +9,11 @@ import { Coins, Save } from "lucide-react";
 import {
   TEACHER_RDM_ADMIN_CHARGE_KEYS,
   TEACHER_RDM_ADMIN_GROWTH_KEYS,
+  TEACHER_RDM_ADMIN_LIVE_CLASS_QUOTA_KEYS,
+  TEACHER_RDM_ADMIN_LIVE_CLASS_SCHEDULE_EARN_KEYS,
   TEACHER_RDM_ADMIN_META,
-  TEACHER_RDM_ADMIN_REWARD_KEYS,
+  TEACHER_RDM_ADMIN_REWARD_MISC_KEYS,
+  TEACHER_LIVE_CLASS_QUALITY_RDM_KEYS,
 } from "@/lib/teacherPortal/teacherRdmConfig";
 
 type RdmConfigRow = {
@@ -313,11 +316,12 @@ function TeacherRdmGroupBlock({
       <div className="border-b bg-muted/40 px-4 py-3">
         <h2 className="text-lg font-semibold">Teachers (portal charges &amp; rewards)</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Live-linked to the teacher portal: classroom, section, assignment, schedule, test
-          generation, Gyan++ teacher rewards, and section schedule class delivery (base +
-          per-student, capped). After <span className="font-semibold">Save Changes</span>, amounts
-          apply on the next teacher action (wallet labels refresh when the teacher refocuses the
-          tab).
+          Live-linked to the teacher portal.{" "}
+          <span className="font-semibold text-emerald-300/90">Live lesson schedule</span> keys drive
+          the Schedule (+N RDM) button (base + per-student × roster). Plan quota keys control
+          12/24/60 monthly caps and Pro overage. After{" "}
+          <span className="font-semibold">Save Changes</span>, teachers see new amounts on tab
+          focus or their next schedule action.
         </p>
       </div>
       <div className="space-y-8 p-4">
@@ -331,10 +335,33 @@ function TeacherRdmGroupBlock({
         </div>
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-foreground">
-            Rewards (credit to teacher wallet)
+            Live lesson schedule · earnings &amp; monthly limits
+          </h3>
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            When a teacher books a section class within quota they earn{" "}
+            <span className="font-mono text-emerald-300/90">base + (students × per-head)</span>,
+            capped by the student cap. Pro teachers past the monthly included count pay the overage
+            charge per extra booking.
+          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            {TEACHER_RDM_ADMIN_LIVE_CLASS_SCHEDULE_EARN_KEYS.map((k) => renderCard(k))}
+            {TEACHER_RDM_ADMIN_LIVE_CLASS_QUOTA_KEYS.map((k) => renderCard(k))}
+          </div>
+        </div>
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            Live lesson quality bonus (after ratings)
           </h3>
           <div className="grid gap-4 md:grid-cols-2">
-            {TEACHER_RDM_ADMIN_REWARD_KEYS.map((k) => renderCard(k))}
+            {TEACHER_LIVE_CLASS_QUALITY_RDM_KEYS.map((k) => renderCard(k))}
+          </div>
+        </div>
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            Other rewards (credit to teacher wallet)
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {TEACHER_RDM_ADMIN_REWARD_MISC_KEYS.map((k) => renderCard(k))}
           </div>
         </div>
         <div className="space-y-3">
@@ -1296,8 +1323,8 @@ export default function RdmTablePage() {
           <p className="text-sm font-semibold text-foreground">Teachers (portal)</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Same live connection as the teacher portal: My Classroom (class + sections), Create
-            assignment, Schedule live class, Generate test, Gyan++ teacher rewards, and{" "}
-            <span className="font-semibold">section schedule class delivery</span> (base +
+            assignment, Schedule live lesson, Generate test, Gyan++ teacher rewards, and{" "}
+            <span className="font-semibold">section schedule lesson delivery</span> (base +
             per-student bonus, capped). Edit amounts below and click{" "}
             <span className="font-semibold">Save Changes</span> — the next charge or reward uses the
             new value; button labels refresh when teachers refocus the portal tab.

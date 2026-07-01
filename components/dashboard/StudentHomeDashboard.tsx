@@ -64,6 +64,9 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { FreeTrialPromoDialog } from "@/components/dashboard/FreeTrialPromoDialog";
 import DashboardMemoryRecallPanel from "@/components/dashboard/DashboardMemoryRecallPanel";
+import RawCommunityFeed, {
+  type RawFeedFilter,
+} from "@/components/explore/RawCommunityFeed";
 import {
   FREE_TRIAL_ACTIVATED_EVENT,
   FREE_TRIAL_DEMO_RESET_EVENT,
@@ -103,8 +106,6 @@ import {
   Flame,
   LineChart,
   Star,
-  Bookmark,
-  MessageCircle,
   Coins,
   Heart,
   ChevronRight as ChevronRightIcon,
@@ -137,55 +138,7 @@ const FEED_FILTERS = [
   { id: "math", label: "Math" },
 ] as const;
 
-type FeedFilterId = (typeof FEED_FILTERS)[number]["id"];
-
-const MOCK_FEED_POSTS = [
-  {
-    initials: "YD",
-    tone: "blue" as const,
-    name: "Yash Diwan",
-    time: "13d ago",
-    tags: ["#challenge", "#refer-earn", "#funbrain"],
-    text: "Still working toward MentaMill Blitz — this round did not pass. 0/10 (0%) in 00:13. Pass bar: 6/10.",
-    subject: "Physics" as const,
-  },
-  {
-    initials: "MI",
-    tone: "purple" as const,
-    name: "mail id",
-    time: "14d ago",
-    tags: ["#challenge", "#refer-earn", "#Physics"],
-    text: "Still working toward MentaMill Blitz — this round did not pass. 0/10 (0%) in 00:08. Pass bar: 6/10.",
-    subject: "Physics" as const,
-  },
-  {
-    initials: "MI",
-    tone: "purple" as const,
-    name: "mail id",
-    time: "14d ago",
-    tags: ["#challenge", "#Math"],
-    text: "Mathematics challenge — Sets and Relations. Attempted 5 questions, scored 3/5.",
-    subject: "Math" as const,
-  },
-  {
-    initials: "NK",
-    tone: "emerald" as const,
-    name: "Nidhi K",
-    time: "2h ago",
-    tags: ["#gyan++", "#Physics", "#Electrostatics"],
-    text: "Why does a capacitor block DC current but allow AC current to pass? Prof-Pi answered in 1.8s.",
-    subject: "Physics" as const,
-  },
-  {
-    initials: "AR",
-    tone: "amber" as const,
-    name: "Arjun R",
-    time: "5h ago",
-    tags: ["#mock", "#Math", "#achievement"],
-    text: "Mock #4 done — 87%! Mechanics finally clicking. Testbee kept pushing Integration by parts.",
-    subject: "Math" as const,
-  },
-];
+type FeedFilterId = RawFeedFilter;
 
 /**
  * Target exam date for the "Days to JEE Main" countdown in the icon-panel
@@ -916,7 +869,6 @@ export default function StudentHomeDashboard() {
   );
   const [openIconFlyout, setOpenIconFlyout] = useState<IconFlyoutId>(null);
   const [activeFeedFilter, setActiveFeedFilter] = useState<FeedFilterId>("all");
-  const [feedLikes, setFeedLikes] = useState<Record<number, boolean>>({});
   const [checklistTaps, setChecklistTaps] = useState<Record<string, boolean>>({});
   // Admin-only manual override; non-admins never inflate the progress bar
   // with their taps (the bar tracks server-side `item.done` only).
@@ -1478,18 +1430,6 @@ export default function StudentHomeDashboard() {
     chapterRowsVisible.length > 0 ? chapterRowsVisible : chapterRows.slice(0, 3);
   const accuracyChaptersTracked = chapterRows.length;
 
-  /** Feed post list (mock or filtered by subject for the v3 preview surface). */
-  const visibleFeedPosts = useMemo(() => {
-    if (activeFeedFilter === "all") return MOCK_FEED_POSTS;
-    const target =
-      activeFeedFilter === "math"
-        ? "Math"
-        : activeFeedFilter === "physics"
-          ? "Physics"
-          : "Chemistry";
-    return MOCK_FEED_POSTS.filter((p) => p.subject === target);
-  }, [activeFeedFilter]);
-
   return (
     <div
       data-testid="v3-home-dashboard"
@@ -2039,7 +1979,7 @@ export default function StudentHomeDashboard() {
                 <Heart className="h-4 w-4 text-pink-500" aria-hidden /> Community feed
               </h2>
               <Link
-                href="/magic-wall"
+                href="/explore/community"
                 className="inline-flex items-center gap-1 text-[11.5px] font-medium text-emerald-500 hover:underline"
               >
                 Open feed <ExternalLink className="h-3 w-3" aria-hidden />
@@ -2062,89 +2002,13 @@ export default function StudentHomeDashboard() {
                 </button>
               ))}
             </div>
-            <ul className="space-y-0">
-              {visibleFeedPosts.length === 0 ? (
-                <li className="py-4 text-center text-[11.5px] text-muted-foreground">
-                  No posts in this filter yet.
-                </li>
-              ) : (
-                visibleFeedPosts.map((p, i) => {
-                  const liked = !!feedLikes[i];
-                  return (
-                    <li
-                      key={`${p.name}-${i}`}
-                      className="border-b border-border/60 py-2 last:border-none"
-                    >
-                      <div className="mb-1 flex items-center gap-1.5">
-                        <span
-                          className={cn(
-                            "flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full text-[10.5px] font-semibold text-white",
-                            p.tone === "blue" ? "bg-blue-500" : "bg-violet-500"
-                          )}
-                        >
-                          {p.initials}
-                        </span>
-                        <span className="min-w-0 truncate text-[12.5px] font-medium text-foreground">
-                          {p.name}
-                        </span>
-                        <span className="ml-auto shrink-0 text-[10.5px] text-muted-foreground">{p.time}</span>
-                      </div>
-                      <div className="mb-1 flex flex-wrap gap-1">
-                        {p.tags.map((t) => (
-                          <span
-                            key={t}
-                            className="rounded-full bg-muted/60 px-1.5 py-px text-[10.5px] text-muted-foreground"
-                          >
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                      <p className="mb-1.5 line-clamp-3 text-[11.5px] leading-snug text-muted-foreground">
-                        {p.text}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setFeedLikes((s) => ({ ...s, [i]: !s[i] }))
-                          }
-                          aria-pressed={liked}
-                          className={cn(
-                            "flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10.5px] transition-colors",
-                            liked
-                              ? "bg-pink-500/15 text-pink-600 dark:text-pink-300"
-                              : "text-muted-foreground hover:bg-pink-500/10 hover:text-pink-600"
-                          )}
-                        >
-                          <Heart
-                            className={cn("h-3 w-3", liked && "fill-current")}
-                            aria-hidden
-                          />
-                          {liked ? "Related" : "Relate"}
-                        </button>
-                        <button
-                          type="button"
-                          className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10.5px] text-muted-foreground transition-colors hover:text-foreground"
-                        >
-                          <Bookmark className="h-3 w-3" aria-hidden /> Save
-                        </button>
-                        <button
-                          type="button"
-                          className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10.5px] text-muted-foreground transition-colors hover:text-foreground"
-                        >
-                          <MessageCircle className="h-3 w-3" aria-hidden /> Thread
-                        </button>
-                        <span className="ml-auto rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10.5px] font-medium text-blue-500 dark:text-blue-300">
-                          {p.subject}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
+            <RawCommunityFeed
+              mode="preview"
+              embedded
+              controlledFilter={activeFeedFilter}
+            />
             <Link
-              href="/magic-wall"
+              href={`/explore/community?filter=${activeFeedFilter}`}
               className="mt-2 block border-t border-border/60 pt-2 text-center text-[11.5px] font-medium text-emerald-500 hover:underline"
             >
               View all community posts →

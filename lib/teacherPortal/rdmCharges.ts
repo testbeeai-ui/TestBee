@@ -39,13 +39,14 @@ type ChargeApiResponse = {
 async function postTeacherRdm(
   path: "charge" | "refund",
   action: TeacherRdmChargeAction,
-  fallbackAmount: number
+  fallbackAmount: number,
+  extraBody?: Record<string, unknown>
 ): Promise<{ rdm: number | null; amount: number; skipped: boolean }> {
   const res = await fetchWithClientAuth(`/api/teacher/rdm/${path}`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action, ...extraBody }),
   });
   const payload = (await res.json().catch(() => ({}))) as ChargeApiResponse;
   const amount =
@@ -68,23 +69,33 @@ async function postTeacherRdm(
 export type TeacherRdmChargeResult = {
   rdm: number | null;
   charged: boolean;
+  amount?: number;
 };
 
 /** Deduct RDM for a whitelisted teacher action. Throws if balance is too low. */
 export async function chargeTeacherRdm(
   action: TeacherRdmChargeAction,
-  costs: Pick<TeacherRdmCosts, TeacherRdmChargeAction> = DEFAULT_TEACHER_RDM_COSTS
+  costs: Pick<TeacherRdmCosts, TeacherRdmChargeAction> = DEFAULT_TEACHER_RDM_COSTS,
+  extraBody?: Record<string, unknown>
 ): Promise<TeacherRdmChargeResult> {
-  const { rdm, skipped } = await postTeacherRdm("charge", action, costs[action]);
-  return { rdm, charged: !skipped };
+  const { rdm, skipped, amount } = await postTeacherRdm(
+    "charge",
+    action,
+    costs[action],
+    extraBody
+  );
+  return { rdm, charged: !skipped && amount > 0, amount };
 }
 
 /** Refund RDM after a failed create (same amount as charge for that action). */
 export async function refundTeacherRdm(
   action: TeacherRdmChargeAction,
-  costs: Pick<TeacherRdmCosts, TeacherRdmChargeAction> = DEFAULT_TEACHER_RDM_COSTS
+  costs: Pick<TeacherRdmCosts, TeacherRdmChargeAction> = DEFAULT_TEACHER_RDM_COSTS,
+  chargedAmount?: number
 ): Promise<number | null> {
-  const { rdm } = await postTeacherRdm("refund", action, costs[action]);
+  const extraBody =
+    typeof chargedAmount === "number" && chargedAmount > 0 ? { amount: chargedAmount } : undefined;
+  const { rdm } = await postTeacherRdm("refund", action, costs[action], extraBody);
   return rdm;
 }
 

@@ -112,6 +112,10 @@ export interface RawCommunityFeedProps {
   initialPerPage?: CommunityFeedPageSize;
   /** Full mode only: keep the address bar in sync (`?filter=&page=&perPage=`). Safe for `/explore/community` only. */
   syncPaginationUrl?: boolean;
+  /** Dashboard embed: parent supplies header, filters, and footer. */
+  embedded?: boolean;
+  /** Subject filter when `embedded` (controlled by parent). */
+  controlledFilter?: RawFeedFilter;
 }
 
 export default function RawCommunityFeed({
@@ -121,6 +125,8 @@ export default function RawCommunityFeed({
   initialPage,
   initialPerPage,
   syncPaginationUrl = false,
+  embedded = false,
+  controlledFilter,
 }: RawCommunityFeedProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -128,6 +134,7 @@ export default function RawCommunityFeed({
   const saveCommunityPost = useUserStore((s) => s.saveCommunityPost);
   const savedCommunityPosts = useUserStore(selectSavedCommunityPosts);
   const [filter, setFilter] = useState<RawFeedFilter>(() => {
+    if (embedded && controlledFilter) return controlledFilter;
     if (mode === "full" && initialFilter) return initialFilter;
     return "all";
   });
@@ -283,6 +290,11 @@ export default function RawCommunityFeed({
     itemsPerPage,
     currentPage,
   ]);
+
+  useEffect(() => {
+    if (!embedded || controlledFilter === undefined) return;
+    setFilter(controlledFilter);
+  }, [embedded, controlledFilter]);
 
   useEffect(() => {
     void load();
@@ -614,7 +626,7 @@ export default function RawCommunityFeed({
   const pageList = mode === "full" ? buildPageList(currentPage, totalPages) : [];
 
   const viewAllHref = `/explore/community?filter=${filter}`;
-  const compact = mode === "full";
+  const compact = mode === "full" || embedded;
   const skeletonCount = mode === "full" ? 8 : 5;
 
   return (
@@ -749,7 +761,7 @@ export default function RawCommunityFeed({
             </PopoverContent>
           </Popover>
         </div>
-      ) : (
+      ) : embedded ? null : (
         <>
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <h3 className="text-sm font-bold text-foreground sm:text-base">
@@ -777,16 +789,21 @@ export default function RawCommunityFeed({
       )}
 
       {loading ? (
-        <div className="space-y-3">
+        <div className={cn("space-y-3", embedded && "space-y-0")}>
           {Array.from({ length: skeletonCount }, (_, i) => (
             <div
               key={i}
-              className="animate-pulse rounded-xl border border-border p-4 dark:border-white/10"
+              className={cn(
+                "animate-pulse",
+                embedded
+                  ? "border-b border-border/60 py-2 last:border-none"
+                  : "rounded-xl border border-border p-4 dark:border-white/10"
+              )}
             >
-              <div className="flex gap-3">
-                <div className="h-10 w-10 rounded-full bg-muted" />
+              <div className="flex gap-2">
+                <div className="h-[26px] w-[26px] shrink-0 rounded-full bg-muted" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 w-48 rounded bg-muted" />
+                  <div className="h-3 w-32 rounded bg-muted" />
                   <div className="h-3 w-full rounded bg-muted" />
                 </div>
               </div>
@@ -794,12 +811,25 @@ export default function RawCommunityFeed({
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground dark:border-white/15">
+        <p
+          className={cn(
+            "text-center text-muted-foreground",
+            embedded
+              ? "py-4 text-[11.5px]"
+              : "rounded-xl border border-dashed border-border p-6 text-sm dark:border-white/15"
+          )}
+        >
           No posts yet. Be the first to share something you learned.
         </p>
       ) : (
         <>
-          <div className="divide-y divide-border rounded-2xl border border-border bg-card dark:divide-white/10 dark:border-white/10 dark:bg-slate-950/80">
+          <div
+            className={cn(
+              embedded
+                ? "divide-y divide-border/60"
+                : "divide-y divide-border rounded-2xl border border-border bg-card dark:divide-white/10 dark:border-white/10 dark:bg-slate-950/80"
+            )}
+          >
             {filtered.map((post, i) => (
               <div
                 key={post.id}
@@ -919,7 +949,7 @@ export default function RawCommunityFeed({
             </nav>
           ) : null}
 
-          {mode === "preview" && filtered.length > 0 ? (
+          {mode === "preview" && !embedded && filtered.length > 0 ? (
             <div className="flex justify-end pt-1">
               <Link
                 href={viewAllHref}

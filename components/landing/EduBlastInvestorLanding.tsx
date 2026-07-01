@@ -270,7 +270,7 @@ const RDM_WAYS = [
   },
   {
     icon: "👥",
-    title: "Attend live class",
+    title: "Attend live lesson",
     desc: "Join a live teacher session on EduBlast.",
     rdm: "+30 RDM",
   },
@@ -342,7 +342,7 @@ const TEACHER_STEPS = [
   },
   {
     step: "3",
-    title: "Run live classes",
+    title: "Run live lessons",
     desc: "List a session — students across India join. Recordings earn views and RDM long after you finish.",
     reward: "+10 RDM / attendee",
   },
@@ -557,7 +557,7 @@ function TeacherInvestorSections({ onOpenWaitlist }: { onOpenWaitlist?: (role?: 
                 {[
                   ["312", "students helped this month", "text-emerald-300"],
                   ["+420", "RDM earned this week", "text-amber-300"],
-                  ["4.9★", "live class rating", "text-white"],
+                  ["4.9★", "Live lesson rating", "text-white"],
                   ["4.2k", "profile reach", "text-indigo-300"],
                 ].map(([v, l, tone], i) => (
                   <div
@@ -604,7 +604,7 @@ function TeacherInvestorSections({ onOpenWaitlist }: { onOpenWaitlist?: (role?: 
                       DS
                     </span>
                     <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-white">Live class · Mechanics</p>
+                      <p className="text-[13px] font-semibold text-white">Live lesson · Mechanics</p>
                       <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
                         61 students attended · 4.9★ · 312 recorded views
                       </p>
@@ -802,7 +802,7 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
               {[
                 { v: "420+", l: "TOP TEACHER RDM / WEEK", c: "text-amber-300" },
                 { v: "312", l: "STUDENTS HELPED / MONTH", c: "text-[#34f5a4]" },
-                { v: "4.9★", l: "AVG LIVE CLASS RATING", c: "text-white" },
+                { v: "4.9★", l: "AVG LIVE LESSON RATING", c: "text-white" },
                 { v: "+10", l: "RDM PER UPVOTED COMMENT", c: "text-[#6f71ff]" },
               ].map((s) => (
                 <div key={s.l} className="min-w-0">

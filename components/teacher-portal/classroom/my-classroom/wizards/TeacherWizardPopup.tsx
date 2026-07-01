@@ -968,7 +968,7 @@ export function TeacherWizardPopup(props: {
                       classrooms={props.classrooms}
                       toast={props.toast}
                       headingTitle="Schedule a lesson / webinar"
-                      headingSubtitle="Set up a live class on EduBlast, add your Google Meet link, attach pre-work and post-work resources, and open optional adhoc trial slots for any EduBlast member to join."
+                      headingSubtitle="Set up a live lesson on EduBlast, add your Google Meet link, attach pre-work and post-work resources, and open optional adhoc trial slots for any EduBlast member to join."
                       submitLabel="Schedule lesson"
                       onSchedule={async (input) => {
                         await props.onScheduleLiveSession(input);
@@ -1257,13 +1257,13 @@ export function TeacherWizardPopup(props: {
                                   </span>{" "}
                                   Name a batch here only — no Google Calendar in this step. After
                                   launch, use{" "}
-                                  <span className="font-medium text-emerald-200">Book live class</span>{" "}
+                                  <span className="font-medium text-emerald-200">Book live lesson</span>{" "}
                                   on the Students tab (Starter / Pro).
                                 </div>
 
                                 {canCalendarSeries ? (
                                   <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.06] px-3 py-2.5 text-xs text-sky-100/90">
-                                    Your plan includes live class slots. Book each class individually
+                                    Your plan includes live lesson slots. Book each lesson individually
                                     after launch — we no longer create recurring Calendar series here.
                                   </div>
                                 ) : (
@@ -1274,7 +1274,7 @@ export function TeacherWizardPopup(props: {
                                       </span>
                                       <div className="min-w-0 text-xs leading-relaxed text-slate-300">
                                         <p className="font-semibold text-violet-100">
-                                          Live classes need Starter or Pro
+                                          Live lessons need Starter or Pro
                                         </p>
                                         <p className="mt-0.5 text-slate-400">
                                           Free plan: save a batch name only. Upgrade to book Google
@@ -1347,7 +1347,7 @@ export function TeacherWizardPopup(props: {
 
                                         <div className="text-[11px] leading-snug text-slate-500 sm:text-xs">
                                           One batch name per class in this wizard. Calendar sync
-                                          happens when you book a live class later — not as a repeating
+                                          happens when you book a live lesson later — not as a repeating
                                           series here.
                                         </div>
                                       </div>
@@ -1398,7 +1398,7 @@ export function TeacherWizardPopup(props: {
 
                                       <p className="mt-2 text-[11px] leading-relaxed text-slate-400 sm:text-xs">
                                         {canCalendarSeries
-                                          ? "After launch: Students tab → select this section → Book live class."
+                                          ? "After launch: Students tab → select this section → Book live lesson."
                                           : "Upgrade to Starter or Pro to book Google Calendar + Meet classes for this batch."}
                                       </p>
                                     </div>

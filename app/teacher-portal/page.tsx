@@ -312,21 +312,19 @@ function TeacherPortalPageContent() {
                   }, "Create assignment");
                 }}
                 onMotivateStudents={async (input) => {
-                  await requireVerifiedAction(async () => {
-                    await activeHook.motivateStudents({
+                  return requireVerifiedAction(async () => {
+                    return activeHook.motivateStudents({
                       teacherId: targetTeacherId ?? "",
                       ...input,
                     });
-                    toast({ title: "Motivation sent" });
                   }, "Motivate students");
                 }}
                 onRewardTopStudents={async (input) => {
-                  await requireVerifiedAction(async () => {
-                    await activeHook.rewardTopStudents({
+                  return requireVerifiedAction(async () => {
+                    return activeHook.rewardTopStudents({
                       teacherId: targetTeacherId ?? "",
                       ...input,
                     });
-                    toast({ title: "Top students rewarded" });
                   }, "Reward top students");
                 }}
                 onScheduleLiveSession={async (input) => {

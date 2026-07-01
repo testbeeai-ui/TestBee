@@ -52,12 +52,12 @@ export default function ClassroomSessionsDialog({
         <DialogHeader>
           <DialogTitle className="font-serif text-xl text-white">Sessions</DialogTitle>
           <DialogDescription className="text-slate-400">
-            Upcoming live classes for <span className="font-semibold text-slate-200">{classroomName}</span>
+            Upcoming live lessons for <span className="font-semibold text-slate-200">{classroomName}</span>
           </DialogDescription>
         </DialogHeader>
         {upcoming.length === 0 ? (
           <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-8 text-center text-sm text-slate-400">
-            No upcoming sessions. Book a live class from a section&apos;s Students tab.
+            No upcoming sessions. Book a live lesson from a section&apos;s Students tab.
           </div>
         ) : (
           <ul className="space-y-2">

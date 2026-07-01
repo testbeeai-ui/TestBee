@@ -18,6 +18,19 @@ import type { TeacherPortalClassroomCard } from "@/lib/teacherPortal/types";
 import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 import WallTimeSelects from "@/components/teacher-portal/live/WallTimeSelects";
+import TeacherLiveClassChargeConfirm from "@/components/teacher-portal/rdm/TeacherLiveClassChargeConfirm";
+import TeacherQuotaUpgradeBanner from "@/components/teacher-portal/rdm/TeacherQuotaUpgradeBanner";
+import { useTeacherPlanLimits } from "@/hooks/useTeacherPlanLimits";
+import {
+  formatRdmCredit,
+  formatRdmDeduction,
+  liveScheduleFeeLine,
+  resolveClientLiveScheduleFee,
+} from "@/lib/teacherPortal/teacherRdmUxCopy";
+import {
+  computeLiveClassDeliveryRdm,
+  formatLiveClassScheduleEarningLabel,
+} from "@/lib/teacherPortal/liveClassDeliveryRdm";
 
 export type ScheduleLiveSessionPayload = {
   classroomId: string;
@@ -112,14 +125,17 @@ export default function ScheduleLiveSessionPanel({
   externalStep,
   onStepChange,
 }: ScheduleLiveSessionPanelProps) {
-  const { costs: teacherRdmCosts } = useTeacherRdmCosts();
+  const { costs: teacherRdmCosts, liveClassDelivery } = useTeacherRdmCosts();
+  const { limits: planLimits } = useTeacherPlanLimits();
   const [submitting, setSubmitting] = useState(false);
+  const [chargeConfirmOpen, setChargeConfirmOpen] = useState(false);
   const [classroomId, setClassroomId] = useState("");
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [sectionOptions, setSectionOptions] = useState<
     Array<{ id: string; name: string; meta: string; googleMeetLink: string | null }>
   >([]);
   const [sectionLoading, setSectionLoading] = useState(false);
+  const [sectionStudentCount, setSectionStudentCount] = useState(0);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -356,6 +372,26 @@ export default function ScheduleLiveSessionPanel({
   }, [classroomId]);
 
   useEffect(() => {
+    let alive = true;
+    if (!sectionId || !classroomId) {
+      setSectionStudentCount(0);
+      return;
+    }
+    void supabase
+      .from("classroom_members")
+      .select("id", { count: "exact", head: true })
+      .eq("classroom_id", classroomId)
+      .eq("section_id", sectionId)
+      .neq("role", "teacher")
+      .then(({ count }) => {
+        if (alive) setSectionStudentCount(count ?? 0);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [sectionId, classroomId]);
+
+  useEffect(() => {
     if (!panelActive) return;
     if (!sectionId) return;
     const sec = sectionOptions.find((s) => s.id === sectionId);
@@ -377,8 +413,41 @@ export default function ScheduleLiveSessionPanel({
     return conceptFocusSelectionComplete(postWorkConceptSel, curriculumTaxonomy);
   }, [postWorkMode, postWork, postWorkConceptSel, curriculumTaxonomy]);
 
+  const liveQuota = planLimits?.liveClasses;
+  const liveOverageRdm = planLimits?.overage.liveClassRdm ?? 100;
+  const liveUsedThisMonth = planLimits?.usage.liveClassesBookedThisMonth ?? 0;
+  const scheduleFeeResolved = useMemo(
+    () =>
+      resolveClientLiveScheduleFee({
+        allowed: liveQuota?.allowed ?? true,
+        isOverage: liveQuota?.isOverage,
+        cap: liveQuota?.cap ?? 0,
+        used: liveUsedThisMonth,
+        flatScheduleFee: teacherRdmCosts.schedule_session,
+        overageRdm: liveOverageRdm,
+      }),
+    [
+      liveQuota?.allowed,
+      liveQuota?.isOverage,
+      liveQuota?.cap,
+      liveUsedThisMonth,
+      teacherRdmCosts.schedule_session,
+      liveOverageRdm,
+    ]
+  );
+
+  const deliveryBreakdown = useMemo(
+    () =>
+      sectionId
+        ? computeLiveClassDeliveryRdm(sectionStudentCount, liveClassDelivery)
+        : computeLiveClassDeliveryRdm(0, liveClassDelivery),
+    [sectionId, sectionStudentCount, liveClassDelivery]
+  );
+  const scheduleEarningLabel = formatLiveClassScheduleEarningLabel(deliveryBreakdown);
+
   const canSubmit = useMemo(() => {
     if (!(classroomId && title.trim() && date && startTime && meetLink.trim())) return false;
+    if (liveQuota && !liveQuota.allowed) return false;
     if (curriculumLoading && (preWorkMode === "concept_focus" || postWorkMode === "concept_focus"))
       return false;
 
@@ -400,6 +469,7 @@ export default function ScheduleLiveSessionPanel({
     preConfigured,
     postConfigured,
     postWorkDelayDays,
+    liveQuota,
   ]);
 
   const step1Ok = Boolean(classroomId && title.trim());
@@ -460,6 +530,19 @@ export default function ScheduleLiveSessionPanel({
   };
 
   const submit = async () => {
+    if (!canSubmit) return;
+    if (
+      deliveryBreakdown.totalRdm > 0 ||
+      scheduleFeeResolved.amount > 0 ||
+      scheduleFeeResolved.kind === "overage"
+    ) {
+      setChargeConfirmOpen(true);
+      return;
+    }
+    await runSubmit();
+  };
+
+  const runSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
@@ -573,6 +656,7 @@ export default function ScheduleLiveSessionPanel({
 
       resetAll();
       onComplete?.();
+      setChargeConfirmOpen(false);
     } finally {
       setSubmitting(false);
     }
@@ -593,8 +677,19 @@ export default function ScheduleLiveSessionPanel({
 
   const baseSubmitLabel =
     submitLabel ??
-    (headingTitle.toLowerCase().includes("webinar") ? "Schedule webinar" : "Schedule class");
-  const resolvedSubmitLabel = `${baseSubmitLabel} (-${teacherRdmCosts.schedule_session} RDM)`;
+    (headingTitle.toLowerCase().includes("webinar") ? "Schedule webinar" : "Schedule lesson");
+  const resolvedSubmitLabel =
+    liveQuota && !liveQuota.allowed
+      ? "Monthly limit reached"
+      : scheduleFeeResolved.amount > 0 && deliveryBreakdown.totalRdm > 0
+        ? `${baseSubmitLabel} (${formatRdmCredit(deliveryBreakdown.totalRdm)} · ${formatRdmDeduction(scheduleFeeResolved.amount)} overage)`
+        : scheduleFeeResolved.amount > 0
+          ? `${baseSubmitLabel} (${formatRdmDeduction(scheduleFeeResolved.amount)})`
+          : sectionId && deliveryBreakdown.totalRdm > 0
+            ? `${baseSubmitLabel} (${formatRdmCredit(deliveryBreakdown.totalRdm)})`
+            : baseSubmitLabel;
+  const slotSummary =
+    date && startTime ? `${date} ${startTime} · ${durationMinutes} min` : "";
 
   const stepCount = 5 as const;
   const stepTabLabels = [
@@ -935,7 +1030,7 @@ export default function ScheduleLiveSessionPanel({
 
               {preWorkMode === "none" ? (
                 <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-slate-300">
-                  No pre-work will be assigned for this class.
+                  No pre-work will be assigned for this lesson.
                 </div>
               ) : preWorkMode === "custom" ? (
                 <div className="space-y-3">
@@ -1028,7 +1123,7 @@ export default function ScheduleLiveSessionPanel({
 
               {postWorkMode === "none" ? (
                 <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-slate-300">
-                  No post-work will be assigned for this class.
+                  No post-work will be assigned for this lesson.
                 </div>
               ) : postWorkMode === "custom" ? (
                 <textarea
@@ -1077,6 +1172,26 @@ export default function ScheduleLiveSessionPanel({
                   trial student who converts to a full-session pay-by-RDM attendee.
                 </p>
               </div>
+              {liveQuota && !liveQuota.allowed && planLimits ? (
+                <TeacherQuotaUpgradeBanner
+                  resource="live_class"
+                  tier={planLimits.tier}
+                  cap={liveQuota.cap}
+                  onUpgrade={() => {
+                    window.location.href = "/teacher-portal?section=subscriptions";
+                  }}
+                  className="mt-2"
+                />
+              ) : sectionId && deliveryBreakdown.totalRdm > 0 ? (
+                <p className="text-xs text-emerald-300/90">{scheduleEarningLabel}</p>
+              ) : scheduleFeeResolved.amount > 0 ? (
+                <p className="text-xs text-amber-200/90">
+                  {liveScheduleFeeLine({
+                    kind: scheduleFeeResolved.kind,
+                    amount: scheduleFeeResolved.amount,
+                  })}
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -1204,6 +1319,22 @@ export default function ScheduleLiveSessionPanel({
           )}
         </div>
       )}
+      <TeacherLiveClassChargeConfirm
+        open={chargeConfirmOpen}
+        sectionName={sectionOptions.find((s) => s.id === sectionId)?.name ?? "Live lesson"}
+        slotSummary={slotSummary}
+        scheduleFee={scheduleFeeResolved.amount}
+        feeKind={scheduleFeeResolved.kind}
+        deliveryEarn={deliveryBreakdown.totalRdm}
+        deliveryBaseRdm={deliveryBreakdown.baseRdm}
+        deliveryPerStudentRdm={deliveryBreakdown.perStudentRdm}
+        deliveryStudentCount={deliveryBreakdown.cappedStudentCount}
+        tier={planLimits?.tier ?? "free"}
+        cap={liveQuota?.cap ?? 0}
+        onConfirm={() => void runSubmit()}
+        onCancel={() => setChargeConfirmOpen(false)}
+        busy={submitting}
+      />
     </div>
   );
 }

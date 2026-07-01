@@ -82,7 +82,7 @@ export function useTeacherLiveClassDeliveryRdmAwards(opts: {
         const title =
           typeof award.title === "string" && award.title.trim()
             ? award.title.trim()
-            : "Live class";
+            : "Live lesson";
         const breakdown = formatLiveClassDeliveryRdmBreakdown({
           studentCount: award.student_count ?? 0,
           cappedStudentCount: award.capped_student_count ?? 0,
@@ -92,7 +92,7 @@ export function useTeacherLiveClassDeliveryRdmAwards(opts: {
           totalRdm: total,
         });
         toastRef.current({
-          title: `+${total} RDM · Section schedule class`,
+          title: `+${total} RDM · Section schedule lesson`,
           description: `${title} — ${breakdown}`,
         });
       }

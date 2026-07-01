@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, ExternalLink, Loader2, Video, X } from "lucide-react";
 import {
@@ -13,17 +13,30 @@ import { useToast } from "@/hooks/use-toast";
 import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
 import { supabase } from "@/integrations/supabase/client";
 import WallTimeSelects from "@/components/teacher-portal/live/WallTimeSelects";
+import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 import {
   formatTeacherLiveClassQuotaLabel,
-  isUnlimitedLiveClassesCap,
   liveClassQuotaExceededMessage,
   type TeacherPlanKey,
 } from "@/lib/teacherPortal/teacherPlan";
 import { buildTeacherMeetJoinUrl, teacherMeetJoinTitle } from "@/lib/meetLink";
+import TeacherLiveClassChargeConfirm from "@/components/teacher-portal/rdm/TeacherLiveClassChargeConfirm";
+import TeacherQuotaUpgradeBanner from "@/components/teacher-portal/rdm/TeacherQuotaUpgradeBanner";
+import {
+  computeLiveClassDeliveryRdm,
+  formatLiveClassScheduleButtonLabel,
+  formatLiveClassScheduleEarningLabel,
+} from "@/lib/teacherPortal/liveClassDeliveryRdm";
+import {
+  formatRdmCredit,
+  formatRdmDeduction,
+  resolveClientLiveScheduleFee,
+} from "@/lib/teacherPortal/teacherRdmUxCopy";
 
 type PlanLimitsResponse = {
   tier: TeacherPlanKey;
-  liveClasses: { allowed: boolean; remaining: number; cap: number };
+  liveClasses: { allowed: boolean; remaining: number; cap: number; isOverage?: boolean };
+  overage?: { liveClassRdm?: number };
   usage?: { liveClassesBookedThisMonth?: number };
 };
 
@@ -38,6 +51,8 @@ export type BookLiveClassSlotPanelProps = {
   classroomId: string;
   sectionId: string;
   sectionName: string;
+  /** Students enrolled in this section (for +10/student delivery preview). */
+  sectionStudentCount?: number;
   /** compact = trigger bar + modal on Students tab; settings = inline form in Settings */
   variant?: "compact" | "settings";
   disabled?: boolean;
@@ -77,6 +92,7 @@ export function BookLiveClassSlotPanel({
   classroomId,
   sectionId,
   sectionName,
+  sectionStudentCount = 0,
   variant = "compact",
   disabled,
   googleCalendarConnected = true,
@@ -88,11 +104,13 @@ export function BookLiveClassSlotPanel({
 }: BookLiveClassSlotPanelProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { costs: teacherRdmCosts, liveClassDelivery } = useTeacherRdmCosts();
   const [modalOpen, setModalOpen] = useState(false);
   const [slotDate, setSlotDate] = useState("");
   const [slotTime, setSlotTime] = useState("18:00");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [booking, setBooking] = useState(false);
+  const [chargeConfirmOpen, setChargeConfirmOpen] = useState(false);
   const [limits, setLimits] = useState<PlanLimitsResponse | null>(null);
   const [limitsLoading, setLimitsLoading] = useState(true);
   const [upcomingSlots, setUpcomingSlots] = useState<BookedSlotRow[]>([]);
@@ -167,28 +185,72 @@ export function BookLiveClassSlotPanel({
 
   const tier = limits?.tier ?? "free";
   const quota = limits?.liveClasses;
-  const planReady = Boolean(
-    quota && (isUnlimitedLiveClassesCap(quota.cap) || quota.cap > 0) && quota.allowed
-  );
-  const canBook = planReady && googleConnected && !disabled;
+  const liveOverageRdm = limits?.overage?.liveClassRdm ?? 100;
+  const canBook = Boolean(quota?.allowed && googleConnected && !disabled);
 
   const upgradeLabel =
     quota && !quota.allowed ? liveClassQuotaExceededMessage(tier, quota.cap) : null;
 
-  const quotaLabel = quota ? formatTeacherLiveClassQuotaLabel(quota) : null;
+  const quotaLabel = quota
+    ? formatTeacherLiveClassQuotaLabel({
+        remaining: quota.remaining,
+        cap: quota.cap,
+        isOverage: quota.isOverage,
+        tier,
+        overageRdm: liveOverageRdm,
+      })
+    : null;
+
+  const liveUsedThisMonth = limits?.usage?.liveClassesBookedThisMonth ?? 0;
+  const scheduleFeeResolved = resolveClientLiveScheduleFee({
+    allowed: quota?.allowed ?? false,
+    isOverage: quota?.isOverage,
+    cap: quota?.cap ?? 0,
+    used: liveUsedThisMonth,
+    flatScheduleFee: teacherRdmCosts.schedule_session,
+    overageRdm: liveOverageRdm,
+  });
+
+  const deliveryBreakdown = useMemo(
+    () => computeLiveClassDeliveryRdm(sectionStudentCount, liveClassDelivery),
+    [sectionStudentCount, liveClassDelivery]
+  );
+
+  const scheduleEarningLabel = formatLiveClassScheduleEarningLabel(deliveryBreakdown);
+  const scheduleButtonLabel = formatLiveClassScheduleButtonLabel(deliveryBreakdown.totalRdm);
+  const overageButtonSuffix =
+    scheduleFeeResolved.amount > 0
+      ? ` (${formatRdmDeduction(scheduleFeeResolved.amount)} overage)`
+      : "";
   const quotaToneClass =
-    quota && isUnlimitedLiveClassesCap(quota.cap)
-      ? "text-emerald-300"
+    quota && quota.isOverage
+      ? "text-amber-300"
       : quota && quota.remaining <= 3
         ? "text-amber-300"
         : "text-sky-300";
 
-  const bookSlot = async () => {
+  const slotSummary =
+    slotDate && slotTime
+      ? `${slotDate} ${slotTime} · ${durationMinutes} min`
+      : "";
+
+  const runBookSlot = async () => {
     if (!slotDate || !slotTime) {
       toast({ title: "Pick date and time", variant: "destructive" });
       return;
     }
-    if (!canBook) return;
+    if (!canBook) {
+      toast({
+        title: "Cannot schedule right now",
+        description: !googleConnected
+          ? "Connect Google Calendar first."
+          : quota && !quota.allowed
+            ? upgradeLabel ?? "Monthly live lesson limit reached."
+            : "Check your plan and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
     setBooking(true);
     try {
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata";
@@ -204,18 +266,40 @@ export function BookLiveClassSlotPanel({
           durationMinutes,
         }),
       });
-      const body = (await res.json()) as { error?: string; remainingThisMonth?: number };
+      const body = (await res.json()) as {
+        error?: string;
+        remainingThisMonth?: number;
+        scheduleFee?: number;
+        deliveryRdm?: number;
+        deliveryWarning?: string;
+        isOverage?: boolean;
+        rdm?: number;
+      };
       if (!res.ok) throw new Error(body.error ?? "Booking failed");
+      const earned = typeof body.deliveryRdm === "number" ? body.deliveryRdm : 0;
+      const fee = typeof body.scheduleFee === "number" ? body.scheduleFee : 0;
       toast({
-        title: "Live class booked",
+        title: earned > 0 ? `+${earned} RDM added to your wallet` : "Live lesson booked",
         description:
-          typeof body.remainingThisMonth === "number" &&
-          limits?.liveClasses &&
-          !isUnlimitedLiveClassesCap(limits.liveClasses.cap)
-            ? `${body.remainingThisMonth} slot(s) left this month.`
-            : "Added to Google Calendar with Meet link.",
+          earned > 0
+            ? `${formatRdmCredit(earned)} for scheduling this lesson${
+                fee > 0 ? ` (${formatRdmDeduction(fee)} overage fee applied)` : ""
+              }${
+                typeof body.rdm === "number"
+                  ? ` · balance now ${body.rdm.toLocaleString("en-IN")} RDM`
+                  : ""
+              }`
+            : body.deliveryWarning
+              ? `Class scheduled. RDM credit pending: ${body.deliveryWarning}`
+              : fee > 0
+                ? `Deducted ${formatRdmDeduction(fee)} from your wallet.`
+                : typeof body.remainingThisMonth === "number"
+                  ? `${body.remainingThisMonth} slot(s) left this month.`
+                  : "Added to Google Calendar with Meet link.",
       });
       setSlotDate("");
+      setChargeConfirmOpen(false);
+      setModalOpen(false);
       await loadLimits();
       await loadUpcomingSlots();
       onBooked?.();
@@ -228,6 +312,31 @@ export function BookLiveClassSlotPanel({
     } finally {
       setBooking(false);
     }
+  };
+
+  const bookSlot = () => {
+    if (!slotDate || !slotTime) {
+      toast({ title: "Pick date and time", variant: "destructive" });
+      return;
+    }
+    if (!canBook) {
+      toast({
+        title: "Cannot schedule right now",
+        description: !googleConnected
+          ? "Connect Google Calendar first."
+          : quota && !quota.allowed
+            ? upgradeLabel ?? "Monthly live lesson limit reached."
+            : "Check your plan and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (deliveryBreakdown.totalRdm > 0 || scheduleFeeResolved.amount > 0) {
+      if (variant === "compact") setModalOpen(false);
+      setChargeConfirmOpen(true);
+      return;
+    }
+    void runBookSlot();
   };
 
   const linkBtn =
@@ -321,7 +430,7 @@ export function BookLiveClassSlotPanel({
       <div className="space-y-2">
         <button
           type="button"
-          onClick={() => void bookSlot()}
+          onClick={bookSlot}
           disabled={booking || !slotDate || !canBook}
           className={primaryBtnClass}
         >
@@ -330,10 +439,14 @@ export function BookLiveClassSlotPanel({
           ) : (
             <Calendar className="h-4 w-4" />
           )}
-          Schedule live class
+          {scheduleButtonLabel}
+          {overageButtonSuffix}
         </button>
         <p className="text-xs text-zinc-500">
-          Google Calendar event · Meet link included
+          Google Calendar event · Meet link included · {scheduleEarningLabel}
+          {scheduleFeeResolved.amount > 0
+            ? ` · Pro overage ${formatRdmDeduction(scheduleFeeResolved.amount)}`
+            : ""}
         </p>
       </div>
     </div>
@@ -377,12 +490,13 @@ export function BookLiveClassSlotPanel({
       </div>
       <button
         type="button"
-        onClick={() => void bookSlot()}
+        onClick={bookSlot}
         disabled={booking || !slotDate || !canBook}
         className={`${primaryBtnClass} w-full`}
       >
         {booking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calendar className="h-4 w-4" />}
-        Schedule live class
+        {scheduleButtonLabel}
+        {overageButtonSuffix}
       </button>
     </div>
   );
@@ -390,7 +504,7 @@ export function BookLiveClassSlotPanel({
   if (limitsLoading) {
     return (
       <div className="flex items-center gap-2 rounded-xl border border-emerald-500/15 bg-[#0c1018] px-3.5 py-2.5 text-xs text-emerald-300/70">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading live classes…
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading live lessons…
       </div>
     );
   }
@@ -408,8 +522,16 @@ export function BookLiveClassSlotPanel({
             {quotaLabel ? (
               <p className={`mt-0.5 text-xs font-medium ${quotaToneClass}`}>{quotaLabel}</p>
             ) : (
-              <p className="mt-0.5 text-xs text-emerald-400/80">Live class scheduling</p>
+              <p className="mt-0.5 text-xs text-emerald-400/80">Live lesson scheduling</p>
             )}
+            {canBook ? (
+              <p className="mt-0.5 text-[11px] text-emerald-400/90">{scheduleEarningLabel}</p>
+            ) : null}
+            {canBook && scheduleFeeResolved.amount > 0 ? (
+              <p className="mt-0.5 text-[11px] text-amber-300/90">
+                Pro overage {formatRdmDeduction(scheduleFeeResolved.amount)} per booking
+              </p>
+            ) : null}
           </div>
 
           <button
@@ -418,7 +540,8 @@ export function BookLiveClassSlotPanel({
             className={compactScheduleBtnClass}
           >
             <Calendar className="h-3.5 w-3.5" />
-            Schedule lesson
+            {scheduleButtonLabel}
+            {overageButtonSuffix}
           </button>
         </div>
 
@@ -441,7 +564,7 @@ export function BookLiveClassSlotPanel({
               </button>
               <DialogHeader className="space-y-0.5 text-left">
                 <DialogTitle className="text-[15px] font-semibold tracking-tight text-zinc-50">
-                  Schedule live class
+                  Schedule live lesson
                 </DialogTitle>
                 <p className="text-sm text-zinc-400">
                   {sectionName}
@@ -457,15 +580,16 @@ export function BookLiveClassSlotPanel({
 
             <div className="px-5 py-5">
               {upgradeLabel ? (
-                <p className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2.5 text-sm text-slate-300">
-                  <button type="button" onClick={goToSubscriptions} className={linkBtn}>
-                    {upgradeLabel}
-                  </button>
-                </p>
+                <TeacherQuotaUpgradeBanner
+                  resource="live_class"
+                  tier={tier}
+                  cap={quota?.cap ?? 0}
+                  onUpgrade={goToSubscriptions}
+                />
               ) : !googleConnected ? (
                 <p className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-sm text-slate-300">
                   <button type="button" onClick={onConnectGoogle} className={linkBtn}>
-                    Connect Google Calendar to schedule classes
+                    Connect Google Calendar to schedule lessons
                   </button>
                 </p>
               ) : (
@@ -481,6 +605,25 @@ export function BookLiveClassSlotPanel({
             </div>
           </DialogContent>
         </Dialog>
+        <TeacherLiveClassChargeConfirm
+          open={chargeConfirmOpen}
+          sectionName={sectionName}
+          slotSummary={slotSummary}
+          scheduleFee={scheduleFeeResolved.amount}
+          feeKind={scheduleFeeResolved.kind}
+          deliveryEarn={deliveryBreakdown.totalRdm}
+          deliveryBaseRdm={deliveryBreakdown.baseRdm}
+          deliveryPerStudentRdm={deliveryBreakdown.perStudentRdm}
+          deliveryStudentCount={deliveryBreakdown.cappedStudentCount}
+          tier={tier}
+          cap={quota?.cap ?? 0}
+          onConfirm={() => void runBookSlot()}
+          onCancel={() => {
+            setChargeConfirmOpen(false);
+            if (variant === "compact") setModalOpen(true);
+          }}
+          busy={booking}
+        />
       </>
     );
   }
@@ -488,11 +631,12 @@ export function BookLiveClassSlotPanel({
   // Settings tab — inline form
   if (upgradeLabel) {
     return (
-      <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 px-3 py-2 text-xs text-slate-300">
-        <button type="button" onClick={goToSubscriptions} className={linkBtn}>
-          {upgradeLabel}
-        </button>
-      </div>
+      <TeacherQuotaUpgradeBanner
+        resource="live_class"
+        tier={tier}
+        cap={quota?.cap ?? 0}
+        onUpgrade={goToSubscriptions}
+      />
     );
   }
 
@@ -518,6 +662,22 @@ export function BookLiveClassSlotPanel({
           {upcomingList}
         </div>
       ) : null}
+      <TeacherLiveClassChargeConfirm
+        open={chargeConfirmOpen}
+        sectionName={sectionName}
+        slotSummary={slotSummary}
+        scheduleFee={scheduleFeeResolved.amount}
+        feeKind={scheduleFeeResolved.kind}
+        deliveryEarn={deliveryBreakdown.totalRdm}
+        deliveryBaseRdm={deliveryBreakdown.baseRdm}
+        deliveryPerStudentRdm={deliveryBreakdown.perStudentRdm}
+        deliveryStudentCount={deliveryBreakdown.cappedStudentCount}
+        tier={tier}
+        cap={quota?.cap ?? 0}
+        onConfirm={() => void runBookSlot()}
+        onCancel={() => setChargeConfirmOpen(false)}
+        busy={booking}
+      />
     </div>
   );
 }

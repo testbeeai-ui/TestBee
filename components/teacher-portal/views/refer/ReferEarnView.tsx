@@ -257,12 +257,12 @@ export default function ReferEarnView({
             RDM (once per class); +{bulkPaid} per student who subscribes within {bulkWindow} days
           </div>
           <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2.5">
-            Live class delivered (section schedule or booked slot) → +{liveBase} base + (
+            Live lesson delivered (section schedule or booked slot) → +{liveBase} base + (
             {livePerStudent} × enrolled students, cap {liveCap}); e.g. {liveExampleStudents} students
             = +{liveExampleTotal} RDM
           </div>
           <div className="rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2.5">
-            Live class quality bonus → +{qualityBonusRdm} RDM when students rate the class ≥
+            Live lesson quality bonus → +{qualityBonusRdm} RDM when students rate the lesson ≥
             {qualityMinStars}★ (enough raters; credit only — no penalty for low ratings)
           </div>
           <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2.5">

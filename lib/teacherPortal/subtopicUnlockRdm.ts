@@ -51,7 +51,65 @@ async function readPostContentJson(
   return data.content_json as Record<string, Json>;
 }
 
-/** Deduct teacher RDM and grant subtopic access rows (Concept Focus publish). */
+async function persistMcqSponsorshipMeta(
+  admin: SupabaseClient,
+  assignmentPostId: string,
+  teacherId: string,
+  meta: Record<string, Json>
+): Promise<void> {
+  const { error: metaErr } = await admin
+    .from("posts")
+    .update({
+      content_json: {
+        ...(await readPostContentJson(admin, assignmentPostId)),
+        ...meta,
+      },
+    })
+    .eq("id", assignmentPostId)
+    .eq("teacher_id", teacherId);
+  if (metaErr) throw new Error(metaErr.message);
+}
+
+/** Deduct teacher RDM for chapter-quiz bank-set sponsorship (no grant rows — assignment link unlocks the set). */
+export async function chargeChapterQuizMcqSponsorship(
+  admin: SupabaseClient,
+  input: {
+    teacherId: string;
+    assignmentPostId: string;
+    billableStudentIds: string[];
+    amountPerStudent: number;
+    premiumStudentCount: number;
+  }
+): Promise<CreateSubtopicUnlockGrantsResult> {
+  const amountPerStudent = Math.max(0, Math.round(input.amountPerStudent));
+  const studentIds = [...new Set(input.billableStudentIds.map((id) => id.trim()).filter(Boolean))];
+  if (amountPerStudent <= 0 || studentIds.length === 0) {
+    return { unlockTotal: 0, grantCount: 0, amountPerStudent: 0 };
+  }
+
+  const unlockTotal = amountPerStudent * studentIds.length;
+  const { data: newRdm, error: deductErr } = await admin.rpc("deduct_rdm", {
+    uid: input.teacherId,
+    amt: unlockTotal,
+  });
+  if (deductErr) throw new Error(deductErr.message);
+  if (newRdm === null) {
+    throw new Error(
+      `Insufficient RDM. MCQ unlock requires ${unlockTotal} RDM (${amountPerStudent} × ${studentIds.length} free students).`
+    );
+  }
+
+  await persistMcqSponsorshipMeta(admin, input.assignmentPostId, input.teacherId, {
+    mcqSponsorshipRdmPerStudent: amountPerStudent,
+    mcqSponsorshipTotal: unlockTotal,
+    mcqSponsorshipBillableStudentCount: studentIds.length,
+    mcqSponsorshipPremiumStudentCount: Math.max(0, Math.floor(input.premiumStudentCount)),
+  });
+
+  return { unlockTotal, grantCount: 0, amountPerStudent };
+}
+
+/** Deduct teacher RDM and grant subtopic access rows (Concept Focus publish; free students only). */
 export async function createSubtopicUnlockGrantsOnPublish(
   admin: SupabaseClient,
   input: {
@@ -60,6 +118,7 @@ export async function createSubtopicUnlockGrantsOnPublish(
     contentJson: unknown;
     studentIds: string[];
     amountPerStudent?: number;
+    premiumStudentCount?: number;
   }
 ): Promise<CreateSubtopicUnlockGrantsResult> {
   const amountPerStudent =
@@ -80,7 +139,7 @@ export async function createSubtopicUnlockGrantsOnPublish(
   if (deductErr) throw new Error(deductErr.message);
   if (newRdm === null) {
     throw new Error(
-      `Insufficient RDM. Subtopic unlock requires ${unlockTotal} RDM (${amountPerStudent} × ${studentIds.length} students).`
+      `Insufficient RDM. Unlock requires ${unlockTotal} RDM (${amountPerStudent} × ${studentIds.length} free students).`
     );
   }
 
@@ -103,19 +162,14 @@ export async function createSubtopicUnlockGrantsOnPublish(
     throw new Error(insErr.message);
   }
 
-  const { error: metaErr } = await admin
-    .from("posts")
-    .update({
-      content_json: {
-        ...(await readPostContentJson(admin, input.assignmentPostId)),
-        subtopicUnlockRdmPerStudent: amountPerStudent,
-        subtopicUnlockTotal: unlockTotal,
-        subtopicUnlockStudentCount: studentIds.length,
-      },
-    })
-    .eq("id", input.assignmentPostId)
-    .eq("teacher_id", input.teacherId);
-  if (metaErr) {
+  try {
+    await persistMcqSponsorshipMeta(admin, input.assignmentPostId, input.teacherId, {
+      subtopicUnlockRdmPerStudent: amountPerStudent,
+      subtopicUnlockTotal: unlockTotal,
+      subtopicUnlockStudentCount: studentIds.length,
+      subtopicUnlockPremiumStudentCount: Math.max(0, Math.floor(input.premiumStudentCount ?? 0)),
+    });
+  } catch (metaErr) {
     await admin
       .from("classroom_subtopic_unlock_grants")
       .delete()
@@ -125,7 +179,7 @@ export async function createSubtopicUnlockGrantsOnPublish(
     } catch {
       /* best-effort */
     }
-    throw new Error(metaErr.message);
+    throw metaErr instanceof Error ? metaErr : new Error(String(metaErr));
   }
 
   return { unlockTotal, grantCount: studentIds.length, amountPerStudent };
@@ -149,6 +203,19 @@ export async function hasActiveSubtopicUnlockGrant(
     throw new Error(error.message);
   }
   return Boolean(data?.id);
+}
+
+export async function refundMcqSponsorshipChargeForPost(
+  admin: SupabaseClient,
+  assignmentPostId: string,
+  teacherId: string
+): Promise<number> {
+  const content = await readPostContentJson(admin, assignmentPostId);
+  const amount = Number(content.mcqSponsorshipTotal);
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  const { error } = await admin.rpc("add_rdm", { uid: teacherId, amt: amount });
+  if (error) return 0;
+  return amount;
 }
 
 export async function refundSubtopicUnlockGrantsForPost(

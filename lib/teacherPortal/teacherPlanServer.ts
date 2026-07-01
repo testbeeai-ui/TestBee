@@ -1,14 +1,17 @@
 import { createAdminClient } from "@/integrations/supabase/server";
 import {
-  assignmentQuotaExceededMessage,
-  canBookMoreLiveClasses,
-  canCreateMoreAssignments,
+  computeAssignmentPublishRdm,
+  computeLiveClassScheduleRdm,
+} from "@/lib/teacherPortal/teacherPlanQuotaPolicy";
+import {
   fetchTeacherPlanConfig,
   getTeacherPlanLimits,
   istMonthBoundsForDate,
-  liveClassQuotaExceededMessage,
   normalizeTeacherPlanTier,
+  resolveAssignmentQuota,
+  resolveLiveClassQuota,
   teacherAssignmentPublishChargeWaived,
+  type QuotaOutcome,
   type TeacherPlanKey,
   type TeacherPlanLimits,
 } from "@/lib/teacherPortal/teacherPlan";
@@ -16,7 +19,19 @@ import {
 export type TeacherPlanContext = {
   tier: TeacherPlanKey;
   limits: TeacherPlanLimits;
+  assignmentOverageRdm: number;
+  liveClassOverageRdm: number;
 };
+
+export type QuotaAssertResult =
+  | {
+      ok: true;
+      remaining: number;
+      isOverage: boolean;
+      overageRdm: number;
+      quota: QuotaOutcome;
+    }
+  | { ok: false; error: string; code: string };
 
 export async function loadTeacherPlanContext(
   teacherId: string
@@ -27,7 +42,9 @@ export async function loadTeacherPlanContext(
   const [profileRes, cfg] = await Promise.all([
     (admin as any)
       .from("profiles")
-      .select("teacher_plan_tier, teacher_plan_started_at, teacher_plan_expires_at, time_travel_offset_ms")
+      .select(
+        "teacher_plan_tier, teacher_plan_started_at, teacher_plan_expires_at, time_travel_offset_ms"
+      )
       .eq("id", teacherId)
       .maybeSingle(),
     fetchTeacherPlanConfig(admin),
@@ -37,7 +54,12 @@ export async function loadTeacherPlanContext(
   if (!profile) return null;
 
   const tier = normalizeTeacherPlanTier(profile.teacher_plan_tier, profile);
-  return { tier, limits: getTeacherPlanLimits(cfg, tier) };
+  return {
+    tier,
+    limits: getTeacherPlanLimits(cfg, tier),
+    assignmentOverageRdm: cfg.teacher_assignment_overage_rdm,
+    liveClassOverageRdm: cfg.teacher_live_class_overage_rdm,
+  };
 }
 
 export async function countTeacherSlotsThisMonth(
@@ -57,6 +79,37 @@ export async function countTeacherSlotsThisMonth(
     .lt("slot_at", end.toISOString());
 
   return count ?? 0;
+}
+
+export async function countTeacherLiveSessionsThisMonth(
+  teacherId: string,
+  refDate: Date
+): Promise<number> {
+  const admin = createAdminClient();
+  if (!admin) return 0;
+
+  const { start, end } = istMonthBoundsForDate(refDate);
+  const { count } = await admin
+    .from("live_sessions")
+    .select("id", { count: "exact", head: true })
+    .eq("teacher_id", teacherId)
+    .eq("status", "scheduled")
+    .gte("scheduled_at", start.toISOString())
+    .lt("scheduled_at", end.toISOString());
+
+  return count ?? 0;
+}
+
+/** Booked live classes = Google Calendar slots + legacy live_sessions (IST month). */
+export async function countTeacherLiveClassesThisMonth(
+  teacherId: string,
+  refDate: Date = new Date()
+): Promise<number> {
+  const [slots, sessions] = await Promise.all([
+    countTeacherSlotsThisMonth(teacherId, refDate),
+    countTeacherLiveSessionsThisMonth(teacherId, refDate),
+  ]);
+  return slots + sessions;
 }
 
 export async function countTeacherAssignmentsThisMonth(teacherId: string): Promise<number> {
@@ -92,41 +145,90 @@ export async function countSectionStudents(
   return count ?? 0;
 }
 
+function quotaAssertFromOutcome(outcome: QuotaOutcome): QuotaAssertResult {
+  if (outcome.kind === "blocked_upgrade") {
+    return {
+      ok: false,
+      error: outcome.message,
+      code: outcome.upgradeTo === "starter" ? "upgrade_starter_required" : "upgrade_pro_required",
+    };
+  }
+  return {
+    ok: true,
+    remaining: outcome.remaining,
+    isOverage: outcome.isOverage,
+    overageRdm: outcome.kind === "allowed_overage" ? outcome.overageRdm : 0,
+    quota: outcome,
+  };
+}
+
 export async function assertTeacherCanBookSlot(
   teacherId: string,
   slotAt: Date
-): Promise<{ ok: true; remaining: number } | { ok: false; error: string; code: string }> {
+): Promise<QuotaAssertResult> {
   const ctx = await loadTeacherPlanContext(teacherId);
   if (!ctx) return { ok: false, error: "Could not load plan", code: "plan_load_failed" };
 
-  const booked = await countTeacherSlotsThisMonth(teacherId, slotAt);
-  const quota = canBookMoreLiveClasses(booked, ctx.limits);
-  if (!quota.allowed) {
-    return {
-      ok: false,
-      error: liveClassQuotaExceededMessage(ctx.tier, quota.cap),
-      code: "live_class_cap_reached",
-    };
-  }
-  return { ok: true, remaining: quota.remaining - 1 };
+  const booked = await countTeacherLiveClassesThisMonth(teacherId, slotAt);
+  const outcome = resolveLiveClassQuota(
+    ctx.tier,
+    booked,
+    ctx.limits,
+    ctx.liveClassOverageRdm
+  );
+  return quotaAssertFromOutcome(outcome);
 }
 
 export async function assertTeacherCanCreateAssignment(
   teacherId: string
-): Promise<{ ok: true; remaining: number } | { ok: false; error: string; code: string }> {
+): Promise<QuotaAssertResult> {
   const ctx = await loadTeacherPlanContext(teacherId);
   if (!ctx) return { ok: false, error: "Could not load plan", code: "plan_load_failed" };
 
   const created = await countTeacherAssignmentsThisMonth(teacherId);
-  const quota = canCreateMoreAssignments(created, ctx.limits);
-  if (!quota.allowed) {
-    return {
-      ok: false,
-      error: assignmentQuotaExceededMessage(ctx.tier, quota.cap),
-      code: "assignment_cap_reached",
-    };
-  }
-  return { ok: true, remaining: quota.remaining - 1 };
+  const outcome = resolveAssignmentQuota(
+    ctx.tier,
+    created,
+    ctx.limits,
+    ctx.assignmentOverageRdm
+  );
+  return quotaAssertFromOutcome(outcome);
+}
+
+export async function computeTeacherAssignmentPublishCharge(
+  teacherId: string,
+  flatPublishFee: number
+): Promise<
+  | { ok: true; amount: number; quota: QuotaOutcome; isOverage: boolean }
+  | { ok: false; error: string; code: string }
+> {
+  const check = await assertTeacherCanCreateAssignment(teacherId);
+  if (!check.ok) return check;
+  const ctx = await loadTeacherPlanContext(teacherId);
+  if (!ctx) return { ok: false, error: "Could not load plan", code: "plan_load_failed" };
+  const amount = computeAssignmentPublishRdm({
+    tier: ctx.tier,
+    quota: check.quota,
+    flatPublishFee,
+  });
+  return { ok: true, amount, quota: check.quota, isOverage: check.isOverage };
+}
+
+export async function computeTeacherLiveClassScheduleCharge(
+  teacherId: string,
+  refDate: Date,
+  flatScheduleFee: number
+): Promise<
+  | { ok: true; amount: number; quota: QuotaOutcome; isOverage: boolean }
+  | { ok: false; error: string; code: string }
+> {
+  const check = await assertTeacherCanBookSlot(teacherId, refDate);
+  if (!check.ok) return check;
+  const amount = computeLiveClassScheduleRdm({
+    quota: check.quota,
+    flatScheduleFee,
+  });
+  return { ok: true, amount, quota: check.quota, isOverage: check.isOverage };
 }
 
 export async function countClassroomStudents(classroomId: string): Promise<number> {
@@ -185,5 +287,13 @@ export async function shouldWaiveTeacherAssignmentPublishCharge(
   teacherId: string
 ): Promise<boolean> {
   const ctx = await loadTeacherPlanContext(teacherId);
-  return ctx ? teacherAssignmentPublishChargeWaived(ctx.tier) : false;
+  if (!ctx || ctx.tier !== "pro") return false;
+  const created = await countTeacherAssignmentsThisMonth(teacherId);
+  const outcome = resolveAssignmentQuota(
+    ctx.tier,
+    created,
+    ctx.limits,
+    ctx.assignmentOverageRdm
+  );
+  return teacherAssignmentPublishChargeWaived(ctx.tier, outcome.isOverage);
 }

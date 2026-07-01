@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
       contextKey,
       limit: 40,
     });
-    let recentHistory = fromDb.slice(-12).map((m) => ({
+    const recentHistory = fromDb.slice(-12).map((m) => ({
       role: m.role,
       content: m.content.slice(0, 1000),
     }));

@@ -4,6 +4,7 @@ import {
   createClient,
   createClientWithToken,
 } from "@/integrations/supabase/server";
+import { tryFulfillAssignmentMotivationGrants } from "@/lib/teacherPortal/motivationRdm";
 import { tryFulfillAssignmentCompletionReward } from "@/lib/teacherPortal/assignmentCompletionRdm";
 
 /**
@@ -163,7 +164,8 @@ export async function POST(
   }
 
   const content = access.post.content_json as Record<string, unknown> | null;
-  const tasksRaw = Array.isArray(content?.tasks) ? content.tasks : [];
+  const tasksRaw =
+    content && Array.isArray(content.tasks) ? content.tasks : [];
   const paperTask = tasksRaw.find((t: unknown) => {
     if (!t || typeof t !== "object" || Array.isArray(t)) return false;
     const kind = (t as Record<string, unknown>).kind;
@@ -184,9 +186,10 @@ export async function POST(
   const adminAfterAttempt = createAdminClient();
   if (adminAfterAttempt) {
     try {
+      await tryFulfillAssignmentMotivationGrants(adminAfterAttempt, user.id, postId);
       await tryFulfillAssignmentCompletionReward(adminAfterAttempt, user.id, postId);
     } catch {
-      // Non-fatal: attempt saved even if completion reward fulfillment fails
+      // Non-fatal: attempt saved even if reward fulfillment fails
     }
   }
 

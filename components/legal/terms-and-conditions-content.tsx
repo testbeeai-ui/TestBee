@@ -132,7 +132,7 @@ export function TermsAndConditionsContent({ scrollContainerId }: { scrollContain
         </li>
         <li>
           <strong>&quot;Teacher&quot;</strong> means a User who registers to create and deliver
-          educational content, conduct live classes, or contribute expert commentary on the
+          educational content, conduct live lessons, or contribute expert commentary on the
           Platform.
         </li>
         <li>
@@ -301,7 +301,7 @@ export function TermsAndConditionsContent({ scrollContainerId }: { scrollContain
       <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-white/50">
         <li>
           RDM is awarded for qualifying activities including completing DailyDose quizzes, answering
-          doubts on Gyan++, attending live classes, completing mock tests, and other platform
+          doubts on Gyan++, attending live lessons, completing mock tests, and other platform
           interactions as defined in the Platform help documentation.
         </li>
         <li>

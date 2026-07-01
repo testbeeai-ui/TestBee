@@ -5,6 +5,7 @@ import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import type { Json } from "@/integrations/supabase/types";
 import { safeGetSession } from "@/lib/auth/safeSession";
 import type { MotivationNudgeGoal, MotivationRecommendActionId } from "@/lib/teacherPortal/queries";
+import type { SendTeacherMotivationResult } from "@/lib/teacherPortal/sendTeacherMotivation";
 import type {
   TeacherPortalChapterQuizRef,
   TeacherPortalDailyDoseStreakRef,
@@ -89,14 +90,14 @@ interface UseAdminTeacherPortalDataResult {
     recommendActionUrl?: string;
     notificationTitle?: string;
     nudgeGoal?: MotivationNudgeGoal;
-  }) => Promise<void>;
+  }) => Promise<SendTeacherMotivationResult>;
   rewardTopStudents: (input: {
     teacherId: string;
     classroomId: string;
     targetStudentIds: string[];
     message: string;
     rdmDelta: number;
-  }) => Promise<void>;
+  }) => Promise<SendTeacherMotivationResult>;
   createSession: (input: {
     teacherId: string;
     classroomId: string;
@@ -273,9 +274,12 @@ export function useAdminTeacherPortalData(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...input, notes: DEFAULT_ADMIN_NOTES }),
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      const body = (await res.json().catch(() => ({}))) as SendTeacherMotivationResult & {
+        error?: string;
+      };
       if (!res.ok) throw new Error(body.error || "Failed to send motivation");
       await refresh();
+      return body;
     },
     [teacherId, refresh]
   );
@@ -292,9 +296,12 @@ export function useAdminTeacherPortalData(
           notes: DEFAULT_ADMIN_NOTES,
         }),
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      const body = (await res.json().catch(() => ({}))) as SendTeacherMotivationResult & {
+        error?: string;
+      };
       if (!res.ok) throw new Error(body.error || "Failed to reward students");
       await refresh();
+      return body;
     },
     [teacherId, refresh]
   );

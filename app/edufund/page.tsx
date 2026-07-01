@@ -262,24 +262,32 @@ export default function EduFundPage() {
 function EduFundPageContent() {
   const searchParams = useSearchParams();
   const onboardingEdufundQuery = searchParams.get(EDUFUND_ONBOARDING_QUERY);
-  const [showCreateProposalGuide, setShowCreateProposalGuide] = useState(false);
+  const [guideDismissed, setGuideDismissed] = useState(false);
+  const [prevOnboardingQuery, setPrevOnboardingQuery] = useState(onboardingEdufundQuery);
+
+  if (prevOnboardingQuery !== onboardingEdufundQuery) {
+    setPrevOnboardingQuery(onboardingEdufundQuery);
+    if (onboardingEdufundQuery === "1") {
+      setGuideDismissed(false);
+    }
+  }
+
+  const showCreateProposalGuide = onboardingEdufundQuery === "1" && !guideDismissed;
 
   useEffect(() => {
     if (onboardingEdufundQuery === "1") {
       startEdufundOnboardingFlow();
-      setShowCreateProposalGuide(true);
       return;
     }
     if (!isEdufundOnboardingFlowActive()) {
       clearEdufundCreateProposalGuideStep();
     }
-    setShowCreateProposalGuide(false);
   }, [onboardingEdufundQuery]);
 
   const dismissCreateProposalGuide = useCallback(() => {
     clearEdufundCreateProposalGuideStep();
     clearEdufundOnboardingFlow();
-    setShowCreateProposalGuide(false);
+    setGuideDismissed(true);
   }, []);
 
   const { user, profile } = useAuth();

@@ -4,7 +4,8 @@ config.py - Pydantic Settings for the RAG sidecar.
 Reads from environment variables or a .env file in the modal-rag/ directory.
 """
 
-from pydantic_settings import BaseSettings
+from pydantic import AliasChoices, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -25,14 +26,21 @@ class Settings(BaseSettings):
     # Shared secret — Next.js sends this in X-Internal-Token; sidecar validates it.
     # Set RAG_INTERNAL_TOKEN in Modal secrets and Next.js .env.local when enforcing auth.
     # Leave empty to disable token auth (dev-only convenience).
-    internal_token: str = ""
+    internal_token: str = Field(
+        default="",
+        validation_alias=AliasChoices("RAG_INTERNAL_TOKEN", "INTERNAL_TOKEN"),
+    )
 
     # Server
     host: str = "127.0.0.1"
     port: int = 8100
     cors_origins: list[str] = ["http://localhost:3000"]
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        populate_by_name=True,
+    )
 
 
 settings = Settings()
