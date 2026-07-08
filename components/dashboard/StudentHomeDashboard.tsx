@@ -64,9 +64,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { FreeTrialPromoDialog } from "@/components/dashboard/FreeTrialPromoDialog";
 import DashboardMemoryRecallPanel from "@/components/dashboard/DashboardMemoryRecallPanel";
-import RawCommunityFeed, {
-  type RawFeedFilter,
-} from "@/components/explore/RawCommunityFeed";
+
 import {
   FREE_TRIAL_ACTIVATED_EVENT,
   FREE_TRIAL_DEMO_RESET_EVENT,
@@ -111,7 +109,6 @@ import {
   ChevronRight as ChevronRightIcon,
   AlertTriangle,
   Info,
-  ExternalLink,
   Check,
   Clock,
 } from "lucide-react";
@@ -131,14 +128,7 @@ const MOCK_LEADERBOARD = [
   { rank: 5, name: "Praveen Kumar", city: "Davangere", pts: 790 },
 ] as const;
 
-const FEED_FILTERS = [
-  { id: "all", label: "All" },
-  { id: "physics", label: "Physics" },
-  { id: "chemistry", label: "Chemistry" },
-  { id: "math", label: "Math" },
-] as const;
 
-type FeedFilterId = RawFeedFilter;
 
 /**
  * Target exam date for the "Days to JEE Main" countdown in the icon-panel
@@ -298,6 +288,11 @@ export default function StudentHomeDashboard() {
   const { toast } = useToast();
   const isAppAdmin = useIsAppAdmin();
   const storeUser = useUserStore((s) => s.user);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isAppAdmin) {
@@ -868,7 +863,6 @@ export default function StudentHomeDashboard() {
     typeof window !== "undefined" ? getFreeTrialActivated(profile) : false
   );
   const [openIconFlyout, setOpenIconFlyout] = useState<IconFlyoutId>(null);
-  const [activeFeedFilter, setActiveFeedFilter] = useState<FeedFilterId>("all");
   const [checklistTaps, setChecklistTaps] = useState<Record<string, boolean>>({});
   // Admin-only manual override; non-admins never inflate the progress bar
   // with their taps (the bar tracks server-side `item.done` only).
@@ -1287,11 +1281,13 @@ export default function StudentHomeDashboard() {
         presenceMs,
         level: activityGreenLevelFromStudyMs(heatMs),
         label: formatSavedStudyMinutesLabel(presenceMs),
-        tooltipTitle: `${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${formatPresenceMsForTooltip(presenceMs)} · ${formatStudyMsForTooltip(activeMs)}`,
+        tooltipTitle: mounted
+          ? `${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${formatPresenceMsForTooltip(presenceMs)} · ${formatStudyMsForTooltip(activeMs)}`
+          : "",
       });
     }
     return out;
-  }, [now, studyMsByDay, presenceMsByDay, livePresencePendingMs]);
+  }, [now, studyMsByDay, presenceMsByDay, livePresencePendingMs, mounted]);
 
   const monthGrid = useMemo(() => {
     const y = now.getFullYear();
@@ -1335,7 +1331,9 @@ export default function StudentHomeDashboard() {
         presenceMs,
         level: activityGreenLevelFromStudyMs(heatMs),
         label: formatSavedStudyMinutesLabel(presenceMs),
-        tooltipTitle: `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · ${formatPresenceMsForTooltip(presenceMs)} · ${formatStudyMsForTooltip(activeMs)}`,
+        tooltipTitle: mounted
+          ? `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · ${formatPresenceMsForTooltip(presenceMs)} · ${formatStudyMsForTooltip(activeMs)}`
+          : null,
       });
     }
     while (cells.length % 7 !== 0) {
@@ -1349,16 +1347,16 @@ export default function StudentHomeDashboard() {
         tooltipTitle: null,
       });
     }
-    const monthLong = now.toLocaleDateString("en-US", { month: "long" }).toUpperCase();
+    const monthLong = mounted ? now.toLocaleDateString("en-US", { month: "long" }).toUpperCase() : "";
     const year = now.getFullYear();
     /** Shown at top of the monthly grid (matches dashboard reference). */
-    const monthlyMapHeading = `MONTHLY MAP — ${monthLong} ${year}`;
+    const monthlyMapHeading = monthLong ? `MONTHLY MAP — ${monthLong} ${year}` : "MONTHLY MAP";
     return {
       cells,
       monthlyMapHeading,
       todayStart,
     };
-  }, [monthDays, now, studyMsByDay, presenceMsByDay, livePresencePendingMs]);
+  }, [monthDays, now, studyMsByDay, presenceMsByDay, livePresencePendingMs, mounted]);
 
   const greeting = useMemo(() => {
     const h = now.getHours();
@@ -1375,20 +1373,24 @@ export default function StudentHomeDashboard() {
     return cleaned || "there";
   }, [storeUser?.name, profile?.name]);
   const classLevel = classLevelNum;
-  const dateStr = now.toLocaleDateString("en-US", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const dateStr = mounted
+    ? now.toLocaleDateString("en-US", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "";
   const classLine =
     classLevel != null
-      ? `PUC ${classLevel === 12 ? 2 : 1} · ${subjectCombo} · JEE + KCET track · ${dateStr}${
+      ? `PUC ${classLevel === 12 ? 2 : 1} · ${subjectCombo} · JEE + KCET track${
+          mounted && dateStr ? ` · ${dateStr}` : ""
+        }${
           isOnboardingRewardClaimed(profile)
             ? ` · Free trial Day ${trialDayNumber}${waitingForDay2 ? " (unlocks 9 AM)" : ""}`
             : ""
         }`
-      : `PUC 2 · ${subjectCombo} · JEE + KCET track · ${dateStr}${
+      : `PUC 2 · ${subjectCombo} · JEE + KCET track${mounted && dateStr ? ` · ${dateStr}` : ""}${
           isOnboardingRewardClaimed(profile)
             ? ` · Free trial Day ${trialDayNumber}${waitingForDay2 ? " (unlocks 9 AM)" : ""}`
             : ""
@@ -1439,7 +1441,7 @@ export default function StudentHomeDashboard() {
       <section className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-medium text-muted-foreground sm:text-xs">
-            {greeting}, {displayName} · {dateStr}
+            {greeting}, {displayName}{mounted && dateStr ? ` · ${dateStr}` : ""}
           </p>
           <h1 className="mt-1 font-serif text-xl font-bold tracking-tight text-foreground sm:text-2xl">
             My dashboard
@@ -1903,7 +1905,9 @@ export default function StudentHomeDashboard() {
                       )}
                     >
                       <span className="text-[9px] font-bold uppercase text-muted-foreground">
-                        {cell.date.toLocaleDateString(undefined, { weekday: "short" })}
+                        {mounted
+                          ? cell.date.toLocaleDateString(undefined, { weekday: "short" })
+                          : "..."}
                       </span>
                       <span className="text-[11px] font-extrabold tabular-nums">
                         {isReady ? cell.label : "…"}
@@ -1970,276 +1974,238 @@ export default function StudentHomeDashboard() {
           </div>
       </section>
 
-      {/* ── DASHBOARD MAIN GRID: Community feed | Memory Recall | Sidebar ── */}
-      <section className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,560px)_minmax(240px,1fr)_320px]">
-          {/* Community feed (left column) */}
-          <div className="min-w-0 max-w-full overflow-hidden rounded-xl border border-border/70 bg-card/80 p-3 shadow-sm lg:max-w-[560px]">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5 border-b border-border/60 pb-2">
-              <h2 className="flex items-center gap-1.5 text-[13.5px] font-medium text-foreground">
-                <Heart className="h-4 w-4 text-pink-500" aria-hidden /> Community feed
-              </h2>
-              <Link
-                href="/explore/community"
-                className="inline-flex items-center gap-1 text-[11.5px] font-medium text-emerald-500 hover:underline"
-              >
-                Open feed <ExternalLink className="h-3 w-3" aria-hidden />
-              </Link>
-            </div>
-            <div className="mb-2 flex flex-wrap gap-1 border-b border-border/60 pb-2">
-              {FEED_FILTERS.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setActiveFeedFilter(f.id)}
-                  className={cn(
-                    "rounded-full border px-2 py-0.5 text-[11.5px] font-medium transition-colors",
-                    activeFeedFilter === f.id
-                      ? "border-emerald-500 bg-emerald-500 text-white"
-                      : "border-border/70 bg-muted/40 text-muted-foreground hover:border-border hover:text-foreground"
-                  )}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-            <RawCommunityFeed
-              mode="preview"
-              embedded
-              controlledFilter={activeFeedFilter}
-            />
-            <Link
-              href={`/explore/community?filter=${activeFeedFilter}`}
-              className="mt-2 block border-t border-border/60 pt-2 text-center text-[11.5px] font-medium text-emerald-500 hover:underline"
-            >
-              View all community posts →
-            </Link>
-          </div>
-
-          {/* Memory Recall — saved InstaCue revision cards (flip + spaced recall) */}
+      {/* ── DASHBOARD MAIN GRID: Instacue | Checklist | Leaderboard+Mocks ── */}
+      <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+          {/* Left column: Instacue / Memory Recall panel */}
           <div className="min-w-0 w-full">
             <DashboardMemoryRecallPanel />
           </div>
 
-        {/* Right column: Today's checklist + Leaderboard + Upcoming mocks */}
-        <div className="flex flex-col gap-3">
-          {/* Today's checklist card */}
-          <div className="rounded-xl border border-border/70 bg-card/80 p-3.5 shadow-sm">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="flex items-center gap-1.5 text-[13px] font-bold text-foreground sm:text-sm">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden /> Today&apos;s checklist
-              </h2>
-              <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500 dark:text-emerald-300">
-                +{checklistRewardRdm} RDM
-              </span>
-            </div>
-            <p className="mb-1 text-[10px] text-muted-foreground">
-              {dailyChecklistStatus === "error"
-                ? "Could not load checklist — refresh."
-                : `${checklistDoneCount} of ${checklistItems.length} done`}
-            </p>
-            <div className="mb-2.5 h-1 overflow-hidden rounded-full bg-border/60">
-              <div
-                className="h-full rounded-full bg-emerald-500 transition-all"
-                style={{
-                  width: `${Math.round((Math.max(checklistDoneCount, checklistTapCount) / checklistItems.length) * 100)}%`,
-                }}
-              />
-            </div>
-            <ul className="space-y-1">
-              {checklistItems.map((item) => {
-                // Normal students: `done` is purely server-driven (`item.done`
-                // flips to true when the student actually does the activity —
-                // e.g. completed a DailyDose, finished Instacue cards, posted
-                // a Gyan++ comment). They cannot click to mark items complete
-                // — clicking would let them self-claim the onboarding RDM.
-                // Admins keep the click-to-mark override for testing/demo.
-                const tapped = isAppAdmin && checklistTaps[item.id] === true;
-                const done = item.done || tapped;
-                return (
-                  <li
-                    key={item.id}
-                    data-checklist-item={item.id}
-                    title={
-                      isAppAdmin
-                        ? done
-                          ? "Completed (admin override)"
-                          : "Admin: click to mark complete (testing override)"
-                        : done
-                          ? "Completed — keep studying!"
-                          : "Auto-tracks as you do the activity"
-                    }
-                    className={cn(
-                      "flex items-center gap-2 border-b border-border/60 py-1.5 last:border-none",
-                      // Cursor: admins can click, students cannot.
-                      isAppAdmin && !done
-                        ? "cursor-pointer"
-                        : "cursor-default"
-                    )}
-                    onClick={() => {
-                      if (!isAppAdmin) return;
-                      if (done) return;
-                      setChecklistTaps((p) => ({ ...p, [item.id]: true }));
-                    }}
-                  >
-                    <span
-                      className={cn(
-                        "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                        done
-                          ? "border-emerald-500 bg-emerald-500 text-white"
-                          : "border-border"
-                      )}
-                    >
-                      {done ? <Check className="h-2 w-2" aria-hidden /> : null}
-                    </span>
-                    <span
-                      className={cn(
-                        "min-w-0 flex-1 text-[11px] font-semibold",
-                        done ? "text-muted-foreground line-through" : "text-foreground"
-                      )}
-                    >
-                      {item.id.toUpperCase()} ·{" "}
-                      {item.id === "a"
-                        ? "Daily routine (DailyDose + Funbrain)"
-                        : item.id === "b"
-                          ? "Lessons/Progress complete in all 3 subjects"
-                          : item.id === "c"
-                            ? "Gyan++ feed — 5 min, save, react"
-                            : item.id === "d"
-                              ? "Instacue — 32 cards"
-                              : "Challenge Yourself"}
-                    </span>
-                    <Link
-                      href={
-                        item.id === "a"
-                          ? "/play"
-                          : item.id === "b"
-                            ? "/explore-1"
-                            : item.id === "c"
-                              ? "/doubts"
-                              : item.id === "d"
-                                ? "/revision"
-                                : "/refer-earn?tab=challenges"
+          {/* Middle column: Today's checklist */}
+          <div className="min-w-0 w-full">
+            {/* Today's checklist card */}
+            <div className="rounded-xl border border-white/5 bg-card/50 p-5 sm:p-6 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
+                  <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500" aria-hidden /> Today&apos;s checklist
+                </h2>
+                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-450 dark:text-emerald-300">
+                  +{checklistRewardRdm} RDM
+                </span>
+              </div>
+              <p className="mb-2 text-xs text-muted-foreground font-medium">
+                {dailyChecklistStatus === "error"
+                  ? "Could not load checklist — refresh."
+                  : `${checklistDoneCount} of ${checklistItems.length} done`}
+              </p>
+              <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-muted/30">
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-all"
+                  style={{
+                    width: `${Math.round((Math.max(checklistDoneCount, checklistTapCount) / checklistItems.length) * 100)}%`,
+                  }}
+                />
+              </div>
+              <ul className="space-y-1">
+                {checklistItems.map((item) => {
+                  const tapped = isAppAdmin && checklistTaps[item.id] === true;
+                  const done = item.done || tapped;
+                  return (
+                    <li
+                      key={item.id}
+                      data-checklist-item={item.id}
+                      title={
+                        isAppAdmin
+                          ? done
+                            ? "Completed (admin override)"
+                            : "Admin: click to mark complete (testing override)"
+                          : done
+                            ? "Completed — keep studying!"
+                            : "Auto-tracks as you do the activity"
                       }
-                      onClick={(e) => e.stopPropagation()}
-                      className="rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-emerald-500 hover:text-white"
+                      className={cn(
+                        "flex items-center gap-3 border-b border-white/5 py-3 last:border-none",
+                        isAppAdmin && !done
+                          ? "cursor-pointer"
+                          : "cursor-default"
+                      )}
+                      onClick={() => {
+                        if (!isAppAdmin) return;
+                        if (done) return;
+                        setChecklistTaps((p) => ({ ...p, [item.id]: true }));
+                      }}
                     >
-                      Go
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-            <button
-              type="button"
-              onClick={() => setIsChecklistOpen(true)}
-              className="mt-2.5 w-full rounded-full bg-emerald-500/10 py-1.5 text-[11px] font-bold text-emerald-500 transition-colors hover:bg-emerald-500/20 dark:text-emerald-300"
-            >
-              Open full checklist →
-            </button>
+                      <span
+                        className={cn(
+                          "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors",
+                          done
+                            ? "border-emerald-500 bg-emerald-500 text-white"
+                            : "border-white/20"
+                        )}
+                      >
+                        {done ? <Check className="h-2.5 w-2.5" aria-hidden /> : null}
+                      </span>
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 text-[12px] font-semibold leading-normal",
+                          done ? "text-muted-foreground line-through font-medium" : "text-foreground"
+                        )}
+                      >
+                        {item.id.toUpperCase()} ·{" "}
+                        {item.id === "a"
+                          ? "Daily routine (DailyDose + Funbrain)"
+                          : item.id === "b"
+                            ? "Lessons/Progress complete in all 3 subjects"
+                            : item.id === "c"
+                              ? "Gyan++ feed — 5 min, save, react"
+                              : item.id === "d"
+                                ? "Instacue — 32 cards"
+                                : "Challenge Yourself"}
+                        {item.id === "d" && (
+                          <span className="block text-[10px] font-normal text-muted-foreground/70 mt-0.5">
+                            {dailyChecklist?.instacueReadCount ?? 0}/32 reads today
+                          </span>
+                        )}
+                      </span>
+                      <Link
+                        href={
+                          item.id === "a"
+                            ? "/play"
+                            : item.id === "b"
+                              ? "/explore-1"
+                              : item.id === "c"
+                                ? "/doubts"
+                                : item.id === "d"
+                                  ? "/revision"
+                                  : "/refer-earn?tab=challenges"
+                        }
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded-full bg-white/5 border border-white/10 hover:border-emerald-500 hover:bg-emerald-500 hover:text-white text-muted-foreground px-3.5 py-1 text-[11px] font-bold transition-all"
+                      >
+                        Go
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+              <button
+                type="button"
+                onClick={() => setIsChecklistOpen(true)}
+                className="mt-4 w-full rounded-full border border-emerald-500/20 bg-emerald-500/5 py-2 text-[12px] font-bold text-emerald-500 transition-all hover:bg-emerald-500/10 dark:text-emerald-300"
+              >
+                Open full checklist →
+              </button>
+            </div>
           </div>
 
-          {/* Leaderboard card */}
-          <div className="rounded-xl border border-border/70 bg-card/80 p-3 shadow-sm">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="flex items-center gap-1.5 text-[12px] font-bold text-foreground">
-                <Star className="h-3.5 w-3.5 text-amber-500" aria-hidden /> Leaderboard
-              </h3>
-              <Link
-                href="/performance"
-                className="text-[10px] font-bold text-emerald-500 hover:underline"
-              >
-                All →
-              </Link>
-            </div>
-            <ul>
-              {MOCK_LEADERBOARD.map((row) => (
-                <li
-                  key={row.rank}
-                  className="flex items-center gap-2 border-b border-border/60 py-1.5 last:border-none"
+          {/* Right column: Leaderboard + Upcoming mocks */}
+          <div className="flex flex-col gap-6">
+            {/* Leaderboard card */}
+            <div className="rounded-xl border border-white/5 bg-card/50 p-5 sm:p-6 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                  <Star className="h-4 w-4 text-amber-500" aria-hidden /> Leaderboard
+                </h3>
+                <Link
+                  href="/performance"
+                  className="text-xs font-bold text-emerald-550 dark:text-emerald-400 hover:underline"
                 >
-                  <span className="w-4 text-[10px] font-bold text-muted-foreground">
-                    {row.rank}
-                  </span>
-                  <span
-                    className={cn(
-                      "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white",
-                      row.rank === 1
-                        ? "bg-emerald-500"
-                        : row.rank === 2
-                          ? "bg-blue-500"
-                          : row.rank === 3
-                            ? "bg-violet-500"
-                            : row.rank === 4
-                              ? "bg-amber-500"
-                              : "bg-blue-500"
-                    )}
-                  >
-                    {row.name
-                      .split(" ")
-                      .map((p) => p[0])
-                      .join("")}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[11px] font-semibold text-foreground">
-                      {row.name}
-                    </p>
-                    <p className="text-[9px] text-muted-foreground">{row.city}</p>
-                  </div>
-                  <span className="font-mono text-[11px] font-bold tabular-nums text-emerald-500">
-                    {row.pts}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Upcoming mocks card */}
-          <div className="rounded-xl border border-border/70 bg-card/80 p-3 shadow-sm">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="flex items-center gap-1.5 text-[12px] font-bold text-foreground">
-                <CalendarDays className="h-3.5 w-3.5 text-blue-500" aria-hidden /> Upcoming mocks
-              </h3>
-              <Link
-                href="/mock"
-                className="text-[10px] font-bold text-muted-foreground hover:underline"
-              >
-                All →
-              </Link>
-            </div>
-            <ul className="space-y-2">
-              {upcomingBlocks === null ? (
-                [0, 1, 2].map((i) => (
+                  All →
+                </Link>
+              </div>
+              <ul className="space-y-1">
+                {MOCK_LEADERBOARD.map((row) => (
                   <li
-                    key={`upcoming-skel-${i}`}
-                    className="animate-pulse rounded-lg border border-border/60 bg-muted/15 p-2"
+                    key={row.rank}
+                    className="flex items-center gap-3 border-b border-white/5 py-2.5 last:border-none"
                   >
-                    <div className="h-3 max-w-[78%] rounded bg-muted" />
-                    <div className="mt-1.5 h-2.5 max-w-[52%] rounded bg-muted" />
-                    <div className="mt-2 h-5 w-16 rounded-full bg-muted" />
-                  </li>
-                ))
-              ) : (
-                upcomingBlocks.slice(0, 3).map((m) => (
-                  <li
-                    key={m.key}
-                    className="rounded-lg border border-border/60 bg-background/40 p-2"
-                  >
-                    <p className="text-[11px] font-semibold leading-snug text-foreground">
-                      {m.title}
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">{m.meta}</p>
-                    <button
-                      type="button"
-                      onClick={() => router.push(m.href)}
-                      className="mt-1.5 rounded-full bg-emerald-500 px-2.5 py-0.5 text-[10px] font-bold text-white transition-colors hover:bg-emerald-600"
+                    <span className="w-5 text-[11px] font-bold text-muted-foreground">
+                      {row.rank}
+                    </span>
+                    <span
+                      className={cn(
+                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-sm",
+                        row.rank === 1
+                          ? "bg-emerald-500"
+                          : row.rank === 2
+                            ? "bg-blue-500"
+                            : row.rank === 3
+                              ? "bg-violet-500"
+                              : row.rank === 4
+                                ? "bg-amber-500"
+                                : "bg-blue-500"
+                      )}
                     >
-                      Start now
-                    </button>
+                      {row.name
+                        .split(" ")
+                        .map((p) => p[0])
+                        .join("")}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[12px] font-bold text-foreground leading-snug">
+                        {row.name}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/80 leading-none mt-0.5">{row.city}</p>
+                    </div>
+                    <span className="font-mono text-[12px] font-bold tabular-nums text-[#1D9E75]">
+                      {row.pts}
+                    </span>
                   </li>
-                ))
-              )}
-            </ul>
-          </div>
+                ))}
+              </ul>
+            </div>
+
+            {/* Upcoming mocks card */}
+            <div className="rounded-xl border border-white/5 bg-card/50 p-4 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                  <CalendarDays className="h-3.5 w-3.5 text-blue-550" aria-hidden /> Upcoming events
+                </h3>
+                <Link
+                  href="/mock"
+                  className="text-[10px] font-bold text-muted-foreground hover:underline"
+                >
+                  All →
+                </Link>
+              </div>
+              <ul className="space-y-2">
+                {upcomingBlocks === null ? (
+                  [0, 1, 2].map((i) => (
+                    <li
+                      key={`upcoming-skel-${i}`}
+                      className="animate-pulse flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-muted/10 p-3"
+                    >
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="h-3 max-w-[78%] rounded bg-muted" />
+                        <div className="h-2.5 max-w-[52%] rounded bg-muted" />
+                      </div>
+                      <div className="h-6 w-20 shrink-0 rounded-full bg-muted" />
+                    </li>
+                  ))
+                ) : (
+                  upcomingBlocks.slice(0, 3).map((m) => (
+                    <li
+                      key={m.key}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-[#111418]/60 p-3 shadow-sm"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-bold leading-normal text-white">
+                          {m.title}
+                        </p>
+                        <p className="mt-0.5 text-[9.5px] text-muted-foreground/85">{m.meta}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => router.push(m.href)}
+                        className="shrink-0 rounded-full bg-emerald-500 px-3.5 py-1 text-[10.5px] font-bold text-white transition-colors hover:bg-emerald-600 shadow-sm shadow-emerald-500/10"
+                      >
+                        Start now
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
         </div>
       </section>
 

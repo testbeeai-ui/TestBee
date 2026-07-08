@@ -1,8 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Brain, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Brain,
+  ChevronLeft,
+  ChevronRight,
+  RotateCw,
+  Flag,
+  Clock,
+  CheckCircle2,
+  Check,
+  Lightbulb,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
 import { fetchSavedContent, patchRevisionCardRecall } from "@/lib/saved/savedContentService";
@@ -10,24 +20,119 @@ import { mergeAllSavedContent } from "@/lib/saved/mergeSavedContent";
 import { dedupeRevisionCards } from "@/lib/saved/revisionCardIdentity";
 import {
   applyRevisionRecallAction,
-  countScheduledTomorrow,
-  countUnsureInRevisionDeck,
   getRevisionRecallFeedback,
   isInMemoryRecallQueue,
 } from "@/lib/saved/revisionCardRecall";
 import { useRecallNowMs } from "@/hooks/useRecallNowMs";
 import { useToast } from "@/hooks/use-toast";
 import { DEMO_REVISION_CARDS } from "@/lib/saved/demoRevisionCards";
-import type { SavedRevisionCard } from "@/types";
+import type { SavedRevisionCard, Subject } from "@/types";
 import { cn } from "@/lib/utils";
-import DashboardMemoryRecallFlipCard, {
-  type RecallAction,
-} from "@/components/dashboard/DashboardMemoryRecallFlipCard";
-
-const PER_PAGE = 10;
+import { INSTACUE_TYPE_CONFIG } from "@/lib/instacue/instaCueTypeConfig";
+import { normalizeCardMath } from "@/lib/saved/revisionCardMath";
+import MathText from "@/components/MathText";
+import type { RecallAction } from "@/components/dashboard/DashboardMemoryRecallFlipCard";
 
 function isDemoCardId(id: string): boolean {
   return id.startsWith("demo-");
+}
+
+type FilterSubject = "all" | Subject;
+
+const SUBJECT_FILTERS: { id: FilterSubject; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "physics", label: "Physics" },
+  { id: "chemistry", label: "Chemistry" },
+  { id: "math", label: "Mathematics" },
+];
+
+const SUBJECT_STYLE: Record<
+  Subject,
+  { border: string; label: string; text: string; display: string }
+> = {
+  physics: {
+    border: "border-blue-500/30 hover:border-blue-500/65 shadow-[0_0_10px_rgba(59,130,246,0.06)] hover:shadow-[0_0_18px_rgba(59,130,246,0.22)]",
+    label: "bg-blue-500/10 text-blue-400",
+    text: "text-blue-450",
+    display: "Physics",
+  },
+  chemistry: {
+    border: "border-emerald-500/30 hover:border-emerald-500/65 shadow-[0_0_10px_rgba(16,185,129,0.06)] hover:shadow-[0_0_18px_rgba(16,185,129,0.22)]",
+    label: "bg-emerald-500/10 text-emerald-400",
+    text: "text-emerald-450",
+    display: "Chemistry",
+  },
+  math: {
+    border: "border-purple-500/30 hover:border-purple-500/65 shadow-[0_0_10px_rgba(168,85,247,0.06)] hover:shadow-[0_0_18px_rgba(168,85,247,0.22)]",
+    label: "bg-purple-500/10 text-purple-400",
+    text: "text-purple-450",
+    display: "Mathematics",
+  },
+};
+
+function CardActions({
+  selectedAction,
+  onAction,
+}: {
+  selectedAction: RecallAction | null;
+  onAction: (action: RecallAction) => void;
+}) {
+  const actions: {
+    id: RecallAction;
+    label: string;
+    icon: React.ReactNode;
+    activeIcon: React.ReactNode;
+    activeClass: string;
+  }[] = [
+    {
+      id: "unsure",
+      label: "Unsure",
+      icon: <Flag className="h-3.5 w-3.5 text-[#EF9F27]" aria-hidden />,
+      activeIcon: <Flag className="h-3.5 w-3.5 fill-[#EF9F27] text-[#EF9F27]" aria-hidden />,
+      activeClass: "bg-[#EF9F27]/10 border-[#EF9F27]/30 text-[#EF9F27]",
+    },
+    {
+      id: "tomorrow",
+      label: "Tomorrow",
+      icon: <Clock className="h-3.5 w-3.5 text-[#378ADD]" aria-hidden />,
+      activeIcon: <CheckCircle2 className="h-3.5 w-3.5 text-[#378ADD]" aria-hidden />,
+      activeClass: "bg-[#378ADD]/10 border-[#378ADD]/30 text-[#378ADD]",
+    },
+    {
+      id: "know_it",
+      label: "Know It",
+      icon: <CheckCircle2 className="h-3.5 w-3.5 text-[#1D9E75]" aria-hidden />,
+      activeIcon: <Check className="h-3.5 w-3.5 text-[#1D9E75]" aria-hidden />,
+      activeClass: "bg-[#1D9E75]/10 border-[#1D9E75]/30 text-[#1D9E75]",
+    },
+  ];
+
+  return (
+    <div className="flex items-center justify-around gap-2.5 border-t border-white/5 pt-3.5">
+      {actions.map((action) => {
+        const isSelected = selectedAction === action.id;
+        const isDimmed = selectedAction != null && !isSelected;
+        return (
+          <button
+            key={action.id}
+            type="button"
+            onClick={() => onAction(action.id)}
+            disabled={isDimmed}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-bold transition-all",
+              isSelected
+                ? action.activeClass
+                : "border-white/5 bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground",
+              isDimmed && "pointer-events-none opacity-30"
+            )}
+          >
+            {isSelected ? action.activeIcon : action.icon}
+            {action.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function DashboardMemoryRecallPanel() {
@@ -37,8 +142,9 @@ export default function DashboardMemoryRecallPanel() {
   const updateRevisionCardStatus = useUserStore((s) => s.updateRevisionCardStatus);
   const refreshDueRevisionCards = useUserStore((s) => s.refreshDueRevisionCards);
 
-  const [page, setPage] = useState(1);
-  const [flippedCardId, setFlippedCardId] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterSubject>("all");
+  const [cardIndex, setCardIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
   const [localPatches, setLocalPatches] = useState<
     Record<string, Pick<SavedRevisionCard, "status" | "reviewAt">>
   >({});
@@ -110,36 +216,40 @@ export default function DashboardMemoryRecallPanel() {
     [cardsWithLocalStatus, nowMs]
   );
 
-  const dueTomorrowCount = useMemo(
-    () => countScheduledTomorrow(cardsWithLocalStatus, nowMs),
-    [cardsWithLocalStatus, nowMs]
-  );
+  const filteredDeck = useMemo(() => {
+    if (activeFilter === "all") return recallQueue;
+    return recallQueue.filter((c) => c.subject === activeFilter);
+  }, [recallQueue, activeFilter]);
 
-  const unsureCount = useMemo(
-    () => countUnsureInRevisionDeck(cardsWithLocalStatus),
-    [cardsWithLocalStatus]
-  );
+  const safeIndex = Math.min(cardIndex, Math.max(0, filteredDeck.length - 1));
+  const total = filteredDeck.length;
+  const currentCard = filteredDeck[safeIndex] ?? null;
 
-  const totalPages = Math.max(1, Math.ceil(recallQueue.length / PER_PAGE));
+  // Always show the question side when navigating to a different card.
+  useLayoutEffect(() => {
+    setFlipped(false);
+  }, [currentCard?.id]);
 
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+  const selectFilter = (f: FilterSubject) => {
+    setActiveFilter(f);
+    setCardIndex(0);
+    setFlipped(false);
+  };
 
-  useEffect(() => {
-    setFlippedCardId(null);
-  }, [page]);
-
-  const pageCards = useMemo(() => {
-    const start = (page - 1) * PER_PAGE;
-    return recallQueue.slice(start, start + PER_PAGE);
-  }, [recallQueue, page]);
-
-  useEffect(() => {
-    if (flippedCardId && !pageCards.some((c) => c.id === flippedCardId)) {
-      setFlippedCardId(null);
+  const goNext = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (safeIndex < total - 1) {
+      setFlipped(false);
+      setCardIndex(safeIndex + 1);
     }
-  }, [pageCards, flippedCardId]);
+  };
+  const goPrev = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (safeIndex > 0) {
+      setFlipped(false);
+      setCardIndex(safeIndex - 1);
+    }
+  };
 
   const handleAction = useCallback(
     (card: SavedRevisionCard, action: RecallAction) => {
@@ -148,166 +258,198 @@ export default function DashboardMemoryRecallPanel() {
         ...prev,
         [card.id]: { status: updated.status, reviewAt: updated.reviewAt },
       }));
-
       const feedback = getRevisionRecallFeedback(action, {
         reviewAt: updated.reviewAt,
         nowMs,
       });
       toast({ title: feedback.title, description: feedback.description });
-
       if (!isDemoCardId(card.id)) {
         updateRevisionCardStatus(card.id, action);
         const stored = useUserStore.getState().user?.savedRevisionCards ?? [];
         const synced = stored.find((c) => c.id === card.id);
-        if (synced) {
-          patchRevisionCardRecall(synced).catch(() => {});
-        }
+        if (synced) patchRevisionCardRecall(synced).catch(() => {});
       }
     },
     [nowMs, toast, updateRevisionCardStatus]
   );
 
-  const goPage = (next: number) => {
-    if (next < 1 || next > totalPages) return;
-    setFlippedCardId(null);
-    setPage(next);
-  };
+  const renderCard = (card: SavedRevisionCard) => {
+    const style = SUBJECT_STYLE[card.subject] ?? SUBJECT_STYLE.physics;
+    const typeCfg =
+      INSTACUE_TYPE_CONFIG[card.type ?? "concept"] ?? INSTACUE_TYPE_CONFIG.concept;
+    const selectedAction =
+      (localPatches[card.id]?.status as RecallAction | undefined) ?? null;
 
-  const handleGridPointer = useCallback(
-    (e: MouseEvent<HTMLDivElement>) => {
-      if (!flippedCardId) return;
-      const under = document.elementFromPoint(e.clientX, e.clientY);
-      const host = under?.closest("[data-memory-recall-card]");
-      const id = host?.getAttribute("data-memory-recall-card");
-      if (id !== flippedCardId) {
-        setFlippedCardId(null);
-      }
-    },
-    [flippedCardId]
-  );
-
-  const clearFlippedCard = useCallback(() => {
-    setFlippedCardId(null);
-  }, []);
-
-  return (
-    <div className="dashboard-memory-recall min-w-0 w-full rounded-xl border border-border/70 bg-card/80 shadow-sm">
+    return (
       <div
-        className="flex items-center justify-between border-b border-border/60 px-3 py-2"
-        onMouseEnter={clearFlippedCard}
+        key={card.id}
+        role="button"
+        tabIndex={0}
+        aria-label={
+          flipped ? "Card flipped — showing answer" : "Card — tap to reveal answer"
+        }
+        onClick={() => setFlipped((f) => !f)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setFlipped((f) => !f);
+          }
+        }}
+        className={cn(
+          "relative cursor-pointer overflow-hidden rounded-xl border bg-[#111418]/60 shadow-sm transition-all duration-300 select-none",
+          style.border
+        )}
       >
-        <h2 className="flex items-center gap-1.5 text-[13.5px] font-medium text-foreground">
-          <Brain className="h-4 w-4 text-[#EF9F27]" aria-hidden />
-          Memory Recall
-        </h2>
-        <div className="flex items-center gap-1.5">
-          {dueTomorrowCount > 0 ? (
-            <span className="rounded-full border border-[#EF9F27]/60 bg-[#EF9F27]/10 px-2 py-0.5 text-[10px] font-medium text-[#FAC775]">
-              Due Tomorrow
-            </span>
-          ) : null}
-          <span className="text-[11.5px] text-muted-foreground">
-            {recallQueue.length} cards
+        {/* Card header */}
+        <div className="flex items-center gap-2 border-b border-white/5 px-5 pt-4 pb-3.5">
+          <span
+            className={cn(
+              "inline-flex rounded px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider leading-none",
+              typeCfg.badge
+            )}
+          >
+            {typeCfg.label}
           </span>
+          <span className={cn("text-[11px] font-bold uppercase tracking-wider", style.text)}>
+            {style.display}
+          </span>
+          <RotateCw className="ml-auto h-3.5 w-3.5 text-muted-foreground/30" aria-hidden />
         </div>
-      </div>
 
-      <div
-        className="flex flex-wrap items-center gap-2 border-b border-border/60 bg-muted/20 px-3 py-1"
-        onMouseEnter={clearFlippedCard}
-      >
-        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <span className="h-2 w-2 rounded-full border-2 border-[#378ADD]" aria-hidden />
-          Physics
-        </span>
-        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <span className="h-2 w-2 rounded-full border-2 border-[#1D9E75]" aria-hidden />
-          Chemistry
-        </span>
-        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <span className="h-2 w-2 rounded-full border-2 border-[#7F77DD]" aria-hidden />
-          Mathematics
-        </span>
-        <span className="ml-auto text-[10px] text-muted-foreground">Tap card to see answer</span>
-      </div>
+        {/* Card body */}
+        <div className="px-5 py-4" style={{ minHeight: 140 }}>
+          {!flipped ? (
+            <MathText
+              weight="semibold"
+              className="block text-[13.5px] leading-relaxed text-white font-semibold"
+            >
+              {normalizeCardMath(card.frontContent, true)}
+            </MathText>
+          ) : (
+            <>
+              <div className="mb-2.5 flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-[#1D9E75]">
+                <Lightbulb className="h-3.5 w-3.5" aria-hidden />
+                Answer
+              </div>
+              <MathText
+                weight="normal"
+                className="block text-[13px] leading-relaxed text-[#c9d1d9] font-medium"
+              >
+                {normalizeCardMath(card.backContent, true) ||
+                  "No answer saved for this card."}
+              </MathText>
+            </>
+          )}
+        </div>
 
-      <div
-        className="grid grid-cols-2 gap-2 p-2 pb-1.5"
-        onMouseMove={handleGridPointer}
-      >
-        {pageCards.map((card) => (
-          <div key={card.id} data-memory-recall-card={card.id} className="min-h-0">
-            <DashboardMemoryRecallFlipCard
-              card={card}
-              flipped={flippedCardId === card.id}
-              onFlipChange={(next) => setFlippedCardId(next ? card.id : null)}
-              onPeerHover={() => {
-                if (flippedCardId != null && flippedCardId !== card.id) {
-                  setFlippedCardId(null);
-                }
-              }}
-              selectedAction={
-                (localPatches[card.id]?.status as RecallAction | undefined) ?? null
-              }
+        {/* Bottom bar */}
+        {!flipped ? (
+          <div className="flex items-center justify-center gap-1.5 border-t border-white/5 px-5 py-3.5 text-[11.5px] font-bold text-muted-foreground/60 hover:text-foreground/90 transition-colors">
+            <RotateCw className="h-3.5 w-3.5" aria-hidden />
+            Tap to reveal answer
+          </div>
+        ) : (
+          <div
+            className="border-t border-white/5 px-5 pb-4 pt-3.5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardActions
+              selectedAction={selectedAction}
               onAction={(action) => handleAction(card, action)}
             />
           </div>
-        ))}
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="dashboard-memory-recall min-w-0 w-full rounded-xl border border-white/5 bg-card/50 shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-foreground sm:text-base">
+          <Brain className="h-4.5 w-4.5 text-[#EF9F27]" aria-hidden />
+          Instacue
+        </h2>
+        <Link
+          href="/revision?tab=instacue"
+          className="text-xs font-semibold text-emerald-500 hover:text-emerald-400 hover:underline"
+        >
+          View all
+        </Link>
       </div>
 
-      {totalPages > 1 ? (
-        <div className="flex items-center justify-center gap-1 border-t border-border/60 px-2.5 py-2">
+      {/* Filter tabs */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/5 px-5 py-3.5">
+        {SUBJECT_FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => selectFilter(f.id)}
+            className={cn(
+              "rounded-full px-3.5 py-1 text-[11.5px] font-bold transition-all border",
+              activeFilter === f.id
+                ? "bg-emerald-500/10 text-emerald-450 border-emerald-500/25 shadow-sm shadow-emerald-500/5"
+                : "bg-white/5 text-muted-foreground border-white/5 hover:bg-white/10 hover:text-foreground"
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
+        <span className="ml-auto text-xs font-semibold text-muted-foreground">
+          {total} cards
+        </span>
+      </div>
+
+      {/* Card area */}
+      <div className="p-5">
+        {total === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-muted/5 py-10 text-center">
+            <Brain className="mb-2.5 h-8 w-8 text-muted-foreground/30" aria-hidden />
+            <p className="text-sm font-bold text-muted-foreground">No cards due</p>
+            <p className="mt-1 text-xs text-muted-foreground/60 max-w-[200px] leading-relaxed">
+              Save Instacue cards from lessons to review here
+            </p>
+          </div>
+        ) : currentCard ? (
+          renderCard(currentCard)
+        ) : null}
+      </div>
+
+      {/* Nav */}
+      {total > 0 && (
+        <div className="flex items-center justify-between border-t border-white/5 px-5 py-3">
           <button
             type="button"
-            disabled={page === 1}
-            onClick={() => goPage(page - 1)}
-            className="flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/30 px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-emerald-500/50 hover:text-emerald-500 disabled:pointer-events-none disabled:opacity-30"
+            disabled={safeIndex === 0}
+            onClick={goPrev}
+            className="flex items-center gap-1 text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
           >
-            <ChevronLeft className="h-3 w-3" aria-hidden />
+            <ChevronLeft className="h-4.5 w-4.5" aria-hidden />
             Prev
           </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => goPage(n)}
-              className={cn(
-                "rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors",
-                n === page
-                  ? "border-emerald-500 bg-emerald-500 text-white"
-                  : "border-border/70 bg-muted/30 text-muted-foreground hover:border-emerald-500/50 hover:text-emerald-500"
-              )}
-            >
-              {n}
-            </button>
-          ))}
+          <span className="text-xs font-semibold text-muted-foreground">
+            {safeIndex + 1} of {total}
+          </span>
           <button
             type="button"
-            disabled={page === totalPages}
-            onClick={() => goPage(page + 1)}
-            className="flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/30 px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-emerald-500/50 hover:text-emerald-500 disabled:pointer-events-none disabled:opacity-30"
+            disabled={safeIndex === total - 1}
+            onClick={goNext}
+            className="flex items-center gap-1 text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
           >
             Next
-            <ChevronRight className="h-3 w-3" aria-hidden />
+            <ChevronRight className="h-4.5 w-4.5" aria-hidden />
           </button>
         </div>
-      ) : null}
+      )}
 
+      {/* Footer */}
       <Link
         href="/revision?tab=instacue"
-        className="block border-t border-border/60 py-2 text-center text-[11px] font-bold text-emerald-500 hover:underline"
+        className="block border-t border-white/5 py-3.5 text-center text-xs font-bold text-emerald-500 hover:text-emerald-450 hover:underline"
       >
         Open full revision →
       </Link>
-      {unsureCount > 0 ? (
-        <p className="border-t border-border/60 px-3 pb-2 text-center text-[10px] text-muted-foreground">
-          {unsureCount} card{unsureCount === 1 ? "" : "s"} in{" "}
-          <Link href="/revision?tab=instacue" className="font-semibold text-emerald-500 hover:underline">
-            Unsure
-          </Link>{" "}
-          (Revision only)
-        </p>
-      ) : null}
     </div>
   );
 }

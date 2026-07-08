@@ -6,8 +6,7 @@ export const ADMIN_ONLY_NEWS_SECTIONS: readonly NewsSection[] = ["nresults", "np
 export const EXAMS: { id: ExamId; label: string }[] = [
   { id: "all", label: "All exams" },
   { id: "board", label: "Board exams" },
-  { id: "jee-main", label: "JEE Main" },
-  { id: "jee-advanced", label: "JEE Advanced" },
+  { id: "jee", label: "JEE" },
   { id: "state-cet", label: "State CET" },
   { id: "bitsat", label: "BITSAT" },
   { id: "mht-cet", label: "MHT-CET" },

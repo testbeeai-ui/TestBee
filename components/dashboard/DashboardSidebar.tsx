@@ -151,7 +151,7 @@ export default function DashboardSidebar() {
 
   const learning: NavItem[] = [
     { href: "/home", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/magic-wall", label: "Community feed", icon: Sparkles, badge: "Live" },
+    { href: "/explore/community", label: "Community feed", icon: Sparkles, badge: "Live" },
     { href: "/mock", label: "Magic Wall", icon: GraduationCap },
     { href: "/mock-test", label: "Mock test library", icon: Library },
     {

@@ -1,5 +1,5 @@
 /** Allowed deep-link targets for mobile OAuth return (open-redirect guard). */
-export function isAllowedMobileOAuthReturn(value: string | null | undefined): boolean {
+export function isAllowedMobileOAuthReturn(value: string | null | undefined): value is string {
   if (!value) return false;
   const trimmed = value.trim();
   return trimmed.startsWith("edublast://") || trimmed.startsWith("exp://");

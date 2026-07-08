@@ -10,8 +10,7 @@ export type SectionId = NewsSection | BlogSection;
 export type ExamId =
   | "all"
   | "board"
-  | "jee-main"
-  | "jee-advanced"
+  | "jee"
   | "state-cet"
   | "bitsat"
   | "mht-cet"

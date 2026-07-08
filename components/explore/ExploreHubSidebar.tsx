@@ -26,8 +26,8 @@ const sections: SidebarSection[] = [
   {
     title: "SOCIAL",
     items: [
-      { label: "Feed", icon: Newspaper, href: "/news-blog" },
-      { label: "Trending", icon: TrendingUp, href: "/explore-1#community-feed" },
+      { label: "Feed", icon: Newspaper, href: "/explore/community" },
+      { label: "Trending", icon: TrendingUp, href: "/explore/community?sort=trending" },
       { label: "Saved", icon: Bookmark, href: "/revision" },
       { label: "My Network", icon: Users, href: "/refer-earn?tab=learning_buddy" },
     ],

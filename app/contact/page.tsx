@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   Check,
   Clock3,
-  Mail,
   MapPin,
   MessageSquare,
   Phone,
@@ -50,6 +49,37 @@ type ContactFormState = {
   commMsg: string;
   followUp: FollowUp;
 };
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function getSubmitValidationError(
+  cat: ContactCategory,
+  form: ContactFormState,
+  severity: string
+): string | null {
+  if (!cat) return "Please choose an enquiry type.";
+  if (!form.name.trim()) return "Full name is required.";
+  if (!form.email.trim()) return "Email address is required.";
+  if (!EMAIL_RE.test(form.email.trim())) return "Please enter a valid email address.";
+  if (!form.role) return "Please select your role.";
+
+  if (cat === "sales") {
+    if (!form.salesType) return "Partnership type is required.";
+    if (form.salesMsg.trim().length < 20) return "Message must be at least 20 characters.";
+  }
+  if (cat === "issue") {
+    if (!form.issueMenu) return "Please select which section has the issue.";
+    if (!severity) return "Please select severity (Minor, Moderate, or Severe).";
+    if (form.issueDesc.trim().length < 20)
+      return "Issue description must be at least 20 characters.";
+  }
+  if (cat === "comment") {
+    if (!form.commType) return "Please select feedback type.";
+    if (!form.commFeature) return "Please select which feature this relates to.";
+    if (form.commMsg.trim().length < 20) return "Comment must be at least 20 characters.";
+  }
+  return null;
+}
 
 const INITIAL_FORM: ContactFormState = {
   name: "",
@@ -108,6 +138,8 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
   const [priority, setPriority] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [ticketId, setTicketId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const progress = useMemo(() => {
     if (!cat) return 12;
@@ -149,21 +181,69 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
     setPriority("");
     setSubmitted(false);
     setTicketId("");
+    setSubmitError("");
   };
 
-  const submit = () => {
-    if (!cat || !form.name.trim() || !form.email.trim() || !form.role) return;
-    if (cat === "sales" && (!form.salesType || form.salesMsg.trim().length < 20)) return;
-    if (cat === "issue" && (!form.issueMenu || !severity || form.issueDesc.trim().length < 20))
+  const submit = async () => {
+    const validationError = getSubmitValidationError(cat, form, severity);
+    if (validationError) {
+      setSubmitError(validationError);
       return;
-    if (
-      cat === "comment" &&
-      (!form.commType || !form.commFeature || form.commMsg.trim().length < 20)
-    )
-      return;
+    }
+    if (!cat) return;
 
-    setTicketId(`EB-2026-${Math.floor(Math.random() * 9000 + 1000)}`);
-    setSubmitted(true);
+    const payload: Record<string, string> = {};
+    if (cat === "sales") {
+      payload.salesType = form.salesType;
+      payload.salesOrg = form.salesOrg;
+      payload.salesCount = form.salesCount;
+      payload.salesCity = form.salesCity;
+      payload.salesMsg = form.salesMsg;
+    } else if (cat === "issue") {
+      payload.issueMenu = form.issueMenu;
+      payload.issueClass = form.issueClass;
+      payload.issueSubject = form.issueSubject;
+      payload.issuePlatform = form.issuePlatform;
+      payload.issueDesc = form.issueDesc;
+      payload.issueSteps = form.issueSteps;
+      payload.severity = severity;
+    } else {
+      payload.commType = form.commType;
+      payload.commFeature = form.commFeature;
+      payload.commClass = form.commClass;
+      payload.commSubject = form.commSubject;
+      payload.commMsg = form.commMsg;
+      payload.followUp = form.followUp;
+      payload.priority = priority;
+    }
+
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: cat,
+          name: form.name.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim() || null,
+          role: form.role,
+          payload,
+        }),
+      });
+      const body = (await res.json()) as { ticketId?: string; error?: string };
+      if (!res.ok) {
+        setSubmitError(body.error ?? "Could not send your message. Please try again.");
+        return;
+      }
+      setTicketId(body.ticketId ?? "");
+      setSubmitted(true);
+    } catch {
+      setSubmitError("Network error. Please check your connection and try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const successCopy = (() => {
@@ -248,37 +328,11 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
               </p>
 
               <div className="mb-2 rounded-xl border border-white/10 bg-[#161627] p-3">
-                <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#0fba8a]/10">
-                  <Mail className="h-4 w-4 text-[#0fba8a]" />
-                </div>
-                <p className="text-[11px] text-white/35">Email us</p>
-                <a
-                  className="text-sm text-[#0fba8a] hover:underline"
-                  href="mailto:support@edublast.in"
-                >
-                  support@edublast.in
-                </a>
-              </div>
-
-              <div className="mb-2 rounded-xl border border-white/10 bg-[#161627] p-3">
                 <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#f5a623]/10">
                   <Clock3 className="h-4 w-4 text-[#f5a623]" />
                 </div>
                 <p className="text-[11px] text-white/35">Business hours</p>
                 <p className="text-sm text-white">Mon–Sat · 9 am–7 pm IST</p>
-              </div>
-
-              <div className="mb-4 rounded-xl border border-white/10 bg-[#161627] p-3">
-                <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#7c6bff]/10">
-                  <MessageSquare className="h-4 w-4 text-[#7c6bff]" />
-                </div>
-                <p className="text-[11px] text-white/35">Partnership enquiries</p>
-                <a
-                  className="text-sm text-[#0fba8a] hover:underline"
-                  href="mailto:lsn@eyemagnett.in"
-                >
-                  lsn@eyemagnett.in
-                </a>
               </div>
 
               <div className="mb-4 border-t border-white/10" />
@@ -297,10 +351,6 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                   <br />
                   India — 560001
                 </p>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-white/50">
-                <Phone className="h-4 w-4" />
-                +91 78423 69939
               </div>
               <p className="mt-4 text-xs leading-relaxed text-white/35">
                 For institutional or bulk-enrolment partnerships, use the{" "}
@@ -331,7 +381,10 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                   <div className="mb-6 grid gap-2 sm:grid-cols-3">
                     <button
                       type="button"
-                      onClick={() => setCat("sales")}
+                      onClick={() => {
+                        setCat("sales");
+                        setSubmitError("");
+                      }}
                       className={`rounded-xl border p-3 text-center transition ${cat === "sales" ? "border-[#0fba8a]/45 bg-[#0fba8a]/10" : "border-white/10 bg-[#161627] hover:border-white/20"}`}
                     >
                       <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-[#0fba8a]/10">
@@ -344,7 +397,10 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setCat("issue")}
+                      onClick={() => {
+                        setCat("issue");
+                        setSubmitError("");
+                      }}
                       className={`rounded-xl border p-3 text-center transition ${cat === "issue" ? "border-[#e8553a]/45 bg-[#e8553a]/10" : "border-white/10 bg-[#161627] hover:border-white/20"}`}
                     >
                       <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-[#e8553a]/10">
@@ -357,7 +413,10 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setCat("comment")}
+                      onClick={() => {
+                        setCat("comment");
+                        setSubmitError("");
+                      }}
                       className={`rounded-xl border p-3 text-center transition ${cat === "comment" ? "border-[#7c6bff]/45 bg-[#7c6bff]/10" : "border-white/10 bg-[#161627] hover:border-white/20"}`}
                     >
                       <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-[#7c6bff]/10">
@@ -747,21 +806,28 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                         By submitting this form you agree to our privacy policy. We will never share
                         your details with third parties.
                       </p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="rounded-full border border-white/20 px-5 py-2 text-sm text-white/70 transition hover:border-white/35 hover:text-white"
-                          onClick={resetForm}
-                        >
-                          Clear form
-                        </button>
-                        <button
-                          type="button"
-                          className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition hover:-translate-y-0.5 ${submitTheme}`}
-                          onClick={submit}
-                        >
-                          Send message
-                        </button>
+                      <div className="flex flex-col items-end gap-2">
+                        {submitError ? (
+                          <p className="text-xs text-[#e8553a]">{submitError}</p>
+                        ) : null}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="rounded-full border border-white/20 px-5 py-2 text-sm text-white/70 transition hover:border-white/35 hover:text-white disabled:opacity-50"
+                            onClick={resetForm}
+                            disabled={submitting}
+                          >
+                            Clear form
+                          </button>
+                          <button
+                            type="button"
+                            className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0 ${submitTheme}`}
+                            onClick={() => void submit()}
+                            disabled={submitting}
+                          >
+                            {submitting ? "Sending…" : "Send message"}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}

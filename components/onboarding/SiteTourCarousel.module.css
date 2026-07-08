@@ -23,6 +23,10 @@
   --stc-blue: #378add;
   --stc-blb: #0d1e30;
   --stc-bll: #85b7eb;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
   font-family: var(--font-sans), system-ui, sans-serif;
   font-size: 13px;
@@ -39,8 +43,8 @@
 
 .popupWrap {
   position: relative;
-  width: 720px;
-  max-width: 100%;
+  width: 100%;
+  max-width: 720px;
 }
 
 .popup {
@@ -1128,11 +1132,284 @@
 }
 
 .dialogContent {
+  display: flex !important;
+  flex-direction: column !important;
   max-width: 720px !important;
-  width: calc(100vw - 32px);
+  width: calc(100vw - 32px) !important;
   padding: 0 !important;
   border: none !important;
   background: transparent !important;
   box-shadow: none !important;
-  overflow: visible !important;
+  overflow: hidden !important;
+}
+
+@media (max-width: 768px) {
+  .dialogContent {
+    width: calc(100vw - 16px) !important;
+  }
+
+  .popup {
+    max-height: 95vh;
+    border-radius: 12px;
+    width: 100%;
+  }
+
+  /* Header */
+  .ph {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .phLogoImg {
+    max-height: 20px;
+  }
+
+  .phTagAside {
+    font-size: 12px;
+  }
+
+  .rdmPill {
+    padding: 2px 6px;
+  }
+
+  .rdmV {
+    font-size: 11px;
+  }
+
+  .rdmL {
+    font-size: 8px;
+  }
+
+  /* Menu Pills */
+  .menuPills {
+    padding: 6px 10px;
+    gap: 4px;
+  }
+
+  .mp {
+    padding: 3px 8px;
+    font-size: 10px;
+    gap: 3px;
+  }
+
+  /* Scrollable Content */
+  .pcontent {
+    padding: 10px 12px;
+    gap: 8px;
+    overflow-y: auto;
+    max-height: calc(95vh - 290px);
+  }
+
+  .menuHero {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .mhIco {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+
+  .mhIco i {
+    font-size: 15px;
+  }
+
+  .mhTitle {
+    font-size: 12px;
+  }
+
+  .mhSub {
+    font-size: 10px;
+    display: none;
+  }
+
+  .mhBdg {
+    padding: 1px 6px;
+    font-size: 9px;
+  }
+
+  /* Feature detail */
+  .featRow {
+    gap: 8px;
+  }
+
+  .featIco {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+  }
+
+  .featIco i {
+    font-size: 16px;
+  }
+
+  .featEy {
+    font-size: 9px;
+  }
+
+  .featTi {
+    font-size: 13px;
+  }
+
+  .featDe {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  /* Snapshot */
+  .snap {
+    padding: 8px 10px;
+  }
+
+  .snapLbl {
+    font-size: 9px;
+    margin-bottom: 4px;
+  }
+
+  .sr {
+    padding: 4px 6px;
+    gap: 6px;
+  }
+
+  .srT {
+    font-size: 10px;
+  }
+
+  .srB {
+    padding: 1px 5px;
+    font-size: 8px;
+  }
+
+  /* Carousel */
+  .carouselWrap {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .carLbl {
+    font-size: 9px;
+  }
+
+  .cc {
+    min-width: 74px;
+    max-width: 74px;
+    padding: 8px 6px 6px;
+    border-radius: 8px;
+  }
+
+  .ccStep {
+    top: 4px;
+    left: 5px;
+    font-size: 8px;
+  }
+
+  .ccTickBadge {
+    top: 3px;
+    right: 3px;
+    width: 12px;
+    height: 12px;
+  }
+
+  .ccTickBadge i {
+    font-size: 8px;
+  }
+
+  .ccDot {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+  }
+
+  .ccDot i {
+    font-size: 13px;
+  }
+
+  .ccName {
+    font-size: 9px;
+  }
+
+  .ccRdm {
+    font-size: 8px;
+    padding: 0 4px;
+  }
+
+  /* Bottom Bar */
+  .pbot {
+    padding: 10px;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .progWrap {
+    width: 100%;
+    flex: none;
+    order: -1;
+  }
+
+  .ctrlGrp {
+    flex-shrink: 0;
+  }
+
+  .ctrl {
+    width: 24px;
+    height: 24px;
+  }
+
+  .ctrl i {
+    font-size: 12px;
+  }
+
+  .progTop {
+    font-size: 9px;
+  }
+
+  .rdmLbl {
+    font-size: 10px;
+    align-self: center;
+    margin-right: auto;
+    padding-left: 4px;
+  }
+
+  .okBtn {
+    padding: 5px 10px;
+    font-size: 11px;
+    border-radius: 16px;
+    flex-shrink: 0;
+  }
+
+  /* Completion screen */
+  .comp {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .compRing {
+    width: 56px;
+    height: 56px;
+  }
+
+  .compRing i {
+    font-size: 26px;
+  }
+
+  .compTi {
+    font-size: 18px;
+  }
+
+  .compSu {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .compRdm {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+
+  .compCta {
+    padding: 8px 20px;
+    font-size: 13px;
+  }
 }

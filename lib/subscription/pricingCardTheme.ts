@@ -22,7 +22,7 @@ export function getPricingCardTheme(
       badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
       accent: "emerald-500",
       button:
-        "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold shadow-[0_4px_12px_rgba(16,185,129,0.2)]",
+        "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold shadow-[0_4px_12px_rgba(16,185,129,0.2)]",
       glow: "group-hover:shadow-[0_0_30px_rgba(16,185,129,0.08)]",
     },
     free: {
@@ -33,7 +33,7 @@ export function getPricingCardTheme(
       badge: "border-cyan-500/30 bg-cyan-500/10 text-cyan-300",
       accent: "cyan-500",
       button:
-        "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 font-bold shadow-[0_4px_12px_rgba(6,182,212,0.2)]",
+        "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold shadow-[0_4px_12px_rgba(6,182,212,0.2)]",
       glow: "group-hover:shadow-[0_0_30px_rgba(6,182,212,0.08)]",
     },
     starter: {

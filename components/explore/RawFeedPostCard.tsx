@@ -2,7 +2,14 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Bookmark, ChevronDown, ChevronUp, Link2, MessageSquare, Tag } from "lucide-react";
+import { Bookmark, Check, Link2, MessageSquare, MoreVertical, Tag, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import DoubtVotePill from "@/components/doubts/DoubtVotePill";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,13 +17,13 @@ import { cn } from "@/lib/utils";
 import type { Subject } from "@/types";
 import {
   SUBJECT_FEED_ICON as subjectIcon,
-  SUBJECT_FEED_ICON_CLASS as subjectIconClass,
 } from "./subjectFeedIcons";
 import type { RawPostRow } from "./rawFeedTypes";
 import {
   getMockPaperSlugFromCommunityPost,
   hrefForMockPaperCommunityShare,
 } from "@/lib/mock/mockPaperCommunityLink";
+import { getQuizScoreFromPost } from "@/lib/explore/communityPostScore";
 
 const subjectLabel: Record<string, string> = {
   physics: "Physics",
@@ -68,6 +75,9 @@ export interface RawFeedPostCardProps {
   onSaveForRevision: () => void;
   onOpenSourceLink?: () => void;
   canOpenSourceLink?: boolean;
+  /** Show post owner menu (delete). */
+  isOwnPost?: boolean;
+  onDelete?: () => void;
 }
 
 export default function RawFeedPostCard({
@@ -89,6 +99,8 @@ export default function RawFeedPostCard({
   onSaveForRevision,
   onOpenSourceLink,
   canOpenSourceLink = false,
+  isOwnPost = false,
+  onDelete,
   compact = false,
 }: RawFeedPostCardProps) {
   const name = post.profiles?.name || "Learner";
@@ -101,12 +113,19 @@ export default function RawFeedPostCard({
   const subjKey = (post.subject || "physics").toLowerCase() as Subject;
   const SubjectGlyph = subjectIcon[subjKey] || subjectIcon.physics;
   const subjName = subjectLabel[subjKey] || post.subject || "General";
-  const score = post.upvote_count - post.downvote_count;
+  const likeCount = post.upvote_count ?? 0;
+  const liked = myVote === 1;
   const n = post.comment_count ?? 0;
   const threadLabelFull =
     n === 0 ? "Thread" : n === 1 ? "Thread (1 reply)" : `Thread (${n} replies)`;
-  const threadLabelCompact = n === 0 ? "Thread" : `${n} replies`;
-  const isQuizPost = post.source_type === "quiz_post";
+  const quizScore = getQuizScoreFromPost(post);
+  const showScoreBar = quizScore !== null && quizScore.total > 0;
+  const scoreBarColor =
+    quizScore && quizScore.percent >= 60
+      ? "bg-emerald-500"
+      : quizScore && quizScore.percent >= 40
+        ? "bg-amber-500"
+        : "bg-red-500";
   const mockPaperShareSlug = getMockPaperSlugFromCommunityPost(
     post.source_type,
     post.source_payload
@@ -153,186 +172,184 @@ export default function RawFeedPostCard({
   };
 
   return (
-    <motion.div
+    <motion.article
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03, duration: 0.25 }}
-      className={cn("p-4", compact && "p-3 sm:p-3.5")}
+      className={cn(compact && "text-[12px] sm:text-[13px] xl:text-sm")}
     >
-      <div className={cn("flex gap-3", compact && "gap-2.5")}>
-        <Avatar className={cn("shrink-0", compact ? "h-9 w-9" : "h-10 w-10")}>
-          <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+      <div className={cn("flex items-start gap-2 px-3 pt-2.5", compact && "px-3 pt-2")}>
+        <Avatar className="h-8 w-8 shrink-0">
+          <AvatarFallback className="bg-violet-600/80 text-[10px] font-bold text-white">
             {initials}
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <div
-            className={cn(
-              "flex flex-wrap items-center gap-1.5 text-sm",
-              compact && "text-[13px] sm:text-sm"
-            )}
-          >
-            <span className="font-bold text-foreground">{name}</span>
-            <span className="text-muted-foreground">·</span>
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-              <SubjectGlyph
-                className={cn("h-3.5 w-3.5", subjectIconClass[subjKey] || "text-blue-600")}
-              />
-              {subjName}
-            </span>
-            <span className="text-muted-foreground">·</span>
-            <span className="text-xs text-muted-foreground">{formatTimeAgo(post.created_at)}</span>
-          </div>
-          {!isQuizPost && post.tags && post.tags.length > 0 ? (
-            <div className="mt-1 flex flex-wrap gap-1">
-              {post.tags.map((t) => (
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="truncate text-[11px] font-semibold text-foreground sm:text-[12px] xl:text-[13px]">{name}</span>
+                {post.upvote_count >= 3 ? (
+                  <span
+                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-500"
+                    title="Active contributor"
+                  >
+                    <Check className="h-2.5 w-2.5 text-white" aria-hidden />
+                  </span>
+                ) : null}
                 <span
-                  key={t}
-                  className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground dark:bg-slate-800"
-                >
-                  #{t}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          {post.title && post.title.trim().length > 0 ? (
-            <>
-              <p
-                className={cn(
-                  "mt-2 font-bold leading-snug text-foreground",
-                  compact ? "text-[13px] sm:text-sm" : "text-sm"
-                )}
-              >
-                {post.title.trim()}
-              </p>
-              {post.content.trim().length > 0 ? (
-                <p
                   className={cn(
-                    "mt-1 whitespace-pre-wrap leading-relaxed text-foreground",
-                    compact ? "text-[13px] sm:text-sm" : "text-sm"
+                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                    subjKey === "math" && "border-amber-500/30 bg-amber-500/10 text-amber-300",
+                    subjKey === "physics" && "border-blue-500/30 bg-blue-500/10 text-blue-300",
+                    subjKey === "chemistry" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
                   )}
                 >
-                  {post.content}
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <p
-              className={cn(
-                "mt-2 whitespace-pre-wrap leading-relaxed text-foreground",
-                compact ? "text-[13px] sm:text-sm" : "text-sm"
-              )}
-            >
-              {post.content}
-            </p>
-          )}
-          {contextChips.length > 0 ? (
-            <div className="mt-2.5 flex flex-wrap items-center gap-1.5 sm:gap-2">
-              {contextChips.map((chip) => (
-                <span
-                  key={chip.key}
-                  className={cn(
-                    "inline-flex min-w-0 items-center gap-1 rounded-full px-2 py-0.5 font-semibold ring-1 ring-inset",
-                    compact ? "text-[11px] sm:text-xs" : "text-[11px]",
-                    chip.key === "subject" && "max-w-[100px] sm:max-w-[120px]",
-                    chip.key === "chapter" && "max-w-[140px] sm:max-w-[170px]",
-                    chip.key === "topic" && "max-w-[130px] sm:max-w-[160px]",
-                    chip.key === "subtopic" && "max-w-[110px] sm:max-w-[130px]",
-                    chip.tone
-                  )}
-                  title={chip.value}
-                >
-                  {chip.label ? <span className="shrink-0 opacity-85">{chip.label}</span> : null}
-                  <span className="truncate">{chip.value}</span>
+                  <SubjectGlyph className="h-3 w-3" aria-hidden />
+                  {subjName}
                 </span>
-              ))}
-            </div>
-          ) : null}
-
-          <div
-            className={cn(
-              "mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4",
-              compact && "mt-2.5 gap-x-2.5 gap-y-1.5 sm:gap-x-3"
-            )}
-          >
-            <div
-              className="inline-flex items-stretch overflow-hidden rounded-full border border-sky-500/45 text-xs tabular-nums dark:border-sky-400/35"
-              role="group"
-              aria-label="Vote"
-            >
-              <button
-                type="button"
-                onClick={() => onVote(1)}
-                className={cn(
-                  "flex items-center justify-center px-2 py-1 transition-colors hover:bg-sky-500/15",
-                  compact && "min-h-10 min-w-[2.75rem]",
-                  myVote === 1 && "bg-sky-500/25 text-sky-200"
-                )}
-                aria-label="Upvote"
-              >
-                <ChevronUp className="h-4 w-4" />
-              </button>
-              <div
-                className={cn(
-                  "flex min-w-[2.25rem] items-center justify-center border-x border-sky-500/45 bg-muted/40 px-2 py-1 font-bold text-foreground dark:border-sky-400/35 dark:bg-slate-900/60",
-                  compact && "min-h-10"
-                )}
-              >
-                {score}
               </div>
-              <button
-                type="button"
-                onClick={() => onVote(-1)}
-                className={cn(
-                  "flex items-center justify-center px-2 py-1 transition-colors hover:bg-slate-500/15",
-                  compact && "min-h-10 min-w-[2.75rem]",
-                  myVote === -1 && "bg-slate-600/40 text-slate-100"
-                )}
-                aria-label="Downvote"
-              >
-                <ChevronDown className="h-4 w-4" />
-              </button>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {formatTimeAgo(post.created_at)}
+              </p>
             </div>
+            {isOwnPost && onDelete ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <span
+                    className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="Post options"
+                  >
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </div>
+        </div>
+      </div>
 
-            <button
-              type="button"
-              onClick={onSaveForRevision}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium transition-colors sm:gap-1.5 sm:text-xs",
-                isSavedForRevision
-                  ? "bg-primary/15 text-primary ring-1 ring-primary/35"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Bookmark
-                className={cn(
-                  "h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4",
-                  isSavedForRevision && "fill-current"
-                )}
-              />
-              <span className="hidden sm:inline">
-                {isSavedForRevision ? "Saved for revision" : "Save for revision"}
-              </span>
-              <span className="sm:hidden">{isSavedForRevision ? "Saved" : "Save"}</span>
-            </button>
-
+      {post.tags && post.tags.length > 0 ? (
+        <div className={cn("flex flex-wrap gap-1 px-3 pb-1 pl-[2.75rem]", compact && "pl-[2.65rem]")}>
+          {post.tags.map((t) => (
             <span
-              className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex"
-              title="Subject is set on the post"
+              key={t}
+              className="rounded-full bg-muted/80 px-2 py-0.5 text-[10px] text-muted-foreground dark:bg-slate-800"
             >
-              <Tag className="h-4 w-4 shrink-0 opacity-70" />
-              <span className="font-medium text-foreground/80">{subjName}</span>
+              #{t}
             </span>
+          ))}
+        </div>
+      ) : null}
 
-            <button
-              type="button"
-              onClick={openThread}
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:gap-1.5 sm:text-xs"
-            >
-              <MessageSquare className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">{threadLabelFull}</span>
-              <span className="sm:hidden">{threadLabelCompact}</span>
-            </button>
+      <div className={cn("space-y-1 px-3 pb-2 pl-[2.75rem]", compact && "pl-[2.65rem]")}>
+        {post.title && post.title.trim().length > 0 ? (
+          <>
+            <p className="text-[11px] font-semibold leading-snug text-foreground lg:text-[12px]">
+              {post.title.trim()}
+            </p>
+            {post.content.trim().length > 0 ? (
+              <p className="text-[10.5px] leading-relaxed text-muted-foreground lg:text-[11px]">
+                {post.content}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <p className="text-[12px] leading-relaxed text-foreground sm:text-[13px]">{post.content}</p>
+        )}
+        {contextChips.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            {contextChips.map((chip) => (
+              <span
+                key={chip.key}
+                className={cn(
+                  "inline-flex min-w-0 max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset lg:text-[10.5px]",
+                  chip.key === "subject" && "max-w-[5.5rem]",
+                  chip.key === "chapter" && "max-w-[min(10rem,38%)]",
+                  chip.key === "topic" && "max-w-[min(9rem,34%)]",
+                  chip.key === "subtopic" && "max-w-[min(7.5rem,30%)]",
+                  chip.tone
+                )}
+                title={chip.value}
+              >
+                {chip.label ? <span className="shrink-0 opacity-85">{chip.label}</span> : null}
+                <span className="truncate">{chip.value}</span>
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {showScoreBar && quizScore ? (
+        <div className="flex items-center gap-2 border-t border-border/80 bg-muted/30 px-4 py-2 dark:border-white/10 dark:bg-slate-900/50">
+          <span className="text-[11px] text-muted-foreground">Score</span>
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border dark:bg-white/10">
+            <div
+              className={cn("h-full rounded-full transition-all", scoreBarColor)}
+              style={{ width: `${Math.max(2, quizScore.percent)}%` }}
+            />
+          </div>
+          <span className="text-[11px] font-semibold text-foreground">{quizScore.percent}%</span>
+          {quizScore.total > 0 ? (
+            <span className="text-[10px] font-semibold text-emerald-300">
+              {quizScore.correct}/{quizScore.total} correct
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-1 border-t border-white/[0.06] bg-[#070c18]/80 px-2.5 py-1.5",
+          compact && "px-2"
+        )}
+      >
+        <DoubtVotePill
+          likeCount={likeCount}
+          liked={liked}
+          onLike={() => onVote(liked ? -1 : 1)}
+          likeTooltip={liked ? "Unlike" : "Like this post"}
+        />
+
+        <button
+          type="button"
+          onClick={openThread}
+          className="inline-flex items-center gap-1 rounded-full border border-white/[0.06] px-2 py-1 text-[10px] font-medium text-slate-400 transition-colors hover:border-white/10 hover:text-slate-200 sm:text-[11px]"
+        >
+          <MessageSquare className="h-3 w-3 shrink-0" />
+          <span className="max-w-[7rem] truncate sm:max-w-none">{threadLabelFull}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onSaveForRevision}
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-medium transition-colors sm:text-[11px]",
+            isSavedForRevision
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              : "border-white/[0.06] text-slate-400 hover:border-white/10 hover:text-slate-200"
+          )}
+        >
+          <Bookmark className={cn("h-3 w-3 shrink-0", isSavedForRevision && "fill-current")} />
+          <span className="hidden sm:inline">
+            {isSavedForRevision ? "Saved" : "Save for revision"}
+          </span>
+          <span className="sm:hidden">{isSavedForRevision ? "Saved" : "Save"}</span>
+        </button>
+
+        <span className="ml-auto hidden items-center gap-1 text-[10px] text-slate-500 sm:inline-flex">
+          <Tag className="h-3 w-3 opacity-70" />
+          {subjName}
+        </span>
             {mockPaperShareSlug ? (
               <Link
                 href={hrefForMockPaperCommunityShare(mockPaperShareSlug)}
@@ -370,7 +387,7 @@ export default function RawFeedPostCard({
           </div>
 
           {threadOpen ? (
-            <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/20 p-2.5 dark:border-white/10 dark:bg-slate-900/40 sm:p-3">
+            <div className="mx-3 mb-3 space-y-3 rounded-xl border border-border bg-muted/20 p-2.5 dark:border-white/10 dark:bg-slate-900/40 sm:p-3">
               {commentsLoading ? (
                 <p className="text-xs text-muted-foreground">Loading thread…</p>
               ) : comments.length === 0 ? (
@@ -438,8 +455,6 @@ export default function RawFeedPostCard({
               </div>
             </div>
           ) : null}
-        </div>
-      </div>
-    </motion.div>
+    </motion.article>
   );
 }

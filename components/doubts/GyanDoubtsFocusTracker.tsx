@@ -139,7 +139,15 @@ export function GyanDoubtsFocusTracker({ children }: { children?: ReactNode }) {
 }
 
 /** Live MM:SS for feed focus (server snapshot + pending session ms). */
-export function GyanFeedFocusTimer({ serverMs, goalMs }: { serverMs: number; goalMs: number }) {
+export function GyanFeedFocusTimer({
+  serverMs,
+  goalMs,
+  compact = false,
+}: {
+  serverMs: number;
+  goalMs: number;
+  compact?: boolean;
+}) {
   const pending = useGyanDoubtsPendingFocusMs();
   const live = Math.min(goalMs, serverMs + pending);
   const done = live >= goalMs;
@@ -147,13 +155,14 @@ export function GyanFeedFocusTimer({ serverMs, goalMs }: { serverMs: number; goa
     <div className="text-right tabular-nums" aria-live="polite">
       <p
         className={cn(
-          "font-mono text-base font-bold leading-none",
+          "font-mono font-semibold leading-none",
+          compact ? "text-xs" : "text-base font-bold",
           done ? "text-emerald-500" : "text-foreground"
         )}
       >
         {formatMmSs(live)}
+        <span className="text-muted-foreground font-normal"> / {formatMmSs(goalMs)}</span>
       </p>
-      <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">/ {formatMmSs(goalMs)}</p>
     </div>
   );
 }

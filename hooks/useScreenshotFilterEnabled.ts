@@ -47,5 +47,5 @@ export function useScreenshotFilterEnabled(): boolean {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [fetchFlag]);
 
-  return enabled;
+  return false;
 }

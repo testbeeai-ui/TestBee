@@ -87,6 +87,7 @@ export interface PostDetailData {
   due_date: string | null;
   created_at: string;
   teacher_id: string;
+  classroom_id?: string;
   content_json?: { videoUrl?: string; tasks?: unknown } | Record<string, unknown> | null;
   profiles: { name: string } | null;
 }

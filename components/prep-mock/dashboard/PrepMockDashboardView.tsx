@@ -76,7 +76,7 @@ export default function PrepMockDashboardView({
           </div>
           <div>
             <h1 className="text-lg font-display font-extrabold text-foreground sm:text-xl">
-              Prep + Mock
+              Classes + Mock
             </h1>
             <p className="text-[11px] text-muted-foreground sm:text-xs">
               Classes, AI-powered scheduling, mock tests, and smart revision
@@ -93,42 +93,23 @@ export default function PrepMockDashboardView({
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-6 order-2 lg:order-none">
-            <ClassesSection
-              userId={authUserId}
-              onNextClass={onNextClass}
-              accessToken={accessToken}
-              onClassCalendar={onClassCalendar}
-              showClassesViewAllGuide={showClassesViewAllGuide}
-              viewAllHref={classesViewAllHref}
-              onViewAllClick={onClassesViewAllClick}
-            />
-            <div id="calendar" className="scroll-mt-24">
-              <StreakCalendar
-                userId={authUserId || null}
-                accessToken={accessToken}
-                refreshKey={calendarRefreshKey}
-              />
-            </div>
-          </div>
+          <ClassesSection
+            userId={authUserId}
+            onNextClass={onNextClass}
+            accessToken={accessToken}
+            onClassCalendar={onClassCalendar}
+            viewAllHref={classesViewAllHref}
+            onViewAllClick={onClassesViewAllClick}
+          />
 
-          <div className="space-y-6 order-1 lg:order-none">
-            <MockTestsSection
-              subjects={subjects}
-              onStartMock={onStartMock}
-              onViewAll={onViewAll}
-              featuredPaper={featuredPaper}
-              featuredLoading={featuredLoading}
-              onStartFeaturedPaper={onStartFeaturedPaper}
-              showCbseMcqViewAllGuide={showCbseMcqViewAllGuide}
-            />
-            <RevisionInstaCueSection
-              cards={revisionCards}
-              accessToken={accessToken}
-              userId={authUserId || null}
-              onCalendarActivity={onCalendarActivity}
-            />
-          </div>
+          <MockTestsSection
+            subjects={subjects}
+            onStartMock={onStartMock}
+            onViewAll={onViewAll}
+            featuredPaper={featuredPaper}
+            featuredLoading={featuredLoading}
+            onStartFeaturedPaper={onStartFeaturedPaper}
+          />
         </div>
       </div>
     </motion.div>

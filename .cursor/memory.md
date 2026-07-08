@@ -148,6 +148,9 @@ Anything that is not Next.js / tooling config now lives under:
 | Setup | `mobileapp/README.md`, `mobileapp/.env.example` |
 
 ## Decisions Log
+- 2026-07-03: **Gyan++ daily checklist panel** — centered modal, opaque bg (no feed bleed-through), progress segments, shorter copy, compact timer.
+- 2026-07-03: **Community Wall polish** — tighter nav-to-content spacing, compact typography, Gyan++ `DoubtVotePill` likes on posts, hover-scroll right rail with full widget stack visible.
+- 2026-07-03: **Community Wall UI** — top nav News & Blogs → Community (`/explore/community`); 3-column shell (sidebar, hero+compose+feed, right widgets w/o Who to Follow); `RawFeedPostCard`/`RawCommunityFeed` reskin + sort/post-type filters; deep links from curriculum → `/explore/community?focusPost=`. — ran `npm install`; verified `node`, `npm`, `python`, `modal`, `hivemind`; installed global `supabase` CLI; initialized and indexed `codegraph` for this repo. `hivemind graph build` works, but `hivemind graph init` still reports a PATH-detection issue in this shell.
 - 2026-06-30: **Mobile native Google auth** — `signInWithIdToken` via expo-auth-session (no Supabase/edublast.in OAuth redirect); Google Cloud redirect URI = exp://…/auth/google.
 - 2026-06-30: **Mobile app Phase 1** — Dashboard daily checklist + study streak APIs; Gyan++ Supabase feed + doubt post + Prof-Pi polling detail; Lessons curriculum from Supabase + topic content API + lesson player routes.
 - 2026-06-30: **Mobile app Phase 0 scaffold** — `mobileapp/` Expo SDK 57 + TypeScript; folder layout `app/`, `features/*`, `shared/`, `core/`, `services/`, `providers/`; Supabase Google OAuth (`edublast://auth/callback`), Bearer API client to Next.js; tab shell (Home/Learn/Gyan++/Earn/You); feature stubs for all student modules; website untouched.
@@ -370,3 +373,11 @@ Anything that is not Next.js / tooling config now lives under:
 - 2026-06-30: **Migration applied remote** — `mobile_push_tokens` on TestBee (`bytsiknhtcnlxwzgqkrd`) via Supabase MCP.
 - 2026-06-30: **Mobile app completion pass** — checklist deep links, subscription summary, notification action routing, push foreground refresh, README audit; `tsc` green.
 - 2026-06-30: **Mobile .env production** — API/web/OAuth bridge → `https://www.edublast.in`; removed LAN + Google client ID from mobile env; `eas.json` preview/production env aligned.
+- 2026-07-03: **Community feed score bar** — `getQuizScoreFromPost` parses scores from title/body (refer challenges, legacy posts); bar shows whenever score is extractable; new refer_challenge posts store score in `source_payload`.
+- 2026-07-03: **Learn Hub subject cards** — removed JEE Main/KCET badges from CBSE Browse-by-subject; cards show CBSE + selected class only (`SubjectChips.tsx`).
+- 2026-07-03: **Learn Hub Revision widget** — slightly smaller labels on saved-work rows (`SavedWorkSection.tsx`: 13px / 11px badges).
+- 2026-07-03: **Classes widget ordering** — `ClassesSection.tsx` prioritizes the class with nearest upcoming session and sorts pending assignments by nearest due date.
+- 2026-07-04: **Community share redirects** — mock, CBSE chapter quiz, and refer-challenge “View post” actions now open `/explore/community?focusPost=...`.
+- 2026-07-06: **Contact Us pipeline** — `contact_messages` table + `/api/contact` saves submissions and sends category auto-reply email; admin F&W new Contact Us tab (`ContactUsTab.tsx`); removed Email us / Partnership sidebar blocks on `/contact`.
+- 2026-07-06: **Lesson InstaCue flip** — tap anywhere on card flips (removed content stopPropagation); reset to question on Prev/Next (`useLayoutEffect` on card id).
+- 2026-07-06: **Community post delete** — three-dot menu on own posts only (`RawFeedPostCard` + `RawCommunityFeed`); delete via `lessons_raw_posts` RLS; unsaves from revision if saved.

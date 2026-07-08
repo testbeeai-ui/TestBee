@@ -20,6 +20,7 @@ import { BLOG_SECTIONS, EXAMS, getPublicNewsSections, isAdminOnlyNewsSection } f
 import { extractHtmlMeta, formatKeyDateEndBadge, formatLinkHostDisplay } from "./html-feed-and-seo";
 import {
   createInitialDraft,
+  detectExamFromTitle,
   getExamLabel,
   getNewsBlogPublishBlockers,
   getSectionLabel,
@@ -136,7 +137,14 @@ export function NewsBlogClient({
     const filtered = posts
       .filter((p) => p.portal === portal)
       .filter((p) => p.section === activeSection)
-      .filter((p) => activeExamFilter === "all" || p.exam === activeExamFilter)
+      .filter((p) => {
+        if (activeExamFilter === "all") return true;
+        const effectiveExam = detectExamFromTitle(p.title, p.exam);
+        if (activeExamFilter === "jee") {
+          return effectiveExam === "jee" || String(p.exam).toLowerCase().includes("jee");
+        }
+        return effectiveExam === activeExamFilter;
+      })
       .filter((p) => isAdmin || p.portal !== "news" || !isAdminOnlyNewsSection(p.section))
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     return filtered;

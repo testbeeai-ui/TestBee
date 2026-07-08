@@ -8,10 +8,11 @@ import type { TopicNode } from "@/data/topicTaxonomy";
 
 import ExploreHubSidebar from "./ExploreHubSidebar";
 import SubjectChips from "./SubjectChips";
-import RawPostComposer from "./RawPostComposer";
-import RawCommunityFeed from "./RawCommunityFeed";
 import RandomTopicExplorer from "./RandomTopicExplorer";
 import TrendingTopics from "./TrendingTopics";
+import SavedWorkSection from "./SavedWorkSection";
+import StreakCalendar from "../prep-mock/StreakCalendar";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ExploreHubDashboardProps {
   onNavigateToSubjects: () => void;
@@ -38,7 +39,7 @@ export default function ExploreHubDashboard({
   onLessonsSubjectPickGuideDismiss,
 }: ExploreHubDashboardProps) {
   const { taxonomy } = useTopicTaxonomy();
-  const [rawFeedRefresh, setRawFeedRefresh] = useState(0);
+  const { user, session } = useAuth();
 
   const handleDirectTopic = (node: TopicNode) => {
     if (onNavigateToTopic) {
@@ -50,23 +51,12 @@ export default function ExploreHubDashboard({
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="edu-page-header mb-4 sm:mb-6">
-        <h2 className="edu-page-title flex items-center gap-2.5 sm:gap-3">
-          <div className="w-9 h-9 gradient-primary rounded-xl flex items-center justify-center sm:w-10 sm:h-10">
-            <Compass className="w-4.5 h-4.5 text-primary-foreground sm:w-5 sm:h-5" />
-          </div>
-          Lessons
-        </h2>
-        <p className="edu-page-desc">Discover lessons, connect with learners, and grow every day</p>
-      </div>
-
       {/* Main layout: sidebar + content */}
       <div className="flex gap-0 lg:gap-6">
         <ExploreHubSidebar />
 
         {/* Main content */}
-        <div className="flex-1 min-w-0 space-y-4 sm:space-y-5 lg:space-y-6">
+        <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
           <SubjectChips
             showSubjectPickGuide={showLessonsSubjectPickGuide}
             onSubjectPickGuideDismiss={onLessonsSubjectPickGuideDismiss}
@@ -78,23 +68,53 @@ export default function ExploreHubDashboard({
               }
             }}
           />
-          <RawPostComposer onPosted={() => setRawFeedRefresh((k) => k + 1)} />
 
-          {/* Two-column: feed on left (desktop), feed last (mobile) */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <div className="lg:col-span-3 order-2 lg:order-none">
-              <RawCommunityFeed refreshKey={rawFeedRefresh} />
+          {/* Bottom columns — equal thirds, tight gap between cards */}
+          <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 md:gap-3 lg:gap-3.5">
+            <SavedWorkSection />
+
+            <div className="flex flex-col space-y-3 rounded-xl border border-border/50 bg-card/30 p-3.5">
+              <div className="flex items-center">
+                <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
+                  AI PREPARATION CALENDAR
+                </span>
+              </div>
+              <StreakCalendar
+                userId={user?.id || null}
+                accessToken={session?.access_token}
+                hideHeader
+                cardTitle="Your study plan"
+                compact
+                noCardWrapper
+              />
             </div>
-            <div className="lg:col-span-2 space-y-4 order-1 lg:order-none">
+
+            <div className="flex flex-col space-y-3 rounded-xl border border-border/50 bg-card/30 p-3.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
+                  DISCOVERY
+                </span>
+              </div>
+              <h3 className="text-base font-bold tracking-tight text-foreground">Random Topic Explorer</h3>
               <RandomTopicExplorer
                 taxonomy={taxonomy}
                 onExploreTopic={onExploreRandomTopic ?? handleDirectTopic}
+                compact
+                noCardWrapper
               />
-              <TrendingTopics taxonomy={taxonomy} onExploreTopic={handleDirectTopic} />
+              <div className="border-t border-white/10" />
+              <TrendingTopics
+                taxonomy={taxonomy}
+                onExploreTopic={handleDirectTopic}
+                compact
+                noCardWrapper
+              />
             </div>
           </div>
+
         </div>
       </div>
     </div>
   );
 }
+

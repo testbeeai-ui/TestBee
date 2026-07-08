@@ -329,11 +329,9 @@ const EXAM_SAME_AS: Record<string, string[]> = {
     "https://en.wikipedia.org/wiki/Central_Board_of_Secondary_Education",
     "https://www.cbse.gov.in/",
   ],
-  "jee-main": [
+  jee: [
     "https://en.wikipedia.org/wiki/Joint_Entrance_Examination_%E2%80%93_Main",
     "https://jeemain.nta.nic.in/",
-  ],
-  "jee-advanced": [
     "https://en.wikipedia.org/wiki/Joint_Entrance_Examination_%E2%80%93_Advanced",
     "https://jeeadv.ac.in/",
   ],
@@ -345,8 +343,7 @@ const EXAM_SAME_AS: Record<string, string[]> = {
 
 const EXAM_KEYWORDS: { id: string; label: string; pattern: RegExp }[] = [
   { id: "board", label: "Board Exams", pattern: /\bboard\s+exams?\b/i },
-  { id: "jee-main", label: "JEE Main", pattern: /\bJEE\s+Main\b/i },
-  { id: "jee-advanced", label: "JEE Advanced", pattern: /\bJEE\s+Advanced\b/i },
+  { id: "jee", label: "JEE", pattern: /\bJEE\b|\bJEE\s+Main\b|\bJEE\s+Advanced\b/i },
   { id: "bitsat", label: "BITSAT", pattern: /\bBITSAT\b/i },
   { id: "mht-cet", label: "MHT[-\\s]CET", pattern: /\bMHT[-\s]?CET\b/i },
   { id: "state-cet", label: "State CET", pattern: /\bstate\s+CET\b/i },

@@ -89,7 +89,7 @@ export default function ReviewPopup({ classroomId, classroomName }: ReviewPopupP
             <div className="text-center space-y-1.5">
               <DialogTitle className="font-display text-xl">
                 How is{" "}
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-600 to-primary font-extrabold">
+                <span className="text-amber-600 dark:text-amber-400 font-extrabold">
                   {classroomName}
                 </span>
                 ?

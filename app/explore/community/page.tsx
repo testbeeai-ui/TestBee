@@ -1,17 +1,33 @@
 "use client";
 
-import { Suspense } from "react";
-import Link from "next/link";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { cn } from "@/lib/utils";
+import CommunityWallSidebar from "@/components/explore/CommunityWallSidebar";
+import CommunityWallMobileNav from "@/components/explore/CommunityWallMobileNav";
+import {
+  COMMUNITY_WALL_GRID,
+  COMMUNITY_WALL_MAIN,
+  COMMUNITY_WALL_SHELL,
+} from "@/components/explore/communityWallLayout";
+import CommunityWallHero from "@/components/explore/CommunityWallHero";
+import CommunityWallRightSidebar from "@/components/explore/CommunityWallRightSidebar";
+import RawPostComposer from "@/components/explore/RawPostComposer";
 import RawCommunityFeed, {
   type CommunityFeedPageSize,
   type RawFeedFilter,
+  type RawFeedSort,
 } from "@/components/explore/RawCommunityFeed";
 
 function parseFilter(v: string | null): RawFeedFilter | undefined {
   if (v === "all" || v === "physics" || v === "chemistry" || v === "math") return v;
+  return undefined;
+}
+
+function parseSort(v: string | null): RawFeedSort | undefined {
+  if (v === "latest" || v === "top" || v === "trending") return v;
   return undefined;
 }
 
@@ -27,38 +43,47 @@ function parsePerPage(v: string | null): CommunityFeedPageSize | undefined {
   return undefined;
 }
 
-function CommunityFeedBody() {
+function CommunityWallBody() {
   const searchParams = useSearchParams();
+  const [refreshKey, setRefreshKey] = useState(0);
   const initialFilter = parseFilter(searchParams.get("filter"));
+  const initialSort = parseSort(searchParams.get("sort"));
   const initialPage = parsePage(searchParams.get("page"));
   const initialPerPage = parsePerPage(searchParams.get("perPage"));
+
   return (
-    <RawCommunityFeed
-      mode="full"
-      syncPaginationUrl
-      initialFilter={initialFilter}
-      initialPage={initialPage}
-      initialPerPage={initialPerPage}
-    />
+    <div className={COMMUNITY_WALL_SHELL}>
+      <CommunityWallMobileNav />
+      <div className={cn(COMMUNITY_WALL_GRID, "mt-2.5 sm:mt-3 lg:mt-0")}>
+        <CommunityWallSidebar />
+        <main className={COMMUNITY_WALL_MAIN}>
+          <CommunityWallHero />
+          <RawPostComposer onPosted={() => setRefreshKey((k) => k + 1)} />
+          <RawCommunityFeed
+            mode="full"
+            embedded
+            syncPaginationUrl
+            refreshKey={refreshKey}
+            initialFilter={initialFilter}
+            initialSort={initialSort}
+            initialPage={initialPage}
+            initialPerPage={initialPerPage}
+          />
+          <CommunityWallRightSidebar layout="stack" />
+        </main>
+        <CommunityWallRightSidebar />
+      </div>
+    </div>
   );
 }
 
 function FeedFallback() {
   return (
-    <div className="space-y-3" aria-hidden>
-      {[0, 1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="animate-pulse rounded-xl border border-border p-4 dark:border-white/10"
-        >
-          <div className="flex gap-3">
-            <div className="h-10 w-10 rounded-full bg-muted" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-48 rounded bg-muted" />
-              <div className="h-3 w-full rounded bg-muted" />
-            </div>
-          </div>
-        </div>
+    <div className={cn(COMMUNITY_WALL_SHELL, "space-y-2.5 sm:space-y-3")} aria-hidden>
+      <div className="h-28 animate-pulse rounded-xl bg-muted sm:h-32 xl:rounded-2xl" />
+      <div className="h-12 animate-pulse rounded-xl bg-muted sm:h-14" />
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="h-28 animate-pulse rounded-2xl bg-muted" />
       ))}
     </div>
   );
@@ -67,28 +92,10 @@ function FeedFallback() {
 export default function ExploreCommunityPage() {
   return (
     <ProtectedRoute>
-      <AppLayout>
-        <div className="mx-auto max-w-3xl space-y-3 sm:space-y-4 p-3 sm:p-4 text-sm">
-          <header className="space-y-1.5">
-            <Link
-              href="/explore-1"
-              className="inline-flex items-center gap-1 py-0.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
-            >
-              ← Back to Lessons
-            </Link>
-            <h1 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
-              Community — your network
-            </h1>
-            <p className="text-[13px] text-muted-foreground sm:text-sm">
-              From your learning network. Use <span className="text-foreground/80">Filters</span> to
-              narrow subject and page size; paginate at the bottom.
-            </p>
-          </header>
-
-          <Suspense fallback={<FeedFallback />}>
-            <CommunityFeedBody />
-          </Suspense>
-        </div>
+      <AppLayout wideMain>
+        <Suspense fallback={<FeedFallback />}>
+          <CommunityWallBody />
+        </Suspense>
       </AppLayout>
     </ProtectedRoute>
   );

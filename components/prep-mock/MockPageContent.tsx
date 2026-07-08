@@ -1063,6 +1063,11 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const handleNtaMarkReviewNext = useCallback(() => {
     const id = questions[currentIndex]?.id;
     if (!id) return;
+    setAnswers((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     setFlagged((prev) => new Set(prev).add(id));
     setCurrentIndex((i) => Math.min(questions.length - 1, i + 1));
   }, [questions, currentIndex]);
@@ -1070,6 +1075,11 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const handleNtaMarkForReviewOnly = useCallback(() => {
     const id = questions[currentIndex]?.id;
     if (!id) return;
+    setAnswers((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     setFlagged((prev) => new Set(prev).add(id));
   }, [questions, currentIndex]);
 
@@ -1303,7 +1313,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
           <ToastAction
             altText="View post"
             onClick={() => {
-              window.location.href = `/home?focusPost=${encodeURIComponent(postId)}`;
+              window.location.href = `/explore/community?focusPost=${encodeURIComponent(postId)}`;
             }}
           >
             View post
