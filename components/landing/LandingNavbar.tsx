@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { withNextQuery } from "@/lib/auth/safeNextPath";
@@ -31,18 +31,35 @@ export default function LandingNavbar({
   onOpenSignInNotice?: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const links = navLinks ?? NAV_LINKS;
   const isDark = variant === "dark";
   const isSignedIn = Boolean(user && profile?.onboarding_complete);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isActive = (href: string) => {
+    if (!mounted || !pathname) return false;
+    if (href === "/") return pathname === "/";
+    if (href.startsWith("/#") || href.startsWith("#")) return false;
+    return pathname.startsWith(href);
+  };
 
   const handleWaitlist = (role?: string) => {
     const roleStr = typeof role === "string" ? role : undefined;
     if (onOpenWaitlist) {
       onOpenWaitlist(roleStr);
     } else {
-      router.push(roleStr ? `/waitlist?role=${roleStr}` : "/waitlist");
+      if (roleStr === "teacher") {
+        router.push("/auth?role=teacher");
+      } else {
+        router.push(roleStr ? `/waitlist?role=${roleStr}` : "/waitlist");
+      }
     }
   };
 
@@ -81,19 +98,32 @@ export default function LandingNavbar({
               : "hidden md:flex items-center gap-5"
           }
         >
-          {links.map((l) => (
-            <a
-              key={l.label}
-              href={l.href.startsWith("/auth") ? withNextQuery(l.href, sharedNext) : l.href}
-              className={
-                isDark
-                  ? "pointer-events-auto shrink-0 text-[11px] font-medium tracking-wide text-zinc-400 transition-colors hover:text-white md:text-[12px] xl:text-[13px]"
-                  : "text-sm text-gray-500 hover:text-gray-900 transition-colors"
-              }
-            >
-              {l.label}
-            </a>
-          ))}
+          {links.map((l) => {
+            const active = isActive(l.href);
+            return (
+              <a
+                key={l.label}
+                href={l.href.startsWith("/auth") ? withNextQuery(l.href, sharedNext) : l.href}
+                className={
+                  isDark
+                    ? cn(
+                        "pointer-events-auto shrink-0 text-[11px] tracking-wide transition-all duration-200 md:text-[12px] xl:text-[13px] font-bold pb-0.5 border-b-2",
+                        active
+                          ? "text-zinc-100 border-[#34f5a4]"
+                          : "text-zinc-300 hover:text-white border-transparent"
+                      )
+                    : cn(
+                        "text-sm transition-colors font-medium pb-0.5 border-b-2",
+                        active
+                          ? "text-gray-900 border-[#1D9E75]"
+                          : "text-gray-500 hover:text-gray-900 border-transparent"
+                      )
+                }
+              >
+                {l.label}
+              </a>
+            );
+          })}
         </div>
 
         {/* Desktop CTAs */}
@@ -179,20 +209,29 @@ export default function LandingNavbar({
               : "md:hidden border-t border-gray-200/60 bg-white px-5 pb-4 pt-3 space-y-3"
           }
         >
-          {links.map((l) => (
-            <a
-              key={l.label}
-              href={l.href.startsWith("/auth") ? withNextQuery(l.href, sharedNext) : l.href}
-              className={
-                isDark
-                  ? "block text-[15px] text-zinc-300 py-1"
-                  : "block text-[15px] text-gray-600 py-1"
-              }
-              onClick={() => setMobileOpen(false)}
-            >
-              {l.label}
-            </a>
-          ))}
+          {links.map((l) => {
+            const active = isActive(l.href);
+            return (
+              <a
+                key={l.label}
+                href={l.href.startsWith("/auth") ? withNextQuery(l.href, sharedNext) : l.href}
+                className={
+                  isDark
+                    ? cn(
+                        "block text-[15px] py-1 transition-colors",
+                        active ? "text-[#34f5a4] font-semibold" : "text-zinc-200 hover:text-white"
+                      )
+                    : cn(
+                        "block text-[15px] py-1 transition-colors",
+                        active ? "text-[#1D9E75] font-semibold" : "text-gray-650 hover:text-gray-900"
+                      )
+                }
+                onClick={() => setMobileOpen(false)}
+              >
+                {l.label}
+              </a>
+            );
+          })}
           <div className="flex gap-2 pt-2">
             {authLoading ? null : isSignedIn ? (
               <Link

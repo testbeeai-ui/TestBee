@@ -22,8 +22,27 @@ export function normalizeFeatured(raw: string | undefined): Draft["featured"] {
   return "feed";
 }
 
+export function detectExamFromTitle(title: string, currentExam: string): ExamId {
+  const rawExam = String(currentExam).trim().toLowerCase();
+  const normalizedExam: ExamId =
+    rawExam === "jee-main" || rawExam === "jee-advanced" ? "jee" : (rawExam as ExamId);
+
+  // Only auto-detect if the current exam is generic ("all" or "other")
+  if (normalizedExam === "all" || normalizedExam === "other") {
+    const t = (title || "").toLowerCase();
+    if (t.includes("jee") || t.includes("joint entrance")) return "jee";
+    if (t.includes("bitsat") || t.includes("bits admission")) return "bitsat";
+    if (t.includes("mht-cet") || t.includes("mht cet") || t.includes("mhtcet")) return "mht-cet";
+    if (t.includes("kcet") || t.includes("state cet") || t.includes("common entrance")) return "state-cet";
+    if (t.includes("board") || t.includes("cbse") || t.includes("icse") || t.includes("puc")) return "board";
+  }
+
+  return normalizedExam;
+}
+
 export function normalizePost(p: DbPost): Post | null {
-  if (!isPortal(p.portal) || !isExamId(p.exam)) return null;
+  const exam = detectExamFromTitle(p.title, p.exam);
+  if (!isPortal(p.portal) || !isExamId(exam)) return null;
   const rawSection = String(p.section);
   if (!isSectionId(rawSection)) return null;
   if (p.portal === "news" && rawSection === "bmind") return null;
@@ -35,7 +54,7 @@ export function normalizePost(p: DbPost): Post | null {
     ...p,
     portal: p.portal,
     section,
-    exam: p.exam,
+    exam,
     revisionPlan,
     featured: normalizeFeatured(p.featured),
   };

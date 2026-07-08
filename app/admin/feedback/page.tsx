@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { MessageSquare, ClipboardList, ShieldCheck, Trophy } from "lucide-react";
+import { MessageSquare, ClipboardList, ShieldCheck, Trophy, Inbox } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FeedbackTab } from "./FeedbackTab";
 import { WaitlistTab } from "./WaitlistTab";
 import { ApprovedEmailsTab } from "./ApprovedEmailsTab";
+import { ContactUsTab } from "./ContactUsTab";
 
 export default function AdminFeedbackPage() {
   const router = useRouter();
@@ -19,11 +20,15 @@ export default function AdminFeedbackPage() {
     tParam === "waitlist"
       ? "waitlist"
       : tParam === "ambassador"
-      ? "ambassador"
-      : tParam === "approved"
-      ? "approved"
-      : "feedback";
-  const [activeTab, setActiveTab] = useState<"feedback" | "waitlist" | "ambassador" | "approved">(urlTab);
+        ? "ambassador"
+        : tParam === "approved"
+          ? "approved"
+          : tParam === "contact"
+            ? "contact"
+            : "feedback";
+  const [activeTab, setActiveTab] = useState<
+    "feedback" | "waitlist" | "ambassador" | "approved" | "contact"
+  >(urlTab);
 
   // Sync state if URL changes
   useEffect(() => {
@@ -31,7 +36,7 @@ export default function AdminFeedbackPage() {
   }, [urlTab]);
 
   const handleTabChange = (value: string) => {
-    const nextTab = value as "feedback" | "waitlist" | "ambassador" | "approved";
+    const nextTab = value as "feedback" | "waitlist" | "ambassador" | "approved" | "contact";
     setActiveTab(nextTab);
 
     // Update URL query parameters without full reload
@@ -52,12 +57,19 @@ export default function AdminFeedbackPage() {
         <div className="flex items-center justify-between border-b pb-3 mb-2">
           <div>
             <h2 className="text-xl font-bold tracking-tight">F&W Inbox</h2>
-            <p className="text-xs text-muted-foreground">Manage waitlist registrations, approved signups, and 'Share your experience' settings feedback.</p>
+            <p className="text-xs text-muted-foreground">
+              Manage waitlist registrations, approved signups, Contact Us messages, and Settings
+              feedback.
+            </p>
           </div>
-          <TabsList className="grid w-[600px] grid-cols-4">
+          <TabsList className="grid w-[720px] max-w-full grid-cols-5">
             <TabsTrigger value="feedback" className="flex items-center gap-1.5">
               <MessageSquare className="h-3.5 w-3.5" />
               Feedback
+            </TabsTrigger>
+            <TabsTrigger value="contact" className="flex items-center gap-1.5">
+              <Inbox className="h-3.5 w-3.5" />
+              Contact Us
             </TabsTrigger>
             <TabsTrigger value="waitlist" className="flex items-center gap-1.5">
               <ClipboardList className="h-3.5 w-3.5" />
@@ -76,6 +88,10 @@ export default function AdminFeedbackPage() {
 
         <TabsContent value="feedback" className="mt-0 focus-visible:outline-none animate-in fade-in duration-200">
           <FeedbackTab initialId={activeTab === "feedback" ? currentId : null} />
+        </TabsContent>
+
+        <TabsContent value="contact" className="mt-0 focus-visible:outline-none animate-in fade-in duration-200">
+          <ContactUsTab initialId={activeTab === "contact" ? currentId : null} />
         </TabsContent>
 
         <TabsContent value="waitlist" className="mt-0 focus-visible:outline-none animate-in fade-in duration-200">

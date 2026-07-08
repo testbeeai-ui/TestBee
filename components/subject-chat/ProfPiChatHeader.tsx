@@ -100,7 +100,7 @@ export default function ProfPiChatHeader({
       style={{ background: PROF_PI_CHAT.headerGradient }}
     >
       {/* Row 1: icon + title beside it | actions right */}
-      <div className="flex items-center gap-2.5 pl-8 pr-4 pt-3 pb-2">
+      <div className="flex items-center gap-2.5 pl-8 pr-8 pt-3 pb-2">
         <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full border-[1.5px] border-white/25 bg-white/15">
           <Bot className="h-5 w-5 text-white" strokeWidth={1.75} aria-hidden />
         </div>

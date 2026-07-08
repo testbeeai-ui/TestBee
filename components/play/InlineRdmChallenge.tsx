@@ -558,7 +558,11 @@ export default function InlineRdmChallenge({
   }, [phase, summaryReason, winClaimed, handleClaimWinReward]);
 
   const postToCommunityFeed = useCallback(
-    async (text: string, title: string) => {
+    async (
+      text: string,
+      title: string,
+      score?: { correct: number; total: number; percent: number }
+    ) => {
       if (!user?.id) throw new Error("Sign in required");
       const { data, error } = await supabase
         .from("lessons_raw_posts")
@@ -575,6 +579,13 @@ export default function InlineRdmChallenge({
             challengeKey: spec.key,
             challengeName: spec.name,
             domain: spec.domain,
+            ...(score
+              ? {
+                  correctCount: score.correct,
+                  totalQuestions: score.total,
+                  scorePercent: score.percent,
+                }
+              : {}),
           },
         })
         .select("id")
@@ -811,7 +822,11 @@ export default function InlineRdmChallenge({
         return;
       }
       try {
-        const postId = await postToCommunityFeed(bodyForPost, titleForPost);
+        const postId = await postToCommunityFeed(bodyForPost, titleForPost, {
+          correct: correctCount,
+          total: tot,
+          percent: pctCorrectOverall,
+        });
         markEarnChallengeCompanionCommunityShared();
         setPostPreviewOpen(false);
         void ensureShareRewardClaimed();
@@ -822,7 +837,7 @@ export default function InlineRdmChallenge({
             <ToastAction
               altText="View post"
               onClick={() =>
-                (window.location.href = `/home?focusPost=${encodeURIComponent(postId)}`)
+                (window.location.href = `/explore/community?focusPost=${encodeURIComponent(postId)}`)
               }
             >
               View post

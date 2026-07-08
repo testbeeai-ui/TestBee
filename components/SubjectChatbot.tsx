@@ -355,6 +355,7 @@ export default function SubjectChatbot({
     startX: number;
     startY: number;
     startSize: { width: number; height: number };
+    direction: "left" | "right";
   } | null>(null);
   const justDraggedRef = useRef(false);
   const isDraggingRef = useRef(false);
@@ -904,7 +905,28 @@ export default function SubjectChatbot({
       e.preventDefault();
       e.stopPropagation();
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      resizeRef.current = { startX: e.clientX, startY: e.clientY, startSize: { ...chatSize } };
+      resizeRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startSize: { ...chatSize },
+        direction: "left",
+      };
+      setIsResizing(true);
+    },
+    [chatSize]
+  );
+
+  const handleResizeRightPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      resizeRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startSize: { ...chatSize },
+        direction: "right",
+      };
       setIsResizing(true);
     },
     [chatSize]
@@ -913,18 +935,17 @@ export default function SubjectChatbot({
   const handleResizePointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!resizeRef.current || !isResizing) return;
-      // Chat is anchored bottom-right, resize handle is top-left corner
-      // Dragging left = increase width, dragging up = increase height
-      const dx = resizeRef.current.startX - e.clientX;
-      const dy = resizeRef.current.startY - e.clientY;
+      const { direction, startX, startY, startSize } = resizeRef.current;
+      const dx = direction === "left" ? startX - e.clientX : e.clientX - startX;
+      const dy = startY - e.clientY;
       setChatSize({
         width: Math.max(
           MIN_SIZE.width,
-          Math.min(MAX_SIZE.width, resizeRef.current.startSize.width + dx)
+          Math.min(MAX_SIZE.width, startSize.width + dx)
         ),
         height: Math.max(
           MIN_SIZE.height,
-          Math.min(MAX_SIZE.height, resizeRef.current.startSize.height + dy)
+          Math.min(MAX_SIZE.height, startSize.height + dy)
         ),
       });
     },
@@ -984,6 +1005,22 @@ export default function SubjectChatbot({
               title="Drag to resize"
             >
               <div className="grid grid-cols-3 gap-[3px] opacity-40 transition-opacity group-hover/resize:opacity-80">
+                {Array.from({ length: 9 }).map((_, i) => (
+                  <div key={i} className="h-[3px] w-[3px] rounded-full bg-white/60" />
+                ))}
+              </div>
+            </div>
+
+            <div
+              onPointerDown={handleResizeRightPointerDown}
+              onPointerMove={handleResizePointerMove}
+              onPointerUp={handleResizePointerUp}
+              onPointerCancel={handleResizePointerUp}
+              className="absolute top-0 right-0 z-[60] flex h-8 w-8 cursor-ne-resize items-center justify-center group/resize-right"
+              style={{ touchAction: "none" }}
+              title="Drag to resize"
+            >
+              <div className="grid grid-cols-3 gap-[3px] opacity-40 transition-opacity group-hover/resize-right:opacity-80">
                 {Array.from({ length: 9 }).map((_, i) => (
                   <div key={i} className="h-[3px] w-[3px] rounded-full bg-white/60" />
                 ))}

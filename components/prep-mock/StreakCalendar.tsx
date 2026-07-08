@@ -7,6 +7,7 @@ import {
   type PrepCalendarDayRow,
   type PrepCalendarSummary,
 } from "@/lib/dashboard/prepCalendarClient";
+import { cn } from "@/lib/utils";
 
 type DayTotals = {
   class: number;
@@ -53,12 +54,21 @@ interface StreakCalendarProps {
   accessToken?: string | null;
   /** Bump to refetch after logging new activity (e.g. mock submitted). */
   refreshKey?: number;
+  hideHeader?: boolean;
+  cardTitle?: string;
+  /** Compact mode: smaller cells, no legend, tighter padding */
+  compact?: boolean;
+  noCardWrapper?: boolean;
 }
 
 export default function StreakCalendar({
   userId,
   accessToken,
   refreshKey = 0,
+  hideHeader = false,
+  cardTitle,
+  compact = false,
+  noCardWrapper = false,
 }: StreakCalendarProps) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -137,55 +147,64 @@ export default function StreakCalendar({
   };
 
   return (
-    <section id="calendar" className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-display font-bold text-foreground text-sm flex items-center gap-2">
-          <CalendarDays className="w-4 h-4 text-primary" />
-          Calendar
-        </h3>
-        <span
-          className="text-xs font-bold text-[#1D9E75] cursor-pointer hover:underline opacity-80"
-          title="Coming soon"
-        >
-          AI-optimize schedule
-        </span>
-      </div>
+    <section id={hideHeader ? undefined : "calendar"} className={hideHeader ? "" : "space-y-3"}>
+      {!hideHeader && (
+        <div className="flex items-center justify-between">
+          <h3 className="font-display font-bold text-foreground text-sm flex items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-primary" />
+            Calendar
+          </h3>
+          <span
+            className="text-xs font-bold text-[#1D9E75] cursor-pointer hover:underline opacity-80"
+            title="Coming soon"
+          >
+            AI-optimize schedule
+          </span>
+        </div>
+      )}
 
-      <div className="edu-card rounded-xl border border-border/50 p-2.5 sm:p-4">
-        <div className="flex items-center justify-between mb-2 sm:mb-3">
+      <div className={cn(
+        noCardWrapper
+          ? "bg-transparent border-0 p-0 shadow-none"
+          : cn("edu-card rounded-xl border border-border/50", compact ? "p-3" : "p-4")
+      )}>
+        {cardTitle && (
+          <h3 className="mb-2.5 text-base font-bold tracking-tight text-foreground">{cardTitle}</h3>
+        )}
+        <div className="flex items-center justify-between mb-1.5">
           <button
             type="button"
             onClick={prevMonth}
-            className="w-8 h-8 rounded-lg border border-primary/30 bg-primary/[0.07] text-foreground shadow-sm ring-1 ring-primary/10 hover:bg-primary/12 hover:border-primary/45 flex items-center justify-center transition-colors"
+            className="w-7 h-7 rounded-lg border border-primary/30 bg-primary/[0.07] text-foreground shadow-sm ring-1 ring-primary/10 hover:bg-primary/12 hover:border-primary/45 flex items-center justify-center transition-colors"
             aria-label="Previous month"
           >
-            <ChevronLeft className="w-4 h-4 text-primary" />
+            <ChevronLeft className="w-3.5 h-3.5 text-primary" />
           </button>
-          <span className="text-sm font-bold text-foreground">
+          <span className={`font-bold text-foreground ${compact ? "text-xs" : "text-sm"}`}>
             {MONTHS[viewMonth]} {viewYear}
           </span>
           <button
             type="button"
             onClick={nextMonth}
-            className="w-8 h-8 rounded-lg border border-primary/30 bg-primary/[0.07] text-foreground shadow-sm ring-1 ring-primary/10 hover:bg-primary/12 hover:border-primary/45 flex items-center justify-center transition-colors"
+            className="w-7 h-7 rounded-lg border border-primary/30 bg-primary/[0.07] text-foreground shadow-sm ring-1 ring-primary/10 hover:bg-primary/12 hover:border-primary/45 flex items-center justify-center transition-colors"
             aria-label="Next month"
           >
-            <ChevronRight className="w-4 h-4 text-primary" />
+            <ChevronRight className="w-3.5 h-3.5 text-primary" />
           </button>
         </div>
 
-        <div className="grid grid-cols-7 mb-0.5 sm:mb-1">
+        <div className="grid grid-cols-7 mb-0.5">
           {DAYS.map((d) => (
             <div
               key={d}
-              className="text-center text-[9px] font-bold text-muted-foreground py-0.5 sm:text-[11px] sm:py-1"
+              className={`text-center font-bold text-muted-foreground py-0.5 ${compact ? "text-[8px]" : "text-[9px] sm:text-[11px] sm:py-1"}`}
             >
               {d}
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-y-0.5 sm:gap-y-1">
+        <div className={`grid grid-cols-7 ${compact ? "gap-y-0" : "gap-y-0.5 sm:gap-y-1"}`}>
           {calendarCells.map((day, i) => {
             if (day === null) return <div key={`empty-${i}`} />;
             const key = dayKey(day);
@@ -201,12 +220,13 @@ export default function StreakCalendar({
             return (
               <div
                 key={day}
-                className={`flex flex-col items-center justify-center rounded-lg text-[10px] font-medium min-h-[2.25rem] py-0.5 mx-0.5 transition-colors gap-0.5 sm:text-[11px] sm:min-h-[2.75rem] sm:py-1
+                className={`flex flex-col items-center justify-center rounded-md font-medium mx-0.5 transition-colors gap-0.5
+                  ${compact ? "text-[10px] min-h-[1.95rem] py-0.5" : "text-[10px] min-h-[2.25rem] py-0.5 sm:text-[11px] sm:min-h-[2.75rem] sm:py-1"}
                   ${todayCell ? "bg-primary text-primary-foreground font-extrabold ring-1 ring-primary/40" : "text-foreground hover:bg-muted/60"}
                   ${!todayCell && hasDots ? "bg-muted/50 border border-border/60" : ""}`}
               >
                 <span>{day}</span>
-                {hasDots ? (
+                {hasDots && !compact ? (
                   <span className="flex flex-wrap justify-center gap-0.5 max-w-[2.75rem]">
                     {dots.map((kind, di) => (
                       <span
@@ -216,36 +236,40 @@ export default function StreakCalendar({
                       />
                     ))}
                   </span>
+                ) : hasDots && compact ? (
+                  <span className={`w-1 h-1 rounded-full shrink-0 ${DOT_CLASS[dots[0]]}`} />
                 ) : null}
               </div>
             );
           })}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-border/50 sm:gap-3 sm:mt-3 sm:pt-3">
-          <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block sm:w-2 sm:h-2" />{" "}
-            Class
-          </span>
-          <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block sm:w-2 sm:h-2" />{" "}
-            Revision
-          </span>
-          <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block sm:w-2 sm:h-2" /> Mock
-          </span>
-          <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block sm:w-2 sm:h-2" />{" "}
-            Doubt
-          </span>
-          {loading ? (
-            <span className="text-[10px] text-muted-foreground ml-auto">Updating…</span>
-          ) : null}
-        </div>
+        {!compact && (
+          <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-border/50 sm:gap-3 sm:mt-3 sm:pt-3">
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block sm:w-2 sm:h-2" />{" "}
+              Class
+            </span>
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block sm:w-2 sm:h-2" />{" "}
+              Revision
+            </span>
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block sm:w-2 sm:h-2" /> Mock
+            </span>
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block sm:w-2 sm:h-2" />{" "}
+              Doubt
+            </span>
+            {loading ? (
+              <span className="text-[10px] text-muted-foreground ml-auto">Updating…</span>
+            ) : null}
+          </div>
+        )}
 
-        <div className="text-center mt-2">
-          <span className="text-sm font-bold text-foreground">{summary.streak} day streak</span>
-          <span className="text-xs text-muted-foreground ml-1.5">
+        <div className={`text-center ${compact ? "mt-1.5" : "mt-2"}`}>
+          <span className={`font-bold text-foreground ${compact ? "text-xs" : "text-sm"}`}>{summary.streak} day streak</span>
+          <span className={`text-muted-foreground ml-1.5 ${compact ? "text-[10px]" : "text-xs"}`}>
             · {summary.totalActiveDays} active days
           </span>
         </div>

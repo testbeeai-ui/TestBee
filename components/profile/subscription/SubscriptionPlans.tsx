@@ -187,9 +187,11 @@ export default function SubscriptionPlans({ profile, onNavigate }: Props) {
         )}
       </div>
 
-      <div className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-2 2xl:grid-cols-4">
+      <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 xl:grid-cols-4">
         {displayPlans.map((plan) => {
           const isCurrent = currentPlan === plan.id;
+          const isAlreadyUsedTrial = plan.id === "free_trial" && profile?.free_trial_activated === true;
+          const isNonClickable = isCurrent || isAlreadyUsedTrial;
           const isLoading = switchingPlan === plan.id;
           const isExpanded = allFeaturesExpanded;
           const cardTheme = getPricingCardTheme(plan.id, isCurrent);
@@ -229,13 +231,17 @@ export default function SubscriptionPlans({ profile, onNavigate }: Props) {
               footer={
                 <button
                   type="button"
-                  disabled={isCurrent || isLoading || billingMode === "annual" || configLoading}
-                  onClick={() => activate(plan.id)}
+                  disabled={isLoading || billingMode === "annual" || configLoading}
+                  onClick={() => {
+                    if (isNonClickable) return;
+                    activate(plan.id);
+                  }}
                   className={cn(
                     "inline-flex w-full items-center justify-center gap-2 rounded-full py-3 text-xs font-bold tracking-wider uppercase transition-all duration-300 active:scale-[0.98]",
+                    isNonClickable ? "cursor-default" : "cursor-pointer",
                     isCurrent
                       ? cn(
-                          "shadow-inner disabled:opacity-100",
+                          "shadow-inner opacity-100",
                           plan.id === "free_trial" &&
                             "border border-emerald-500/30 bg-emerald-600/15 text-emerald-300",
                           plan.id === "free" &&
@@ -245,8 +251,10 @@ export default function SubscriptionPlans({ profile, onNavigate }: Props) {
                           plan.id === "pro" &&
                             "border border-purple-500/30 bg-purple-600/15 text-purple-300"
                         )
-                      : "hover:scale-[1.01] hover:brightness-110 disabled:opacity-60 disabled:hover:scale-100 disabled:hover:brightness-100",
-                    !isCurrent && !configLoading && cardTheme.button,
+                      : isAlreadyUsedTrial
+                        ? "border border-white/10 bg-white/5 text-zinc-500 opacity-40"
+                        : "hover:scale-[1.01] hover:brightness-110 disabled:opacity-60 disabled:hover:scale-100 disabled:hover:brightness-100",
+                    !isNonClickable && !configLoading && cardTheme.button,
                     configLoading && "border border-white/5 bg-slate-800 text-slate-400"
                   )}
                 >

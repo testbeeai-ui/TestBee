@@ -1,21 +1,21 @@
 /* ─── Landing page text content (investor spec, verbatim) ───────────────── */
 
 export const NAV_LINKS = [
-  { label: "Features", href: "#features" },
-  { label: "For students", href: "#personas" },
+  { label: "Features", href: "/#features" },
+  { label: "For students", href: "/#personas" },
   { label: "News & Blogs", href: "/news-blog" },
-  { label: "For parents", href: "#personas" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "For parents", href: "/#personas" },
+  { label: "Pricing", href: "/#pricing" },
   { label: "Testbee", href: "/play" },
 ];
 
 /** Dark investor landing (matches marketing shell in product screenshots). */
 export const INVESTOR_NAV_LINKS = [
   { label: "Home", href: "/" },
-  { label: "Features", href: "#investor-features" },
+  { label: "Features", href: "/#investor-features" },
   { label: "News & Blogs", href: "/news-blog" },
   { label: "Ts & Cs", href: "/terms-conditions" },
-  { label: "EduFund", href: "#investor-edufund" },
+  { label: "EduFund", href: "/#investor-edufund" },
   { label: "Pricing", href: "/pricing" },
   { label: "Contact Us", href: "/contact" },
 ];

@@ -4,10 +4,8 @@ export function examBrowsePillClass(id: ExamId): string {
   switch (id) {
     case "board":
       return "border-violet-500/45 text-violet-200 bg-violet-950/25 hover:bg-violet-950/40";
-    case "jee-main":
+    case "jee":
       return "border-sky-500/45 text-sky-200 bg-sky-950/20 hover:bg-sky-950/35";
-    case "jee-advanced":
-      return "border-blue-500/45 text-blue-200 bg-blue-950/25 hover:bg-blue-950/40";
     case "state-cet":
       return "border-orange-500/40 text-orange-200 bg-orange-950/20 hover:bg-orange-950/35";
     case "bitsat":

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowUpRight,
   BadgeCheck,
@@ -412,7 +413,11 @@ function TeacherInvestorSections({ onOpenWaitlist }: { onOpenWaitlist?: (role?: 
     if (onOpenWaitlist) {
       onOpenWaitlist(roleStr);
     } else {
-      router.push(roleStr ? `/waitlist?role=${roleStr}` : "/waitlist");
+      if (roleStr === "teacher") {
+        router.push("/auth?role=teacher");
+      } else {
+        router.push(roleStr ? `/waitlist?role=${roleStr}` : "/waitlist");
+      }
     }
   };
   return (
@@ -646,7 +651,8 @@ function TeacherInvestorSections({ onOpenWaitlist }: { onOpenWaitlist?: (role?: 
               </button>
               <button
                 type="button"
-                className="rounded-full border border-white/25 px-7 py-3 text-sm font-semibold text-zinc-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/45 hover:bg-white/[0.04]"
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                className="rounded-full border border-white/25 px-7 py-3 text-sm font-semibold text-zinc-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/45 hover:bg-white/[0.04] cursor-pointer"
               >
                 Back to home
               </button>
@@ -661,6 +667,7 @@ function TeacherInvestorSections({ onOpenWaitlist }: { onOpenWaitlist?: (role?: 
 export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWaitlist?: (role?: string) => void }) {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user } = useAuth();
   const initialPersona = searchParams.get("persona") === "teacher" ? "teacher" : "student";
   const [persona, setPersona] = useState<"student" | "teacher">(initialPersona);
 
@@ -669,7 +676,11 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
     if (onOpenWaitlist) {
       onOpenWaitlist(roleStr);
     } else {
-      router.push(roleStr ? `/waitlist?role=${roleStr}` : "/waitlist");
+      if (roleStr === "teacher") {
+        router.push("/auth?role=teacher");
+      } else {
+        router.push(roleStr ? `/waitlist?role=${roleStr}` : "/waitlist");
+      }
     }
   };
 
@@ -686,7 +697,7 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
                 className={`rounded-full px-4 py-2.5 transition-colors sm:px-5 lg:px-6 ${
                   persona === "student"
                     ? "bg-[#34f5a4] text-neutral-950 shadow-[0_0_20px_rgba(52,245,164,0.25)]"
-                    : "text-zinc-500 hover:text-zinc-200"
+                    : "text-zinc-300 hover:text-white"
                 }`}
               >
                 For Students
@@ -697,7 +708,7 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
                 className={`rounded-full px-4 py-2.5 transition-colors sm:px-5 lg:px-6 ${
                   persona === "teacher"
                     ? "bg-[#34f5a4] text-neutral-950 shadow-[0_0_20px_rgba(52,245,164,0.25)]"
-                    : "text-zinc-500 hover:text-zinc-200"
+                    : "text-zinc-300 hover:text-white"
                 }`}
               >
                 For Teachers
@@ -1205,7 +1216,13 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
                   of every day. Not a textbook. A living learning network.
                 </p>
                 <Link
-                  href="/magic-wall"
+                  href="/auth?next=%2Fmagic-wall"
+                  onClick={(e) => {
+                    if (user) {
+                      e.preventDefault();
+                      router.push("/magic-wall");
+                    }
+                  }}
                   className="mt-9 inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-7 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_28px_rgba(52,245,164,0.22)] transition hover:bg-[#2ee89a]"
                 >
                   See the live wall <ArrowUpRight className="h-4 w-4 shrink-0" strokeWidth={2.5} />
@@ -1415,7 +1432,7 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
                     cta: "Activate Free",
                     highlight: false,
                     accentClass: "border-cyan-500/20 bg-gradient-to-b from-[#0d1424] via-[#090f1c] to-[#070a13] shadow-[0_0_25px_rgba(6,182,212,0.08)]",
-                    btnClass: "bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 font-bold hover:brightness-110",
+                    btnClass: "bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold hover:brightness-110",
                   },
                   {
                     name: "Starter",

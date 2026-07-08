@@ -17,6 +17,7 @@ import {
   Heart,
   GraduationCap,
   Gift,
+  Users,
   Newspaper,
   type LucideIcon,
 } from "lucide-react";
@@ -44,7 +45,7 @@ interface AppLayoutProps {
   wideMain?: boolean;
 }
 
-/** Curriculum browser: URL stays `/explore-1`; UI label is "Lessons". */
+/** Curriculum browser: URL stays `/explore-1`; UI label is "Learn Hub". */
 export const EXPLORE_APP_PATH = "/explore-1" as const;
 
 /** Header nav brand image — new resized logo at `public/images/logo-2.png` (served as `/images/logo-2.png`). */
@@ -64,7 +65,15 @@ function isNavLinkActive(navPath: string, pathname: string): boolean {
   if (navPath === "/mock" && isPrepMockActive(pathname)) return true;
   if (navPath === "/edufund" && (pathname === "/edufund" || pathname.startsWith("/edufund/")))
     return true;
-  if (navPath === "/news-blog" && (pathname === "/news-blog" || pathname.startsWith("/news-blog/")))
+  if (
+    navPath === "/explore/community" &&
+    (pathname === "/explore/community" || pathname.startsWith("/explore/community/"))
+  )
+    return true;
+  if (
+    navPath === "/news-blog" &&
+    (pathname === "/news-blog" || pathname.startsWith("/news-blog/"))
+  )
     return true;
   return false;
 }
@@ -81,12 +90,13 @@ type AppNavItem = {
 const studentNavItems: AppNavItem[] = [
   { path: "/home", icon: LayoutDashboard, label: "Dashboard", emoji: "📊" },
   { path: "/magic-wall", icon: Sparkles, label: "Magic Wall", emoji: "✨" },
-  { path: EXPLORE_APP_PATH, icon: Compass, label: "Lessons", emoji: "🧭" },
-  { path: "/mock", icon: GraduationCap, label: "Prep + Mock", emoji: "🎓" },
+  { path: EXPLORE_APP_PATH, icon: Compass, label: "Learn Hub", emoji: "🧭" },
+  { path: "/mock", icon: GraduationCap, label: "Prep + Classes", emoji: "🎓" },
   { path: "/doubts", icon: HelpCircle, label: "Gyan++", emoji: "💡" },
   { path: "/refer-earn", icon: Gift, label: "Earn & Learn", emoji: "🎁" },
   { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },
   { path: "/news-blog", icon: Newspaper, label: "News & Blogs", emoji: "📰" },
+  { path: "/explore/community", icon: Users, label: "Community", emoji: "👥" },
 ];
 
 const teacherNavItems: AppNavItem[] = [
@@ -107,6 +117,7 @@ const AppLayout = ({
 }: AppLayoutProps) => {
   const pathname = usePathname();
   const isMagicWall = pathname === "/magic-wall";
+  const isCommunityWall = pathname.startsWith("/explore/community");
   const { profile, user: authUser } = useAuth();
   const presenceUserId = profile?.id ?? authUser?.id ?? null;
   const user = useUserStore((s) => s.user);
@@ -131,7 +142,7 @@ const AppLayout = ({
         {/* Top Navigation Bar */}
         {!hideTopNav && (
           <header className="sticky top-0 z-40 shrink-0 bg-card/80 backdrop-blur-xl border-b border-border/60">
-            <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-0.5 lg:max-w-[min(100%,90rem)] lg:px-5 lg:py-1 xl:max-w-[min(100%,96rem)] 2xl:px-6">
+            <div className="mx-auto grid w-full max-w-[min(100%,1920px)] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 py-0.5 pl-3 pr-2 sm:gap-3 sm:pl-4 sm:pr-2.5 lg:py-1 lg:pl-5 lg:pr-2.5 xl:pr-3">
               {/* Logo — layout box stays compact; scale() enlarges artwork without growing nav flex height */}
               <Link
                 href={isTeacher ? TEACHER_PORTAL_CLASSROOMS_URL : "/home"}
@@ -151,8 +162,9 @@ const AppLayout = ({
                 />
               </Link>
 
-              {/* Nav Links - Desktop */}
-              <nav className="hidden md:flex items-center gap-0.5 bg-muted/50 rounded-xl p-0.5 2xl:rounded-2xl 2xl:p-1">
+              {/* Nav Links - Desktop (centered in remaining space) */}
+              <nav className="hidden md:flex min-w-0 items-center justify-center">
+                <div className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-xl bg-muted/50 p-0.5 2xl:rounded-2xl 2xl:p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {navItems.map(({ path, href: itemHref, icon: Icon, label }) => {
                   const linkHref = itemHref ?? path;
                   const isActive = isNavLinkActive(path, pathname);
@@ -174,10 +186,11 @@ const AppLayout = ({
                     </Link>
                   );
                 })}
+                </div>
               </nav>
 
-              {/* Right side */}
-              <div className="flex items-center gap-2 2xl:gap-3">
+              {/* Right side — flush to the right edge of the header bar */}
+              <div className="flex shrink-0 items-center justify-end gap-1.5 2xl:gap-2">
                 {streakTimer?.isActive && (
                   <StreakTimer
                     phase={streakTimer.phase}
@@ -185,6 +198,8 @@ const AppLayout = ({
                     totalSeconds={streakTimer.totalSeconds}
                   />
                 )}
+                <NotificationBell />
+                <div className="flex items-center gap-1.5 2xl:gap-2">
                 {(user || profile) && !isTeacher ? (
                   <button
                     type="button"
@@ -210,7 +225,6 @@ const AppLayout = ({
                     </span>
                   </Link>
                 ) : null}
-                <NotificationBell />
                 {isTeacher ? (
                   <Link
                     href={teacherPortalHref}
@@ -257,6 +271,7 @@ const AppLayout = ({
                     </span>
                   </Link>
                 )}
+                </div>
               </div>
             </div>
 
@@ -291,7 +306,12 @@ const AppLayout = ({
           className={cn(
             "flex-1 mx-auto w-full",
             hideTopNav || wideMain
-              ? "max-w-[1920px] px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-5"
+              ? cn(
+                  "max-w-[1920px]",
+                  isCommunityWall
+                    ? "px-1.5 py-1 sm:px-2 lg:px-2.5 lg:py-2"
+                    : "px-2 py-3 sm:px-3 sm:py-4 lg:px-5 lg:py-5"
+                )
               : "max-w-7xl px-4 lg:px-5 2xl:px-6",
             !hideTopNav &&
               !wideMain &&
@@ -345,7 +365,7 @@ const AppLayout = ({
                   href={EXPLORE_APP_PATH}
                   className="hover:text-foreground transition-colors font-bold"
                 >
-                  Lessons
+                  Learn Hub
                 </Link>
                 <Link
                   href={`/contact?from=${encodeURIComponent(pathname || "/home")}`}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Lightbulb,
@@ -162,12 +162,36 @@ function RevisionCard({
   compact?: boolean;
 }) {
   const config = INSTACUE_TYPE_CONFIG[card.type];
+  const pointerRef = useRef<{ x: number; y: number; dragged: boolean } | null>(null);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    pointerRef.current = { x: e.clientX, y: e.clientY, dragged: false };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const start = pointerRef.current;
+    if (!start || start.dragged) return;
+    const dx = Math.abs(e.clientX - start.x);
+    const dy = Math.abs(e.clientY - start.y);
+    if (dx > 8 || dy > 8) start.dragged = true;
+  };
+
+  const handleFlip = () => {
+    if (pointerRef.current?.dragged) {
+      pointerRef.current = null;
+      return;
+    }
+    pointerRef.current = null;
+    onFlip();
+  };
 
   const cardH = compact ? 148 : 200;
   return (
     <div
       className="perspective-[1000px] w-full cursor-pointer"
-      onClick={onFlip}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onClick={handleFlip}
       style={{ minHeight: cardH }}
     >
       <div
@@ -197,7 +221,6 @@ function RevisionCard({
             </div>
             <div
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 text-[15px] font-semibold leading-snug break-words text-foreground touch-pan-y sm:text-base"
-              onClick={(e) => e.stopPropagation()}
             >
               <TheoryContent
                 theory={normalizeCardMath(card.frontContent)}
@@ -225,7 +248,6 @@ function RevisionCard({
             </div>
             <div
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 text-sm leading-relaxed break-words text-foreground touch-pan-y sm:text-[15px]"
-              onClick={(e) => e.stopPropagation()}
             >
               <TheoryContent
                 theory={normalizeCardMath(card.backContent)}
@@ -308,19 +330,25 @@ export default function InstaCue({
     }
   }, [subtopicOptions, localSubtopic]);
 
-  const goPrev = () => {
-    setIndex((i) => (i <= 0 ? total - 1 : i - 1));
+  const goPrev = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setFlipped(false);
+    setIndex((i) => (i <= 0 ? total - 1 : i - 1));
   };
 
-  const goNext = () => {
-    setIndex((i) => (i >= total - 1 ? 0 : i + 1));
+  const goNext = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setFlipped(false);
+    setIndex((i) => (i >= total - 1 ? 0 : i + 1));
   };
 
   const safeIndex = Math.min(index, Math.max(0, filteredCards.length - 1));
   const displayCard = filteredCards[safeIndex];
   const visibleDots = getVisibleDotIndexes(filteredCards.length, safeIndex);
+
+  useLayoutEffect(() => {
+    setFlipped(false);
+  }, [displayCard?.id]);
 
   const handleFlip = () => {
     setFlipped((wasFlipped) => {
@@ -480,6 +508,7 @@ export default function InstaCue({
 
       {displayCard && (
         <RevisionCard
+          key={displayCard.id}
           card={displayCard}
           isFlipped={flipped}
           onFlip={handleFlip}

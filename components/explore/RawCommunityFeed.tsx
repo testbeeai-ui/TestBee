@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, SlidersHorizontal, Trophy, AlertTriangle, HelpCircle, Swords } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { WALL_TEXT_CHIP, WALL_TEXT_CAPTION } from "./communityWallLayout";
 import { slugify } from "@/lib/slugs";
+import { matchesCommunityPostType } from "@/lib/explore/communityPostScore";
 import { selectSavedCommunityPosts, useUserStore } from "@/store/useUserStore";
 import { syncAllSavedContent } from "@/lib/saved/savedContentService";
 import RawFeedPostCard, { type CommentRow } from "./RawFeedPostCard";
@@ -33,11 +35,33 @@ function coercePerPage(n: number | undefined): CommunityFeedPageSize {
 
 export type RawFeedFilter = "all" | "physics" | "chemistry" | "math";
 
+export type RawFeedSort = "latest" | "top" | "trending";
+
+export type RawPostTypeFilter = "all" | "wins" | "setbacks" | "doubts" | "challenges";
+
 const FILTER_CHIPS: { id: RawFeedFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "physics", label: "Physics" },
   { id: "chemistry", label: "Chemistry" },
-  { id: "math", label: "Math" },
+  { id: "math", label: "Maths" },
+];
+
+const POST_TYPE_CHIPS: {
+  id: RawPostTypeFilter;
+  label: string;
+  icon: typeof Trophy;
+  colorClass: string;
+}[] = [
+  { id: "wins", label: "Wins", icon: Trophy, colorClass: "text-amber-400" },
+  { id: "setbacks", label: "Setbacks", icon: AlertTriangle, colorClass: "text-pink-400" },
+  { id: "doubts", label: "Doubts", icon: HelpCircle, colorClass: "text-violet-400" },
+  { id: "challenges", label: "Challenges", icon: Swords, colorClass: "text-red-400" },
+];
+
+const SORT_OPTIONS: { id: RawFeedSort; label: string }[] = [
+  { id: "latest", label: "Latest" },
+  { id: "top", label: "Top" },
+  { id: "trending", label: "Trending" },
 ];
 
 const FILTER_SUMMARY: Record<RawFeedFilter, string> = {
@@ -108,6 +132,8 @@ export interface RawCommunityFeedProps {
   initialFilter?: RawFeedFilter;
   /** Full mode: initial page from `?page=` */
   initialPage?: number;
+  /** Full mode: sort from `?sort=` */
+  initialSort?: RawFeedSort;
   /** Full mode: posts per page from `?perPage=` */
   initialPerPage?: CommunityFeedPageSize;
   /** Full mode only: keep the address bar in sync (`?filter=&page=&perPage=`). Safe for `/explore/community` only. */
@@ -122,6 +148,7 @@ export default function RawCommunityFeed({
   refreshKey = 0,
   mode = "preview",
   initialFilter,
+  initialSort,
   initialPage,
   initialPerPage,
   syncPaginationUrl = false,
@@ -132,12 +159,18 @@ export default function RawCommunityFeed({
   const { user } = useAuth();
   const { toast } = useToast();
   const saveCommunityPost = useUserStore((s) => s.saveCommunityPost);
+  const unsaveCommunityPost = useUserStore((s) => s.unsaveCommunityPost);
   const savedCommunityPosts = useUserStore(selectSavedCommunityPosts);
   const [filter, setFilter] = useState<RawFeedFilter>(() => {
     if (embedded && controlledFilter) return controlledFilter;
     if (mode === "full" && initialFilter) return initialFilter;
     return "all";
   });
+  const [sort, setSort] = useState<RawFeedSort>(() => {
+    if (mode === "full" && initialSort) return initialSort;
+    return "latest";
+  });
+  const [postTypeFilter, setPostTypeFilter] = useState<RawPostTypeFilter>("all");
   const [currentPage, setCurrentPage] = useState(() => Math.max(1, initialPage ?? 1));
   const [itemsPerPage, setItemsPerPage] = useState<CommunityFeedPageSize>(() =>
     coercePerPage(initialPerPage)
@@ -185,11 +218,15 @@ export default function RawCommunityFeed({
   const fetchBatch = useCallback(
     async (from: number, to: number): Promise<RawPostRow[] | null> => {
       const runRange = async (selectStr: string) => {
-        let q = supabase
-          .from("lessons_raw_posts")
-          .select(selectStr)
-          .order("created_at", { ascending: false })
-          .range(from, to);
+        let q = supabase.from("lessons_raw_posts").select(selectStr);
+        if (sort === "top" || sort === "trending") {
+          q = q
+            .order("upvote_count", { ascending: false })
+            .order("created_at", { ascending: false });
+        } else {
+          q = q.order("created_at", { ascending: false });
+        }
+        q = q.range(from, to);
         if (filter !== "all") {
           q = q.eq("subject", filter);
         }
@@ -221,7 +258,7 @@ export default function RawCommunityFeed({
       }
       return (first.data ?? []) as unknown as RawPostRow[];
     },
-    [filter, toast]
+    [filter, sort, toast]
   );
 
   const fetchTotalCount = useCallback(async (): Promise<number | null> => {
@@ -289,6 +326,7 @@ export default function RawCommunityFeed({
     previewPageSize,
     itemsPerPage,
     currentPage,
+    sort,
   ]);
 
   useEffect(() => {
@@ -304,6 +342,7 @@ export default function RawCommunityFeed({
     if (mode !== "full" || !syncPaginationUrl) return;
     const params = new URLSearchParams();
     params.set("filter", filter);
+    params.set("sort", sort);
     params.set("page", String(currentPage));
     params.set("perPage", String(itemsPerPage));
     const qs = params.toString();
@@ -312,7 +351,7 @@ export default function RawCommunityFeed({
       if (cur === qs) return;
     }
     router.replace(`/explore/community?${qs}`, { scroll: false });
-  }, [mode, syncPaginationUrl, filter, currentPage, itemsPerPage, router]);
+  }, [mode, syncPaginationUrl, filter, sort, currentPage, itemsPerPage, router]);
 
   useEffect(() => {
     if (mode !== "full" || !syncPaginationUrl) return;
@@ -324,9 +363,13 @@ export default function RawCommunityFeed({
       const fr = sp.get("filter");
       const f: RawFeedFilter =
         fr === "all" || fr === "physics" || fr === "chemistry" || fr === "math" ? fr : "all";
+      const sr = sp.get("sort");
+      const s: RawFeedSort =
+        sr === "latest" || sr === "top" || sr === "trending" ? sr : "latest";
       setCurrentPage(p);
       setItemsPerPage(pp);
       setFilter(f);
+      setSort(s);
     };
     window.addEventListener("popstate", syncFromLocation);
     return () => window.removeEventListener("popstate", syncFromLocation);
@@ -418,7 +461,7 @@ export default function RawCommunityFeed({
     };
   }, [mode, focusPostId, loading, posts, mergeVotesForIds]);
 
-  const filtered = posts;
+  const filtered = posts.filter((p) => matchesCommunityPostType(p, postTypeFilter));
 
   const handleVote = async (postId: string, direction: 1 | -1) => {
     if (!user?.id) {
@@ -508,6 +551,27 @@ export default function RawCommunityFeed({
     toast({ title: "Posted" });
   };
 
+  const handleDeletePost = async (postId: string) => {
+    if (!user?.id) return;
+    if (!window.confirm("Delete this post? This can't be undone.")) return;
+    const { error } = await supabase
+      .from("lessons_raw_posts")
+      .delete()
+      .eq("id", postId)
+      .eq("user_id", user.id);
+    if (error) {
+      toast({ title: "Could not delete post", description: error.message, variant: "destructive" });
+      return;
+    }
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+    setTotalCount((c) => (c !== null ? Math.max(0, c - 1) : c));
+    if (savedCommunityPosts.some((p) => p.postId === postId)) {
+      unsaveCommunityPost(postId);
+      syncAllSavedContent().catch(() => {});
+    }
+    toast({ title: "Post deleted" });
+  };
+
   const savePostForRevision = (post: RawPostRow) => {
     if (!user?.id) {
       toast({ title: "Sign in to save", variant: "destructive" });
@@ -595,6 +659,18 @@ export default function RawCommunityFeed({
     }
   };
 
+  const handleSortChange = (id: RawFeedSort) => {
+    setSort(id);
+    if (mode === "full") {
+      setCurrentPage(1);
+      skipPaginationScroll.current = true;
+    }
+  };
+
+  const handlePostTypeChange = (id: RawPostTypeFilter) => {
+    setPostTypeFilter((prev) => (prev === id ? "all" : id));
+  };
+
   const handlePerPageChange = (n: CommunityFeedPageSize) => {
     setItemsPerPage(n);
     setCurrentPage(1);
@@ -632,9 +708,9 @@ export default function RawCommunityFeed({
   return (
     <div
       id="raw-community-feed"
-      className={cn("space-y-3", mode === "full" && "space-y-3 sm:space-y-4")}
+      className={cn("space-y-2", mode === "full" && !embedded && "space-y-3 sm:space-y-4")}
     >
-      {mode === "full" ? (
+      {mode === "full" && !embedded ? (
         <div className="flex flex-col gap-3 border-b border-border/80 pb-4 dark:border-white/10 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="min-w-0 flex-1 space-y-1">
             <h3 className="text-base font-semibold tracking-tight text-foreground">Posts</h3>
@@ -761,6 +837,71 @@ export default function RawCommunityFeed({
             </PopoverContent>
           </Popover>
         </div>
+      ) : embedded && mode === "full" ? (
+        <>
+          <div className="flex flex-wrap items-center gap-1">
+            {FILTER_CHIPS.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => handleFilterChange(c.id)}
+                className={cn(
+                  "rounded-full border font-medium transition-colors",
+                  WALL_TEXT_CHIP,
+                  filter === c.id
+                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    : "border-border/80 bg-muted/30 text-muted-foreground hover:border-border hover:text-foreground dark:border-white/10"
+                )}
+              >
+                {c.label}
+              </button>
+            ))}
+            <span className="mx-0.5 hidden h-3.5 w-px bg-border sm:inline-block dark:bg-white/10" aria-hidden />
+            {POST_TYPE_CHIPS.map((c) => {
+              const Icon = c.icon;
+              const active = postTypeFilter === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => handlePostTypeChange(c.id)}
+                  className={cn(
+                    "inline-flex items-center gap-0.5 rounded-full border font-medium transition-colors sm:gap-1",
+                    WALL_TEXT_CHIP,
+                    active
+                      ? "border-primary bg-primary/15 text-foreground"
+                      : "border-border/80 bg-muted/30 text-muted-foreground hover:border-border hover:text-foreground dark:border-white/10",
+                    !active && c.colorClass
+                  )}
+                >
+                  <Icon className="h-3 w-3" aria-hidden />
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-1.5">
+            <p className={cn("text-muted-foreground", WALL_TEXT_CAPTION)}>Latest from your network</p>
+            <div className="flex gap-0.5">
+              {SORT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => handleSortChange(opt.id)}
+                  className={cn(
+                    "rounded-full border font-medium transition-colors",
+                    WALL_TEXT_CHIP,
+                    sort === opt.id
+                      ? "border-border bg-muted text-foreground dark:border-white/20 dark:bg-white/10"
+                      : "border-transparent bg-muted/30 text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
       ) : embedded ? null : (
         <>
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
@@ -826,7 +967,7 @@ export default function RawCommunityFeed({
           <div
             className={cn(
               embedded
-                ? "divide-y divide-border/60"
+                ? "space-y-2"
                 : "divide-y divide-border rounded-2xl border border-border bg-card dark:divide-white/10 dark:border-white/10 dark:bg-slate-950/80"
             )}
           >
@@ -836,6 +977,8 @@ export default function RawCommunityFeed({
                 id={`raw-post-${post.id}`}
                 className={cn(
                   "transition-colors",
+                  embedded &&
+                    "overflow-hidden rounded-xl border border-border/70 bg-card hover:border-border/90 dark:border-white/10 dark:bg-slate-950/90",
                   focusPostId === post.id && "bg-primary/5 ring-1 ring-primary/30"
                 )}
               >
@@ -869,6 +1012,8 @@ export default function RawCommunityFeed({
                   onSaveForRevision={() => savePostForRevision(post)}
                   canOpenSourceLink={Boolean(buildPostSourceLink(post))}
                   onOpenSourceLink={() => openPostSourceLink(post)}
+                  isOwnPost={Boolean(user?.id && user.id === post.user_id)}
+                  onDelete={() => void handleDeletePost(post.id)}
                 />
               </div>
             ))}

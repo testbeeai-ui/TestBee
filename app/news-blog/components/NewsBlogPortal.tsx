@@ -31,7 +31,7 @@ import {
   keyDatesFeedBlurb,
 } from "../html-feed-and-seo";
 import { formatDdMonYyyy, formatRelativeNewsTime } from "../key-date-time";
-import { getExamLabel, getSectionLabel, revisionPlanDisplayLabel } from "../post-draft-utils";
+import { detectExamFromTitle, getExamLabel, getSectionLabel, revisionPlanDisplayLabel } from "../post-draft-utils";
 import type { BlogSection, ExamId, NewsSection, Portal, Post, SectionId } from "../types";
 import { HtmlBodyFrame } from "./HtmlBodyFrame";
 import { HtmlPlainDocumentView } from "./HtmlPlainDocumentView";
@@ -283,7 +283,7 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
                 </div>
                 <div className="mb-4 flex flex-wrap items-center gap-1.5 text-[11px] sm:mb-5 sm:gap-2 sm:text-xs">
                   <span className="rounded-full bg-[#0d1e30] px-2.5 py-0.5 font-medium text-blue-200/95">
-                    {getExamLabel(openPost.exam)}
+                    {getExamLabel(detectExamFromTitle(openPost.title, openPost.exam))}
                   </span>
                   <span className="rounded-full bg-[#171425] px-2.5 py-0.5 font-medium text-violet-200/95">
                     {getSectionLabel(openPost.section)}
@@ -582,7 +582,7 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
                         <div className="p-4 sm:p-5 lg:p-7">
                           <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[11px] sm:mb-4 sm:gap-2 sm:text-xs">
                             <span className="rounded-full bg-[#0d1e30] px-2 py-0.5 font-medium text-blue-200/95 sm:px-2.5">
-                              {getExamLabel(featuredPost.exam)}
+                              {getExamLabel(detectExamFromTitle(featuredPost.title, featuredPost.exam))}
                             </span>
                             <span className="rounded-full bg-[#171425] px-2 py-0.5 font-medium text-violet-200/95 sm:px-2.5">
                               {getSectionLabel(featuredPost.section)}
@@ -697,7 +697,7 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
                             <div className="flex flex-1 flex-col p-3 sm:p-4">
                               <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[10px] sm:mb-3 sm:gap-2 sm:text-[11px]">
                                 <span className="rounded-full bg-[#0d1e30] px-1.5 py-0.5 font-medium text-blue-200/95 sm:px-2">
-                                  {getExamLabel(post.exam)}
+                                  {getExamLabel(detectExamFromTitle(post.title, post.exam))}
                                 </span>
                                 <span className="rounded-full bg-[#171425] px-1.5 py-0.5 font-medium text-violet-200/95 sm:px-2">
                                   {getSectionLabel(post.section)}
@@ -858,7 +858,7 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
                           ) : null;
                         })()}
                         <p className="mt-1 text-[11px] text-slate-500">
-                          {formatRelativeNewsTime(p.createdAt)} · {getExamLabel(p.exam)}
+                          {formatRelativeNewsTime(p.createdAt)} · {getExamLabel(detectExamFromTitle(p.title, p.exam))}
                         </p>
                       </div>
                     </Link>

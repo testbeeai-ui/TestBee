@@ -660,6 +660,8 @@ function TopicPageInner() {
   const [loadingMagicWallBasket, setLoadingMagicWallBasket] = useState(false);
   const [magicWallQueueOpen, setMagicWallQueueOpen] = useState(false);
   const [progressQueueOpen, setProgressQueueOpen] = useState(false);
+  const progressPanelRef = useRef<HTMLDivElement>(null);
+  const progressButtonRef = useRef<HTMLButtonElement>(null);
   const [focusTimerSeconds, setFocusTimerSeconds] = useState(FOCUS_TIMER_INITIAL_SECONDS);
   const [focusTimerRunning, setFocusTimerRunning] = useState(false);
   const [bitsVisitedIndices, setBitsVisitedIndices] = useState<Set<number>>(new Set());
@@ -703,6 +705,24 @@ function TopicPageInner() {
   const lessonTimerRunningBeforeHideRef = useRef(false);
   /** Auto-start focus timer once per subtopic visit (manual pause still allowed). */
   const focusTimerAutoStartedForScopeRef = useRef<string>("");
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!progressQueueOpen) return;
+      if (
+        progressPanelRef.current &&
+        !progressPanelRef.current.contains(event.target as Node) &&
+        progressButtonRef.current &&
+        !progressButtonRef.current.contains(event.target as Node)
+      ) {
+        setProgressQueueOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [progressQueueOpen]);
 
   useEffect(() => {
     setRightPanelTab(initialPanelTab);
@@ -1983,7 +2003,7 @@ function TopicPageInner() {
           <button
             type="button"
             className="inline-flex items-center rounded-md border border-primary/55 bg-primary/25 px-3.5 py-1.5 text-sm font-semibold text-white shadow-[0_0_0_1px_rgba(59,130,246,0.25)] transition-all hover:border-primary/80 hover:bg-primary/40 hover:text-white"
-            onClick={() => router.push(`/explore-1?focusPost=${postId ?? ""}#raw-community-feed`)}
+            onClick={() => router.push(`/explore/community?focusPost=${postId ?? ""}`)}
           >
             See your post
           </button>
@@ -2209,7 +2229,7 @@ function TopicPageInner() {
           <button
             type="button"
             className="inline-flex items-center rounded-md border border-primary/55 bg-primary/25 px-3.5 py-1.5 text-sm font-semibold text-white shadow-[0_0_0_1px_rgba(59,130,246,0.25)] transition-all hover:border-primary/80 hover:bg-primary/40 hover:text-white"
-            onClick={() => router.push(`/explore-1?focusPost=${postId ?? ""}#raw-community-feed`)}
+            onClick={() => router.push(`/explore/community?focusPost=${postId ?? ""}`)}
           >
             See your post
           </button>
@@ -4561,10 +4581,11 @@ function TopicPageInner() {
 
       <>
         <button
+          ref={progressButtonRef}
           type="button"
           onClick={() => {
-            setProgressQueueOpen(true);
-            if (isDailyLessonsChecklistTrackingActive()) {
+            setProgressQueueOpen((prev) => !prev);
+            if (!progressQueueOpen && isDailyLessonsChecklistTrackingActive()) {
               markDailyLessonsProgressPanelOpened();
             }
           }}
@@ -4582,13 +4603,8 @@ function TopicPageInner() {
 
         {progressQueueOpen ? (
           <>
-            <button
-              type="button"
-              aria-label="Close progress popup backdrop"
-              className="fixed inset-0 z-[47] bg-black/30 backdrop-blur-[1px]"
-              onClick={() => setProgressQueueOpen(false)}
-            />
             <div
+              ref={progressPanelRef}
               className={`fixed z-[48] left-[4.15rem] w-[min(30rem,calc(100vw-4.75rem))] sm:w-[min(34rem,calc(100vw-5.25rem))] max-h-[min(92dvh,calc(100vh-4.5rem))] flex flex-col rounded-2xl border border-blue-500/35 bg-gradient-to-b from-background via-background to-blue-950/20 shadow-2xl shadow-blue-950/35 overflow-hidden font-sans ${
                 isMagicWallSource ? "top-[calc(max(7rem,28vh)+4.5rem)]" : "top-[max(7rem,28vh)]"
               }`}

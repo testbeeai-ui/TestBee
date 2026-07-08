@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error } = await auth.supabase
-    .from("mobile_push_tokens")
+    .from("mobile_push_tokens" as never)
     .select("token, platform, updated_at")
     .eq("user_id", auth.user.id)
     .order("updated_at", { ascending: false });
@@ -25,8 +25,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  type PushRow = { token: string; platform: string; updated_at: string };
   return NextResponse.json({
-    tokens: (data ?? []).map((row) => ({
+    tokens: ((data ?? []) as PushRow[]).map((row) => ({
       platform: row.platform,
       updatedAt: row.updated_at,
       tokenSuffix: row.token.slice(-8),
@@ -58,13 +59,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid platform" }, { status: 400 });
   }
 
-  const { error } = await auth.supabase.from("mobile_push_tokens").upsert(
+  const { error } = await auth.supabase.from("mobile_push_tokens" as never).upsert(
     {
       user_id: auth.user.id,
       token,
       platform,
       updated_at: new Date().toISOString(),
-    },
+    } as never,
     { onConflict: "user_id,token" }
   );
 
@@ -95,7 +96,7 @@ export async function DELETE(req: NextRequest) {
   }
 
   const { error } = await auth.supabase
-    .from("mobile_push_tokens")
+    .from("mobile_push_tokens" as never)
     .delete()
     .eq("user_id", auth.user.id)
     .eq("token", token);

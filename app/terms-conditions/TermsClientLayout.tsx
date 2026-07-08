@@ -123,7 +123,7 @@ export default function TermsClientLayout({ children }: { children: React.ReactN
       <LandingNavbar variant="dark" navLinks={INVESTOR_NAV_LINKS} />
 
       {/* Top nav toggles */}
-      <div className="sticky top-[50px] z-10 flex flex-wrap items-center gap-1.5 border-b border-white/10 bg-[#161B25] px-3 py-2 md:px-5">
+      <div className="sticky top-[56px] z-10 flex flex-wrap items-center gap-1.5 border-b border-white/10 bg-[#161B25] px-3 py-2 md:px-5">
         <Link
           href="/terms-conditions"
           className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors md:px-3.5 md:text-xs ${
@@ -160,7 +160,7 @@ export default function TermsClientLayout({ children }: { children: React.ReactN
 
       <div className="flex min-h-[calc(100vh-100px)]">
         {/* Sidebar */}
-        <aside className="hidden w-[230px] shrink-0 border-r border-white/10 bg-[#161B25] p-4 md:block">
+        <aside className="hidden w-[230px] shrink-0 border-r border-white/10 bg-[#161B25] p-4 md:block sticky top-[100px] h-[calc(100vh-100px)] overflow-y-auto">
           <nav className="space-y-0.5">
             {sidebarItems.map((item) => {
               const isQuickRef = item.id.startsWith("q-");

@@ -15,13 +15,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+import { WALL_TEXT_BODY } from "./communityWallLayout";
 import {
   applyNormalizedPasteToField,
   normalizePastedMathForDoubt,
 } from "@/lib/normalizePastedDoubtMath";
 import { notifyBuddyActivityRefresh } from "@/lib/buddy/buddyActivityEvents";
+import { Send } from "lucide-react";
 
 /** Stored on post — only these three (no life-science option in this composer). */
 type PostSubjectSlug = "physics" | "chemistry" | "math";
@@ -145,41 +148,67 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
     normalizedTitle.length > 120 ? `${normalizedTitle.slice(0, 120)}…` : normalizedTitle;
 
   return (
-    <div className="rounded-2xl border border-border bg-card px-3 py-2.5 dark:border-white/10 dark:bg-slate-950/80 sm:px-4 sm:py-3">
-      <div className="flex items-center gap-2.5">
-        <Avatar className="h-8 w-8 shrink-0 ring-1 ring-border">
-          <AvatarFallback className="bg-primary/20 text-[10px] font-bold text-primary">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onPaste={(e) => {
-            e.preventDefault();
-            const pasted = e.clipboardData.getData("text/plain");
-            const el = e.currentTarget;
-            const { value, caret } = applyNormalizedPasteToField(
-              title,
-              el.selectionStart ?? 0,
-              el.selectionEnd ?? 0,
-              pasted
-            );
-            setTitle(value);
-            queueMicrotask(() => el.setSelectionRange(caret, caret));
-          }}
-          placeholder="Share something you learned today…"
-          className="h-9 min-w-0 flex-1 border-0 bg-muted/50 text-sm shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-1 dark:bg-slate-900/50"
-          disabled={submitting}
-        />
+    <div
+      className="flex flex-col gap-2 rounded-xl border border-border/70 bg-card px-2.5 py-2 transition-colors hover:border-border dark:border-white/10 dark:bg-slate-950/80 sm:flex-row sm:items-center sm:gap-2.5 xl:px-3 xl:py-2.5"
+      onClick={() => {
+        if (!user?.id) {
+          toast({
+            title: "Sign in required",
+            description: "Please sign in to post.",
+            variant: "destructive",
+          });
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+        }
+      }}
+      role="presentation"
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+      <Avatar className="h-7 w-7 shrink-0 sm:h-8 sm:w-8">
+        <AvatarFallback className="bg-emerald-600 text-[10px] font-semibold text-white">
+          {initials}
+        </AvatarFallback>
+      </Avatar>
+      <Input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onPaste={(e) => {
+          e.preventDefault();
+          const pasted = e.clipboardData.getData("text/plain");
+          const el = e.currentTarget;
+          const { value, caret } = applyNormalizedPasteToField(
+            title,
+            el.selectionStart ?? 0,
+            el.selectionEnd ?? 0,
+            pasted
+          );
+          setTitle(value);
+          queueMicrotask(() => el.setSelectionRange(caret, caret));
+        }}
+        placeholder="Share what you learned, solved or struggled with today..."
+        className={cn(
+          "h-8 min-w-0 flex-1 border-0 bg-transparent shadow-none placeholder:text-muted-foreground focus-visible:ring-0",
+          WALL_TEXT_BODY
+        )}
+        disabled={submitting}
+        onClick={(e) => e.stopPropagation()}
+      />
+      </div>
+      <div className="flex shrink-0 items-center justify-end">
         <Button
           type="button"
-          variant="ghost"
           size="sm"
-          className="shrink-0 px-2 font-semibold text-primary hover:bg-primary/10 hover:text-primary"
+          className="h-7 gap-1 rounded-full bg-emerald-600 px-2.5 text-[10px] font-semibold text-white hover:bg-emerald-700 sm:px-3 sm:text-[11px]"
           disabled={submitting}
-          onClick={openPostDialog}
+          onClick={(e) => {
+            e.stopPropagation();
+            openPostDialog();
+          }}
         >
+          <Send className="h-3.5 w-3.5" aria-hidden />
           Post
         </Button>
       </div>

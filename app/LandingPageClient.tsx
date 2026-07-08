@@ -79,10 +79,22 @@ function LandingPageContent() {
         variant="dark" 
         navLinks={INVESTOR_NAV_LINKS} 
         sharedNext={safeNextFromUrl} 
-        onOpenWaitlist={(role) => router.push(role ? `/waitlist?role=${role}` : "/waitlist")}
+        onOpenWaitlist={(role) => {
+          if (role === "teacher") {
+            router.push("/auth?role=teacher");
+          } else {
+            router.push(role ? `/waitlist?role=${role}` : "/waitlist");
+          }
+        }}
         onOpenSignInNotice={() => setNoticeOpen(true)}
       />
-      <EduBlastInvestorLanding onOpenWaitlist={(role) => router.push(role ? `/waitlist?role=${role}` : "/waitlist")} />
+      <EduBlastInvestorLanding onOpenWaitlist={(role) => {
+        if (role === "teacher") {
+          router.push("/auth?role=teacher");
+        } else {
+          router.push(role ? `/waitlist?role=${role}` : "/waitlist");
+        }
+      }} />
       <LandingFooter variant="dark" />
 
       <SignInNoticeModal

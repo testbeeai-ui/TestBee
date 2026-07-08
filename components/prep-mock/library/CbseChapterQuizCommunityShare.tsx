@@ -209,7 +209,7 @@ export default function CbseChapterQuizCommunityShare({
           <ToastAction
             altText="View post"
             onClick={() => {
-              window.location.href = `/home?focusPost=${encodeURIComponent(postId)}`;
+              window.location.href = `/explore/community?focusPost=${encodeURIComponent(postId)}`;
             }}
           >
             View post

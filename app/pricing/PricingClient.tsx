@@ -149,7 +149,7 @@ export default function PricingClient() {
       </div>
 
       {/* Grid of Luxurious Pricing Cards */}
-      <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
         {displayPlans.map((plan) => {
           const isCurrent = currentPlan === plan.id;
           const isExpanded = allFeaturesExpanded;
@@ -187,13 +187,17 @@ export default function PricingClient() {
               footer={
                 <button
                   type="button"
-                  disabled={isCurrent || configLoading}
-                  onClick={() => handleAction()}
+                  disabled={configLoading}
+                  onClick={() => {
+                    if (isCurrent) return;
+                    handleAction();
+                  }}
                   className={cn(
-                    "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full py-3 text-xs font-bold tracking-wider uppercase transition-all duration-300 active:scale-[0.98]",
+                    "inline-flex w-full items-center justify-center gap-2 rounded-full py-3 text-xs font-bold tracking-wider uppercase transition-all duration-300 active:scale-[0.98]",
+                    isCurrent ? "cursor-default" : "cursor-pointer",
                     isCurrent
                       ? cn(
-                          "shadow-inner disabled:opacity-100",
+                          "shadow-inner opacity-100",
                           plan.id === "free_trial" &&
                             "border border-emerald-500/30 bg-emerald-600/15 text-emerald-300",
                           plan.id === "free" &&
