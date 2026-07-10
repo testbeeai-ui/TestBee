@@ -31,6 +31,10 @@
   --eb-red: #E24B4A;
   --eb-rl: #F09595;
   --eb-rb: #1F0E0E;
+  --blue: var(--eb-blue);
+  --teal: var(--eb-teal);
+  --purple: var(--eb-purple);
+  --amber: var(--eb-amber);
 }
 
 .container {
@@ -329,7 +333,7 @@
 
 .drawer {
   position: fixed;
-  top: 52px;
+  top: 56px;
   right: 0;
   bottom: 0;
   width: 340px;

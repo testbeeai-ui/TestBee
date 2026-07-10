@@ -36,7 +36,6 @@ import { SitePresenceProvider } from "@/components/providers/SitePresenceProvide
 import { cn } from "@/lib/utils";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import StudentRdmWalletDialog from "@/components/wallet/StudentRdmWalletDialog";
-import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { requestOpenSiteTourCarousel } from "@/lib/onboarding/openSiteTourCarousel";
 
 interface AppLayoutProps {
@@ -128,13 +127,12 @@ function shouldShowStudentDashboardSidebar(
     isTeacher: boolean;
     fullBleed: boolean;
     hideTopNav: boolean;
-    onboardingComplete: boolean;
   }
 ): boolean {
-  if (opts.isTeacher || opts.fullBleed || opts.hideTopNav || !opts.onboardingComplete) {
+  if (opts.isTeacher || opts.fullBleed || opts.hideTopNav) {
     return false;
   }
-  // The sidebar is restricted and shown in dashboard only (pathname === "/home" && page=dashboard)
+  // DashboardLayout owns the actual sidebar; AppLayout only offsets shared chrome.
   return pathname === "/home" && homeTab === "dashboard";
 }
 
@@ -183,11 +181,10 @@ const AppLayout = ({
   const isDashboardNavActive = homeTab === "dashboard";
   const isRedesignedLayout = pathname === "/home" && homeTab !== "dashboard";
   const isAboutNavActive = pathname === "/contact" || pathname.startsWith("/contact/");
-  const showStudentDashboardSidebar = shouldShowStudentDashboardSidebar(pathname, homeTab, {
+  const hasStudentDashboardSidebar = shouldShowStudentDashboardSidebar(pathname, homeTab, {
     isTeacher,
     fullBleed,
     hideTopNav,
-    onboardingComplete: profile?.onboarding_complete === true,
   });
 
   const initials = (() => {
@@ -769,8 +766,6 @@ const AppLayout = ({
           </>
         )}
 
-        {showStudentDashboardSidebar ? <DashboardSidebar /> : null}
-
         {/* Content */}
         <main
           className={cn(
@@ -789,7 +784,7 @@ const AppLayout = ({
                       )
                     : "max-w-7xl px-4 lg:px-5 2xl:px-6"
                 ),
-            showStudentDashboardSidebar && !fullBleed && "lg:ml-[52px]",
+            hasStudentDashboardSidebar && !fullBleed && "lg:ml-[52px]",
             !isRedesignedLayout && !hideTopNav &&
               !wideMain &&
               !fullBleed &&
@@ -833,7 +828,7 @@ const AppLayout = ({
           <footer
             className={cn(
               "border-t border-border/60 bg-card/40 py-3 lg:py-4 2xl:py-5",
-              showStudentDashboardSidebar && "lg:ml-[52px]"
+              hasStudentDashboardSidebar && "lg:ml-[52px]"
             )}
           >
             <div className="max-w-7xl mx-auto px-4 lg:px-5 2xl:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 text-xs text-muted-foreground">

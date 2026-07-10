@@ -148,6 +148,7 @@ Anything that is not Next.js / tooling config now lives under:
 | Setup | `mobileapp/README.md`, `mobileapp/.env.example` |
 
 ## Decisions Log
+- 2026-07-10: **Dashboard sidebar PR fixes** — AppLayout no longer mounts a duplicate dashboard rail, dashboard active state handles `?page=dashboard`, drawer icon color aliases are global, and fixed chrome offsets match the 56px nav.
 - 2026-07-03: **Gyan++ daily checklist panel** — centered modal, opaque bg (no feed bleed-through), progress segments, shorter copy, compact timer.
 - 2026-07-03: **Community Wall polish** — tighter nav-to-content spacing, compact typography, Gyan++ `DoubtVotePill` likes on posts, hover-scroll right rail with full widget stack visible.
 - 2026-07-03: **Community Wall UI** — top nav News & Blogs → Community (`/explore/community`); 3-column shell (sidebar, hero+compose+feed, right widgets w/o Who to Follow); `RawFeedPostCard`/`RawCommunityFeed` reskin + sort/post-type filters; deep links from curriculum → `/explore/community?focusPost=`. — ran `npm install`; verified `node`, `npm`, `python`, `modal`, `hivemind`; installed global `supabase` CLI; initialized and indexed `codegraph` for this repo. `hivemind graph build` works, but `hivemind graph init` still reports a PATH-detection issue in this shell.
