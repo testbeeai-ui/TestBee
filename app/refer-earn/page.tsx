@@ -144,7 +144,7 @@ const REWARD_USE_BASE: ReadonlyArray<{
     configKey: "redeem_analytics_pro_from_rdm",
   },
   {
-    title: "EduFund Entry",
+    title: "Edufundz Entry",
     emoji: "🏆",
     titleClass: "text-rose-300",
     borderClass: "border-rose-500/30",
@@ -155,7 +155,7 @@ const REWARD_USE_BASE: ReadonlyArray<{
 const GRANT_TIER_KEYS = ["sprout", "scholar", "champion", "elite", "masterblaster"] as const;
 const GRANT_TIER_ICONS = ["🌱", "📚", "🏆", "🚀", "👑"] as const;
 
-/** EduFund grant tiers — thresholds and ₹ unlocked from `EDUFUND_RDM_GATES` only. */
+/** Edufundz grant tiers — thresholds and ₹ unlocked from `EDUFUND_RDM_GATES` only. */
 const GRANT_TIERS = EDUFUND_RDM_GATES.map((g, i) => ({
   key: GRANT_TIER_KEYS[i]!,
   name: g.name,
@@ -432,7 +432,7 @@ function ReferEarnPageContent() {
     return [
       {
         q: "What uses RDM?",
-        a: `RDM can be redeemed for Practice Packs (from ${formatInt(pp)} RDM), Full Mock Tests (from ${formatInt(mt)} RDM), Analytics Pro (from ${formatInt(ap)} RDM), and EduFund scholarship entries (from ${formatInt(ef)} RDM). More rewards are added regularly.`,
+        a: `RDM can be redeemed for Practice Packs (from ${formatInt(pp)} RDM), Full Mock Tests (from ${formatInt(mt)} RDM), Analytics Pro (from ${formatInt(ap)} RDM), and Edufundz scholarship entries (from ${formatInt(ef)} RDM). More rewards are added regularly.`,
       },
       {
         q: "How many RDM do I get per referral?",
@@ -913,7 +913,7 @@ function ReferEarnPageContent() {
               {tab === "tiers" ? (
                 <div className="space-y-3">
                   <p className={cn("flex items-center gap-2", reLabel)}>
-                    <span>EduFund grant tiers</span>
+                    <span>Edufundz grant tiers</span>
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
                   <div className="space-y-2">

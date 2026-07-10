@@ -75,10 +75,10 @@ export const PLAN_TIERS: PlanTier[] = [
         ],
       },
       {
-        title: "EduFund & Profile",
+        title: "Edufundz & Profile",
         items: [
-          { name: "EduFund preview", checked: true },
-          { name: "EduFund application access", checked: false },
+          { name: "Edufundz preview", checked: true },
+          { name: "Edufundz application access", checked: false },
           { name: "News & blog", checked: true, badge: "full access" },
         ],
       },
@@ -129,10 +129,10 @@ export const PLAN_TIERS: PlanTier[] = [
         ],
       },
       {
-        title: "EduFund & Profile",
+        title: "Edufundz & Profile",
         items: [
-          { name: "EduFund preview", checked: true },
-          { name: "EduFund application access", checked: false },
+          { name: "Edufundz preview", checked: true },
+          { name: "Edufundz application access", checked: false },
           { name: "News & blog", checked: true, badge: "full access" },
         ],
       },
@@ -185,9 +185,9 @@ export const PLAN_TIERS: PlanTier[] = [
         ],
       },
       {
-        title: "EduFund & Profile",
+        title: "Edufundz & Profile",
         items: [
-          { name: "EduFund scholar tiers", checked: true },
+          { name: "Edufundz scholar tiers", checked: true },
           { name: "Full activity track record", checked: true },
           { name: "News & blog", checked: true, badge: "full access" },
           { name: "Merit prize eligibility", checked: true },
@@ -242,9 +242,9 @@ export const PLAN_TIERS: PlanTier[] = [
         ],
       },
       {
-        title: "EduFund & Profile",
+        title: "Edufundz & Profile",
         items: [
-          { name: "EduFund all tiers", checked: true },
+          { name: "Edufundz all tiers", checked: true },
           { name: "NGO portfolio priority", checked: true },
           { name: "Merit prize + Ace Champ", checked: true },
           { name: "Priority guest lecture invites", checked: true },

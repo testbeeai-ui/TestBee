@@ -17,11 +17,11 @@ export const metadata: Metadata = {
     template: "%s | EduBlast",
   },
   description:
-    "Gamify your PUC & JEE prep. Ask doubts to AI, solve adaptive mocks, earn RDM coins, and unlock EduFund scholarship grants with byte-sized learning!",
+    "Gamify your PUC & JEE prep. Ask doubts to AI, solve adaptive mocks, earn RDM coins, and unlock Edufundz scholarship grants with byte-sized learning!",
   openGraph: {
     title: "EduBlast — India's AI-Powered Learning Social Network",
     description:
-      "Gamify your PUC & JEE prep. Ask doubts to AI, solve adaptive mocks, earn RDM coins, and unlock EduFund scholarship grants with byte-sized learning!",
+      "Gamify your PUC & JEE prep. Ask doubts to AI, solve adaptive mocks, earn RDM coins, and unlock Edufundz scholarship grants with byte-sized learning!",
     type: "website",
     locale: "en_IN",
     url: "https://edublast.in",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "EduBlast — India's AI-Powered Learning Social Network",
     description:
-      "Gamify your PUC & JEE prep. Ask doubts to AI, solve adaptive mocks, earn RDM coins, and unlock EduFund scholarship grants with byte-sized learning!",
+      "Gamify your PUC & JEE prep. Ask doubts to AI, solve adaptive mocks, earn RDM coins, and unlock Edufundz scholarship grants with byte-sized learning!",
     images: ["https://edublast.in/images/logo-2.png"],
   },
 };

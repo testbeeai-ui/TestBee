@@ -221,7 +221,7 @@ export default function SubscriptionCancel({ profile, onNavigate }: Props) {
               "Testbee adaptive mocks — reverts to 3 mocks/month",
               "Full Instacue library — limited to 20 saved cards",
               "Live lessons access — loses enrolment ability",
-              "EduFund Starter eligibility — reverts to Sprout tier",
+              "Edufundz Starter eligibility — reverts to Sprout tier",
             ].map((item) => (
               <div key={item} className="flex items-start gap-2 text-xs text-rose-300/80">
                 <X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" />
@@ -265,7 +265,7 @@ export default function SubscriptionCancel({ profile, onNavigate }: Props) {
             "Testbee adaptive mocks — reverts to 3 mocks/month",
             "Full Instacue library — limited to 20 saved cards",
             "Live lessons access — loses enrolment ability",
-            "EduFund Starter eligibility — reverts to Sprout tier",
+            "Edufundz Starter eligibility — reverts to Sprout tier",
           ].map((item) => (
             <div key={item} className="flex items-start gap-1.5 text-xs text-rose-300/80">
               <X className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
@@ -315,7 +315,7 @@ export default function SubscriptionCancel({ profile, onNavigate }: Props) {
             )}
             <div className="flex items-start gap-1.5">
               <Heart className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-              Your EduFund grant eligibility resets if you drop below Starter tier — you have earned RDM rewards.
+              Your Edufundz grant eligibility resets if you drop below Starter tier — you have earned RDM rewards.
             </div>
           </div>
         </div>

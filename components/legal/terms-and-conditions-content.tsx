@@ -140,7 +140,7 @@ export function TermsAndConditionsContent({ scrollContainerId }: { scrollContain
           digital points system issued by EduBlast to Users for qualifying activity on the Platform.
         </li>
         <li>
-          <strong>&quot;EduFund&quot;</strong> means EduBlast&apos;s grant eligibility programme
+          <strong>&quot;Edufundz&quot;</strong> means EduBlast&apos;s grant eligibility programme
           through which qualifying Users may access financial aid from partner organisations.
         </li>
         <li>
@@ -289,7 +289,7 @@ export function TermsAndConditionsContent({ scrollContainerId }: { scrollContain
         any content you post on the Platform.
       </p>
 
-      <SectionHeading id="tnc-6">6. RDM rewards system and EduFund</SectionHeading>
+      <SectionHeading id="tnc-6">6. RDM rewards system and Edufundz</SectionHeading>
       <HighlightBox color="teal" title="Important — RDM is not currency">
         <p className="text-sm leading-relaxed text-white/50">
           RDM (Reward and Development Marks) are non-monetary digital points issued by EduBlast as a
@@ -314,17 +314,17 @@ export function TermsAndConditionsContent({ scrollContainerId }: { scrollContain
           termination.
         </li>
         <li>
-          <strong>EduFund is not a guaranteed scholarship.</strong> Accumulating sufficient RDM and
+          <strong>Edufundz is not a guaranteed scholarship.</strong> Accumulating sufficient RDM and
           meeting activity thresholds makes a User eligible to apply for consideration, but does not
-          guarantee receipt of financial aid. Grant decisions rest with EduBlast&apos;s EduFund
+          guarantee receipt of financial aid. Grant decisions rest with EduBlast&apos;s Edufundz
           committee and partner organisations.
         </li>
         <li>
-          EduFund grant disbursement is subject to verified financial need, accurate submission of
+          Edufundz grant disbursement is subject to verified financial need, accurate submission of
           supporting documents, and continued compliance with these Terms.
         </li>
         <li>
-          Providing false information in an EduFund application is grounds for immediate account
+          Providing false information in an Edufundz application is grounds for immediate account
           termination and may constitute fraud under applicable law.
         </li>
         <li>
@@ -441,7 +441,7 @@ export function TermsAndConditionsContent({ scrollContainerId }: { scrollContain
           illegal content, child safety, or platform security.
         </li>
         <li>
-          Upon termination, your access to the Platform ceases immediately. RDM balances and EduFund
+          Upon termination, your access to the Platform ceases immediately. RDM balances and Edufundz
           eligibility are forfeited.
         </li>
         <li>

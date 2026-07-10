@@ -219,7 +219,7 @@ export const ONBOARDING_TASK_TOAST_LINES: Record<string, string> = {
   earn_buddy: "You invited a learning buddy!",
   earn_challenge: "You started a challenge!",
   news_blog: "You read a news article or blog post!",
-  edufund: "You clicked Create Proposal on EduFund!",
+  edufund: "You clicked Create Proposal on Edufundz!",
   profile: "You completed your basic profile info!",
   play_dailydose: "You finished today's DailyDose!",
 };
@@ -1075,7 +1075,7 @@ export function maybeMarkPrepClassesOnboardingFromExplore(): void {
   maybeMarkPrepClassesOnboardingFromClassroomsVisit();
 }
 
-/** EduFund Create Proposal — step 2 when companion active, else legacy full row. */
+/** Edufundz Create Proposal — step 2 when companion active, else legacy full row. */
 export function maybeMarkEdufundOnboardingFromCreateProposal(): void {
   if (getOnboardingProgress().edufund) return;
   if (isOnboardingTaskCompanionLaunched("edufund")) {

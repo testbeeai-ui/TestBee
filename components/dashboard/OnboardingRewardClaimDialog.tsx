@@ -27,7 +27,7 @@ const ONBOARDING_TASK_LABELS: Record<string, string> = {
   earn_buddy: "Earn & Learn · Buddy",
   earn_challenge: "Earn & Learn · Challenge",
   news_blog: "News & Blogs",
-  edufund: "EduFund",
+  edufund: "Edufundz",
   profile: "Profile",
 };
 
@@ -141,7 +141,7 @@ export function OnboardingRewardClaimDialog({
           <div className="flex items-center gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3">
             <Coins className="h-5 w-5 shrink-0 text-amber-300" aria-hidden />
             <p className="text-left text-xs leading-relaxed text-amber-100/90">
-              Use your RDM toward EduFund grants, mock tests, and other rewards across EduBlast.
+              Use your RDM toward Edufundz grants, mock tests, and other rewards across EduBlast.
             </p>
           </div>
           <Button

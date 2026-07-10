@@ -2517,7 +2517,7 @@ export function OnboardingRewardDialog({
                   </div>
                   <div className="el-row">
                     <div className="el-dot" />
-                    <span>Streak progress towards EduFund grant</span>
+                    <span>Streak progress towards Edufundz grant</span>
                   </div>
                 </div>
                 <div

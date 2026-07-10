@@ -562,7 +562,7 @@ export function FreeTrialPromoDialog({
                     icon={<Heart className="h-[15px] w-[15px]" />}
                     iconBg="bg-[#281C08]"
                     iconColor="#FAC775"
-                    text="EduFund grant preview — track your path to ₹3,000"
+                    text="Edufundz grant preview — track your path to ₹3,000"
                   />
                 </div>
               </div>
@@ -1132,7 +1132,7 @@ export function FreeTrialPromoDialog({
                       {welcomeRdm} RDM welcome bonus
                     </p>
                     <p className="mt-0.5 text-[11px] text-[#1D9E75]">
-                      Credited the moment you press Start — use it to reach EduFund grants faster.
+                      Credited the moment you press Start — use it to reach Edufundz grants faster.
                     </p>
                   </div>
                 </div>
@@ -1244,8 +1244,8 @@ export function FreeTrialPromoDialog({
                   iconColor="#FAC775"
                   text={
                     <>
-                      <strong className="text-[#E8EAF0]">Unlock my journey</strong> → for EduFund
-                      Sprout Grant (₹3,000). Conditions apply - check under EduFund menu
+                      <strong className="text-[#E8EAF0]">Unlock my journey</strong> → for Edufundz
+                      Sprout Grant (₹3,000). Conditions apply - check under Edufundz menu
                     </>
                   }
                   rdm="₹3,000"

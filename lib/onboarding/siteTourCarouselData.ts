@@ -795,7 +795,7 @@ export const SITE_TOUR_CAROUSEL_MENUS: SiteTourMenu[] = [
   },
   {
     "id": "ef",
-    "lbl": "EduFund",
+    "lbl": "Edufundz",
     "ico": "ti-heart",
     "c": "#1D9E75",
     "bg": "#0A2A20",
@@ -804,13 +804,13 @@ export const SITE_TOUR_CAROUSEL_MENUS: SiteTourMenu[] = [
     "subs": [
       {
         "id": "ef1",
-        "lbl": "Unlock EduFund",
+        "lbl": "Unlock Edufundz",
         "ico": "ti-stairs-up",
         "c": "#9FE1CB",
         "rdm": 10,
         "tip": "₹3K → ₹12K → ₹50K",
-        "ey": "EduFund · Unlock",
-        "ti": "5 steps to unlock EduFund grants",
+        "ey": "Edufundz · Unlock",
+        "ti": "5 steps to unlock Edufundz grants",
         "de": "Step 1: Subscribe. Step 2: Earn effective RDM daily. Step 3: Reach Sprout (5,000 eff. RDM + 60 active days = ₹3,000). Step 4: Submit proposal. Step 5: Donor reviews and awards.",
         "rows": [
           {
@@ -920,7 +920,7 @@ export const SITE_TOUR_CAROUSEL_MENUS: SiteTourMenu[] = [
         "tip": "Learning currency",
         "ey": "RDM Wallet · Explainer",
         "ti": "What is RDM?",
-        "de": "RDM (Reward and Motivation) is EduBlast's learning currency. Effective RDM = face value × subscription multiplier. Determines EduFund grant eligibility.",
+        "de": "RDM (Reward and Motivation) is EduBlast's learning currency. Effective RDM = face value × subscription multiplier. Determines Edufundz grant eligibility.",
         "rows": [
           {
             "i": "ti-coin",
@@ -945,7 +945,7 @@ export const SITE_TOUR_CAROUSEL_MENUS: SiteTourMenu[] = [
         "tip": "Balance · log",
         "ey": "RDM Wallet · Breakdown",
         "ti": "Your RDM breakdown",
-        "de": "Shows: earned this week, total balance, active multiplier, effective EduFund RDM, and 30-day activity log with every earn and deduct event.",
+        "de": "Shows: earned this week, total balance, active multiplier, effective Edufundz RDM, and 30-day activity log with every earn and deduct event.",
         "rows": [
           {
             "i": "ti-chart-pie",
@@ -1001,7 +1001,7 @@ export const SITE_TOUR_CAROUSEL_MENUS: SiteTourMenu[] = [
     "c": "#AFA9EC",
     "bg": "#171425",
     "bd": "#AFA9EC",
-    "desc": "Personal info, academics, EduFund, saved posts",
+    "desc": "Personal info, academics, edufund, saved posts",
     "subs": [
       {
         "id": "pr1",
@@ -1012,7 +1012,7 @@ export const SITE_TOUR_CAROUSEL_MENUS: SiteTourMenu[] = [
         "tip": "Info · academics · saved",
         "ey": "Profile · All sections",
         "ti": "Your complete profile",
-        "de": "Six sections: Personal Info, Academic Record, Subscription Status, Activity Track Record, Saved Posts, and EduFund Proposal status.",
+        "de": "Six sections: Personal Info, Academic Record, Subscription Status, Activity Track Record, Saved Posts, and Edufundz Proposal status.",
         "rows": [
           {
             "i": "ti-user",
@@ -1029,7 +1029,7 @@ export const SITE_TOUR_CAROUSEL_MENUS: SiteTourMenu[] = [
           {
             "i": "ti-heart",
             "c": "#EF9F27",
-            "t": "EduFund proposal + track record",
+            "t": "Edufundz proposal + track record",
             "b": "ba"
           },
           {
@@ -1079,7 +1079,7 @@ export function siteTourWhatIsRdmSlide(
       `RDM (Reward and Motivation) is EduBlast's learning currency. ` +
       `Complete the full Site-tour to receive +${claimRdm} RDM once to your wallet. ` +
       `The header counter adds up to ${counterTotal} RDM as you read each feature — that tally is progress only, not extra payouts on top of the +${claimRdm} reward. ` +
-      `Effective RDM = face value × subscription multiplier (EduFund eligibility).`,
+      `Effective RDM = face value × subscription multiplier (Edufundz eligibility).`,
     rows: [
       ...sub.rows,
       {

@@ -133,7 +133,7 @@ export default function TermsConditionsOverviewPage() {
           </div>
           <p className="text-xs leading-relaxed text-white/50">
             Governs user eligibility, account rules, content standards, platform use, subscriptions,
-            RDM rewards, EduFund, teacher accounts, AI features, liability, and dispute resolution.
+            RDM rewards, edufund, teacher accounts, AI features, liability, and dispute resolution.
           </p>
           <div className="mt-2.5 text-[11px] text-[#1D9E75]">
             12 sections &middot; click to open <i className="ti ti-arrow-right text-xs" />

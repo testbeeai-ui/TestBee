@@ -22,7 +22,7 @@ export interface Proposal {
   badges: ProposalBadge[];
 }
 
-/** 5 dummy proposals for EduFund feed. profileId resolved at render (use user?.id). */
+/** 5 dummy proposals for Edufundz feed. profileId resolved at render (use user?.id). */
 export const DUMMY_PROPOSALS: Proposal[] = [
   {
     id: "1",

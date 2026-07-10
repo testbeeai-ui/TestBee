@@ -3,14 +3,14 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Contact Support & Institutional Partnerships",
   description:
-    "Need help with your student account, RDM coins, or EduFund grants? Connect with the EduBlast support desk or explore coaching partnership programs.",
+    "Need help with your student account, RDM coins, or Edufundz grants? Connect with the EduBlast support desk or explore coaching partnership programs.",
   alternates: {
     canonical: "https://edublast.in/contact",
   },
   openGraph: {
     title: "Contact Support & Institutional Partnerships | EduBlast",
     description:
-      "Need help with your student account, RDM coins, or EduFund grants? Connect with the EduBlast support desk or explore coaching partnership programs.",
+      "Need help with your student account, RDM coins, or Edufundz grants? Connect with the EduBlast support desk or explore coaching partnership programs.",
     url: "https://edublast.in/contact",
     type: "website",
     images: [
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Contact Support & Institutional Partnerships | EduBlast",
     description:
-      "Need help with your student account, RDM coins, or EduFund grants? Connect with the EduBlast support desk or explore coaching partnership programs.",
+      "Need help with your student account, RDM coins, or Edufundz grants? Connect with the EduBlast support desk or explore coaching partnership programs.",
     images: ["https://edublast.in/images/logo-2.png"],
   },
 };

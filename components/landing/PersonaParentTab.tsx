@@ -34,7 +34,7 @@ export default function PersonaParentTab() {
         ))}
       </div>
 
-      {/* Right: activity dashboard + EduFund */}
+      {/* Right: activity dashboard + Edufundz */}
       <div>
         {/* Activity grid */}
         <div className="bg-gray-50 border border-gray-200/60 rounded-xl p-[14px_16px] mb-3">
@@ -72,9 +72,9 @@ export default function PersonaParentTab() {
           </div>
         </div>
 
-        {/* EduFund progress note */}
+        {/* Edufundz progress note */}
         <div className="bg-[#FAEEDA] rounded-lg p-3 text-sm text-[#412402] leading-[1.7]">
-          <p className="font-medium mb-1">EduFund progress</p>
+          <p className="font-medium mb-1">Edufundz progress</p>
           <p>
             1,740 RDM accumulated &middot; Trial multiplier: 0.25&times; &middot; Reaching Sprout (5,000 effective RDM) requires 20,000 raw RDM. Upgrading your child to a premium plan applies a 1.0&times; or higher multiplier &mdash; making them eligible for up to &#8377;50,000 in grants!
           </p>

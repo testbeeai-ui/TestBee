@@ -1,0 +1,608 @@
+/* AppLayout Redesigned Student Navbar & Drawer Styles */
+
+/* CSS variables must be on :root so the nav + drawer (siblings of .container) can inherit them */
+:root {
+  --eb-navy: #0A0F1E;
+  --eb-navy2: #0F1729;
+  --eb-navy3: #141E33;
+  --eb-navy4: #1A2540;
+  --eb-card: #141E33;
+  --eb-card2: #1A2540;
+  --eb-card3: #1F2C4A;
+  --eb-b1: #263352;
+  --eb-b2: #2E3D60;
+  --eb-t1: #E8EAF0;
+  --eb-t2: #9BA3B8;
+  --eb-t3: #5C6480;
+  --eb-teal: #1D9E75;
+  --eb-tl: #9FE1CB;
+  --eb-tb: #0A2A20;
+  --eb-td: #0F6E56;
+  --eb-amber: #EF9F27;
+  --eb-al: #FAC775;
+  --eb-ab: #281C08;
+  --eb-purple: #7F77DD;
+  --eb-pl: #AFA9EC;
+  --eb-pb: #171425;
+  --eb-blue: #378ADD;
+  --eb-bl: #85B7EB;
+  --eb-bb: #0D1E30;
+  --eb-pink: #D4537E;
+  --eb-red: #E24B4A;
+  --eb-rl: #F09595;
+  --eb-rb: #1F0E0E;
+}
+
+.container {
+  --navy: var(--eb-navy);
+  --navy2: var(--eb-navy2);
+  --navy3: var(--eb-navy3);
+  --navy4: var(--eb-navy4);
+  --card: var(--eb-card);
+  --card2: var(--eb-card2);
+  --card3: var(--eb-card3);
+  --b1: var(--eb-b1);
+  --b2: var(--eb-b2);
+  --t1: var(--eb-t1);
+  --t2: var(--eb-t2);
+  --t3: var(--eb-t3);
+  --teal: var(--eb-teal);
+  --tl: var(--eb-tl);
+  --tb: var(--eb-tb);
+  --td: var(--eb-td);
+  --amber: var(--eb-amber);
+  --al: var(--eb-al);
+  --ab: var(--eb-ab);
+  --purple: var(--eb-purple);
+  --pl: var(--eb-pl);
+  --pb: var(--eb-pb);
+  --blue: var(--eb-blue);
+  --bl: var(--eb-bl);
+  --bb: var(--eb-bb);
+  --pink: var(--eb-pink);
+  --red: var(--eb-red);
+  --rl: var(--eb-rl);
+  --rb: var(--eb-rb);
+}
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--nav-bg, rgba(10, 15, 30, 0.96));
+  backdrop-filter: blur(14px);
+  border-bottom: var(--nav-border, .5px solid var(--eb-b1));
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px 0 12px;
+  gap: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.navLogo {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 128px;
+  height: 34px;
+  margin-right: 10px;
+  overflow: hidden;
+  text-decoration: none;
+  transition: opacity 0.12s;
+}
+
+.navLogo:hover {
+  opacity: 0.85;
+}
+
+.navLogoImage {
+  display: block;
+  width: auto;
+  height: 34px;
+  max-width: none;
+  object-fit: contain;
+  object-position: left center;
+  margin-left: -5px;
+}
+
+.navLinks {
+  display: flex;
+  gap: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.nl {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: all 0.12s;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.nl:hover {
+  color: #ffffff;
+}
+
+.nl.on {
+  color: var(--eb-teal);
+  border-bottom-color: var(--eb-teal);
+}
+
+/* Tab Underline Colors */
+.nlInfo.on {
+  color: var(--eb-blue);
+  border-bottom-color: var(--eb-blue);
+}
+.nlPrep.on {
+  color: var(--eb-teal);
+  border-bottom-color: var(--eb-teal);
+}
+.nlFun.on {
+  color: var(--eb-purple);
+  border-bottom-color: var(--eb-purple);
+}
+.nlEarn.on {
+  color: var(--eb-amber);
+  border-bottom-color: var(--eb-amber);
+}
+
+.navRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.tourBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: .5px solid var(--eb-b2);
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--eb-t2);
+  white-space: nowrap;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.tourBtn:hover {
+  border-color: var(--eb-amber);
+  color: var(--eb-al);
+}
+
+.tourBtn i {
+  font-size: 13px;
+  color: var(--eb-al);
+}
+
+.tourLabel {
+  font-size: 12px;
+  color: inherit;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tourRdmBadge {
+  font-size: 8px;
+  font-weight: 800;
+  color: var(--eb-al);
+  background: rgba(239, 159, 39, 0.15);
+  border: 0.5px solid var(--eb-amber);
+  border-radius: 4px;
+  padding: 0 4px;
+  line-height: 1.2;
+  margin-left: 2px;
+}
+
+.signoutBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: .5px solid var(--eb-b2);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--eb-t2);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+.signoutBtn:hover {
+  border-color: var(--eb-red);
+  color: var(--eb-rl);
+}
+
+.signoutBtn i {
+  font-size: 13px;
+}
+
+.rdmBadge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(239, 159, 39, 0.12);
+  border: .5px solid var(--eb-amber);
+  border-radius: 20px;
+  padding: 4px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--eb-al);
+  cursor: pointer;
+}
+
+.rdmBadge i {
+  font-size: 13px;
+  color: var(--eb-amber);
+}
+
+.bellBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: .5px solid var(--eb-b1);
+  background: var(--eb-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.navAv {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--eb-teal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.burgerBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: .5px solid var(--eb-b1);
+  background: var(--eb-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.burgerBtn:hover, .burgerBtn.open {
+  background: var(--eb-card2);
+  border-color: var(--eb-b2);
+}
+
+.burgerBtn i {
+  font-size: 17px;
+  color: var(--eb-t2);
+}
+
+/* Drawer styles */
+.drawerBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 90;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.drawerBackdrop.on {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.drawer {
+  position: fixed;
+  top: 52px;
+  right: 0;
+  bottom: 0;
+  width: 340px;
+  background: var(--eb-card);
+  border-left: .5px solid var(--eb-b1);
+  z-index: 95;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  scrollbar-width: thin;
+  scrollbar-color: var(--eb-b1) transparent;
+}
+
+.drawer.on {
+  transform: translateX(0);
+}
+
+.drawerHead {
+  padding: 20px 20px 12px;
+  border-bottom: .5px solid var(--eb-b1);
+}
+
+.drawerTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--eb-t1);
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.drawerTitle i {
+  font-size: 16px;
+  color: var(--eb-teal);
+}
+
+.drawerSub {
+  font-size: 11px;
+  color: var(--eb-t3);
+}
+
+.dsec {
+  padding: 14px 0 6px;
+}
+
+.dsecHdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px 8px;
+  cursor: pointer;
+}
+
+.dsecIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dsecIcon i {
+  font-size: 15px;
+}
+
+.dsecLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  flex: 1;
+}
+
+.dsecTagline {
+  font-size: 10px;
+  color: var(--eb-t3);
+  margin-left: auto;
+}
+
+.dsecChevron {
+  font-size: 13px;
+  color: var(--eb-t3);
+  transition: transform 0.18s;
+}
+
+.dsecChevron.open {
+  transform: rotate(180deg);
+}
+
+.dsecItems {
+  overflow: hidden;
+  transition: max-height 0.22s ease;
+}
+
+.dsecInfo .dsecIcon {
+  background: rgba(55, 138, 221, 0.12);
+  border: .5px solid rgba(55, 138, 221, 0.2);
+}
+.dsecInfo .dsecIcon i {
+  color: var(--eb-blue);
+}
+.dsecInfo .dsecLabel {
+  color: var(--eb-blue);
+}
+
+.dsecPrep .dsecIcon {
+  background: rgba(29, 158, 117, 0.12);
+  border: .5px solid rgba(29, 158, 117, 0.2);
+}
+.dsecPrep .dsecIcon i {
+  color: var(--eb-teal);
+}
+.dsecPrep .dsecLabel {
+  color: var(--eb-teal);
+}
+
+.dsecFun .dsecIcon {
+  background: rgba(127, 119, 221, 0.12);
+  border: .5px solid rgba(127, 119, 221, 0.2);
+}
+.dsecFun .dsecIcon i {
+  color: var(--eb-purple);
+}
+.dsecFun .dsecLabel {
+  color: var(--eb-purple);
+}
+
+.dsecEarn .dsecIcon {
+  background: rgba(239, 159, 39, 0.12);
+  border: .5px solid rgba(239, 159, 39, 0.2);
+}
+.dsecEarn .dsecIcon i {
+  color: var(--eb-amber);
+}
+.dsecEarn .dsecLabel {
+  color: var(--eb-amber);
+}
+
+.ditem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px 10px 28px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-radius: 0;
+  text-decoration: none;
+}
+
+.ditem:hover {
+  background: var(--eb-card2);
+}
+
+.ditemIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ditemIcon i {
+  font-size: 14px;
+}
+
+.ditemBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.ditemName {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--eb-t1);
+}
+
+.ditemDesc {
+  font-size: 10px;
+  color: var(--eb-t3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ditemArrow {
+  font-size: 13px;
+  color: var(--eb-t3);
+  flex-shrink: 0;
+}
+
+.ddiv {
+  height: .5px;
+  background: var(--eb-b1);
+  margin: 4px 20px;
+}
+
+/* Desktop and mobile responsive layouts for navbar controls */
+@media (min-width: 1101px) {
+  .navLogo {
+    width: 136px;
+    height: 36px;
+  }
+
+  .navLogoImage {
+    height: 36px;
+    margin-left: -6px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .nl {
+    padding: 0 8px;
+    font-size: 12px;
+  }
+  .navLogo {
+    margin-right: 8px;
+    width: 122px;
+    height: 32px;
+  }
+
+  .navLogoImage {
+    height: 32px;
+    margin-left: -5px;
+  }
+}
+
+@media (max-width: 950px) {
+  .tourLabel {
+    display: none;
+  }
+  .tourBtn i {
+    font-size: 14px;
+    margin: 0;
+  }
+  .signoutBtn {
+    padding: 5px;
+  }
+  .signoutBtn span {
+    display: none;
+  }
+  .signoutBtn i {
+    font-size: 14px;
+    margin: 0;
+  }
+  .rdmBadge {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 768px) {
+  .nav {
+    padding-left: 10px;
+  }
+
+  .navLinks {
+    display: none;
+  }
+
+  .navLogo {
+    margin-right: 0;
+    width: 114px;
+    height: 30px;
+  }
+
+  .navLogoImage {
+    height: 30px;
+    margin-left: -4px;
+  }
+}
+

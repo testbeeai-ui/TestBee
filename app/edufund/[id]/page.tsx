@@ -98,7 +98,7 @@ export default function EduFundDetailPage() {
             </p>
             <Link href="/edufund">
               <Button variant="outline" className="rounded-xl">
-                ← Back to EduFund
+                ← Back to Edufundz
               </Button>
             </Link>
           </div>
@@ -147,7 +147,7 @@ export default function EduFundDetailPage() {
             href="/edufund"
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
           >
-            ← Back to EduFund
+            ← Back to Edufundz
           </Link>
 
           <motion.div

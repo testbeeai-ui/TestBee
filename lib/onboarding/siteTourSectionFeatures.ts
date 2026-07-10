@@ -183,7 +183,7 @@ export const SITE_TOUR_SECTION_FEATURES: Record<string, SiteTourSectionFeature[]
       eyebrow: "RDM Wallet · Explainer",
       title: "What is RDM?",
       description:
-        "RDM (Reward and Motivation) is EduBlast's learning currency. Effective RDM = face value × subscription multiplier. Determines EduFund grant eligibility.",
+        "RDM (Reward and Motivation) is EduBlast's learning currency. Effective RDM = face value × subscription multiplier. Determines Edufundz grant eligibility.",
       snapshots: [
         { tablerIcon: "ti-coin", color: "#FAC775", text: "RDM = Reward and Motivation currency", badge: "rdm" },
         { tablerIcon: "ti-star", color: "#1D9E75", text: "Effective RDM = face value × multiplier", badge: "active" },
@@ -198,7 +198,7 @@ export const SITE_TOUR_SECTION_FEATURES: Record<string, SiteTourSectionFeature[]
       eyebrow: "RDM Wallet · Breakdown",
       title: "Your RDM breakdown",
       description:
-        "Shows: earned this week, total balance, active multiplier, effective EduFund RDM, and 30-day activity log with every earn and deduct event.",
+        "Shows: earned this week, total balance, active multiplier, effective Edufundz RDM, and 30-day activity log with every earn and deduct event.",
       snapshots: [
         { tablerIcon: "ti-chart-pie", color: "#EF9F27", text: "Balance · Multiplier · Effective RDM", badge: "rdm" },
         { tablerIcon: "ti-list", color: "#378ADD", text: "30-day log with timestamps", badge: "info" },

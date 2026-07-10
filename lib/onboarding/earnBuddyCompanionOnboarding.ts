@@ -161,7 +161,7 @@ export function reconcileEarnBuddyCompanionSteps(hasInvitedBuddyJoined: boolean)
  * Inviter checklist — verified via GET /api/user/onboarding-reward/earn-buddy-status.
  *
  * IMPORTANT: Only reconcile if the user has actually engaged with the earn_buddy task.
- * Without this guard, opening the checklist dialog after ANY other task (e.g. EduFund)
+ * Without this guard, opening the checklist dialog after ANY other task (e.g. Edufundz)
  * would auto-complete buddy for users who happen to already have an active buddy in the
  * DB — even though they never tapped the Buddy card in the checklist.
  */

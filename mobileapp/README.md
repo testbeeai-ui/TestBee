@@ -72,7 +72,7 @@ Push notifications require a **physical device** and a valid EAS project ID. Emu
 | Gyan++ | ✅ Feed, ask doubt, Prof-Pi detail |
 | Subject Chat | ✅ Prof-Pi chat + quota |
 | Earn & Learn | ✅ Buddy, referrals, leaderboard |
-| EduFund | ✅ Demo proposals (read-only) |
+| edufund | ✅ Demo proposals (read-only) |
 | News & Blogs | ✅ Feeds + article reader |
 | Notifications | ✅ Inbox + push alerts |
 | Profile | ✅ Wallet, stats, activity, subscription summary |

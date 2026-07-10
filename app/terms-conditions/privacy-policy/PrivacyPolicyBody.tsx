@@ -237,7 +237,7 @@ export default function PrivacyPolicyBody() {
               <td className="p-2">User submission</td>
             </tr>
             <tr>
-              <td className="p-2 font-medium text-[#E8EAF0]">EduFund</td>
+              <td className="p-2 font-medium text-[#E8EAF0]">Edufundz</td>
               <td className="p-2">
                 Income certificate, family income declaration, bank details (for disbursement only)
               </td>
@@ -253,7 +253,7 @@ export default function PrivacyPolicyBody() {
           Where data can be anonymised or pseudonymised for a purpose (such as AI model training or
           analytics), we do so by default. You may choose not to provide optional data fields — your
           ability to use core platform features will not be affected, though certain features like
-          EduFund applications require complete information.
+          Edufundz applications require complete information.
         </p>
       </HighlightBox>
 
@@ -279,7 +279,7 @@ export default function PrivacyPolicyBody() {
               <td className="p-2">Contract performance</td>
             </tr>
             <tr className="border-b border-white/10">
-              <td className="p-2">RDM calculation and EduFund eligibility tracking</td>
+              <td className="p-2">RDM calculation and Edufundz eligibility tracking</td>
               <td className="p-2">Activity data, verified documents</td>
               <td className="p-2">Consent + legitimate interest</td>
             </tr>
@@ -289,7 +289,7 @@ export default function PrivacyPolicyBody() {
               <td className="p-2">Contract performance</td>
             </tr>
             <tr className="border-b border-white/10">
-              <td className="p-2">EduFund grant application and disbursement</td>
+              <td className="p-2">Edufundz grant application and disbursement</td>
               <td className="p-2">Income documents, bank details</td>
               <td className="p-2">Explicit consent (separate notice)</td>
             </tr>
@@ -330,7 +330,7 @@ export default function PrivacyPolicyBody() {
           claims.
         </li>
         <li>
-          <strong>EduFund financial documents</strong> (income certificates, bank details): Retained
+          <strong>Edufundz financial documents</strong> (income certificates, bank details): Retained
           for 7 years from the date of the grant application in accordance with financial
           record-keeping requirements under the Income Tax Act.
         </li>
@@ -382,7 +382,7 @@ export default function PrivacyPolicyBody() {
               <td className="p-2">Encryption at rest and transit, DPA</td>
             </tr>
             <tr className="border-b border-white/10">
-              <td className="p-2">Partner NGOs (EduFund)</td>
+              <td className="p-2">Partner NGOs (Edufundz)</td>
               <td className="p-2">Verified portfolio (with explicit consent)</td>
               <td className="p-2">Grant evaluation</td>
               <td className="p-2">Explicit consent required before sharing</td>
@@ -471,7 +471,7 @@ export default function PrivacyPolicyBody() {
           Act.
         </li>
         <li>
-          Consent for sensitive purposes (EduFund financial documents, AI model training, marketing
+          Consent for sensitive purposes (Edufundz financial documents, AI model training, marketing
           communications) is obtained through an explicit opt-in mechanism with a separate notice.
         </li>
         <li>

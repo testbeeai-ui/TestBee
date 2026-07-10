@@ -26,7 +26,7 @@ export function EduFundHomeScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>EduFund</Text>
+        <Text style={styles.title}>Edufundz</Text>
         <Text style={styles.subtitle}>Turn RDM into learning grants. Same tiers as the website.</Text>
 
         <View style={styles.walletCard}>

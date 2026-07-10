@@ -1412,7 +1412,7 @@ export default function StudentHomeDashboard() {
     return Math.round(diffMs / (24 * 60 * 60 * 1000));
   })();
 
-  /** Effective multiplier for the EduFund flyout. */
+  /** Effective multiplier for the Edufundz flyout. */
   const edufundWallet = Math.max(0, Math.floor(Number(rdm) || 0));
   const edufundPlanKey = normalizePlanTier(
     profile?.plan_tier,
@@ -1553,7 +1553,7 @@ export default function StudentHomeDashboard() {
                   </span>
                 </div>
                 <div className="flex justify-between border-b border-border/60 py-1.5 text-muted-foreground">
-                  <span>Effective EduFund RDM</span>
+                  <span>Effective Edufundz RDM</span>
                   <span className="font-semibold text-emerald-500">
                     {edufundEffective.toLocaleString("en-IN")} RDM
                   </span>
@@ -1565,7 +1565,7 @@ export default function StudentHomeDashboard() {
             ) : null}
           </div>
 
-          {/* 2. EduFund flyout */}
+          {/* 2. Edufundz flyout */}
           <div className="relative" data-icon-flyout>
             <button
               type="button"
@@ -1577,22 +1577,22 @@ export default function StudentHomeDashboard() {
                 openIconFlyout === "edufund" ? "border-emerald-500/60" : "border-border/70"
               )}
               aria-expanded={openIconFlyout === "edufund"}
-              aria-label="EduFund progress"
+              aria-label="Edufundz progress"
             >
               <Heart className="h-4 w-4 text-emerald-500" aria-hidden />
               <span className="text-[12px] font-bold tabular-nums text-emerald-500">
                 {edufundProgressData.displayPrimary}
               </span>
-              <span className="text-[9px] font-medium text-muted-foreground">EduFund</span>
+              <span className="text-[9px] font-medium text-muted-foreground">Edufundz</span>
             </button>
             {openIconFlyout === "edufund" ? (
               <div
                 role="dialog"
-                aria-label="EduFund progress"
+                aria-label="Edufundz progress"
                 className="absolute right-0 top-full z-50 mt-1.5 w-[320px] rounded-xl border border-border/70 bg-card p-3.5 text-[12px] shadow-xl"
               >
                 <p className="mb-2.5 flex items-center gap-1.5 font-semibold text-foreground">
-                  <Heart className="h-3.5 w-3.5 text-emerald-500" aria-hidden /> EduFund progress
+                  <Heart className="h-3.5 w-3.5 text-emerald-500" aria-hidden /> Edufundz progress
                 </p>
                 <div className="mb-2.5 space-y-2.5">
                   {edufundTiers.slice(0, 3).map((tier, i) => {

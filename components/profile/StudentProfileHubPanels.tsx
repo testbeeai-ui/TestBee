@@ -250,7 +250,7 @@ type DbAcademic = {
 const fieldFocus =
   "focus-visible:border-emerald-500 focus-visible:ring-emerald-500/30 dark:focus-visible:border-emerald-500";
 
-/** Academic record — aligned with EduFund mock; persists to `profile_academics` + `academic_record_extras`. */
+/** Academic record — aligned with Edufundz mock; persists to `profile_academics` + `academic_record_extras`. */
 export function StudentProfileAcademicPanel({
   profile,
   onProfileUpdated,
@@ -547,7 +547,7 @@ export function StudentProfileAcademicPanel({
             Academic record
           </h2>
           <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:text-emerald-400">
-            Shared with EduFund &amp; NGOs
+            Shared with Edufundz &amp; NGOs
           </span>
         </div>
 
@@ -798,7 +798,7 @@ export function StudentProfileAcademicPanel({
         )}
 
         <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-[11px] leading-relaxed text-emerald-200/90 dark:border-emerald-500/20 dark:bg-emerald-950/40">
-          Marksheets are stored securely and only shared with the EduFund committee and partner NGOs
+          Marksheets are stored securely and only shared with the Edufundz committee and partner NGOs
           when you apply for a grant.
         </div>
 
@@ -2584,7 +2584,7 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
         <div className="mb-3 flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
           <Heart className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
           <h2 className="text-base font-black dark:text-white sm:text-lg">
-            EduFund progress &amp; credibility score
+            Edufundz progress &amp; credibility score
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg bg-border dark:bg-white/10 sm:grid-cols-3">
@@ -3212,7 +3212,7 @@ const EDUFUND_PANEL_ACCENTS = [
   },
 ] as const;
 
-/** EduFund tiers &amp; partners — navigates to full EduFund flow. Thresholds match `EDUFUND_RDM_GATES`. */
+/** Edufundz tiers &amp; partners — navigates to full Edufundz flow. Thresholds match `EDUFUND_RDM_GATES`. */
 export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
   const rdm = Math.max(0, profile.rdm ?? 0);
   const gates = EDUFUND_RDM_GATES;
@@ -3224,7 +3224,7 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
         <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3 dark:border-white/10">
           <Heart className="h-5 w-5 text-rose-400" />
           <h2 className="text-base font-black dark:text-white sm:text-lg">
-            EduFund eligibility &amp; funder visibility
+            Edufundz eligibility &amp; funder visibility
           </h2>
         </div>
         <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-[11px] leading-relaxed text-emerald-100 dark:border-emerald-500/20 dark:bg-emerald-950/40">
@@ -3289,7 +3289,7 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
                   <p className="mt-2 text-[11px] text-muted-foreground dark:text-slate-400">
                     {nextGate
                       ? `Tier unlocked. Next milestone: ${nextGate.name} (${nextGate.need.toLocaleString()} RDM · ${formatEdufundInr(nextGate.unlockInrAmount)}).`
-                      : "Highest EduFund tier shown here — see EduFund for live programme rules."}
+                      : "Highest Edufundz tier shown here — see Edufundz for live programme rules."}
                   </p>
                 ) : (
                   <>
@@ -3302,7 +3302,7 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
 
                 {i === 0 ? (
                   <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground dark:text-slate-400">
-                    Build RDM and keep a consistent study streak — Sprout opens EduFund proposal
+                    Build RDM and keep a consistent study streak — Sprout opens Edufundz proposal
                     tracks aligned with your tier.
                   </p>
                 ) : i === 1 ? (
@@ -3312,7 +3312,7 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
                       href="/edufund"
                       className="font-bold text-emerald-400 underline-offset-2 hover:underline"
                     >
-                      EduFund
+                      Edufundz
                     </Link>{" "}
                     for the full table.
                   </p>
@@ -3335,7 +3335,7 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
             Partner NGOs &amp; philanthropists
           </h2>
           <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold dark:bg-slate-800">
-            EduFund
+            Edufundz
           </span>
         </div>
         <p className="mb-4 text-[11px] leading-relaxed text-muted-foreground dark:text-slate-400">
@@ -3356,7 +3356,7 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
             href="/edufund"
             className="inline-flex items-center font-bold text-amber-200 underline-offset-2 hover:underline"
           >
-            Open EduFund →
+            Open Edufundz →
           </Link>{" "}
           to apply, track RDM, and see live eligibility requirements.
         </div>

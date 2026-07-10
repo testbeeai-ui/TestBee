@@ -65,7 +65,7 @@ The Revision page has been completely overhauled to maximize user retention and 
 
 - **Virtual Currency:** RDM serves as the backbone for platform engagement.
 - **Top-up & Deduction Systems:** Secure API routes manage RDM transactions.
-- **EduFund Integration:** A conceptual space for utilizing earned RDM, tied into the navigation.
+- **Edufundz Integration:** A conceptual space for utilizing earned RDM, tied into the navigation.
 - **Credits & Referrals:** Users can earn RDM via referral links, managed through a dedicated Credits UI section.
 
 ### 4.2 AI & Assistance Integration

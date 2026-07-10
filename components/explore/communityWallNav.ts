@@ -49,7 +49,7 @@ export const COMMUNITY_WALL_NAV_SECTIONS: CommunityWallNavSection[] = [
     items: [
       { label: "Gyan++", icon: HelpCircle, href: "/doubts" },
       { label: "Play", icon: Crosshair, href: "/play" },
-      { label: "EduFund", icon: Heart, href: "/edufund" },
+      { label: "Edufundz", icon: Heart, href: "/edufund" },
       { label: "Profile", icon: User, href: "/profile" },
     ],
   },

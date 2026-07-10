@@ -33,7 +33,7 @@ export function EduFundDetailScreen({ proposalId }: Props) {
         </Text>
         <Text style={styles.body}>{proposal.fullStory}</Text>
         <Text style={styles.note}>
-          Supporting proposals from the mobile app will connect to the same EduFund flow on the
+          Supporting proposals from the mobile app will connect to the same Edufundz flow on the
           website in a future release.
         </Text>
       </ScrollView>

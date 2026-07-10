@@ -543,7 +543,7 @@ export function FloatingTaskCompanion() {
 
       const text = (target.textContent || "").toLowerCase().trim();
 
-      // EDUFUND
+      // Edufundz
       if (activeTaskId === "edufund" && pathname === "/edufund") {
         if (text.includes("create proposal") || text.includes("proposal")) {
           completeStep(2);
@@ -965,7 +965,7 @@ export function FloatingTaskCompanion() {
                     />
                     <p className="text-[11px] font-medium text-zinc-300 leading-snug">
                       {!stepsProgress[0]
-                        ? "Open EduFund from the menu"
+                        ? "Open Edufundz from the menu"
                         : !stepsProgress[1]
                           ? "Scroll to read grant tiers"
                           : !stepsProgress[2]
