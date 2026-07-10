@@ -118,7 +118,7 @@ describe("maskDashboardForPrivacy", () => {
     expect(masked.buddyOnline).toBe(true);
   });
 
-  it("masks gyan, subtopics, play, rdm, edufund", () => {
+  it("masks gyan, subtopics, play, rdm, Edufundz", () => {
     const masked = maskDashboardForPrivacy(
       minimalPayload({
         share_gyan: false,

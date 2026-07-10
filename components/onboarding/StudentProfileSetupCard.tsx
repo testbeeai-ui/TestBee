@@ -85,7 +85,7 @@ export function StudentProfileSetupCard({
             Set up your profile
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-[#5C6480]">
-            Personalises your learning journey and verifies you for EduFund scholarships, awards
+            Personalises your learning journey and verifies you for Edufundz scholarships, awards
             and RDM rewards
           </p>
         </div>
@@ -96,7 +96,7 @@ export function StudentProfileSetupCard({
           Full name <span className="text-[#1D9E75]">*</span>
         </label>
         <p className="mb-1.5 text-[11px] text-[#5C6480]">
-          As per government ID (Aadhaar / PAN) — required for EduFund grant applications
+          As per government ID (Aadhaar / PAN) — required for Edufundz grant applications
         </p>
         <input
           id="profile-full-name"

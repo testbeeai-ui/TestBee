@@ -435,7 +435,7 @@ function EduFundPageContent() {
             <div className="edu-page-header mb-4 2xl:mb-6">
               <h1 className="edu-page-title flex items-center gap-2">
                 <span className="text-edu-yellow">💛</span>
-                EduFund
+                Edufundz
               </h1>
               <p
                 className={cn(
@@ -507,7 +507,7 @@ function EduFundPageContent() {
             <div className="edu-card p-4 2xl:p-5">
               <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-foreground 2xl:mb-4">
                 <Target className="h-4 w-4 shrink-0 text-edu-orange 2xl:h-5 2xl:w-5" />
-                How EduFund Works
+                How Edufundz Works
               </h3>
               <ol className="space-y-3 text-sm text-muted-foreground">
                 <li className="flex gap-2">
@@ -593,7 +593,7 @@ function EduFundPageContent() {
               </DialogTitle>
               <DialogDescription className="text-left text-slate-400">
                 <span className="block pt-1 leading-relaxed">
-                  EduFund proposals unlock step by step as you earn{" "}
+                  Edufundz proposals unlock step by step as you earn{" "}
                   <strong className="font-semibold text-white">RDM</strong> through learning and
                   engagement activity on the platform.
                 </span>
@@ -605,7 +605,7 @@ function EduFundPageContent() {
               <div className="flex min-h-0 flex-col gap-3">
                 <section className="rounded-xl border border-slate-700/70 bg-slate-950/40 p-2.5 sm:p-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-400 sm:text-[11px]">
-                    EduFund tiers (RDM thresholds + unlocked amount)
+                    Edufundz tiers (RDM thresholds + unlocked amount)
                   </p>
                   <div className="mt-2 overflow-x-auto rounded-lg border border-slate-700/80">
                     <table className="w-full min-w-[280px] border-collapse text-sm">
@@ -669,7 +669,7 @@ function EduFundPageContent() {
 
                       <div className="rounded-xl border border-violet-500/30 bg-violet-600/10 p-2.5 sm:p-3 text-violet-200 shadow-md">
                         <p className="text-[11px] leading-snug sm:text-xs">
-                          Proposals require a premium subscription (Starter or Pro). Upgrade your plan to unlock full EduFund grant composing and unlock cash aid up to ₹50,000!
+                          Proposals require a premium subscription (Starter or Pro). Upgrade your plan to unlock full Edufundz grant composing and unlock cash aid up to ₹50,000!
                         </p>
                       </div>
                     </>
@@ -714,7 +714,7 @@ function EduFundPageContent() {
                     </div>
                   </div>
                   <div className="flex justify-between gap-3 text-sm border-t border-slate-700/50 pt-2 dark:border-slate-800/50">
-                    <span className="font-semibold text-emerald-400">Effective EduFund RDM</span>
+                    <span className="font-semibold text-emerald-400">Effective Edufundz RDM</span>
                     <span className="font-extrabold text-emerald-400 tabular-nums">
                       {effectiveUserRdm.toLocaleString("en-IN")}
                     </span>
@@ -801,7 +801,7 @@ function EduFundPageContent() {
                     recognized competitive exam.
                   </p>
                   <p>
-                    <strong className="text-white">Total EduFund grants: ₹90,000</strong> can be
+                    <strong className="text-white">Total Edufundz grants: ₹90,000</strong> can be
                     raised through consistent learning alone in{" "}
                     <strong className="text-white">12 months</strong>.
                   </p>
@@ -814,14 +814,7 @@ function EduFundPageContent() {
               </section>
             </div>
 
-            <DialogFooter className="flex-col gap-2 border-t border-slate-800/90 pt-3 sm:flex-row sm:justify-between sm:pt-4">
-              <Button
-                variant="outline"
-                className="rounded-full border-slate-500 bg-transparent font-bold text-white hover:bg-slate-800/80 hover:text-white"
-                asChild
-              >
-                <Link href="/refer-earn">Earn RDM</Link>
-              </Button>
+            <DialogFooter className="flex-col gap-2 border-t border-slate-800/90 pt-3 sm:flex-row sm:justify-end sm:pt-4">
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                 <Button
                   variant="ghost"

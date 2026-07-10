@@ -34,7 +34,7 @@ import {
   Loader2,
 } from "lucide-react";
 
-/** Account hub: Settings (left) + EduFund Eligibility & Contact cards (right), matching desktop reference layout. */
+/** Account hub: Settings (left) + Edufundz Eligibility & Contact cards (right), matching desktop reference layout. */
 export default function StudentSettingsHub() {
   const router = useRouter();
   const { signOut, profile, refreshProfile } = useAuth();
@@ -460,7 +460,7 @@ export default function StudentSettingsHub() {
             </div>
           </div>
 
-          {/* Right: EduFund + Contact stacked */}
+          {/* Right: Edufundz + Contact stacked */}
           <div className="flex w-full shrink-0 flex-col gap-3 lg:w-[min(100%,20rem)] xl:w-[22rem] 2xl:w-96 2xl:gap-4">
             <div className="rounded-2xl border border-border bg-card p-4 dark:border-white/10 dark:bg-[#0d1118] 2xl:rounded-[1.125rem] 2xl:p-6">
               <div className="mb-0.5 flex items-center justify-between 2xl:mb-1">
@@ -469,7 +469,7 @@ export default function StudentSettingsHub() {
                     className="h-4 w-4 shrink-0 text-rose-400 2xl:h-5 2xl:w-5"
                     strokeWidth={2}
                   />
-                  EduFund Eligibility
+                  Edufundz Eligibility
                 </h2>
                 <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-bold text-rose-300">
                   New

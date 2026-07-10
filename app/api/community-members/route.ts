@@ -10,7 +10,7 @@ function safeName(name: string | null): string {
 }
 
 /**
- * Returns community members (id, name) for use in EduFund and similar features.
+ * Returns community members (id, name) for use in Edufundz and similar features.
  * Uses admin client to bypass RLS. Falls back to auth.users if profiles is empty.
  */
 export async function GET(request: Request) {

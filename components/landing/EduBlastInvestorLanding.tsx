@@ -51,7 +51,7 @@ const INVESTOR_EDUFUND_TIER_UI = [
   },
   {
     icon: "🚀",
-    desc: "Advanced EduFund tracks for sustained achievers with verified academic records.",
+    desc: "Advanced Edufundz tracks for sustained achievers with verified academic records.",
     ring: "border-sky-500/25",
     amtClass: "text-sky-300",
   },
@@ -215,7 +215,7 @@ const SIX_SYSTEMS: readonly SixSystemCard[] = [
     iconClass: "text-purple-200",
   },
   {
-    cat: "EDUFUND",
+    cat: "Edufundz",
     catClass: "text-[#34f5a4]",
     title: "Learning Pays",
     rdm: "Up to ₹50,000",
@@ -839,7 +839,7 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
                   { v: "150+", l: "Q & A on the Gyan ++ Wall" },
                   { v: "94%", l: "MORE FUN THAN TEXTBOOKS" },
                   { v: "2.8x", l: "FASTER RETENTION" },
-                  { v: "₹50k", l: "MAX EDUFUND GRANT" },
+                  { v: "₹50k", l: "MAX Edufundz GRANT" },
                 ].map((s) => (
                   <div
                     key={s.l}
@@ -1080,7 +1080,7 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
             </div>
           </section>
 
-          {/* —— RDM + EduFund intro (investor: golden RDM + hover cards) —— */}
+          {/* —— RDM + Edufundz intro (investor: golden RDM + hover cards) —— */}
           <section className={`border-b border-white/10 bg-[#050505] ${SEC_PAD}`}>
             <div className="mx-auto max-w-6xl">
               <p className="text-center text-[10px] font-bold uppercase tracking-[0.35em] text-[#34f5a4]">
@@ -1099,7 +1099,7 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
               </h2>
               <p className="mx-auto mt-5 max-w-2xl text-center text-[15px] leading-relaxed text-zinc-300 sm:text-base">
                 RDM is the currency of EduBlast. Every meaningful action on the platform earns you
-                RDM — and enough RDM unlocks real financial grants through EduFund.
+                RDM — and enough RDM unlocks real financial grants through Edufundz.
               </p>
 
               <div className="mt-8 grid grid-cols-1 gap-4 sm:mt-10 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
@@ -1135,14 +1135,14 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
             </div>
           </section>
 
-          {/* —— EduFund tiers + centered CTA (ref. screen 6) —— */}
+          {/* —— Edufundz tiers + centered CTA (ref. screen 6) —— */}
           <section
             id="investor-edufund"
             className={`scroll-mt-20 border-b border-white/10 ${SEC_PAD_SHORT}`}
           >
             <div className="mx-auto max-w-6xl">
               <p className="text-center text-[10px] font-bold uppercase tracking-[0.35em] text-[#34f5a4]">
-                EduFund tiers · unlock real financial aid
+                Edufundz tiers · unlock real financial aid
               </p>
               <h2
                 className="mx-auto mt-3 max-w-3xl text-center text-[1.6rem] font-bold text-white sm:text-[1.75rem] lg:text-2xl xl:text-3xl 2xl:text-4xl"
@@ -1411,7 +1411,7 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
                 Choose your learning tier. <span className="text-[#34f5a4]">Upgrade when you want more.</span>
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-center text-sm text-zinc-400">
-                Unlock Gyan++ doubts, Testbee adaptive mock tests, spaced-repetition InstaCues, and earn real RDM toward your EduFund grants.
+                Unlock Gyan++ doubts, Testbee adaptive mock tests, spaced-repetition InstaCues, and earn real RDM toward your Edufundz grants.
               </p>
 
               <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -1519,7 +1519,7 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
                 ))}
               </div>
               <p className="mt-8 text-center text-[10px] text-zinc-500">
-                All plans contribute RDM toward your EduFund grant ceiling. Academic performance can offset costs.
+                All plans contribute RDM toward your Edufundz grant ceiling. Academic performance can offset costs.
               </p>
             </div>
           </section>
@@ -1564,7 +1564,7 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
                     "First access to all new platform features",
                     "Weekly sync with product team",
                     "Build public portfolio of content + leadership",
-                    "Direct path to Champion-tier EduFund consideration",
+                    "Direct path to Champion-tier Edufundz consideration",
                   ].map((x) => (
                     <li key={x} className="flex gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" />

@@ -84,7 +84,7 @@ export function buildStudentWalletGuide(
   });
 
   const notes = [
-    `Effective EduFund RDM = balance × your subscription multiplier (EduFund page) · Refer challenges capped at ${c.refer_challenge_daily_rdm_cap} RDM per UTC day (win + share) · Full history: Profile → Activity track record · Higher multiplier: Profile → Subscriptions.`,
+    `Effective Edufundz RDM = balance × your subscription multiplier (Edufundz page) · Refer challenges capped at ${c.refer_challenge_daily_rdm_cap} RDM per UTC day (win + share) · Full history: Profile → Activity track record · Higher multiplier: Profile → Subscriptions.`,
   ];
 
   return { earn, spend, notes };

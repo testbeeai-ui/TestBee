@@ -32,7 +32,7 @@ export default function LandingFooter({ variant = "light" }: { variant?: "light"
                 : "text-xs text-gray-400 max-w-xl leading-relaxed mt-1"
             }
           >
-            Edufund is a genuine financial aid programme wherein need-based students can apply for
+            Edufundz is a genuine financial aid programme wherein need-based students can apply for
             grants and donations from charities and philanthropists who support the bright and
             diligent, hardworking students to help them on a level-playing field. Eligibility is
             based on achieving certain RDM earnings from the site which can be obtained through high

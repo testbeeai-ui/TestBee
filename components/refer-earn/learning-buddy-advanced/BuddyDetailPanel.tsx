@@ -727,9 +727,9 @@ function ActivityGrid({
       </ActCard>
 
       <ActCard accent="amber">
-        <ActHead accent="amber" icon={Coins} label="RDM and EduFund" time="Live" />
+        <ActHead accent="amber" icon={Coins} label="RDM and Edufundz" time="Live" />
         {isLocked("share_edufund") || isLocked("share_rdm") || !data.advanced.edufund ? (
-          <LockedNotice message={`${name} keeps RDM / EduFund private`} />
+          <LockedNotice message={`${name} keeps RDM / Edufundz private`} />
         ) : (
           <>
             {data.advanced.edufund.nextTierName ? (
@@ -741,7 +741,7 @@ function ActivityGrid({
               />
             ) : null}
             <ProgressRow
-              label="Active days (EduFund)"
+              label="Active days (Edufundz)"
               value={`${data.advanced.edufund.activeDays60d} / ${data.advanced.edufund.activeDaysGoal}`}
               pct={Math.min(
                 100,

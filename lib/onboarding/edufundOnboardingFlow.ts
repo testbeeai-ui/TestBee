@@ -1,4 +1,4 @@
-/** Onboarding reward: EduFund → tap Create Proposal. */
+/** Onboarding reward: Edufundz → tap Create Proposal. */
 export const EDUFUND_ONBOARDING_QUERY = "onboarding_edufund";
 
 const SESSION_KEY = "edublast.onboarding_edufund_flow_v1";

@@ -12,7 +12,7 @@ export function countInstacueRevisionDue(
 }
 
 /**
- * EduFund tiers: cumulative wallet RDM threshold and investor-facing proposal amount unlocked at that tier.
+ * Edufundz tiers: cumulative wallet RDM threshold and investor-facing proposal amount unlocked at that tier.
  * Keep in sync with product spec (single source of truth for thresholds + ₹ unlocked).
  */
 export const EDUFUND_RDM_GATES = [
@@ -23,7 +23,7 @@ export const EDUFUND_RDM_GATES = [
   { need: 150000, name: "MasterBlaster", unlockInrAmount: 200000 },
 ] as const;
 
-/** Minimum RDM (Sprout) required to compose an EduFund proposal in the app UI. */
+/** Minimum RDM (Sprout) required to compose an Edufundz proposal in the app UI. */
 export const EDUFUND_MIN_RDM_CREATE_PROPOSAL = EDUFUND_RDM_GATES[0].need;
 
 /** Next tier gate if below Champion; null if already at or above final gate. */
@@ -57,7 +57,7 @@ export function estimateDaysToEarnRdmAtDailyRate(
  * (v3 reference pattern: max ~6–8 chars). The full detail ("1,977 RDM
  * to Sprout") is exposed to the user as a `title` tooltip by the caller
  * (see `formatEdufundRdmBadgeWithDetail`), and as a flyout on the
- * dashboard greeting row's EduFund icon panel.
+ * dashboard greeting row's Edufundz icon panel.
  */
 export function formatEdufundRdmBadge(rdm: number): string | null {
   const n = Math.max(0, Math.floor(rdm));

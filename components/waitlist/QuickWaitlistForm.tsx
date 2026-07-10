@@ -506,7 +506,7 @@ export function QuickWaitlistForm({
         <div className="grid grid-cols-3 gap-1.5">
           {[
             { icon: Eye, color: "text-[#1D9E75]", label: "Early preview access" },
-            { icon: Heart, color: "text-[#7F77DD]", label: "EduFund grant eligibility" },
+            { icon: Heart, color: "text-[#7F77DD]", label: "Edufundz grant eligibility" },
             { icon: Star, color: "text-[#EF9F27]", label: "Study rewards" },
           ].map(({ icon: Icon, color, label }) => (
             <div

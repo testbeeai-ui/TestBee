@@ -5,7 +5,7 @@ import {
 import { useUserStore } from "@/store/useUserStore";
 
 export type ApplyInstacueCreateDailyRdmOptions = {
-  /** Keeps useAuth().profile.rdm in sync with Supabase (e.g. EduFund reads profile, not only the store). */
+  /** Keeps useAuth().profile.rdm in sync with Supabase (e.g. Edufundz reads profile, not only the store). */
   refreshProfile?: () => void | Promise<void>;
 };
 

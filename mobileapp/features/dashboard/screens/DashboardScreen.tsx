@@ -15,7 +15,7 @@ import { useDashboardData } from "@/features/dashboard/hooks/useDashboardData";
 const QUICK_LINKS = [
   { label: "Subject Chat", route: routes.chatbot },
   { label: "Earn & Learn", route: routes.earn },
-  { label: "EduFund", route: routes.edufund },
+  { label: "Edufundz", route: routes.edufund },
   { label: "News", route: routes.news },
   { label: "Blogs", route: routes.blogs },
 ] as const;

@@ -35,7 +35,7 @@ const SIDEBAR_SECTIONS: Record<
     {
       id: "q-tnc-6",
       icon: "ti ti-coin",
-      label: "RDM & EduFund rules",
+      label: "RDM & Edufundz rules",
       href: "/terms-conditions/terms-and-conditions",
       scrollTo: "tnc-6",
     },
@@ -74,7 +74,7 @@ const SIDEBAR_SECTIONS: Record<
     { id: "tnc-3", icon: "ti ti-circle-number-3", label: "Account registration" },
     { id: "tnc-4", icon: "ti ti-circle-number-4", label: "Platform use rules" },
     { id: "tnc-5", icon: "ti ti-circle-number-5", label: "Content & IP" },
-    { id: "tnc-6", icon: "ti ti-circle-number-6", label: "RDM & EduFund" },
+    { id: "tnc-6", icon: "ti ti-circle-number-6", label: "RDM & Edufundz" },
     { id: "tnc-7", icon: "ti ti-circle-number-7", label: "Subscriptions & payments" },
     { id: "tnc-8", icon: "ti ti-circle-number-8", label: "Teacher accounts" },
     { id: "tnc-9", icon: "ti ti-circle-number-9", label: "AI features" },

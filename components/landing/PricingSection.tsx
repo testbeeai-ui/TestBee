@@ -52,7 +52,7 @@ export default function PricingSection() {
         </div>
 
         <p className="mt-[14px] text-sm text-gray-400 text-center">
-          All plans include RDM accumulation toward EduFund grants. Eligible students can offset
+          All plans include RDM accumulation toward Edufundz grants. Eligible students can offset
           their subscription cost entirely through financial aid.
         </p>
       </div>

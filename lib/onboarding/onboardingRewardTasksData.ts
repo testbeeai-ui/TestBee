@@ -166,12 +166,12 @@ export const ONBOARDING_REWARD_TASKS_DATA: OnboardingRewardTaskData[] = [
   },
   {
     id: "edufund",
-    title: "EduFund",
-    boardTitle: "EduFund",
+    title: "Edufundz",
+    boardTitle: "Edufundz",
     teaser: "Open your grant proposal",
     time: "~2 min",
     steps: [
-      "Open EduFund from the main menu.",
+      "Open Edufundz from the main menu.",
       "Scroll down to see proposals & grant tiers.",
       'Tap "Create Proposal" to open your application shell.',
       "See how many RDM you need for the Sprout grant.",

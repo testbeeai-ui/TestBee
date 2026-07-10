@@ -345,7 +345,7 @@ function WaitlistContent() {
               </h1>
               <p className="max-w-[500px] text-[13px] leading-relaxed text-[#9BA3B8]">
                 EduBlast is the education social media for PUC 1 and 2 students — learn by
-                scrolling, earn rewards, get real exam prep, and qualify for EduFund grants.
+                scrolling, earn rewards, get real exam prep, and qualify for Edufundz grants.
               </p>
             </div>
 

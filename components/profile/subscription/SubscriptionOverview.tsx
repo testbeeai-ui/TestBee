@@ -137,7 +137,7 @@ export default function SubscriptionOverview({ profile, onNavigate }: Props) {
       "Testbee mocks: 3 per month (max 6 tests total)",
       "DailyDose: 5 questions per day",
       "AI Calendar — basic study planner",
-      "EduFund Sprout tier eligibility",
+      "Edufundz Sprout tier eligibility",
     ],
     free_trial: [
       "Magic Wall: up to 3 active topics",
@@ -145,7 +145,7 @@ export default function SubscriptionOverview({ profile, onNavigate }: Props) {
       "Testbee mocks: 3 per month",
       "DailyDose: 5 questions per day",
       "AI Calendar — basic study planner",
-      "EduFund preview active",
+      "Edufundz preview active",
     ],
     starter: [
       "Testbee adaptive mocks — unlimited",
@@ -153,7 +153,7 @@ export default function SubscriptionOverview({ profile, onNavigate }: Props) {
       "Live lessons + recorded library",
       "MentaMill quant speed training",
       "AI Calendar — smart study planner",
-      "EduFund Starter tier eligibility",
+      "Edufundz Starter tier eligibility",
     ],
     pro: [
       "Testbee adaptive mocks — unlimited",
@@ -161,7 +161,7 @@ export default function SubscriptionOverview({ profile, onNavigate }: Props) {
       "Live lessons + recorded library (unlimited)",
       "Topper community access & 1-on-1 mentor sessions",
       "AI Calendar — smart study planner",
-      "EduFund Pro tier eligibility",
+      "Edufundz Pro tier eligibility",
     ],
   }[planKey] || [];
 

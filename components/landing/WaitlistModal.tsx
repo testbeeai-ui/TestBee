@@ -35,7 +35,7 @@ const INTERESTS_DATA: Record<string, string[]> = {
     "Daily quiz and rewards (DailyDose + RDM)",
     "Mock tests and exam prep (Testbee)",
     "Doubt wall (Gyan++)",
-    "EduFund financial grants",
+    "Edufundz financial grants",
     "Learning buddy and peer study",
   ],
   teacher: [
@@ -44,19 +44,19 @@ const INTERESTS_DATA: Record<string, string[]> = {
     "Gyan++ teaching wall",
     "Live and recorded classes",
     "AI Calendar and study planner",
-    "EduFund programme for students",
+    "Edufundz programme for students",
   ],
   parent: [
     "Progress visibility dashboard",
     "Streak and activity monitoring",
-    "EduFund grant eligibility",
+    "Edufundz grant eligibility",
     "Platform content safety",
     "Subscription value and plans",
     "Community and peer interactions",
   ],
   other: [
     "Platform concept and vision",
-    "EduFund CSR / donation",
+    "Edufundz CSR / donation",
     "Partnership or integration",
     "Investment opportunity",
     "Content or media interest",
@@ -256,7 +256,7 @@ export default function WaitlistModal({ open, onOpenChange }: WaitlistModalProps
                 </h2>
                 <p className="text-xs text-[#9BA3B8] max-w-lg mx-auto leading-relaxed">
                   EduBlast is the education social media for PUC 1 and 2 students — learn by
-                  scrolling, earn rewards, get real exam prep, and qualify for EduFund grants.
+                  scrolling, earn rewards, get real exam prep, and qualify for Edufundz grants.
                 </p>
               </div>
 

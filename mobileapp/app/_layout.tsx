@@ -59,7 +59,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="chatbot/index" options={{ title: "Subject Chat" }} />
-        <Stack.Screen name="edufund/index" options={{ title: "EduFund" }} />
+        <Stack.Screen name="edufund/index" options={{ title: "Edufundz" }} />
         <Stack.Screen name="edufund/[id]" options={{ title: "Proposal" }} />
         <Stack.Screen name="news/index" options={{ title: "News" }} />
         <Stack.Screen name="news/[id]" options={{ title: "Article" }} />

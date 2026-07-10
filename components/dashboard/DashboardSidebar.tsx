@@ -150,7 +150,7 @@ export default function DashboardSidebar() {
   const edufundBadgeTitle = profile?.id ? formatEdufundRdmBadgeDetail(rdm) : null;
 
   const learning: NavItem[] = [
-    { href: "/home", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/home?page=dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/explore/community", label: "Community feed", icon: Sparkles, badge: "Live" },
     { href: "/mock", label: "Magic Wall", icon: GraduationCap },
     { href: "/mock-test", label: "Mock test library", icon: Library },
@@ -168,7 +168,7 @@ export default function DashboardSidebar() {
     { href: EXPLORE_APP_PATH, label: "Unit maps", icon: Map },
     {
       href: "/edufund",
-      label: "EduFund",
+      label: "Edufundz",
       icon: Heart,
       badge: edufundBadge,
       badgeTitle: edufundBadgeTitle,
@@ -195,7 +195,7 @@ export default function DashboardSidebar() {
         // Pin state is still settable via `localStorage` / `data-pinned` so
         // the rail can be pinned open across reloads, but there is no
         // visible toggle in the sidebar itself — pure hover-expand.
-        "eb-sidebar sticky top-2 hidden h-[calc(100vh-1rem)] shrink-0 flex-col overflow-hidden border-r border-border/50 bg-card/30 lg:flex"
+        "eb-sidebar fixed left-0 top-[52px] z-40 hidden h-[calc(100vh-52px)] shrink-0 flex-col overflow-hidden border-r border-border/60 bg-card/95 backdrop-blur-sm lg:flex"
       )}
       aria-label="Dashboard navigation"
     >

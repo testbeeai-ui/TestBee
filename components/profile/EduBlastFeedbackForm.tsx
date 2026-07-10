@@ -87,7 +87,7 @@ const DATA: Record<FeedbackRole, RoleData> = {
       { id: "mock", Icon: PenLine, lbl: "Prep + Mock" },
       { id: "gyan", Icon: HelpCircle, lbl: "Gyan++" },
       { id: "earnlearn", Icon: Bolt, lbl: "Earn & Learn" },
-      { id: "edufund", Icon: Heart, lbl: "EduFund" },
+      { id: "edufund", Icon: Heart, lbl: "Edufundz" },
     ],
     extraLabel: "Which exam are you preparing for?",
     extraOptions: [
@@ -133,7 +133,7 @@ const DATA: Record<FeedbackRole, RoleData> = {
       { id: "dashboard", Icon: Gauge, lbl: "Parent dashboard" },
       { id: "progress", Icon: ChartLine, lbl: "Progress reports" },
       { id: "streak", Icon: Flame, lbl: "Streak and activity" },
-      { id: "edufund", Icon: Heart, lbl: "EduFund grants" },
+      { id: "edufund", Icon: Heart, lbl: "Edufundz grants" },
       { id: "content", Icon: BookOpen, lbl: "Content quality" },
       { id: "support", Icon: MessagesSquare, lbl: "Support and help" },
     ],

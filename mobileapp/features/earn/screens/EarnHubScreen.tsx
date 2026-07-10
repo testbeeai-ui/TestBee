@@ -102,7 +102,7 @@ export function EarnHubScreen() {
           )}
         </View>
 
-        <Button label="Open EduFund" variant="secondary" onPress={() => router.push(routes.edufund)} />
+        <Button label="Open Edufundz" variant="secondary" onPress={() => router.push(routes.edufund)} />
         <Button label="Try Challenge Yourself" variant="secondary" onPress={() => router.push(routes.earn)} />
       </ScrollView>
     </Screen>

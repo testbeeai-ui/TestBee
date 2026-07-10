@@ -41,7 +41,7 @@ const NAV: { id: StudentProfileSectionId; label: string; icon: typeof User }[] =
   { id: "academic", label: "Academic record", icon: GraduationCap },
   { id: "achievements", label: "Achievements", icon: Trophy },
   { id: "activity", label: "Activity track record", icon: Activity },
-  { id: "edufund", label: "EduFund Eligibility", icon: Heart },
+  { id: "edufund", label: "Edufundz Eligibility", icon: Heart },
 ];
 
 const PERSONAL_GROUP: StudentProfileSectionId[] = [

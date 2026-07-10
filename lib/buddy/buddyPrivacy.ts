@@ -34,7 +34,7 @@ const PRIVACY_LABELS: Record<BuddyPrivacyKey, string> = {
   share_subtopics: "subtopics completed",
   share_play: "Play arena scores",
   share_community: "community wall posts",
-  share_edufund: "EduFund tier progress",
+  share_edufund: "Edufundz tier progress",
 };
 
 export function parseBuddyPrivacySettings(raw: unknown): BuddyPrivacySettings {

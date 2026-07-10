@@ -56,7 +56,7 @@ const TOGGLE_META: { key: BuddyPrivacyKey; title: string; description: string }[
   },
   {
     key: "share_edufund",
-    title: "EduFund tier and grant progress",
+    title: "Edufundz tier and grant progress",
     description: "Your Sprout/Scholar/Champion tier status and grant eligibility",
   },
 ];

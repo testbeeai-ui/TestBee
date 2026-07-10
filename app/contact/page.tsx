@@ -292,7 +292,7 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
     )
       return "Prep + Mock";
     if (safeFromPath === "/doubts") return "Gyan++";
-    if (safeFromPath === "/edufund") return "EduFund";
+    if (safeFromPath === "/edufund") return "Edufundz";
     if (safeFromPath === "/refer-earn") return "Earn & Learn";
     if (safeFromPath === "/profile") return "Profile";
     return "Back";
@@ -574,9 +574,9 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                             <option>Subscription not activated</option>
                             <option>Refund request</option>
                           </optgroup>
-                          <optgroup label="RDM and EduFund">
+                          <optgroup label="RDM and Edufundz">
                             <option>RDM not credited after action</option>
-                            <option>EduFund tier not unlocking</option>
+                            <option>Edufundz tier not unlocking</option>
                             <option>Referral RDM not received</option>
                           </optgroup>
                           <optgroup label="Content issues">
@@ -693,7 +693,7 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                           </option>
                           <option>Positive feedback — something that worked really well</option>
                           <option>Curriculum feedback — mock or question quality</option>
-                          <option>RDM or EduFund suggestion</option>
+                          <option>RDM or Edufundz suggestion</option>
                           <option>Teacher or mentor experience feedback</option>
                           <option>General idea or improvement</option>
                         </Select>
@@ -715,7 +715,7 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                             <option>Home / Feed / Leaderboard</option>
                             <option>Profile and dashboard</option>
                             <option>RDM earning and tracking</option>
-                            <option>EduFund grants section</option>
+                            <option>Edufundz grants section</option>
                             <option>Notifications</option>
                             <option>Mobile app experience</option>
                           </optgroup>

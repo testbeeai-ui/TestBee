@@ -66,6 +66,7 @@ export interface Profile {
   daily_checklist_state?: Json | null;
   /** Optional Class X subject marks + coaching (JSON on profiles row). */
   academic_record_extras?: Json | null;
+  free_trial_checklist_reward_claimed_ever?: boolean | null;
 }
 
 export interface AuthContextType {
