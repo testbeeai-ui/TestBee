@@ -565,7 +565,7 @@ const AppLayout = ({
                     </div>
                     <i className={`ti ti-arrow-right ${styles.ditemArrow}`} aria-hidden="true"></i>
                   </Link>
-                  <Link href="/revision" className={styles.ditem} onClick={() => setDrawerOpen(false)}>
+                  <Link href="/mock" className={styles.ditem} onClick={() => setDrawerOpen(false)}>
                     <div
                       className={styles.ditemIcon}
                       style={{ background: "rgba(29, 158, 117, 0.12)", border: ".5px solid rgba(29, 158, 117, 0.2)" }}
@@ -591,7 +591,7 @@ const AppLayout = ({
                     </div>
                     <i className={`ti ti-arrow-right ${styles.ditemArrow}`} aria-hidden="true"></i>
                   </Link>
-                  <Link href="/mock#calendar" className={styles.ditem} onClick={() => setDrawerOpen(false)}>
+                  <Link href="/explore-1" className={styles.ditem} onClick={() => setDrawerOpen(false)}>
                     <div
                       className={styles.ditemIcon}
                       style={{ background: "rgba(29, 158, 117, 0.12)", border: ".5px solid rgba(29, 158, 117, 0.2)" }}
