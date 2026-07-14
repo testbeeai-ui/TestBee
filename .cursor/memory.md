@@ -382,3 +382,6 @@ Anything that is not Next.js / tooling config now lives under:
 - 2026-07-06: **Contact Us pipeline** — `contact_messages` table + `/api/contact` saves submissions and sends category auto-reply email; admin F&W new Contact Us tab (`ContactUsTab.tsx`); removed Email us / Partnership sidebar blocks on `/contact`.
 - 2026-07-06: **Lesson InstaCue flip** — tap anywhere on card flips (removed content stopPropagation); reset to question on Prev/Next (`useLayoutEffect` on card id).
 - 2026-07-06: **Community post delete** — three-dot menu on own posts only (`RawFeedPostCard` + `RawCommunityFeed`); delete via `lessons_raw_posts` RLS; unsaves from revision if saved.
+- 2026-07-14: **Preview auth URL** — canonical path is `/preview` (`PREVIEW_AUTH_PATH`); `/preview-raknas-amu` (+ older obfuscated paths) redirect via middleware; web + mobileapp configs updated.
+- 2026-07-14: **AppLayout CSS Modules** — moved `--eb-*` tokens from illegal `:root` onto `.nav`/`.drawer` (fixes Webpack “Selector :root is not pure”).
+- 2026-07-14: **mobileapp parked** — not in active use; deleted `mobileapp/tsconfig.json` (Expo config kept as `tsconfig.expo.json`); hidden via `.vscode/settings.json` + `.cursorignore` (web `tsconfig` already excludes it).

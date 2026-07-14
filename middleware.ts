@@ -92,7 +92,7 @@ export async function middleware(request: NextRequest) {
   if (
     (pathname === "/auth/callback" ||
       pathname === "/auth/mobile-callback" ||
-      pathname === "/preview-raknas-amu") &&
+      pathname === PREVIEW_AUTH_PATH) &&
     isOAuthAuthorizationCode(oauthCode)
   ) {
     return NextResponse.next();

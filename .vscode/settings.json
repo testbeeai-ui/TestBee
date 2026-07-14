@@ -1,5 +1,14 @@
 {
   "python-envs.defaultEnvManager": "ms-python.python:system",
+  "files.exclude": {
+    "mobileapp": true
+  },
+  "search.exclude": {
+    "mobileapp": true
+  },
+  "files.watcherExclude": {
+    "**/mobileapp/**": true
+  },
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[javascript]": {

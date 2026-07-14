@@ -92,7 +92,7 @@ https://bytsiknhtcnlxwzgqkrd.supabase.co/auth/v1/callback
 ## E. Test
 
 1. Clear browser data for `www.edublast.in`.
-2. Open `https://www.edublast.in/preview-raknas-amu?mode=signin&role=student`
+2. Open `https://www.edublast.in/preview?mode=signin&role=student`
 3. Sign in with Google — consent screen should say **auth.edublast.in**.
 
 ---

@@ -1,4 +1,7 @@
-﻿# Build & dependencies — large, regenerated; rarely edited by agents
+﻿# Expo / React Native app — not in active use for web work
+mobileapp/
+
+# Build & dependencies — large, regenerated; rarely edited by agents
 .next/
 out/
 build/

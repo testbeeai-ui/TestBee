@@ -37,7 +37,7 @@ export function getWebSiteOrigin(): string {
 }
 
 /**
- * Where Supabase OAuth redirects after Google (preview-raknas-amu forwards into the app).
+ * Where Supabase OAuth redirects after Google (/preview forwards into the app).
  *
  * Defaults to production — Supabase only accepts URLs on its allow list. LAN IPs are ignored
  * unless you add them in Supabase AND set EXPO_PUBLIC_USE_LAN_OAUTH_BRIDGE=1.
@@ -61,7 +61,7 @@ export function getOAuthBridgeOrigin(): string {
 
 export const WEB_SITE_ORIGIN = getWebSiteOrigin();
 
-export const PREVIEW_AUTH_PATH = "/preview-raknas-amu";
+export const PREVIEW_AUTH_PATH = "/preview";
 
 /** Mobile OAuth bridge — no sign-in UI, only forwards into the app. */
 export const MOBILE_OAUTH_CALLBACK_PATH = "/auth/mobile-callback";
