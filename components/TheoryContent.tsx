@@ -2,7 +2,7 @@
 
 import React from "react";
 import katex from "katex";
-import "katex/dist/katex.min.css";
+import "@/lib/math/katexStyles";
 
 function enhanceVectorLatex(latex: string): string {
   let out = latex;

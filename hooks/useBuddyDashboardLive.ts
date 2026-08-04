@@ -14,6 +14,8 @@ import {
   BUDDY_REALTIME_DEBOUNCE_MS,
   BUDDY_SIGNAL_POLL_MS,
 } from "@/lib/dashboard/connectionRealtimeConstants";
+import { shouldSendTelemetry } from "@/lib/telemetry/networkConditions";
+import { startVisiblePoll } from "@/lib/telemetry/visiblePoll";
 
 type UseBuddyDashboardLiveResult = {
   data: BuddyAdvancedDashboardResponse | null;
@@ -122,17 +124,24 @@ export function useBuddyDashboardLive(buddy: BuddyProfile): UseBuddyDashboardLiv
       )
       .subscribe();
 
-    const signalInterval = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      void checkSignalAndMaybeLoad();
-    }, BUDDY_SIGNAL_POLL_MS);
+    const stopSignal = startVisiblePoll({
+      intervalMs: BUDDY_SIGNAL_POLL_MS,
+      onTick: () => {
+        if (!shouldSendTelemetry()) return;
+        void checkSignalAndMaybeLoad();
+      },
+    });
 
-    const fullInterval = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      scheduleFullLoad();
-    }, BUDDY_FULL_REFRESH_MS);
+    const stopFull = startVisiblePoll({
+      intervalMs: BUDDY_FULL_REFRESH_MS,
+      onTick: () => {
+        if (!shouldSendTelemetry()) return;
+        scheduleFullLoad();
+      },
+    });
 
     const onFocus = () => {
+      if (!shouldSendTelemetry()) return;
       void checkSignalAndMaybeLoad();
     };
     const onBuddyActivity = () => {
@@ -148,8 +157,8 @@ export function useBuddyDashboardLive(buddy: BuddyProfile): UseBuddyDashboardLiv
       if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener(EDUBLAST_BUDDY_ACTIVITY_REFRESH, onBuddyActivity);
-      window.clearInterval(signalInterval);
-      window.clearInterval(fullInterval);
+      stopSignal();
+      stopFull();
       void supabase.removeChannel(channel);
     };
   }, [buddy.id, loadFull, scheduleFullLoad, checkSignalAndMaybeLoad, scheduleSignalCheck]);

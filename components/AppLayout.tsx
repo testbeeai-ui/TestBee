@@ -146,6 +146,7 @@ const AppLayout = ({
   const pathname = usePathname();
   const isMagicWall = pathname === "/magic-wall";
   const isCommunityWall = pathname.startsWith("/explore/community");
+  const isDivePage = pathname === "/dive" || pathname.startsWith("/dive/");
   const { profile, user: authUser } = useAuth();
   const presenceUserId = profile?.id ?? authUser?.id ?? null;
   const user = useUserStore((s) => s.user);
@@ -221,7 +222,13 @@ const AppLayout = ({
     <SitePresenceProvider userId={presenceUserId}>
       <div
         className="min-h-screen flex flex-col"
-        style={{ backgroundColor: isRedesignedLayout ? "#0A0F1E" : "var(--background)" }}
+        style={{
+          backgroundColor: isRedesignedLayout
+            ? "#0A0F1E"
+            : isDivePage
+              ? "#0E1117"
+              : "var(--background)",
+        }}
       >
         {/* Top Navigation Bar */}
         {!hideTopNav && !fullBleed && (
@@ -345,10 +352,19 @@ const AppLayout = ({
           ) : (
             <nav
               className={styles.nav}
-              style={isRedesignedLayout ? undefined : {
-                "--nav-bg": "var(--background)",
-                "--nav-border": ".5px solid var(--border)",
-              } as React.CSSProperties}
+              style={
+                isRedesignedLayout
+                  ? undefined
+                  : isDivePage
+                    ? ({
+                        "--nav-bg": "#0E1117",
+                        "--nav-border": "1px solid rgba(38, 46, 58, 0.75)",
+                      } as React.CSSProperties)
+                    : ({
+                        "--nav-bg": "var(--background)",
+                        "--nav-border": ".5px solid var(--border)",
+                      } as React.CSSProperties)
+              }
             >
               <Link href="/home" className={styles.navLogo} aria-label="EduBlast home">
                 <Image
@@ -393,10 +409,16 @@ const AppLayout = ({
                   Earn
                 </Link>
                 <Link
+                  href="/dive"
+                  className={`${styles.nl} ${isDivePage ? styles.on : ""}`}
+                >
+                  Dive
+                </Link>
+                <Link
                   href="/explore/community"
                   className={`${styles.nl} ${isCommunityWall ? styles.on : ""}`}
                 >
-                  Community Feed
+                  Feed
                 </Link>
                 <span
                   className={styles.nl}
@@ -653,6 +675,19 @@ const AppLayout = ({
                     </div>
                     <i className={`ti ti-arrow-right ${styles.ditemArrow}`} aria-hidden="true"></i>
                   </Link>
+                  <Link href="/dive" className={styles.ditem} onClick={() => setDrawerOpen(false)}>
+                    <div
+                      className={styles.ditemIcon}
+                      style={{ background: "rgba(29, 158, 117, 0.12)", border: ".5px solid rgba(29, 158, 117, 0.2)" }}
+                    >
+                      <i className="ti ti-scuba-mask" style={{ fontSize: "14px", color: "var(--teal, #1D9E75)" }} aria-hidden="true"></i>
+                    </div>
+                    <div className={styles.ditemBody}>
+                      <div className={styles.ditemName}>Dive</div>
+                      <div className={styles.ditemDesc}>Deep-dive learning by chapter</div>
+                    </div>
+                    <i className={`ti ti-arrow-right ${styles.ditemArrow}`} aria-hidden="true"></i>
+                  </Link>
                   <Link href="/explore/community" className={styles.ditem} onClick={() => setDrawerOpen(false)}>
                     <div
                       className={styles.ditemIcon}
@@ -661,7 +696,7 @@ const AppLayout = ({
                       <i className="ti ti-social" style={{ fontSize: "14px", color: "var(--purple)" }} aria-hidden="true"></i>
                     </div>
                     <div className={styles.ditemBody}>
-                      <div className={styles.ditemName}>Community Feed</div>
+                      <div className={styles.ditemName}>Feed</div>
                       <div className={styles.ditemDesc}>Post scores | +5 RDM per post</div>
                     </div>
                     <i className={`ti ti-arrow-right ${styles.ditemArrow}`} aria-hidden="true"></i>
@@ -769,7 +804,9 @@ const AppLayout = ({
         {/* Content */}
         <main
           className={cn(
-            isRedesignedLayout
+            isDivePage
+              ? "w-full flex-1 min-w-0"
+              : isRedesignedLayout
               ? "w-full flex-1"
               : fullBleed
               ? "w-full min-h-0"
@@ -784,16 +821,25 @@ const AppLayout = ({
                       )
                     : "max-w-7xl px-4 lg:px-5 2xl:px-6"
                 ),
-            hasStudentDashboardSidebar && !fullBleed && "lg:ml-[52px]",
-            !isRedesignedLayout && !hideTopNav &&
+            hasStudentDashboardSidebar && !fullBleed && !isDivePage && "lg:ml-[52px]",
+            !isDivePage &&
+              !isRedesignedLayout &&
+              !hideTopNav &&
               !wideMain &&
               !fullBleed &&
               (isMagicWall ? "flex min-h-0 flex-col pt-2 pb-0 sm:pt-3" : "py-4 lg:py-5 2xl:py-7"),
-            !isRedesignedLayout && !hideTopNav &&
+            !isDivePage &&
+              !isRedesignedLayout &&
+              !hideTopNav &&
               wideMain &&
               !fullBleed &&
               (isMagicWall ? "flex min-h-0 flex-col pt-2 pb-0 sm:pt-3" : ""),
-            !isRedesignedLayout && hideTopNav && !fullBleed && isMagicWall && "flex min-h-0 flex-col pt-2 pb-0 sm:pt-3"
+            !isDivePage &&
+              !isRedesignedLayout &&
+              hideTopNav &&
+              !fullBleed &&
+              isMagicWall &&
+              "flex min-h-0 flex-col pt-2 pb-0 sm:pt-3"
           )}
         >
           {children}
@@ -827,8 +873,11 @@ const AppLayout = ({
         {!isTeacher && !fullBleed ? (
           <footer
             className={cn(
-              "border-t border-border/60 bg-card/40 py-3 lg:py-4 2xl:py-5",
-              hasStudentDashboardSidebar && "lg:ml-[52px]"
+              "border-t py-3 lg:py-4 2xl:py-5",
+              isDivePage
+                ? "border-[rgba(38,46,58,0.75)] bg-[#0E1117] text-[#8B96A5]"
+                : "border-border/60 bg-card/40",
+              hasStudentDashboardSidebar && !isDivePage && "lg:ml-[52px]"
             )}
           >
             <div className="max-w-7xl mx-auto px-4 lg:px-5 2xl:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 text-xs text-muted-foreground">

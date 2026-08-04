@@ -81,18 +81,25 @@ export async function GET(request: Request) {
       level: level as DifficultyLevel,
     });
 
-    try {
-      const fromTable = await readSubtopicEngagementRow(supabase, user.id, key);
-      if (fromTable) return NextResponse.json({ engagement: fromTable });
-    } catch (e) {
-      if (!isOptionalStudentTableError(e)) throw e;
-    }
-
-    const { data, error } = await supabase
+    // Table + legacy profile JSONB share one RTT. Prefer the normalized row when present;
+    // profile is only used on a miss (or when the table is not deployed yet).
+    const profilePromise = supabase
       .from("profiles")
       .select("subtopic_engagement")
       .eq("id", user.id)
       .maybeSingle();
+
+    try {
+      const fromTable = await readSubtopicEngagementRow(supabase, user.id, key);
+      if (fromTable) {
+        void profilePromise;
+        return NextResponse.json({ engagement: fromTable });
+      }
+    } catch (e) {
+      if (!isOptionalStudentTableError(e)) throw e;
+    }
+
+    const { data, error } = await profilePromise;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     const row = data as ProfileEngagementRow | null;
@@ -145,6 +152,13 @@ export async function POST(request: Request) {
     });
 
     let existing: SubtopicEngagementSnapshot | undefined;
+    // Overlap table + profile reads so a table miss does not pay a second India→Tokyo hop.
+    const profilePromise = supabase
+      .from("profiles")
+      .select("subtopic_engagement")
+      .eq("id", user.id)
+      .maybeSingle();
+
     try {
       const fromTable = await readSubtopicEngagementRow(supabase, user.id, key);
       if (fromTable) existing = fromTable;
@@ -154,15 +168,13 @@ export async function POST(request: Request) {
 
     let profileRow: ProfileEngagementRow | null = null;
     if (!existing) {
-      const { data: profile, error: readErr } = await supabase
-        .from("profiles")
-        .select("subtopic_engagement")
-        .eq("id", user.id)
-        .maybeSingle();
+      const { data: profile, error: readErr } = await profilePromise;
       if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
       profileRow = profile as ProfileEngagementRow | null;
       const current = parseEngagementStore(profileRow?.subtopic_engagement);
       existing = current[key];
+    } else {
+      void profilePromise;
     }
 
     if (subtopicEngagementSnapshotsEqual(existing, snapshot)) {

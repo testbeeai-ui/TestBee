@@ -171,7 +171,9 @@ const PLAY_HUB_META: Record<
 };
 
 const SUBTOPIC_RDM_KEYS = [
+  "subtopic_quiz_set_rdm",
   "subtopic_quiz_advanced_rdm",
+  "subtopic_numerals_formula_rdm",
   "subtopic_numerals_pack_rdm",
   "quiz_community_share_rdm",
   "numerals_community_share_rdm",
@@ -182,15 +184,25 @@ const SUBTOPIC_RDM_META: Record<
   (typeof SUBTOPIC_RDM_KEYS)[number],
   { title: string; claimRpc: string; hint?: string }
 > = {
+  subtopic_quiz_set_rdm: {
+    title: "Subtopic - Quiz set 1 ≥60% RDM (once per subtopic)",
+    claimRpc: "claim_quiz_set_complete_rdm",
+    hint: "Awarded when a student finishes quiz set 1 with ≥60%. Sets 2+ do not earn this bonus. Once per subtopic (lifetime).",
+  },
   subtopic_quiz_advanced_rdm: {
-    title: "Subtopic - Advanced quiz (3-set, ≥60%) daily RDM",
+    title: "Subtopic - Advanced quiz overall (≥60%, once per subtopic)",
     claimRpc: "claim_topic_quiz_advanced_daily_rdm",
-    hint: "Awarded once per IST day when the advanced 3-set quiz meets the score threshold.",
+    hint: "Awarded when all advanced multi-set quiz sets are complete and overall score is ≥60%. Once per subtopic (lifetime).",
+  },
+  subtopic_numerals_formula_rdm: {
+    title: "Subtopic - First numerals pack ≥60% RDM (once per subtopic)",
+    claimRpc: "claim_numerals_formula_complete_rdm",
+    hint: "Awarded when a student finishes the first formula pack with ≥60%. Later packs do not earn this bonus. Once per subtopic (lifetime).",
   },
   subtopic_numerals_pack_rdm: {
-    title: "Subtopic - Numerals pack complete (≥60%) daily RDM",
+    title: "Subtopic - Numerals pack overall (≥60%, once per subtopic)",
     claimRpc: "claim_numerals_pack_complete_daily_rdm",
-    hint: "Awarded once per IST day when the numerals pack meets the score threshold.",
+    hint: "Awarded when every formula with questions is submitted and overall score is ≥60%. Once per subtopic+level (lifetime).",
   },
   quiz_community_share_rdm: {
     title: "Lessons - Quiz result share bonus RDM (once per set per subtopic)",
@@ -209,8 +221,13 @@ const SUBTOPIC_RDM_SUBSECTIONS: {
   subheadingKeys: readonly (typeof SUBTOPIC_RDM_KEYS)[number][];
 }[] = [
   {
-    heading: "Daily completion",
-    subheadingKeys: ["subtopic_quiz_advanced_rdm", "subtopic_numerals_pack_rdm"],
+    heading: "Subtopic completion (once per subtopic)",
+    subheadingKeys: [
+      "subtopic_quiz_set_rdm",
+      "subtopic_quiz_advanced_rdm",
+      "subtopic_numerals_formula_rdm",
+      "subtopic_numerals_pack_rdm",
+    ],
   },
   {
     heading: "Community share (Post & earn)",
@@ -455,8 +472,10 @@ function SubtopicRdmGroupBlock({
         </p>
         <ul className="mt-2 list-inside list-disc text-[11px] text-muted-foreground space-y-0.5">
           <li>
-            Daily:{" "}
+            Subtopic completion:{" "}
+            <span className="font-mono text-sky-400/90">claim_quiz_set_complete_rdm</span>,{" "}
             <span className="font-mono text-sky-400/90">claim_topic_quiz_advanced_daily_rdm</span>,{" "}
+            <span className="font-mono text-sky-400/90">claim_numerals_formula_complete_rdm</span>,{" "}
             <span className="font-mono text-sky-400/90">
               claim_numerals_pack_complete_daily_rdm
             </span>

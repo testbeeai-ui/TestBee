@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Sparkles,
+  Waves,
   GraduationCap,
   Library,
   RotateCcw,
@@ -154,7 +155,8 @@ export default function DashboardSidebar() {
 
   const learning: NavItem[] = [
     { href: "/home?page=dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/explore/community", label: "Community feed", icon: Sparkles, badge: "Live" },
+    { href: "/dive", label: "Dive", icon: Waves },
+    { href: "/explore/community", label: "Feed", icon: Sparkles, badge: "Live" },
     { href: "/mock", label: "Magic Wall", icon: GraduationCap },
     { href: "/mock-test", label: "Mock test library", icon: Library },
     {

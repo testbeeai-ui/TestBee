@@ -23,18 +23,34 @@ export default function TopicReferencesUpgradeDialog({
 }: TopicReferencesUpgradeDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md border-[#262e3a] bg-[#151a22] text-[#eaeff5]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Lock className="h-5 w-5 text-amber-500" aria-hidden />
-            Upgrade to unlock references
+          <DialogTitle className="flex items-center gap-2 text-[#eaeff5]">
+            <Lock className="h-5 w-5 text-amber-400" aria-hidden />
+            Unlock references with Starter or Pro
           </DialogTitle>
-          <DialogDescription className="pt-2 text-left">
-            Video and reading references for this subtopic are available on Starter and Pro plans.
+          <DialogDescription className="pt-2 text-left text-[#8b96a5]">
+            If you already have an active Starter or Pro plan, references open automatically in this
+            popup — close and reopen after your plan updates. Otherwise choose a plan below.
           </DialogDescription>
         </DialogHeader>
+        <ul className="space-y-2 rounded-lg border border-[#262e3a] bg-[#1b212b] p-3 text-sm text-[#eaeff5]">
+          <li className="flex gap-2">
+            <span className="text-[#1d9e75]">✓</span>
+            Video &amp; reading links for each sub-topic
+          </li>
+          <li className="flex gap-2">
+            <span className="text-[#1d9e75]">✓</span>
+            Premium quiz sets 2–6 (same plan access)
+          </li>
+        </ul>
         <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            className="border-[#262e3a] bg-transparent text-[#eaeff5] hover:bg-[#1b212b]"
+            onClick={() => onOpenChange(false)}
+          >
             Not now
           </Button>
           <Button

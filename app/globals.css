@@ -502,6 +502,36 @@ html {
   overflow-x: auto;
   padding-bottom: 2px;
 }
+
+/* Eradicate native Chromium scrollbar stepper buttons (arrows) on KaTeX & Math elements globally */
+.katex-display,
+.katex-html,
+.katex,
+.katex *,
+[data-slot="math"] {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.katex-display::-webkit-scrollbar,
+.katex-html::-webkit-scrollbar,
+.katex::-webkit-scrollbar,
+.katex *::-webkit-scrollbar,
+[data-slot="math"]::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.katex-display::-webkit-scrollbar-button,
+.katex-html::-webkit-scrollbar-button,
+.katex::-webkit-scrollbar-button,
+.katex *::-webkit-scrollbar-button,
+[data-slot="math"]::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
 .dark .subtopic-title-text {
   color: #fafafa;
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif !important;
@@ -633,22 +663,23 @@ html {
 .theory-content-readable {
   font-family: Calibri, Arial, sans-serif !important;
 }
-.theory-content-readable .katex,
-.theory-content-readable .katex * {
+/* Skip Calibri override inside `.insta-math-host` — KaTeX needs its own fonts or glyphs overlap. */
+.theory-content-readable:not(.insta-math-host) .katex,
+.theory-content-readable:not(.insta-math-host) .katex * {
   color: #0f172a !important;
   font-family: Calibri, Arial, sans-serif !important;
   font-style: normal !important;
 }
-.dark .theory-content-readable .katex,
-.dark .theory-content-readable .katex * {
+.dark .theory-content-readable:not(.insta-math-host) .katex,
+.dark .theory-content-readable:not(.insta-math-host) .katex * {
   color: #f8fafc !important;
 }
-.theory-content-readable .theory-inline-math .katex,
-.theory-content-readable .theory-inline-math .katex * {
+.theory-content-readable:not(.insta-math-host) .theory-inline-math .katex,
+.theory-content-readable:not(.insta-math-host) .theory-inline-math .katex * {
   font-weight: 500 !important;
 }
-.theory-content-readable .theory-display-math .katex,
-.theory-content-readable .theory-display-math .katex * {
+.theory-content-readable:not(.insta-math-host) .theory-display-math .katex,
+.theory-content-readable:not(.insta-math-host) .theory-display-math .katex * {
   font-weight: 600 !important;
 }
 .theory-inline-math {

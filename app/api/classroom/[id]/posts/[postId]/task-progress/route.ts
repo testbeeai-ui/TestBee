@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  createAdminClient,
-  createClient,
-  createClientWithToken,
-} from "@/integrations/supabase/server";
+import { createAdminClient, createClient } from "@/integrations/supabase/server";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
 import {
   isConceptFocusLessonChecklistComplete,
@@ -70,27 +67,12 @@ type GenericFrom = {
 };
 
 async function getAuthedUser(request: Request) {
-  const tokenFromHeader = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? null;
-  let user: { id: string } | null = null;
-  let cookieClient: Awaited<ReturnType<typeof createClient>> | null = null;
-  if (tokenFromHeader) {
-    const supabaseWithToken = createClientWithToken(tokenFromHeader);
-    const {
-      data: { user: u },
-    } = await supabaseWithToken.auth.getUser();
-    user = u ?? null;
-  }
-  if (!user) {
-    cookieClient = await createClient();
-    user = (await cookieClient.auth.getUser()).data?.user ?? null;
-  }
+  const auth = await getSupabaseAndUser(request);
+  if (!auth) return { user: null, authedClient: await createClient() };
+  // Prefer service-role when available (assignment progress writes span RLS edges);
+  // otherwise use the caller's verified client from local JWT / cookies.
   const admin = createAdminClient();
-  const authedClient =
-    admin ??
-    (tokenFromHeader
-      ? createClientWithToken(tokenFromHeader)
-      : (cookieClient ?? (await createClient())));
-  return { user, authedClient };
+  return { user: auth.user, authedClient: admin ?? auth.supabase };
 }
 
 function normalizeKey(v: unknown): string {

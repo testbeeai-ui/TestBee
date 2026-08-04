@@ -64,6 +64,19 @@ function looseCollisionKey(value: string): string {
     .trim();
 }
 
+/**
+ * The single largest lesson payload (theory, InstaCue cards, quiz bank, formulas) for
+ * content that admins edit rarely. Revisiting a subtopic — which students do constantly
+ * while working through a chapter — previously re-fetched all of it across regions.
+ *
+ * `private` because the body carries the caller's `canEdit`; admins bypass the cache so
+ * their edits show up immediately.
+ */
+function subtopicContentCacheControl(canEdit: boolean): string {
+  if (canEdit) return "private, no-store";
+  return "private, max-age=300, stale-while-revalidate=3600";
+}
+
 export async function GET(request: Request) {
   try {
     const ctx = await getSupabaseAndUser(request);
@@ -75,70 +88,97 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Missing required query params" }, { status: 400 });
     }
     const { supabase, user } = ctx;
-    const baseQuery = supabase
-      .from("subtopic_content")
-      .select(
-        "theory, reading_references, did_you_know, instacue_cards, bits_questions, practice_formulas"
-      )
-      .eq("board", params.board)
-      .eq("subject", params.subject)
-      .eq("class_level", params.classLevel)
-      .eq("topic", params.topic)
-      .eq("subtopic_name", params.subtopicName)
-      .eq("level", params.level);
+    // Started here but awaited after the content lookups: `canEdit` only affects the
+    // response shape, so it has no reason to add its round trip on top of a lookup chain
+    // that can already run up to three queries deep.
+    const canEditPromise = isAdminUser(supabase, user.id);
+    const contentSelect =
+      "theory, reading_references, did_you_know, instacue_cards, bits_questions, practice_formulas";
+    const legacyTopic = legacySanitizeForLookup(params.topic);
+    const legacySubtopic = legacySanitizeForLookup(params.subtopicName);
+    const needsLegacyLookup =
+      legacyTopic !== params.topic || legacySubtopic !== params.subtopicName;
 
-    let { data, error } = await baseQuery.maybeSingle();
-    if (!error && !data) {
-      const legacyTopic = legacySanitizeForLookup(params.topic);
-      const legacySubtopic = legacySanitizeForLookup(params.subtopicName);
-      if (legacyTopic !== params.topic || legacySubtopic !== params.subtopicName) {
-        const fallback = await supabase
-          .from("subtopic_content")
-          .select(
-            "theory, reading_references, did_you_know, instacue_cards, bits_questions, practice_formulas"
-          )
-          .eq("board", params.board)
-          .eq("subject", params.subject)
-          .eq("class_level", params.classLevel)
-          .eq("topic", legacyTopic)
-          .eq("subtopic_name", legacySubtopic)
-          .eq("level", params.level)
-          .maybeSingle();
-        data = fallback.data;
-        error = fallback.error;
-        // Self-heal legacy key rows: copy found row into canonical key so future reads are stable.
-        if (!fallback.error && fallback.data) {
-          const { error: healError } = await supabase.from("subtopic_content").upsert(
-            {
-              board: params.board,
-              subject: params.subject,
-              class_level: params.classLevel,
-              topic: params.topic,
-              subtopic_name: params.subtopicName,
-              level: params.level,
-              theory: fallback.data.theory ?? "",
-              reading_references: Array.isArray(fallback.data.reading_references)
-                ? fallback.data.reading_references
-                : [],
-              did_you_know: fallback.data.did_you_know ?? "",
-              instacue_cards: Array.isArray(fallback.data.instacue_cards)
-                ? fallback.data.instacue_cards
-                : [],
-              bits_questions: Array.isArray(fallback.data.bits_questions)
-                ? fallback.data.bits_questions
-                : [],
-              practice_formulas: Array.isArray(fallback.data.practice_formulas)
-                ? fallback.data.practice_formulas
-                : [],
-              updated_by: user.id,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "board,subject,class_level,topic,subtopic_name,level" }
-          );
-          if (healError) {
-            console.warn("legacy key self-heal upsert failed", healError);
-          }
-        }
+    const loLookup = {
+      board: params.board,
+      subject: params.subject,
+      class_level: params.classLevel,
+      topic: params.topic,
+      subtopic_name: params.subtopicName,
+      level: params.level,
+    };
+
+    // Content + Learning Outcomes packs share one RTT (separate dedicated table).
+    const [primary, legacy, loPrimary] = await Promise.all([
+      supabase
+        .from("subtopic_content")
+        .select(contentSelect)
+        .eq("board", params.board)
+        .eq("subject", params.subject)
+        .eq("class_level", params.classLevel)
+        .eq("topic", params.topic)
+        .eq("subtopic_name", params.subtopicName)
+        .eq("level", params.level)
+        .maybeSingle(),
+      needsLegacyLookup
+        ? supabase
+            .from("subtopic_content")
+            .select(contentSelect)
+            .eq("board", params.board)
+            .eq("subject", params.subject)
+            .eq("class_level", params.classLevel)
+            .eq("topic", legacyTopic)
+            .eq("subtopic_name", legacySubtopic)
+            .eq("level", params.level)
+            .maybeSingle()
+        : Promise.resolve(null),
+      supabase
+        .from("learning_outcomes_questions")
+        .select("questions")
+        .eq("board", loLookup.board)
+        .eq("subject", loLookup.subject)
+        .eq("class_level", loLookup.class_level)
+        .eq("topic", loLookup.topic)
+        .eq("subtopic_name", loLookup.subtopic_name)
+        .eq("level", loLookup.level)
+        .maybeSingle(),
+    ]);
+
+    let data = primary.data;
+    let error = primary.error;
+    if (!error && !data && legacy && !legacy.error && legacy.data) {
+      data = legacy.data;
+      error = legacy.error;
+      // Self-heal legacy key rows: copy found row into canonical key so future reads are stable.
+      const { error: healError } = await supabase.from("subtopic_content").upsert(
+        {
+          board: params.board,
+          subject: params.subject,
+          class_level: params.classLevel,
+          topic: params.topic,
+          subtopic_name: params.subtopicName,
+          level: params.level,
+          theory: legacy.data.theory ?? "",
+          reading_references: Array.isArray(legacy.data.reading_references)
+            ? legacy.data.reading_references
+            : [],
+          did_you_know: legacy.data.did_you_know ?? "",
+          instacue_cards: Array.isArray(legacy.data.instacue_cards)
+            ? legacy.data.instacue_cards
+            : [],
+          bits_questions: Array.isArray(legacy.data.bits_questions)
+            ? legacy.data.bits_questions
+            : [],
+          practice_formulas: Array.isArray(legacy.data.practice_formulas)
+            ? legacy.data.practice_formulas
+            : [],
+          updated_by: user.id,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "board,subject,class_level,topic,subtopic_name,level" }
+      );
+      if (healError) {
+        console.warn("legacy key self-heal upsert failed", healError);
       }
     }
     if (!error && !data) {
@@ -203,18 +243,44 @@ export async function GET(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    const canEdit = await isAdminUser(supabase, user.id);
+
+    let learningOutcomesQuestions: unknown[] = Array.isArray(loPrimary.data?.questions)
+      ? loPrimary.data.questions
+      : [];
+
+    // Legacy-key fallback for LO packs if canonical key missed.
+    if (learningOutcomesQuestions.length === 0 && needsLegacyLookup) {
+      const { data: loLegacy } = await supabase
+        .from("learning_outcomes_questions")
+        .select("questions")
+        .eq("board", params.board)
+        .eq("subject", params.subject)
+        .eq("class_level", params.classLevel)
+        .eq("topic", legacyTopic)
+        .eq("subtopic_name", legacySubtopic)
+        .eq("level", params.level)
+        .maybeSingle();
+      if (Array.isArray(loLegacy?.questions)) {
+        learningOutcomesQuestions = loLegacy.questions;
+      }
+    }
+
+    const canEdit = await canEditPromise;
     const refs = normalizeReferences(data?.reading_references);
-    return NextResponse.json({
-      theory: data?.theory ?? "",
-      references: refs,
-      didYouKnow: data?.did_you_know ?? "",
-      instacueCards: Array.isArray(data?.instacue_cards) ? data.instacue_cards : [],
-      bitsQuestions: Array.isArray(data?.bits_questions) ? data.bits_questions : [],
-      practiceFormulas: Array.isArray(data?.practice_formulas) ? data.practice_formulas : [],
-      exists: !!data,
-      canEdit,
-    });
+    return NextResponse.json(
+      {
+        theory: data?.theory ?? "",
+        references: refs,
+        didYouKnow: data?.did_you_know ?? "",
+        instacueCards: Array.isArray(data?.instacue_cards) ? data.instacue_cards : [],
+        bitsQuestions: Array.isArray(data?.bits_questions) ? data.bits_questions : [],
+        practiceFormulas: Array.isArray(data?.practice_formulas) ? data.practice_formulas : [],
+        learningOutcomesQuestions,
+        exists: !!data || learningOutcomesQuestions.length > 0,
+        canEdit,
+      },
+      { headers: { "Cache-Control": subtopicContentCacheControl(canEdit) } }
+    );
   } catch (e) {
     console.error("subtopic-content GET error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

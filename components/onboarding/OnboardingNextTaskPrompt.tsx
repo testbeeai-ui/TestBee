@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/hooks/useAuth";
 import { OnboardingRewardClaimDialog } from "@/components/dashboard/OnboardingRewardClaimDialog";
-import { OnboardingRewardDialog } from "@/components/dashboard/OnboardingRewardDialog";
 import { isMainOnboardingTaskId } from "@/lib/onboarding/onboardingNextTask";
 import {
   ONBOARDING_TASK_CELEBRATION_ENDED_EVENT,
@@ -50,6 +50,20 @@ import {
   type OnboardingPostTaskSiteTourDetail,
 } from "@/lib/subscription/freeTrialClient";
 
+/**
+ * This prompt mounts from `AppLayout` on every authenticated page, so a static import
+ * pulled the ~2.6k-line site-tour checklist dialog into the shared chunk for students who
+ * never open it. Loading it on first open costs one chunk fetch behind a deliberate
+ * 750ms open delay, and it stays mounted afterwards so close animations still run.
+ */
+const OnboardingRewardDialog = dynamic(
+  () =>
+    import("@/components/dashboard/OnboardingRewardDialog").then((m) => ({
+      default: m.OnboardingRewardDialog,
+    })),
+  { ssr: false }
+);
+
 /** Brief delay so the checklist toast appears before the modal. */
 const OPEN_DELAY_MS = 750;
 
@@ -65,6 +79,8 @@ function claimRewardPromptSessionKey(): string {
 export function OnboardingNextTaskPrompt() {
   const { profile } = useAuth();
   const [checklistOpen, setChecklistOpen] = useState(false);
+  /** Sticky: keeps the lazily loaded dialog mounted after first open so it can animate out. */
+  const [checklistMounted, setChecklistMounted] = useState(false);
   const [claimOpen, setClaimOpen] = useState(false);
   const [checklistRewardRdm, setChecklistRewardRdm] = useState(
     DEFAULT_RDM_CONFIG.free_trial_checklist_reward_rdm
@@ -350,23 +366,27 @@ export function OnboardingNextTaskPrompt() {
     };
   }, [profile?.id, syncTomorrowModal]);
 
+  if (checklistOpen && !checklistMounted) setChecklistMounted(true);
+
   return (
     <>
-      <OnboardingRewardDialog
-        open={checklistOpen}
-        onOpenChange={(next) => {
-          setChecklistOpen(next);
-          if (!next) promotedTaskIdRef.current = null;
-        }}
-        checklistRewardRdm={checklistRewardRdm}
-        allTasksComplete={
-          !isOnboardingRewardClaimed(profile) && isOnboardingRewardComplete(profile)
-        }
-        onRequestClaimReward={() => {
-          setChecklistOpen(false);
-          setClaimOpen(true);
-        }}
-      />
+      {checklistMounted && (
+        <OnboardingRewardDialog
+          open={checklistOpen}
+          onOpenChange={(next) => {
+            setChecklistOpen(next);
+            if (!next) promotedTaskIdRef.current = null;
+          }}
+          checklistRewardRdm={checklistRewardRdm}
+          allTasksComplete={
+            !isOnboardingRewardClaimed(profile) && isOnboardingRewardComplete(profile)
+          }
+          onRequestClaimReward={() => {
+            setChecklistOpen(false);
+            setClaimOpen(true);
+          }}
+        />
+      )}
       <OnboardingRewardClaimDialog
         open={claimOpen}
         onOpenChange={setClaimOpen}

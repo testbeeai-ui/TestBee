@@ -16,8 +16,8 @@ export type NumeralsPackClaimResult = {
 
 /**
  * When every numeral (practice formula with questions) for this subtopic level is submitted
- * and server-regraded overall score is ≥60%, grants RDM from `subtopic_numerals_pack_rdm` at most once per IST calendar day
- * per user (global — not per subtopic).
+ * and server-regraded overall score is ≥60%, grants RDM from `subtopic_numerals_pack_rdm`
+ * once per subtopic+level (lifetime — not a global daily lock).
  */
 export async function claimNumeralsPackCompleteDailyRdm(params: {
   board: Board;

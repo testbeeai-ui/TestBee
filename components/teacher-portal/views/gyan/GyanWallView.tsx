@@ -5,6 +5,7 @@ import { Loader2, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import "@/lib/math/katexStyles";
 import type { TeacherPortalSummary, TeacherPortalWallItem } from "@/lib/teacherPortal/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";

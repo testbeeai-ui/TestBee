@@ -8,6 +8,10 @@ import {
   type LearningDwellScope,
 } from "@/lib/dashboard/learningDwellTelemetry";
 import { safeGetSession } from "@/lib/auth/safeSession";
+import {
+  shouldSendTelemetry,
+  telemetryIntervalMultiplier,
+} from "@/lib/telemetry/networkConditions";
 
 /**
  * Heartbeat / flush interval. Dwell deltas are still bookmarked accurately at panel switches
@@ -88,7 +92,11 @@ export function useLearningDwellTelemetry(opts: {
       const sc = scopeRef.current;
       if (!sc || !enabledRef.current) return;
       const now = Date.now();
-      if (!force && now - lastPresencePingAt < MIN_PRESENCE_PING_GAP_MS) return;
+      // Presence is a pure "is the learner here now" signal with no local backlog, so an
+      // offline ping has nothing to preserve — skipping it is the whole fix.
+      if (!shouldSendTelemetry()) return;
+      if (!force && now - lastPresencePingAt < MIN_PRESENCE_PING_GAP_MS * telemetryIntervalMultiplier())
+        return;
       if (presencePingInFlight) return;
       presencePingInFlight = true;
       const { session } = await safeGetSession();
@@ -144,7 +152,11 @@ export function useLearningDwellTelemetry(opts: {
     const flush = async (force = false) => {
       if (queueRef.current.length === 0) return;
       const now = Date.now();
-      if (!force && now - lastDwellFlushAt < MIN_DWELL_FLUSH_GAP_MS) return;
+      // Bail before splicing the queue: dwell events stay queued for the next attempt,
+      // matching how a failed POST already re-queues its batch below.
+      if (!shouldSendTelemetry()) return;
+      if (!force && now - lastDwellFlushAt < MIN_DWELL_FLUSH_GAP_MS * telemetryIntervalMultiplier())
+        return;
       if (dwellFlushInFlight) return;
       dwellFlushInFlight = true;
       const batch = queueRef.current.splice(0, 25);

@@ -37,6 +37,10 @@ import {
 import GyanFeedPagination, { GYAN_FEED_PAGE_SIZE } from "@/components/doubts/GyanFeedPagination";
 import { gyanWallFontClass, gyanWallGridClass } from "@/components/doubts/gyanWallStyles";
 import { dispatchStudyDayBumped } from "@/lib/dashboard/studyDayBumpEvents";
+import {
+  shouldSendTelemetry,
+  telemetryIntervalMultiplier,
+} from "@/lib/telemetry/networkConditions";
 import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdm/rdmConfig";
 import { OnboardingGuidanceBanner } from "@/components/onboarding/OnboardingGuidanceBanner";
 import {
@@ -473,15 +477,37 @@ function DoubtsPageContent() {
 
   const profPiPendingKey = Object.keys(profPiPendingByDoubtId).sort().join("|");
 
-  /** Background refresh so new answers (Prof-Pi, teachers, comments) appear without manual reload */
+  /**
+   * Background refresh so new answers (Prof-Pi, teachers, comments) appear without manual
+   * reload.
+   *
+   * While a Prof-Pi answer is pending this polls fast, because answers usually land within
+   * a few seconds. A flat 2.8s interval kept that rate for the full 120s pending window
+   * though — 40+ full feed reads, each a heavy join — so the gap now backs off toward the
+   * idle interval. Early ticks stay fast, so it still feels immediate; a new pending doubt
+   * changes `profPiPendingKey` and restarts the effect, resetting the backoff.
+   */
   useEffect(() => {
-    const intervalMs = profPiPendingKey ? 2800 : 20_000;
-    const tick = () => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      void fetchDoubts({ silent: true });
+    const idleMs = 20_000;
+    const startMs = profPiPendingKey ? 2_800 : idleMs;
+    let delay = startMs;
+    let timer: number | null = null;
+
+    const schedule = () => {
+      timer = window.setTimeout(() => {
+        const hidden = typeof document !== "undefined" && document.visibilityState === "hidden";
+        if (!hidden && shouldSendTelemetry()) {
+          void fetchDoubts({ silent: true });
+          delay = Math.min(Math.round(delay * 1.45), idleMs);
+        }
+        schedule();
+      }, delay * telemetryIntervalMultiplier());
     };
-    const t = window.setInterval(tick, intervalMs);
-    return () => clearInterval(t);
+    schedule();
+
+    return () => {
+      if (timer != null) window.clearTimeout(timer);
+    };
   }, [profPiPendingKey, fetchDoubts]);
 
   useEffect(() => {

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { Lock, Play } from "lucide-react";
 import MathText from "@/components/MathText";
+import RdmRewardInfoTip from "@/components/rdm/RdmRewardInfoTip";
+import { quizRdmTipLines } from "@/lib/rdm/subtopicUnitRdmCopy";
 import type { Subject } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +17,13 @@ export type TopicQuizBankSetRow = {
   /** Show score styling (green check) when a set was submitted. */
   scored?: boolean;
   onPlay: () => void;
+};
+
+export type TopicQuizRdmInfo = {
+  /** Badge amount shown next to the coin (typically per-set). */
+  badgeAmount: number;
+  perSetAmount: number;
+  overallAmount: number;
 };
 
 export type TopicQuizInvestorCardProps = {
@@ -40,6 +49,12 @@ export type TopicQuizInvestorCardProps = {
   /** When teacher assigned a premium set, hide free Set 1 and show banner instead. */
   hideSet1?: boolean;
   assignmentUnlock?: { setIndex?: number; message: string; fullSubtopic?: boolean };
+  /** Optional reward hint note displayed inside the card footer */
+  rdmHint?: string;
+  /** Structured RDM amounts for coin badge + info popover (preferred over parsing rdmHint). */
+  rdmInfo?: TopicQuizRdmInfo;
+  /** Optional best score % for Set / pack (Dive hub). */
+  bestScorePct?: number | null;
 };
 
 const SUBJECT_LABEL: Record<Subject, string> = {
@@ -47,57 +62,6 @@ const SUBJECT_LABEL: Record<Subject, string> = {
   chemistry: "Chemistry",
   math: "Math",
 };
-
-function QuizSetRow({
-  setName,
-  sublabel,
-  locked,
-  onPlay,
-  playLabel,
-  accent = "free",
-}: {
-  setName: string;
-  sublabel: string;
-  locked?: boolean;
-  onPlay: () => void;
-  playLabel: string;
-  accent?: "free" | "muted";
-}) {
-  return (
-    <div
-      className={cn(
-        "mb-2 flex items-center justify-between gap-3 rounded-xl border bg-card px-3.5 py-3 shadow-sm transition-colors last:mb-0",
-        locked
-          ? "border-border/50 bg-muted/15"
-          : "border-border/70 hover:border-primary/35 hover:bg-muted/20"
-      )}
-    >
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
-          {setName}
-          {locked ? <Lock className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden /> : null}
-        </div>
-        <div
-          className={cn(
-            "mt-0.5 flex items-center gap-1 text-[11px] font-medium",
-            accent === "free" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
-          )}
-        >
-          {accent === "free" ? <span aria-hidden>✓</span> : null}
-          <span className="min-w-0 truncate">{sublabel}</span>
-        </div>
-      </div>
-      <button
-        type="button"
-        aria-label={playLabel}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/10 transition hover:scale-[1.06] hover:bg-primary/90 hover:ring-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        onClick={onPlay}
-      >
-        <Play className="ml-0.5 h-3.5 w-3.5 fill-current" aria-hidden />
-      </button>
-    </div>
-  );
-}
 
 export default function TopicQuizInvestorCard({
   subtopicTitle,
@@ -117,120 +81,225 @@ export default function TopicQuizInvestorCard({
   onReviewPrevious,
   hideSet1 = false,
   assignmentUnlock,
+  rdmHint,
+  rdmInfo,
+  bestScorePct = null,
 }: TopicQuizInvestorCardProps) {
   const subjectLabel = SUBJECT_LABEL[subject] ?? subject;
+  const set1Meta =
+    set1Sublabel ??
+    `Free · ${set1QuestionCount} question${set1QuestionCount === 1 ? "" : "s"}`;
+  const resolvedRdmInfo: TopicQuizRdmInfo | null =
+    rdmInfo ??
+    (rdmHint
+      ? {
+          badgeAmount: Number(rdmHint.match(/\d+/)?.[0] ?? 15) || 15,
+          perSetAmount: 5,
+          overallAmount: Number(rdmHint.match(/\d+/)?.[0] ?? 15) || 15,
+        }
+      : null);
 
   return (
-    <div className="edu-card min-w-0 overflow-hidden rounded-2xl border border-border p-5">
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        Sub-topic quiz
-      </p>
-
-      <h3
-        className="mb-3 text-base font-bold leading-snug text-foreground"
-        title={subtopicTooltip ?? subtopicTitle}
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+      {/* Pack summary */}
+      <div
+        className="relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border px-4 py-3.5 sm:px-5"
+        style={{
+          background: "linear-gradient(135deg, #0c1f1a 0%, #0d1520 55%, #0b1220 100%)",
+          borderColor: "rgba(34,197,94,0.22)",
+          boxShadow: "0 4px 20px rgba(16,185,129,0.06)",
+        }}
       >
-        <MathText as="span" weight="bold">
-          {subtopicTitle}
-        </MathText>
-      </h3>
+        <div className="relative flex min-w-0 items-center gap-3">
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
+            style={{
+              background: "linear-gradient(135deg, #059669, #10b981)",
+              boxShadow: "0 4px 14px rgba(16,185,129,0.35)",
+            }}
+            aria-hidden
+          >
+            <i className="ti ti-list-check text-[17px]" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold leading-none text-emerald-50/95">
+              Quiz Pack
+            </div>
+            <div className="mt-1.5 truncate text-[12px] font-medium leading-none text-emerald-200/65">
+              {subjectLabel}
+              {topicTagLine ? ` · ${topicTagLine}` : ""}
+              {` · ${set1QuestionCount} questions`}
+            </div>
+          </div>
+        </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="edu-chip bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
-          {subjectLabel}
-        </span>
-        {topicTagLine ? (
-          <span className="text-xs text-muted-foreground">{topicTagLine}</span>
+        {typeof bestScorePct === "number" ? (
+          <div className="relative flex shrink-0 flex-col items-end justify-center gap-1">
+            <div className="text-[10px] font-semibold uppercase leading-none tracking-[0.08em] text-emerald-200/55">
+              Best
+            </div>
+            <div className="text-[20px] font-semibold leading-none tracking-tight text-emerald-400">
+              {bestScorePct}
+              <span className="text-[11px] font-medium">%</span>
+            </div>
+          </div>
+        ) : resolvedRdmInfo ? (
+          <div className="relative inline-flex shrink-0 items-center gap-1.5">
+            <div
+              className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold text-amber-300"
+              style={{ background: "#2a1f00", borderColor: "#78450a" }}
+            >
+              <i className="ti ti-coin text-[13px]" aria-hidden />
+              <span>+{resolvedRdmInfo.overallAmount} RDM</span>
+            </div>
+            <RdmRewardInfoTip
+              title="Quiz RDM"
+              ariaLabel="RDM reward details"
+              lines={quizRdmTipLines(
+                resolvedRdmInfo.perSetAmount,
+                resolvedRdmInfo.overallAmount
+              )}
+            />
+          </div>
         ) : null}
       </div>
 
-      <div className="mb-4 border-t border-border" />
+      {/* Title block */}
+      <div className="space-y-1.5">
+        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">
+          Sub-topic quiz
+        </p>
+        <h3
+          className="text-[1.05rem] font-medium leading-[1.4] tracking-[-0.01em] text-slate-100 sm:text-[1.15rem] sm:leading-[1.4] [&_.katex]:text-[1em]"
+          title={subtopicTooltip ?? subtopicTitle}
+        >
+          <MathText>{subtopicTitle}</MathText>
+        </h3>
+      </div>
 
       {assignmentUnlock ? (
-        <div className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-3 text-[12px] leading-relaxed text-emerald-900 dark:text-emerald-100">
-          <p className="font-semibold text-foreground">
+        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-xs leading-relaxed text-emerald-100">
+          <p className="font-semibold text-emerald-200">
             {assignmentUnlock.fullSubtopic
               ? "Full subtopic unlocked for this assignment"
               : `Set ${assignmentUnlock.setIndex} unlocked for this assignment`}
           </p>
-          <p className="mt-1 text-muted-foreground">{assignmentUnlock.message}</p>
+          <p className="mt-1 text-emerald-100/80">{assignmentUnlock.message}</p>
         </div>
       ) : null}
 
+      {/* Primary CTA — meta sits beside the button, not pushed to the far edge */}
       {!hideSet1 ? (
-        <QuizSetRow
-          setName="Set 1"
-          sublabel={
-            set1Sublabel ??
-            `Free · ${set1QuestionCount} question${set1QuestionCount === 1 ? "" : "s"}`
-          }
-          onPlay={onStartSet1}
-          playLabel="Start Set 1 quiz"
-          accent="free"
-        />
-      ) : null}
-
-      {bankSets.map((row) => (
-        <QuizSetRow
-          key={row.setIndex}
-          setName={`Set ${row.setIndex}`}
-          sublabel={row.sublabel ?? `${row.questionCount} questions · Question bank`}
-          locked={row.locked}
-          onPlay={row.onPlay}
-          playLabel={`Start Set ${row.setIndex} quiz`}
-          accent={row.locked ? "muted" : row.scored ? "free" : "muted"}
-        />
-      ))}
-
-      {showQuestionBank ? (
-        <>
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3.5">
           <button
             type="button"
-            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-border/70 bg-card/30 px-4 py-3 text-[13px] font-semibold text-foreground/75 shadow-sm transition hover:border-primary/35 hover:bg-muted/25 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-            onClick={onQuestionBankClick}
+            onClick={onStartSet1}
+            aria-label="Start Set 1 quiz"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-[0.99] sm:min-w-[168px]"
+            style={{
+              background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+              boxShadow: "0 8px 22px -8px rgba(16,185,129,0.5)",
+            }}
           >
-            <Lock className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-            Open Question Bank
+            <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
+            Start Set 1
+          </button>
+          <p className="text-[13px] font-medium leading-none text-slate-400">{set1Meta}</p>
+        </div>
+      ) : null}
+
+      {bankSets.length > 0 ? (
+        <div className="space-y-2.5">
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">
+            Question bank
+          </p>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {bankSets.map((row) => (
+              <li key={row.setIndex}>
+                <button
+                  type="button"
+                  disabled={row.locked}
+                  onClick={row.onPlay}
+                  aria-label={`Start Set ${row.setIndex} quiz`}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition",
+                    row.locked
+                      ? "cursor-not-allowed border-white/5 bg-white/[0.02] opacity-60"
+                      : "border-white/10 bg-white/[0.03] hover:border-emerald-500/30 hover:bg-emerald-500/[0.06]"
+                  )}
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-xs font-semibold text-slate-300">
+                    {row.locked ? <Lock className="h-3.5 w-3.5" /> : row.setIndex}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-semibold text-white">
+                      {row.label || `Set ${row.setIndex}`}
+                    </span>
+                    <span className="block text-[11px] font-medium text-slate-400">
+                      {row.sublabel ?? `${row.questionCount} questions`}
+                    </span>
+                  </span>
+                  {!row.locked ? (
+                    <Play className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden />
+                  ) : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {showQuestionBank ? (
+        <div className="space-y-2.5 border-t border-white/[0.06] pt-4">
+          <button
+            type="button"
+            onClick={onQuestionBankClick}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-transparent px-4 text-[13px] font-medium text-slate-300 transition hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+          >
+            <Lock className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+            Open full question bank
           </button>
 
           {questionBankUpsellOpen ? (
-            <div className="mt-2.5 animate-in fade-in slide-in-from-top-1 rounded-xl border border-border bg-muted/30 p-4 duration-200">
-              <p className="mb-2 text-center text-[22px]" aria-hidden>
-                🔒
+            <div className="rounded-xl border border-white/10 bg-[#0d1420] p-4">
+              <p className="text-[13px] font-semibold text-white">Question Bank is premium</p>
+              <p className="mt-1.5 text-[12px] leading-relaxed text-slate-400">
+                Upgrade to Starter or Pro for Sets 2–6, solutions, and filters.
               </p>
-              <p className="mb-2.5 text-center text-[12.5px] leading-relaxed text-muted-foreground">
-                <strong className="mb-1 block text-foreground">
-                  Question Bank is a premium feature
-                </strong>
-                Upgrade to Starter or Pro to unlock the full question bank, detailed solutions, and
-                topic-wise filters.
-              </p>
-              <Link
-                href={upgradeHref}
-                className="block rounded-lg bg-primary px-3 py-2.5 text-center text-[13px] font-bold text-primary-foreground transition hover:bg-primary/90"
-              >
-                Upgrade Now
-              </Link>
-              <button
-                type="button"
-                className="mt-2 block w-full text-center text-[11px] text-muted-foreground transition hover:text-foreground"
-                onClick={onDismissUpsell}
-              >
-                Dismiss
-              </button>
+              <div className="mt-3.5 flex items-center gap-3">
+                <Link
+                  href={upgradeHref}
+                  className="inline-flex flex-1 items-center justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-center text-xs font-semibold text-white transition hover:bg-emerald-500"
+                >
+                  Upgrade now
+                </Link>
+                <button
+                  type="button"
+                  className="text-[12px] font-medium text-slate-400 hover:text-white"
+                  onClick={onDismissUpsell}
+                >
+                  Not now
+                </button>
+              </div>
             </div>
           ) : null}
-        </>
+        </div>
       ) : null}
 
       {reviewPreviousLabel && onReviewPrevious ? (
         <button
           type="button"
-          className="mt-2 w-full text-center text-xs text-primary transition hover:underline"
+          className="text-center text-xs font-medium text-emerald-400 hover:text-emerald-300"
           onClick={onReviewPrevious}
         >
           {reviewPreviousLabel}
         </button>
+      ) : null}
+
+      {rdmHint && typeof bestScorePct !== "number" ? (
+        <p className="text-center text-[12px] font-normal leading-relaxed text-slate-500">
+          {rdmHint}
+        </p>
       ) : null}
     </div>
   );

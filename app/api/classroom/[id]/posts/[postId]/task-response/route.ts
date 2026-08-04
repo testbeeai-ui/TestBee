@@ -1,21 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient, createClientWithToken } from "@/integrations/supabase/server";
-
-async function getAuthedUser(request: Request) {
-  const tokenFromHeader = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? null;
-  if (tokenFromHeader) {
-    const supabaseWithToken = createClientWithToken(tokenFromHeader);
-    const {
-      data: { user },
-    } = await supabaseWithToken.auth.getUser();
-    return { user: user ?? null, authedClient: supabaseWithToken };
-  }
-  const cookieClient = await createClient();
-  const {
-    data: { user },
-  } = await cookieClient.auth.getUser();
-  return { user: user ?? null, authedClient: cookieClient };
-}
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 
 function normalizeUrl(raw: string): string | null {
   const v = raw.trim();
@@ -38,8 +22,9 @@ export async function GET(
   if (!classroomId || !postId) {
     return NextResponse.json({ error: "classroom id and post id required" }, { status: 400 });
   }
-  const { user, authedClient } = await getAuthedUser(request);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await getSupabaseAndUser(request);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { user, supabase: authedClient } = auth;
 
   // Ensure the post is in this classroom (and that caller can read it via RLS).
   const { data: post, error: postErr } = await authedClient
@@ -77,8 +62,9 @@ export async function POST(
   if (!classroomId || !postId) {
     return NextResponse.json({ error: "classroom id and post id required" }, { status: 400 });
   }
-  const { user, authedClient } = await getAuthedUser(request);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await getSupabaseAndUser(request);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { user, supabase: authedClient } = auth;
 
   let body: { taskId?: string; responseText?: string; links?: string[] };
   try {

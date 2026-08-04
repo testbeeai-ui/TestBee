@@ -15,6 +15,10 @@ import { notifyStudyDaysRefresh } from "@/lib/dashboard/studyDayBumpEvents";
 import { invalidateStudyDaysCache } from "@/lib/dashboard/studyDaysClient";
 import { localStudyCalendarDay } from "@/lib/dashboard/studyDayBump";
 import { SITE_PRESENCE_HEARTBEAT_MS } from "@/lib/dashboard/sitePresenceConstants";
+import {
+  shouldSendTelemetry,
+  telemetryIntervalMultiplier,
+} from "@/lib/telemetry/networkConditions";
 
 const SitePresenceLiveContext = createContext(0);
 
@@ -29,11 +33,33 @@ let lastStudyDaysPresencePostAt = 0;
 /** Match server batching — avoid back-to-back presence_ms POSTs from flush loops / remounts. */
 const MIN_STUDY_DAYS_PRESENCE_GAP_MS = 22_000;
 
+function presenceGapMs(): number {
+  return MIN_STUDY_DAYS_PRESENCE_GAP_MS * telemetryIntervalMultiplier();
+}
+
+function heartbeatIntervalMs(): number {
+  return SITE_PRESENCE_HEARTBEAT_MS * telemetryIntervalMultiplier();
+}
+/**
+ * The accumulator ticks every second, but consumers only ever render this as whole
+ * minutes/hours and as heatmap intensity buckets. Publishing every second re-ran the
+ * dashboard's month grid and the profile's 28-day streak scan once per second for a
+ * change no one could see, so the exposed value is quantized.
+ */
+const LIVE_MS_PUBLISH_QUANTUM_MS = 15_000;
+
+function quantizeLiveMs(ms: number): number {
+  return Math.floor(ms / LIVE_MS_PUBLISH_QUANTUM_MS) * LIVE_MS_PUBLISH_QUANTUM_MS;
+}
+
 async function postPresenceDelta(day: string, deltaMs: number): Promise<boolean> {
   const capped = Math.min(Math.max(1, Math.trunc(deltaMs)), 5 * 60 * 1000);
   const now = Date.now();
   if (studyDaysPresenceInFlight) return false;
-  if (now - lastStudyDaysPresencePostAt < MIN_STUDY_DAYS_PRESENCE_GAP_MS) return false;
+  // Returning false keeps the delta in `unsentMsRef` for the next flush, so nothing is
+  // lost while offline or while stretching the gap on a constrained connection.
+  if (!shouldSendTelemetry()) return false;
+  if (now - lastStudyDaysPresencePostAt < presenceGapMs()) return false;
   studyDaysPresenceInFlight = true;
   try {
     const res = await fetchWithClientAuth("/api/user/study-days", {
@@ -44,7 +70,7 @@ async function postPresenceDelta(day: string, deltaMs: number): Promise<boolean>
     if (!res.ok) return false;
     lastStudyDaysPresencePostAt = Date.now();
     invalidateStudyDaysCache();
-    notifyStudyDaysRefresh();
+    notifyStudyDaysRefresh("presence");
     return true;
   } catch {
     return false;
@@ -55,8 +81,11 @@ async function postPresenceDelta(day: string, deltaMs: number): Promise<boolean>
 
 async function postSitePresence(offline = false, signedOut = false, forceOnline = false) {
   if (!offline) {
+    // An "online" heartbeat while the browser reports no connectivity can only fail, and
+    // the next tick re-sends it anyway once connectivity returns.
+    if (!shouldSendTelemetry()) return;
     const age = Date.now() - lastOnlineSitePresenceAt;
-    if (!forceOnline && age >= 0 && age < SITE_PRESENCE_HEARTBEAT_MS - 2_000) return;
+    if (!forceOnline && age >= 0 && age < heartbeatIntervalMs() - 2_000) return;
     if (sitePresenceHeartbeatInFlight) return;
   }
 
@@ -210,7 +239,7 @@ export function SitePresenceProvider({
         remain -= chunk;
       }
       unsentMsRef.current = remain;
-      setLiveMs(Math.floor(remain));
+      setLiveMs(quantizeLiveMs(remain));
     } finally {
       flushInFlightRef.current = false;
     }
@@ -303,7 +332,7 @@ export function SitePresenceProvider({
 
       if (document.visibilityState === "visible") {
         const timeSinceHeartbeat = Date.now() - lastHeartbeatTime.current;
-        if (timeSinceHeartbeat >= SITE_PRESENCE_HEARTBEAT_MS) {
+        if (timeSinceHeartbeat >= heartbeatIntervalMs()) {
           lastHeartbeatTime.current = Date.now();
           updateTabPresenceState(userId, tabId, true, false);
           void postSitePresence(false, false, false);
@@ -311,20 +340,21 @@ export function SitePresenceProvider({
       }
 
       if (document.visibilityState !== "visible" || lastTickRef.current == null) {
-        setLiveMs(Math.floor(unsentMsRef.current));
+        const quantized = quantizeLiveMs(unsentMsRef.current);
+        setLiveMs((prev) => (prev === quantized ? prev : quantized));
         return;
       }
       const dt = Math.min(now - lastTickRef.current, 120_000);
       lastTickRef.current = now;
       unsentMsRef.current += dt;
-      const floored = Math.floor(unsentMsRef.current);
-      setLiveMs((prev) => (prev === floored ? prev : floored));
+      const quantized = quantizeLiveMs(unsentMsRef.current);
+      setLiveMs((prev) => (prev === quantized ? prev : quantized));
       if (unsentMsRef.current >= 30_000) {
         void tryFlush();
       }
     }, 1000);
 
-    setLiveMs(Math.floor(unsentMsRef.current));
+    setLiveMs(quantizeLiveMs(unsentMsRef.current));
 
     return () => {
       document.removeEventListener("visibilitychange", onVis);

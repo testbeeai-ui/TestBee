@@ -288,23 +288,66 @@ export function formatLessonsChapterLimitLabel(limit: number): string {
   return `${n} chapter${n === 1 ? "" : "s"} per subject`;
 }
 
-export async function fetchSubscriptionConfig(
-  customClient?: SubscriptionConfigClient
-): Promise<SubscriptionConfig> {
+/**
+ * Same global `rdm_config` table (and same TTL) as `fetchRdmConfig`, which already
+ * caches. This one did not, so a single dashboard paint re-read the whole table from
+ * every component that needed a plan limit. In-flight requests are shared too, because
+ * the callers all mount at once rather than in sequence.
+ *
+ * Only successful reads are cached; failures fall through to defaults uncached so a
+ * transient error does not pin bad values for a minute.
+ */
+const SUBSCRIPTION_CONFIG_CACHE_TTL_MS = 60_000;
+let subscriptionConfigCache: { value: SubscriptionConfig; expiresAt: number } | null = null;
+let subscriptionConfigInFlight: Promise<SubscriptionConfig> | null = null;
+
+export function invalidateSubscriptionConfigCache(): void {
+  subscriptionConfigCache = null;
+  subscriptionConfigInFlight = null;
+}
+
+async function readSubscriptionConfig(
+  client: SubscriptionConfigClient
+): Promise<{ value: SubscriptionConfig; cacheable: boolean }> {
   const merged: SubscriptionConfig = { ...SUBSCRIPTION_CONFIG_DEFAULTS };
   try {
-    const client = customClient ?? (supabase as unknown as SubscriptionConfigClient);
     const { data, error } = await client.from("rdm_config").select("key, value");
-    if (error || !data) return merged;
+    if (error || !data) return { value: merged, cacheable: false };
     for (const row of data) {
       if (!SUBSCRIPTION_CONFIG_KEYS.includes(row.key as keyof typeof SUBSCRIPTION_CONFIG_DEFAULTS))
         continue;
       if (typeof row.value === "number") merged[row.key] = row.value;
     }
-    return merged;
+    return { value: merged, cacheable: true };
   } catch {
-    return merged;
+    return { value: merged, cacheable: false };
   }
+}
+
+export async function fetchSubscriptionConfig(
+  customClient?: SubscriptionConfigClient
+): Promise<SubscriptionConfig> {
+  if (subscriptionConfigCache && subscriptionConfigCache.expiresAt > Date.now()) {
+    return subscriptionConfigCache.value;
+  }
+  if (subscriptionConfigInFlight) return subscriptionConfigInFlight;
+
+  const client = customClient ?? (supabase as unknown as SubscriptionConfigClient);
+  subscriptionConfigInFlight = readSubscriptionConfig(client)
+    .then(({ value, cacheable }) => {
+      if (cacheable) {
+        subscriptionConfigCache = {
+          value,
+          expiresAt: Date.now() + SUBSCRIPTION_CONFIG_CACHE_TTL_MS,
+        };
+      }
+      return value;
+    })
+    .finally(() => {
+      subscriptionConfigInFlight = null;
+    });
+
+  return subscriptionConfigInFlight;
 }
 
 /**

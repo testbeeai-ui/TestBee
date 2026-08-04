@@ -1,5 +1,8 @@
 "use client";
 
+// Caveat (--font-landing-script) is only used by this page, so it stays out of the global CSS.
+import "@fontsource/caveat/600.css";
+import "@fontsource/caveat/700.css";
 import Link from "next/link";
 import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";

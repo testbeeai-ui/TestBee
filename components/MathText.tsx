@@ -2,6 +2,7 @@
 
 import React from "react";
 import katex from "katex";
+import "@/lib/math/katexStyles";
 import { repairPlayQuestionDollarSegments } from "@/lib/play/questions/playQuestionMathDisplay";
 
 /** Preprocess curriculum-style formula text to valid LaTeX. */
@@ -41,6 +42,10 @@ function toLatex(text: string): string {
   s = s.replace(/\bintegral_([a-zA-Z])\s*\^\s*([a-zA-Z])\b/g, "\\int_{$1}^{$2}");
   s = s.replace(/\bpi\s*r\b/gi, "\\pi r");
   s = s.replace(/\bpir\b/gi, "\\pi r");
+  // Area / continuity explanations often arrive as "pir^2" without math delimiters.
+  s = s.replace(/\bpir\s*\^\s*\{?\s*2\s*\}?/gi, "\\pi r^{2}");
+  s = s.replace(/\bpi\s+r\s*\^\s*\{?\s*2\s*\}?/gi, "\\pi r^{2}");
+  s = s.replace(/(?<!\\)\bpi\b(?![a-z])/gi, "\\pi");
   // Common trig command corruption from model output.
   s = s.replace(/\\os(?=\s|[\^_{(]|$)/g, "\\cos");
   s = s.replace(/\\an(?=\s|[\^_{(]|$)/g, "\\tan");
@@ -802,8 +807,33 @@ function standardAreasRowFullLatex(segment: string): string | null {
   return toLatex(t);
 }
 
+/**
+ * KaTeX output is a pure function of (latex, displayMode), and the same formulas are
+ * rendered repeatedly — across sibling instances, across re-renders, and again after
+ * navigating back to a subtopic. Caching the HTML turns those into map lookups instead
+ * of parser runs, which is what actually stalls low-end CPUs.
+ */
+const LATEX_CACHE_LIMIT = 600;
+const latexCache = new Map<string, string | null>();
+
+function cacheLatex(key: string, html: string | null): string | null {
+  if (latexCache.size >= LATEX_CACHE_LIMIT) {
+    const oldest = latexCache.keys().next().value;
+    if (oldest !== undefined) latexCache.delete(oldest);
+  }
+  latexCache.set(key, html);
+  return html;
+}
+
 /** Render LaTeX string to HTML, or null on failure. */
 function renderLatex(latex: string, displayMode: boolean): string | null {
+  const cacheKey = `${displayMode ? "d" : "i"}:${latex}`;
+  const cached = latexCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+  return cacheLatex(cacheKey, renderLatexUncached(latex, displayMode));
+}
+
+function renderLatexUncached(latex: string, displayMode: boolean): string | null {
   try {
     const firstPass = katex.renderToString(latex, {
       displayMode,
@@ -956,7 +986,7 @@ function katexWeightClass(weight: NonNullable<MathTextProps["weight"]>): string 
   return "math-text-katex-heavy";
 }
 
-export default function MathText({
+function MathText({
   children,
   displayMode = false,
   className = "",
@@ -1543,3 +1573,10 @@ export default function MathText({
     </Tag>
   );
 }
+
+/**
+ * Every prop is a primitive, so a shallow compare is exact. Lesson pages render dozens
+ * of these; without memo, any timer or quiz state change re-runs the whole KaTeX path
+ * for all of them.
+ */
+export default React.memo(MathText);

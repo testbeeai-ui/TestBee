@@ -488,7 +488,47 @@ const CURRICULUM_SUBJECTS = ["physics", "chemistry", "math"] as const satisfies 
  * Fetches all curriculum rows from Supabase (Class 11 & 12, all subjects).
  * Returns merged TopicNode[] or null if every fetch failed.
  */
+/**
+ * The full taxonomy is 6 subject/class fan-outs and is admin-edited content that barely
+ * changes, yet every page mounting `useTopicTaxonomy` re-downloaded all of it. Home →
+ * Learn Hub → lesson meant three complete refetches. Cached in module memory (which
+ * survives client-side navigation) with in-flight sharing for concurrent mounts.
+ *
+ * In-memory only on purpose: the payload is large enough that serializing it to
+ * sessionStorage on every navigation would trade one cost for another.
+ */
+const FULL_CURRICULUM_CACHE_TTL_MS = 10 * 60 * 1000;
+let fullCurriculumCache: { value: TopicNode[]; expiresAt: number } | null = null;
+let fullCurriculumInFlight: Promise<TopicNode[] | null> | null = null;
+
+export function invalidateFullCurriculumCache(): void {
+  fullCurriculumCache = null;
+  fullCurriculumInFlight = null;
+}
+
 export async function fetchFullCurriculumFromSupabase(): Promise<TopicNode[] | null> {
+  if (fullCurriculumCache && fullCurriculumCache.expiresAt > Date.now()) {
+    return fullCurriculumCache.value;
+  }
+  if (fullCurriculumInFlight) return fullCurriculumInFlight;
+
+  fullCurriculumInFlight = loadFullCurriculumFromSupabase()
+    .then((nodes) => {
+      // Never cache a failed or empty load: callers surface those as setup errors and
+      // must be able to retry immediately once the database is reachable.
+      if (nodes && nodes.length > 0) {
+        fullCurriculumCache = { value: nodes, expiresAt: Date.now() + FULL_CURRICULUM_CACHE_TTL_MS };
+      }
+      return nodes;
+    })
+    .finally(() => {
+      fullCurriculumInFlight = null;
+    });
+
+  return fullCurriculumInFlight;
+}
+
+async function loadFullCurriculumFromSupabase(): Promise<TopicNode[] | null> {
   const pairs: { subject: Subject; classLevel: number }[] = [];
   for (const s of CURRICULUM_SUBJECTS) {
     pairs.push({ subject: s, classLevel: 11 });

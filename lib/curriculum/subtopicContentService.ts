@@ -47,6 +47,7 @@ export type SubtopicContentResponse = {
   instacueCards: ArtifactInstaCueCard[];
   bitsQuestions: ArtifactBitsQuestion[];
   practiceFormulas: ArtifactFormula[];
+  learningOutcomesQuestions: ArtifactBitsQuestion[];
   exists: boolean;
   canEdit: boolean;
 };
@@ -90,6 +91,7 @@ export async function fetchSubtopicContent(
     instacueCards: [],
     bitsQuestions: [],
     practiceFormulas: [],
+    learningOutcomesQuestions: [],
     exists: false,
     canEdit: false,
   };
@@ -108,11 +110,15 @@ export async function fetchSubtopicContent(
   const practiceFormulas = Array.isArray(data.practiceFormulas)
     ? (data.practiceFormulas as ArtifactFormula[])
     : [];
+  const learningOutcomesQuestions = Array.isArray(data.learningOutcomesQuestions)
+    ? (data.learningOutcomesQuestions as ArtifactBitsQuestion[])
+    : [];
   const hasPersistedSubtopic =
     theory.trim().length > 0 ||
     instacueCards.length > 0 ||
     bitsQuestions.length > 0 ||
-    practiceFormulas.length > 0;
+    practiceFormulas.length > 0 ||
+    learningOutcomesQuestions.length > 0;
   return {
     theory,
     references: parseReferences(data.references),
@@ -120,6 +126,7 @@ export async function fetchSubtopicContent(
     instacueCards,
     bitsQuestions,
     practiceFormulas,
+    learningOutcomesQuestions,
     exists: data.exists === true || hasPersistedSubtopic,
     canEdit: data.canEdit === true,
   };

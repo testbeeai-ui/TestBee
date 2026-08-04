@@ -54,6 +54,56 @@ export async function readBitsAttemptRow<T extends object>(
   return data.attempt as T;
 }
 
+type BatchSelectClient = {
+  from: (table: string) => {
+    select: (cols: string) => {
+      eq: (
+        col: string,
+        val: string
+      ) => {
+        in: (
+          col2: string,
+          vals: string[]
+        ) => Promise<{
+          data: { attempt_key: string; attempt: unknown }[] | null;
+          error: { message: string } | null;
+        }>;
+      };
+    };
+  };
+};
+
+/**
+ * Reads many attempt keys in one query, keyed by `attempt_key`.
+ *
+ * A subtopic page hydrates up to six quiz sets plus every numerals card, which as
+ * single reads meant one cross-region round trip each. Missing keys are simply
+ * absent from the result.
+ */
+export async function readBitsAttemptRows<T extends object>(
+  supabase: unknown,
+  userId: string,
+  attemptKeys: string[]
+): Promise<Record<string, T>> {
+  const keys = [...new Set(attemptKeys)];
+  if (keys.length === 0) return {};
+
+  const client = supabase as BatchSelectClient;
+  const { data, error } = await client
+    .from("student_bits_attempts")
+    .select("attempt_key, attempt")
+    .eq("user_id", userId)
+    .in("attempt_key", keys);
+  if (error) throw new Error(error.message);
+
+  const out: Record<string, T> = {};
+  for (const row of data ?? []) {
+    if (!row?.attempt || typeof row.attempt !== "object") continue;
+    out[row.attempt_key] = row.attempt as T;
+  }
+  return out;
+}
+
 export async function upsertBitsAttemptRow(
   supabase: unknown,
   userId: string,

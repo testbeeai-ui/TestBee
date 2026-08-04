@@ -102,6 +102,7 @@ export async function GET(request: Request) {
     lessonMarksRes,
     rpcRes,
     revisionCardsRes,
+    membershipsRes,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -132,6 +133,9 @@ export async function GET(request: Request) {
       .select("data")
       .eq("user_id", uid)
       .eq("item_type", "saved_revision_card"),
+    // Memberships only need uid — overlap with the aggregates above instead of a
+    // second wave after the first Promise.all settles.
+    supabase.from("classroom_members").select("classroom_id").eq("user_id", uid),
   ]);
 
   if (profileRes.error) {
@@ -231,10 +235,6 @@ export async function GET(request: Request) {
   const revisionRetentionPct =
     withStatus > 0 ? Math.min(100, Math.round((100 * knowIt) / withStatus)) : null;
 
-  const membershipsRes = await supabase
-    .from("classroom_members")
-    .select("classroom_id")
-    .eq("user_id", uid);
   const classroomIds = [...new Set((membershipsRes.data ?? []).map((m) => m.classroom_id))];
 
   let assignmentsAssigned = 0;
