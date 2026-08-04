@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { makeSubtopicEngagementStorageKey } from "@/lib/curriculum/subtopicEngagementStorageKey";
-import {
-  DIVE_ACTIVITY_IDS,
-  type DiveActivityId,
-} from "@/components/dive/diveTypes";
+import { DIVE_ACTIVITY_IDS, type DiveActivityId } from "@/components/dive/diveTypes";
 import type { DiveHubProgress } from "@/lib/dive/diveHubProgress";
 import type { Board, Subject } from "@/types";
 import type { DifficultyLevel } from "@/lib/slugs";
 
 const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
 const ACTIVITY_SET = new Set<string>(DIVE_ACTIVITY_IDS);
+/** Only POST /api/dive/assessment may add these to completed. */
+const ASSESSMENT_ACTIVITY_IDS = new Set(["quiz", "numerals", "outcomes"]);
 
 function sanitize(value: unknown, maxLen = 300): string {
   if (typeof value !== "string") return "";
@@ -78,13 +77,15 @@ function parseScope(input: {
   return { scope, key: makeSubtopicEngagementStorageKey(scope) };
 }
 
-function rowToProgress(row: {
-  completed?: string[] | null;
-  quiz_score?: number | null;
-  numeral_score?: number | null;
-  outcomes_score?: number | null;
-  undertaking_accepted?: boolean | null;
-} | null): DiveHubProgress {
+function rowToProgress(
+  row: {
+    completed?: string[] | null;
+    quiz_score?: number | null;
+    numeral_score?: number | null;
+    outcomes_score?: number | null;
+    undertaking_accepted?: boolean | null;
+  } | null
+): DiveHubProgress {
   if (!row) {
     return {
       completed: [],
@@ -182,7 +183,10 @@ export async function PUT(request: Request) {
     if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
 
     const prev = rowToProgress(existing);
-    const clientCompleted = parseCompleted(body?.completed ?? body?.progress?.completed);
+    // Ignore client claims for quiz/numerals/outcomes — those require server grading.
+    const clientCompleted = parseCompleted(body?.completed ?? body?.progress?.completed).filter(
+      (id) => !ASSESSMENT_ACTIVITY_IDS.has(id)
+    );
     const completed = Array.from(new Set([...prev.completed, ...clientCompleted]));
     const undertakingAccepted =
       prev.undertakingAccepted ||
