@@ -8,6 +8,10 @@ import { localDayBoundsIso } from "@/lib/dashboard/dashboardDayActivity";
 import { invalidateDailyChecklistCache } from "@/lib/dashboard/dailyChecklistClient";
 import { dispatchGyanDailyChecklistRefresh } from "@/lib/dashboard/studyDayBumpEvents";
 import { isDailyChecklistCompanionRetryActive } from "@/lib/onboarding/dailyChecklistCompanionRetry";
+import {
+  shouldSendTelemetry,
+  telemetryIntervalMultiplier,
+} from "@/lib/telemetry/networkConditions";
 import { cn } from "@/lib/utils";
 
 const FLUSH_EVERY_MS = 25_000;
@@ -57,6 +61,7 @@ export function GyanDoubtsFocusTracker({ children }: { children?: ReactNode }) {
     lastGyanPresenceRef.current = 0;
 
     const pingGyanPresence = async () => {
+      if (!shouldSendTelemetry()) return;
       try {
         const headers = await getClientApiAuthHeaders();
         await fetch("/api/user/gyan-presence", {
@@ -78,6 +83,7 @@ export function GyanDoubtsFocusTracker({ children }: { children?: ReactNode }) {
         setPendingDisplay(0);
         return;
       }
+      if (!shouldSendTelemetry()) return;
       const chunk = pendingRef.current;
       if (chunk < 1000) return;
       pendingRef.current = 0;
@@ -108,11 +114,13 @@ export function GyanDoubtsFocusTracker({ children }: { children?: ReactNode }) {
       lastTickRef.current = now;
       pendingRef.current += dt;
       setPendingDisplay(pendingRef.current);
-      if (now - lastFlushRef.current >= FLUSH_EVERY_MS) {
+      const flushEvery = FLUSH_EVERY_MS * telemetryIntervalMultiplier();
+      const presenceEvery = GYAN_PRESENCE_MS * telemetryIntervalMultiplier();
+      if (now - lastFlushRef.current >= flushEvery) {
         lastFlushRef.current = now;
         void flush();
       }
-      if (now - lastGyanPresenceRef.current >= GYAN_PRESENCE_MS) {
+      if (now - lastGyanPresenceRef.current >= presenceEvery) {
         lastGyanPresenceRef.current = now;
         void pingGyanPresence();
       }

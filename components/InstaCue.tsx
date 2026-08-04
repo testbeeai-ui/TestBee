@@ -10,9 +10,12 @@ import {
   Check,
   Bookmark,
   BookmarkCheck,
+  Share2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import TheoryContent from "@/components/TheoryContent";
+import InstaCueShareSheet from "@/components/instacue/InstaCueShareSheet";
 import { useUserStore } from "@/store/useUserStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +25,11 @@ import {
   INSTACUE_TYPE_CONFIG,
   type InstaCueCardType,
 } from "@/lib/instacue/instaCueTypeConfig";
+import { renderInstaCueShareCardPng } from "@/lib/instacue/renderInstaCueShareCard";
+import {
+  prefersNativeFileShare,
+  shareInstaCuePngNative,
+} from "@/lib/instacue/shareInstaCueImage";
 import { syncAllSavedContent } from "@/lib/saved/savedContentService";
 import {
   resolveRevisionCardSaveLimit,
@@ -155,14 +163,17 @@ function RevisionCard({
   isFlipped,
   onFlip,
   compact,
+  presentation = "default",
 }: {
   card: InstaCueCard;
   isFlipped: boolean;
   onFlip: () => void;
   compact?: boolean;
+  presentation?: "default" | "dive";
 }) {
   const config = INSTACUE_TYPE_CONFIG[card.type];
   const pointerRef = useRef<{ x: number; y: number; dragged: boolean } | null>(null);
+  const isDive = presentation === "dive";
 
   const handlePointerDown = (e: React.PointerEvent) => {
     pointerRef.current = { x: e.clientX, y: e.clientY, dragged: false };
@@ -185,79 +196,138 @@ function RevisionCard({
     onFlip();
   };
 
-  const cardH = compact ? 148 : 200;
+  const cardH = isDive ? 220 : compact ? 148 : 200;
+  const faceClass = isDive
+    ? "absolute inset-0 flex flex-col overflow-hidden rounded-2xl border border-[#ef9f27]/35 bg-[linear-gradient(165deg,#243044_0%,#171d28_55%,#121820_100%)] shadow-[0_12px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)]"
+    : "absolute inset-0 flex flex-col rounded-xl bg-card border border-border shadow-sm overflow-hidden";
+
   return (
     <div
-      className="perspective-[1000px] w-full cursor-pointer"
+      className={`perspective-[1000px] w-full cursor-pointer ${isDive ? "mx-auto max-w-[360px]" : ""}`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onClick={handleFlip}
       style={{ minHeight: cardH }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleFlip();
+        }
+      }}
+      aria-label={isFlipped ? "Flip card back to question" : "Flip card to answer"}
     >
-      <div
+      <motion.div
         className={`relative w-full transition-transform duration-500 ${isFlipped ? "[transform:rotateY(180deg)]" : ""}`}
         style={{
           transformStyle: "preserve-3d",
           height: cardH,
         }}
+        whileTap={isDive ? { scale: 0.98 } : undefined}
       >
         {/* Front */}
         <div
-          className="absolute inset-0 flex flex-col rounded-xl bg-card border border-border shadow-sm overflow-hidden"
+          className={faceClass}
           style={{
             backfaceVisibility: "hidden",
             transform: "rotateY(0deg)",
             WebkitBackfaceVisibility: "hidden",
           }}
         >
-          <div className={`h-1.5 shrink-0 rounded-t-xl ${config.badge.split(" ")[0]}`} />
-          <div className="flex min-h-0 flex-1 flex-col p-4">
+          <div
+            className={`shrink-0 ${isDive ? "h-1.5 rounded-t-2xl bg-gradient-to-r from-[#ef9f27] via-[#f5c542] to-[#1d9e75]" : `h-1.5 rounded-t-xl ${config.badge.split(" ")[0]}`}`}
+          />
+          <div className={`flex min-h-0 flex-1 flex-col ${isDive ? "p-4" : "p-4"}`}>
             <div className="mb-2 shrink-0">
               <span
-                className={`inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none sm:text-[11px] ${config.badge}`}
+                className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold leading-none tracking-wide sm:text-[11px] ${
+                  isDive
+                    ? "bg-[rgba(239,159,39,0.2)] text-[#ef9f27] ring-1 ring-[rgba(239,159,39,0.35)]"
+                    : config.badge
+                }`}
               >
+                {isDive ? "✦ " : ""}
                 {config.label}
               </span>
             </div>
             <div
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 text-[15px] font-semibold leading-snug break-words text-foreground touch-pan-y sm:text-base"
+              className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 break-words touch-pan-y ${
+                isDive
+                  ? "flex items-center text-[15px] font-semibold leading-snug text-[#f3f6fa]"
+                  : "text-[15px] font-semibold leading-snug text-foreground sm:text-base"
+              }`}
             >
               <TheoryContent
                 theory={normalizeCardMath(card.frontContent)}
-                className="!space-y-2 !text-[15px] !font-semibold !leading-snug sm:!text-base"
+                className={
+                  isDive
+                    ? "!space-y-2 !text-[15px] !font-semibold !leading-snug !text-[#f3f6fa]"
+                    : "!space-y-2 !text-[15px] !font-semibold !leading-snug sm:!text-base"
+                }
               />
             </div>
-            <p className="mt-2 shrink-0 text-xs text-muted-foreground">Tap to flip</p>
+            <p
+              className={`mt-2 shrink-0 ${
+                isDive
+                  ? "rounded-lg bg-white/[0.04] py-1.5 text-center text-[11px] font-semibold text-[#9aa6b5]"
+                  : "text-xs text-muted-foreground"
+              }`}
+            >
+              {isDive ? "👆 Tap to flip" : "Tap to flip"}
+            </p>
           </div>
         </div>
 
         {/* Back */}
         <div
-          className="absolute inset-0 flex flex-col rounded-xl bg-card border border-border shadow-sm overflow-hidden"
+          className={faceClass}
           style={{
             backfaceVisibility: "hidden",
             transform: "rotateY(180deg)",
             WebkitBackfaceVisibility: "hidden",
           }}
         >
-          <div className="h-1.5 shrink-0 rounded-t-xl bg-edu-green/20 dark:bg-edu-green/30" />
-          <div className="flex min-h-0 flex-1 flex-col p-4">
-            <div className="mb-2 flex shrink-0 items-center gap-2 text-sm font-semibold text-edu-green/90 dark:text-edu-green">
-              <Check className="w-4 h-4" />
+          <div
+            className={`shrink-0 ${isDive ? "h-1.5 rounded-t-2xl bg-gradient-to-r from-[#1d9e75] to-[#378add]" : "h-1.5 rounded-t-xl bg-edu-green/20 dark:bg-edu-green/30"}`}
+          />
+          <div className={`flex min-h-0 flex-1 flex-col ${isDive ? "p-4" : "p-4"}`}>
+            <div
+              className={`mb-2 flex shrink-0 items-center gap-1.5 font-bold ${
+                isDive ? "text-xs text-[#1d9e75]" : "text-sm text-edu-green/90 dark:text-edu-green"
+              }`}
+            >
+              <Check className="h-3.5 w-3.5" />
               Answer
             </div>
             <div
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 text-sm leading-relaxed break-words text-foreground touch-pan-y sm:text-[15px]"
+              className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 break-words touch-pan-y ${
+                isDive
+                  ? "text-[13px] leading-relaxed text-[#e8eef5]"
+                  : "text-sm leading-relaxed text-foreground sm:text-[15px]"
+              }`}
             >
               <TheoryContent
                 theory={normalizeCardMath(card.backContent)}
-                className="!space-y-2 !text-sm !leading-relaxed sm:!text-[15px]"
+                className={
+                  isDive
+                    ? "!space-y-2 !text-[13px] !leading-relaxed !text-[#e8eef5]"
+                    : "!space-y-2 !text-sm !leading-relaxed sm:!text-[15px]"
+                }
               />
             </div>
-            <p className="mt-2 shrink-0 text-xs text-muted-foreground">Tap to flip back</p>
+            <p
+              className={`mt-2 shrink-0 ${
+                isDive
+                  ? "rounded-lg bg-white/[0.04] py-1.5 text-center text-[11px] font-semibold text-[#9aa6b5]"
+                  : "text-xs text-muted-foreground"
+              }`}
+            >
+              Tap to flip back
+            </p>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -278,6 +348,8 @@ interface InstaCueProps {
   onCardIndexChange?: (index: number, total: number) => void;
   onCardValidated?: (index: number, total: number) => void;
   compact?: boolean;
+  /** Dive hub stage — taller cards, full-bleed stage, hides nested chrome. */
+  presentation?: "default" | "dive";
 }
 
 export default function InstaCue({
@@ -294,8 +366,10 @@ export default function InstaCue({
   onCardIndexChange,
   onCardValidated,
   compact,
+  presentation = "default",
 }: InstaCueProps) {
   const { profile } = useAuth();
+  const { toast } = useToast();
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -303,6 +377,12 @@ export default function InstaCue({
   const [back, setBack] = useState("");
   const [type, setType] = useState<InstaCueCardType>("concept");
   const [localSubtopic, setLocalSubtopic] = useState(subtopicOptions?.[0] ?? "");
+  const [sharing, setSharing] = useState(false);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const [shareBlob, setShareBlob] = useState<Blob | null>(null);
+  const [sharePreviewUrl, setSharePreviewUrl] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const isDive = presentation === "dive";
 
   const onCardIndexChangeRef = useRef(onCardIndexChange);
   onCardIndexChangeRef.current = onCardIndexChange;
@@ -410,6 +490,87 @@ export default function InstaCue({
     setAddModalOpen(false);
   };
 
+  const revokeSharePreview = () => {
+    setSharePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  };
+
+  /**
+   * MNC-style share:
+   * - Mobile: one tap → OS share sheet (WhatsApp, Save, etc.)
+   * - Desktop: branded share sheet with preview + destinations
+   * Image is painted via Canvas 2D (no DOM snapshot / blank preview).
+   */
+  const handleShareClick = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!displayCard || sharing) return;
+
+    setSharing(true);
+    setShareError(null);
+    try {
+      const blob = await renderInstaCueShareCardPng({
+        question: displayCard.frontContent,
+        answer: displayCard.backContent,
+      });
+
+      const filename = `edublast-instacue-${displayCard.id}.png`;
+
+      if (prefersNativeFileShare()) {
+        try {
+          await shareInstaCuePngNative(blob, { filename });
+          toast({
+            title: "Shared",
+            description: "Pick WhatsApp or Save Image from the system sheet.",
+          });
+          return;
+        } catch (err) {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          // Fall through to desktop sheet if native share fails.
+        }
+      }
+
+      revokeSharePreview();
+      setShareBlob(blob);
+      setSharePreviewUrl(URL.createObjectURL(blob));
+      setShareSheetOpen(true);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      const message = err instanceof Error ? err.message : "Please try again.";
+      setShareError(message);
+      toast({
+        variant: "destructive",
+        title: "Could not prepare share",
+        description: message,
+      });
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const shareButton = displayCard ? (
+    <Button
+      size="icon"
+      variant="ghost"
+      disabled={sharing}
+      className={
+        isDive
+          ? "h-8 w-8 rounded-full border border-[#2a3444] bg-[#1b212b] text-[#eaeff5] hover:border-[#19E3DA]/40 hover:bg-[#243041]"
+          : "h-8 w-8 rounded-full"
+      }
+      title="Share card"
+      aria-label="Share InstaCue card"
+      onClick={(ev) => void handleShareClick(ev)}
+    >
+      {sharing ? (
+        <Loader2 className={isDive ? "h-3.5 w-3.5 animate-spin" : "h-4 w-4 animate-spin"} />
+      ) : (
+        <Share2 className={isDive ? "h-3.5 w-3.5" : "h-4 w-4"} />
+      )}
+    </Button>
+  ) : null;
+
   if (filteredCards.length === 0) {
     return (
       <div className="edu-card rounded-2xl p-6 border border-border">
@@ -464,47 +625,89 @@ export default function InstaCue({
   }
 
   return (
-    <div className={`edu-card rounded-2xl border border-border ${compact ? "p-3" : "p-5"}`}>
-      <div className={`flex items-center justify-between ${compact ? "mb-2" : "mb-3"}`}>
-        <div>
-          <div className="flex items-center gap-2">
-            <Lightbulb className="w-5 h-5 text-amber-400/80 dark:text-amber-500/80" />
-            <span className="font-bold text-foreground">InstaCue</span>
+    <div
+      className={
+        isDive
+          ? "relative overflow-hidden rounded-2xl border border-[#ef9f27]/25 bg-[radial-gradient(circle_at_12%_0%,rgba(239,159,39,0.22),transparent_42%),radial-gradient(circle_at_90%_100%,rgba(29,158,117,0.16),transparent_45%),#141a22] p-3"
+          : `edu-card rounded-2xl border border-border ${compact ? "p-3" : "p-5"}`
+      }
+    >
+      {!isDive ? (
+        <div className={`flex items-center justify-between gap-2 ${compact ? "mb-2" : "mb-3"}`}>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="h-5 w-5 shrink-0 text-amber-400/80 dark:text-amber-500/80" />
+              <span className="font-bold text-foreground">InstaCue</span>
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">Quick revision cards</p>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">Quick revision cards</p>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {shareButton}
+            {onAddCard && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 shrink-0 rounded-full"
+                onClick={() => setAddModalOpen(true)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
-        {onAddCard && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 rounded-full shrink-0"
-            onClick={() => setAddModalOpen(true)}
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
-        )}
-      </div>
+      ) : (
+        <div className="mb-2.5 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[rgba(239,159,39,0.2)] text-base shadow-[0_0_0_1px_rgba(239,159,39,0.3)]">
+              ⚡
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-[#f3f6fa]">Quick flip</p>
+              <p className="truncate text-[11px] text-[#8b96a5]">{subtopicName || topicName}</p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {shareButton}
+            <span className="shrink-0 rounded-full bg-[rgba(29,158,117,0.18)] px-2.5 py-1 text-[11px] font-bold text-[#1d9e75] ring-1 ring-[rgba(29,158,117,0.35)]">
+              {safeIndex + 1}/{filteredCards.length}
+            </span>
+          </div>
+        </div>
+      )}
 
-      <div className="mb-3 flex flex-col gap-2">
-        {subtopicOptions && subtopicOptions.length > 1 && (
-          <select
-            aria-label="Filter cards by subtopic"
-            value={effectiveSubtopic}
-            onChange={(e) => handleSubtopicChange(e.target.value)}
-            className="w-full text-xs font-medium rounded-xl border border-border bg-muted/30 text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/30 hover:bg-muted/50 transition-colors"
-          >
-            {subtopicOptions.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        )}
-        <span className="edu-chip bg-muted text-muted-foreground text-xs w-fit">
-          {filteredCards.length} card{filteredCards.length !== 1 ? "s" : ""}
-          {effectiveSubtopic ? ` · ${effectiveSubtopic}` : ""}
-        </span>
-      </div>
+      {!isDive ? (
+        <div className="mb-3 flex flex-col gap-2">
+          {subtopicOptions && subtopicOptions.length > 1 && (
+            <select
+              aria-label="Filter cards by subtopic"
+              value={effectiveSubtopic}
+              onChange={(e) => handleSubtopicChange(e.target.value)}
+              className="w-full rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/50 focus:border-primary/30 focus:outline-none focus:ring-2 focus:ring-primary/10"
+            >
+              {subtopicOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          )}
+          <span className="edu-chip w-fit bg-muted text-xs text-muted-foreground">
+            {filteredCards.length} card{filteredCards.length !== 1 ? "s" : ""}
+            {effectiveSubtopic ? ` · ${effectiveSubtopic}` : ""}
+          </span>
+        </div>
+      ) : null}
+
+      {isDive ? (
+        <div className="mb-2.5 h-1 w-full overflow-hidden rounded-full bg-[#1b212b]" aria-hidden>
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-[#ef9f27] to-[#1d9e75] transition-[width] duration-300"
+            style={{
+              width: `${((safeIndex + 1) / Math.max(1, filteredCards.length)) * 100}%`,
+            }}
+          />
+        </div>
+      ) : null}
 
       {displayCard && (
         <RevisionCard
@@ -513,18 +716,25 @@ export default function InstaCue({
           isFlipped={flipped}
           onFlip={handleFlip}
           compact={compact}
+          presentation={presentation}
         />
       )}
 
-      <div className="flex items-center justify-between gap-2 mt-4 px-1">
+      <div
+        className={`flex items-center justify-between gap-2 px-0.5 ${isDive ? "mt-3" : "mt-4"}`}
+      >
         <Button
           size="icon"
           variant="ghost"
-          className="h-9 w-9 rounded-full shrink-0"
+          className={
+            isDive
+              ? "h-9 w-9 shrink-0 rounded-full border border-[#2a3444] bg-[#1b212b] text-[#eaeff5] hover:border-[#ef9f27]/50 hover:bg-[#243041]"
+              : "h-9 w-9 shrink-0 rounded-full"
+          }
           onClick={goPrev}
           disabled={filteredCards.length <= 1}
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="flex items-center gap-1.5">
           {visibleDots.map((i, idx) => {
@@ -535,10 +745,14 @@ export default function InstaCue({
                 {hasGap && <span className="text-[10px] text-muted-foreground/70">...</span>}
                 <button
                   type="button"
-                  className={`rounded-full transition-colors ${
+                  className={`rounded-full transition-all ${
                     i === safeIndex
-                      ? "w-2.5 h-2.5 bg-primary/80"
-                      : "w-2 h-2 bg-muted hover:bg-muted-foreground/40"
+                      ? isDive
+                        ? "h-2 w-5 bg-[#ef9f27]"
+                        : "h-2.5 w-2.5 bg-primary/80"
+                      : isDive
+                        ? "h-1.5 w-1.5 bg-[#3a4556] hover:bg-[#8b96a5]"
+                        : "h-2 w-2 bg-muted hover:bg-muted-foreground/40"
                   }`}
                   onClick={() => {
                     setIndex(i);
@@ -550,26 +764,32 @@ export default function InstaCue({
             );
           })}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex shrink-0 items-center gap-0.5">
           <Button
             size="icon"
             variant="ghost"
-            className="h-9 w-9 rounded-full"
+            className={
+              isDive
+                ? "h-9 w-9 rounded-full border border-[#2a3444] bg-[#1b212b] text-[#eaeff5] hover:border-[#1d9e75]/50 hover:bg-[#243041]"
+                : "h-9 w-9 rounded-full"
+            }
             onClick={goNext}
             disabled={filteredCards.length <= 1}
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="h-4 w-4" />
           </Button>
           {displayCard && <SaveCardButton card={displayCard} />}
         </div>
       </div>
-      <p className="text-center text-xs text-muted-foreground mt-1">
-        {displayCard ? safeIndex + 1 : 0} of {filteredCards.length} cards
-      </p>
+      {!isDive ? (
+        <p className="mt-1 text-center text-xs text-muted-foreground">
+          {displayCard ? safeIndex + 1 : 0} of {filteredCards.length} cards
+        </p>
+      ) : null}
 
-      {!compact && onAddCard && (
-        <div className="mt-4 p-3 rounded-xl bg-muted/50 text-xs text-muted-foreground flex items-start gap-2">
-          <Lightbulb className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
+      {!compact && !isDive && onAddCard && (
+        <div className="mt-4 flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
+          <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
           <span>
             Tip: Cards you add are kept separate per subtopic and level, and are ready for direct
             Supabase syncing.
@@ -592,6 +812,26 @@ export default function InstaCue({
           onAdd={handleAddCard}
         />
       )}
+
+      <InstaCueShareSheet
+        open={shareSheetOpen}
+        onOpenChange={(open) => {
+          setShareSheetOpen(open);
+          if (!open) {
+            revokeSharePreview();
+            setShareBlob(null);
+            setShareError(null);
+          }
+        }}
+        blob={shareBlob}
+        previewUrl={sharePreviewUrl}
+        loading={false}
+        error={shareError}
+        filename={
+          displayCard ? `edublast-instacue-${displayCard.id}.png` : "edublast-instacue.png"
+        }
+        onToast={(opts) => toast(opts)}
+      />
     </div>
   );
 }

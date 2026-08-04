@@ -72,30 +72,114 @@ export function splitGluedGreekCommands(text: string): string {
   );
 }
 
-function preprocessNakedMath(text: string): string {
-  let t = text;
+const GREEK_CMD =
+  "mu|lambda|tau|sigma|rho|theta|alpha|beta|gamma|delta|epsilon|varepsilon|omega|phi|varphi|psi|pi|chi|eta|iota|kappa|nu|xi|zeta|Delta|Gamma|Lambda|Omega|Phi|Pi|Psi|Sigma|Theta|Xi";
+
+/** Wrap a single TeX command in `$...$` without shattering existing math. */
+function wrapTexCommandInDollars(text: string): string {
+  // Note: in JS replace strings, `$$` → literal `$`, and `$1` → capture group.
+  return text.replace(
+    new RegExp(`(?<![\\\\$])\\\\(${GREEK_CMD})(?![A-Za-z])`, "g"),
+    "$$\\$1$$"
+  );
+}
+
+/**
+ * Unicode / bank physics notation → KaTeX-friendly `$...$` chunks.
+ * Fixes Learning Outcomes stems like `2 μC` and Numerals options like `\frac{...}`.
+ */
+export function normalizePhysicsNotationForDisplay(text: string): string {
+  let t = String(text ?? "");
   if (!t.trim()) return t;
 
-  // Handle unicode mu character (μ) directly
-  t = t.replace(/μ/g, "\\mu ");
+  // Unicode micro + unit: 2 μC / μC → $2\,\mu\mathrm{C}$ / $\mu\mathrm{C}$
+  t = t.replace(/(\d+(?:\.\d+)?)\s*[μµ]\s*([A-Za-z]+)/g, "$1 $\\mu\\mathrm{$2}$");
+  t = t.replace(/[μµ]\s*([A-Za-z]+)/g, "$\\mu\\mathrm{$1}$");
+  t = t.replace(/[μµ]/g, "$\\mu$");
+
+  // Unit vector hats commonly pasted from Word: î ĵ k̂
+  t = t.replace(/î/g, "$\\hat{\\imath}$");
+  t = t.replace(/ĵ/g, "$\\hat{\\jmath}$");
+  t = t.replace(/k̂/g, "$\\hat{k}$");
+
+  // Scientific 10 with unicode superscripts: 10⁻⁴ / 10⁴ → $10^{-4}$
+  const superMap: Record<string, string> = {
+    "⁰": "0",
+    "¹": "1",
+    "²": "2",
+    "³": "3",
+    "⁴": "4",
+    "⁵": "5",
+    "⁶": "6",
+    "⁷": "7",
+    "⁸": "8",
+    "⁹": "9",
+    "⁺": "+",
+    "⁻": "-",
+  };
+  t = t.replace(/10([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+)/g, (_m, supers: string) => {
+    const tex = [...supers].map((c) => superMap[c] ?? c).join("");
+    return `$10^{${tex}}$`;
+  });
+
+  // Trailing unicode superscripts on a unit letter: C⁻¹ → $\mathrm{C}^{-1}$
+  t = t.replace(/\b([A-Za-z])([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+)/g, (_m, letter: string, supers: string) => {
+    const tex = [...supers].map((c) => superMap[c] ?? c).join("");
+    return `$\\mathrm{${letter}}^{${tex}}$`;
+  });
+
+  // Multiplication sign between numbers / math: × → $\times$
+  t = t.replace(/×/g, " $\\times$ ");
+  t = t.replace(/\s{2,}/g, " ").trim();
+
+  // Already delimited (\(…\) / \[…\] / $…$) — never re-wrap greek/commands or the
+  // whole string. Doing so shatters e.g. \( [0, 2\pi] \) into $[0, 2$\pi$]$.
+  const trimmed = t.trim();
+  if (/\\\(|\\\[|\$/.test(trimmed)) {
+    return splitGluedGreekCommands(trimmed);
+  }
+
+  // ASCII latex already present but missing dollars (typical Numerals options)
+  if (/\\[a-zA-Z]+/.test(trimmed)) {
+    // Whole string is essentially a formula / short math option
+    const proseWords = (trimmed.match(/[A-Za-z]{3,}/g) || []).filter(
+      (w) =>
+        !/^(frac|dfrac|tfrac|sqrt|times|cdot|left|right|mathrm|mathbf|text|hat|vec|infty|sin|cos|tan|log|ln|pm|mp|mu|pi|epsilon|theta|sigma|alpha|beta|gamma|delta|omega|phi|psi|lambda|rho|tau|imath|jmath)$/i.test(
+          w
+        )
+    );
+    if (proseWords.length <= 3 || /^\\(?:frac|dfrac|tfrac|sqrt)\b/.test(trimmed)) {
+      return `$${splitGluedGreekCommands(trimmed)}$`;
+    }
+    // Mixed prose + latex fragments: wrap \frac{...}{...} and greek cmds
+    t = trimmed.replace(/\\frac\{[^{}]+\}\{[^{}]+\}/g, (m) => `$${m}$`);
+    t = wrapTexCommandInDollars(t);
+    t = t.replace(/(?<![\\$])\\(times|cdot|pm|mp|infty)\b/g, "$$\\$1$$");
+    return splitGluedGreekCommands(t);
+  }
+
+  return t;
+}
+
+function preprocessNakedMath(text: string): string {
+  let t = normalizePhysicsNotationForDisplay(text);
+  if (!t.trim()) return t;
 
   // Split glued letters after Greek commands (runs even inside math delimiters)
   t = splitGluedGreekCommands(t);
 
-  // If already in math mode, done (splitting was enough)
-  if (/\\\(|\\\[|\$\$?/.test(t)) return t;
+  // If already in math mode, do not re-wrap greek (avoids `$\mu$` → `$$\mu$$` / raw `\\mu$$`)
+  if (/\\\(|\\\[|\$/.test(t)) {
+    return t;
+  }
 
   // Wrap LaTeX Greek commands in $...$ when outside math mode
-  // Note: $$ in replacement string = literal $
-  t = t.replace(
-    /\\(mu|lambda|tau|sigma|rho|theta|alpha|beta|gamma|delta|epsilon|varepsilon|omega|phi|varphi|psi|pi|chi|eta|iota|kappa|nu|xi|zeta|Delta|Gamma|Lambda|Omega|Phi|Pi|Psi|Sigma|Theta|Xi)/g,
-    "$$\\$1$$"
-  );
+  t = wrapTexCommandInDollars(t);
 
-  // Wrap Greek letter names without backslash (common in plain text)
+  // Wrap Greek letter names without backslash — never touch inside \$… or after \
   t = t.replace(
-    /\b(tau|sigma|rho|theta|alpha|beta|gamma|delta|epsilon|omega|phi|psi|lambda|mu)\b/gi,
-    "$$\\$1$$"
+    new RegExp(`(?<![\\\\$])\\b(${GREEK_CMD.split("|").filter((x) => x === x.toLowerCase()).join("|")})\\b`, "gi"),
+    (match) => `$\\${match.toLowerCase()}$`
   );
 
   return t;
@@ -254,6 +338,16 @@ export function formatPlayQuestionStemForDisplay(text: string): string {
   if (!s) return s;
   let t = wrapReactionQuotientPlainSubscripts(s);
   t = wrapChemBracketPowers(t);
+  // Bare ASCII area formulas from bank/LLM copy ("pir^2", "pi r^2") → KaTeX π r².
+  // Lookbehind (?<![\\$]) is required: `\b` matches between `\` and `p` in `\pi`, so without
+  // it we rewrite `\pi r^{2}` into `\$\pi r^{2}$` and shatter surrounding $…$ pairs.
+  t = t.replace(/(?<![\\$])\bA\s*=\s*pi\s*r\s*\^\s*\{?\s*2\s*\}?/gi, "A = $\\pi r^{2}$");
+  t = t.replace(/(?<![\\$])\bpir\s*\^\s*\{?\s*2\s*\}?/gi, "$\\pi r^{2}$");
+  t = t.replace(/(?<![\\$])\bpi\s+r\s*\^\s*\{?\s*2\s*\}?/gi, "$\\pi r^{2}$");
+  t = t.replace(/(?<![\\$])\bpir\b/gi, "$\\pi r$");
+  t = t.replace(/(?<![\\$])\bpi\b(?![a-z])/gi, "$\\pi$");
+  // Repair prior bad rewrites that left `\$\pi` (backslash + dollar + \pi).
+  t = t.replace(/\\\$\\pi\b/g, "\\pi");
   const withNakedMath = preprocessNakedMath(t);
   return repairPlayQuestionDollarSegments(
     unwrapNestedInlineMathInPowers(unicodePowToTeX(withNakedMath))

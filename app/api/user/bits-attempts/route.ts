@@ -6,6 +6,7 @@ import {
   deleteBitsAttemptRow,
   isOptionalStudentTableError,
   readBitsAttemptRow,
+  readBitsAttemptRows,
   upsertBitsAttemptRow,
 } from "@/lib/play/bits/bitsAttemptsTable";
 import {
@@ -161,6 +162,33 @@ async function readAttemptFromTable(
   }
 }
 
+async function readAttemptsFromTable(
+  supabase: unknown,
+  userId: string,
+  attemptKeys: string[]
+): Promise<Record<string, BitsAttemptRecord>> {
+  try {
+    return await readBitsAttemptRows<BitsAttemptRecord>(supabase, userId, attemptKeys);
+  } catch (e) {
+    if (isOptionalStudentTableError(e)) return {};
+    throw e;
+  }
+}
+
+/** Comma-separated list of non-negative integers, deduped and bounded. */
+function parseIndexList(raw: string | null, max: number, limit: number): number[] | null {
+  if (raw == null || raw.trim() === "") return null;
+  const parts = raw.split(",");
+  if (parts.length > limit) return null;
+  const out: number[] = [];
+  for (const part of parts) {
+    const n = Number(part.trim());
+    if (!Number.isInteger(n) || n < 0 || n > max) return null;
+    if (!out.includes(n)) out.push(n);
+  }
+  return out.length > 0 ? out : null;
+}
+
 async function persistAttemptToTable(
   supabase: unknown,
   userId: string,
@@ -233,6 +261,32 @@ export async function GET(request: Request) {
       set = n;
     }
 
+    /** Batch variants: hydrate a whole subtopic in one request instead of one per key. */
+    const setsRaw = searchParams.get("sets");
+    let sets: AdvancedQuizSetIndex[] | undefined;
+    if (setsRaw != null && setsRaw !== "") {
+      const parsed = parseIndexList(setsRaw, 6, 6);
+      if (!parsed || !parsed.every(isAdvancedQuizSetIndex)) {
+        return NextResponse.json({ error: "Invalid sets (use 1–6)" }, { status: 400 });
+      }
+      if (level !== "advanced") {
+        return NextResponse.json(
+          { error: "sets is only valid for advanced level" },
+          { status: 400 }
+        );
+      }
+      sets = parsed as AdvancedQuizSetIndex[];
+    }
+
+    const formulaIndicesRaw = searchParams.get("formulaPracticeIndices");
+    const formulaPracticeIndices = parseIndexList(formulaIndicesRaw, 500, 60);
+    if (formulaIndicesRaw != null && formulaIndicesRaw !== "" && !formulaPracticeIndices) {
+      return NextResponse.json(
+        { error: "Invalid formulaPracticeIndices (0–500, max 60)" },
+        { status: 400 }
+      );
+    }
+
     if (
       !board ||
       !subject ||
@@ -246,13 +300,17 @@ export async function GET(request: Request) {
     }
 
     let profileStore: Record<string, BitsAttemptRecord> | null = null;
+    // Kick off the legacy profile JSONB read in parallel with the table lookup so a
+    // table miss does not serialize another India→Tokyo hop. Hits prefer the table.
+    const profilePromise = supabase
+      .from("profiles")
+      .select("bits_test_attempts")
+      .eq("id", user.id)
+      .maybeSingle();
+
     const loadFromProfile = async (attemptKey: string): Promise<BitsAttemptRecord | null> => {
       if (!profileStore) {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("bits_test_attempts")
-          .eq("id", user.id)
-          .maybeSingle();
+        const { data, error } = await profilePromise;
         if (error) return null;
         const row = data as ProfileBitsRow | null;
         profileStore = parseAttemptsStore(row?.bits_test_attempts);
@@ -260,27 +318,60 @@ export async function GET(request: Request) {
       return profileStore[attemptKey] ?? null;
     };
 
+    const scope = { board, subject, classLevel, topic, subtopicName, level };
+
+    if (formulaPracticeIndices) {
+      const keyByIndex = new Map(
+        formulaPracticeIndices.map((fi) => [
+          fi,
+          makeFormulaPracticeAttemptKey({ ...scope, formulaPracticeIndex: fi }),
+        ])
+      );
+      const rows = await readAttemptsFromTable(supabase, user.id, [...keyByIndex.values()]);
+      const formulaAttempts: Record<string, BitsAttemptRecord | null> = {};
+      for (const [fi, key] of keyByIndex) {
+        formulaAttempts[String(fi)] = rows[key] ?? (await loadFromProfile(key));
+      }
+      return NextResponse.json({ formulaAttempts });
+    }
+
     if (formulaPracticeIndex != null) {
-      const fpKey = makeFormulaPracticeAttemptKey({
-        board,
-        subject,
-        classLevel,
-        topic,
-        subtopicName,
-        level,
-        formulaPracticeIndex,
-      });
+      const fpKey = makeFormulaPracticeAttemptKey({ ...scope, formulaPracticeIndex });
       const fromTable = await readAttemptFromTable(supabase, user.id, fpKey);
       return NextResponse.json({ attempt: fromTable ?? (await loadFromProfile(fpKey)) });
     }
     const baseKey = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level });
+
+    if (sets) {
+      const keyBySet = new Map(sets.map((s) => [s, makeAttemptKey({ ...scope, set: s })]));
+      const wantsLegacyBase = sets.includes(1);
+      const rows = await readAttemptsFromTable(supabase, user.id, [
+        ...keyBySet.values(),
+        ...(wantsLegacyBase ? [baseKey] : []),
+      ]);
+
+      const attempts: Record<string, BitsAttemptRecord | null> = {};
+      for (const [s, keyed] of keyBySet) {
+        // Mirrors the single-set precedence below, including set 1's pre-`set:` keys.
+        let attempt = rows[keyed] ?? null;
+        if (!attempt && s === 1) {
+          attempt = rows[baseKey] ?? (await loadFromProfile(baseKey));
+        }
+        attempts[String(s)] = attempt ?? (await loadFromProfile(keyed));
+      }
+      return NextResponse.json({ attempts });
+    }
+
     if (level === "advanced" && set != null) {
       const keyed = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level, set });
-      const fromKeyed = await readAttemptFromTable(supabase, user.id, keyed);
+      // set:1 also checks the pre-`set:` base key — fetch both in one RTT.
+      const [fromKeyed, fromBase] = await Promise.all([
+        readAttemptFromTable(supabase, user.id, keyed),
+        set === 1 ? readAttemptFromTable(supabase, user.id, baseKey) : Promise.resolve(null),
+      ]);
       if (fromKeyed) return NextResponse.json({ attempt: fromKeyed });
+      if (fromBase) return NextResponse.json({ attempt: fromBase });
       if (set === 1) {
-        const fromBase = await readAttemptFromTable(supabase, user.id, baseKey);
-        if (fromBase) return NextResponse.json({ attempt: fromBase });
         const legacy = await loadFromProfile(baseKey);
         if (legacy) return NextResponse.json({ attempt: legacy });
       }
@@ -524,8 +615,11 @@ export async function POST(request: Request) {
             formulaPracticeIndex: formulaPracticeIndexPost,
           })
         : makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level, set });
+    // Prefer normalized table; always dual-write profiles.bits_test_attempts so
+    // claim_topic_quiz_advanced_daily_rdm / claim_numerals_pack_complete_daily_rdm
+    // (which still read the profile JSON store) can see attempts.
     const wroteOnTable = await persistAttemptToTable(supabase, user.id, key, attempt);
-    if (!wroteOnTable) {
+    {
       const { data: profile, error: readErr } = await supabase
         .from("profiles")
         .select("*")
@@ -540,7 +634,13 @@ export async function POST(request: Request) {
         .from("profiles")
         .update({ bits_test_attempts: next } as never)
         .eq("id", user.id);
-      if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
+      // If the table write already succeeded, profile JSON is best-effort for claims.
+      if (writeErr && !wroteOnTable) {
+        return NextResponse.json({ error: writeErr.message }, { status: 500 });
+      }
+      if (writeErr) {
+        console.warn("[bits-attempts] profile bits_test_attempts dual-write:", writeErr.message);
+      }
     }
 
     void syncAssignmentTasksForKinds(supabase, user.id, ["bits"]).catch((e) => {

@@ -19,6 +19,7 @@ import {
   getOnboardingProgress,
 } from "@/lib/subscription/freeTrialClient";
 import { isStudentProfileBasicInfoComplete } from "@/lib/profile/studentProfileBasicInfo";
+import { startVisiblePoll } from "@/lib/telemetry/visiblePoll";
 
 type ProfileOnboardingTrackerProps = {
   section: string;
@@ -53,8 +54,7 @@ export function ProfileOnboardingTracker({
     };
 
     sync();
-    const pollId = window.setInterval(sync, 12_000);
-    return () => window.clearInterval(pollId);
+    return startVisiblePoll({ intervalMs: 12_000, onTick: sync });
   }, [pathname, section, profile, accountEmail]);
 
   useEffect(() => {

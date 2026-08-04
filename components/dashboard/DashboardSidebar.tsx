@@ -2,10 +2,11 @@
 
 import { useMemo, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Sparkles,
+  Waves,
   GraduationCap,
   Library,
   RotateCcw,
@@ -55,7 +56,8 @@ function getSidebarPinnedSnapshot(): boolean {
   }
 }
 
-function isActivePath(pathname: string, href: string): boolean {
+function isActivePath(pathname: string, href: string, page: string | null): boolean {
+  if (href === "/home?page=dashboard") return pathname === "/home" && page === "dashboard";
   if (href === "/revision") return pathname === "/revision";
   if (href === "/play") return pathname === "/play";
   if (href === "/mock") {
@@ -127,6 +129,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export default function DashboardSidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const page = pathname === "/home" ? searchParams.get("page") : null;
   const { profile } = useAuth();
   const user = useUserStore((s) => s.user);
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
@@ -151,7 +155,8 @@ export default function DashboardSidebar() {
 
   const learning: NavItem[] = [
     { href: "/home?page=dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/explore/community", label: "Community feed", icon: Sparkles, badge: "Live" },
+    { href: "/dive", label: "Dive", icon: Waves },
+    { href: "/explore/community", label: "Feed", icon: Sparkles, badge: "Live" },
     { href: "/mock", label: "Magic Wall", icon: GraduationCap },
     { href: "/mock-test", label: "Mock test library", icon: Library },
     {
@@ -195,7 +200,7 @@ export default function DashboardSidebar() {
         // Pin state is still settable via `localStorage` / `data-pinned` so
         // the rail can be pinned open across reloads, but there is no
         // visible toggle in the sidebar itself — pure hover-expand.
-        "eb-sidebar fixed left-0 top-[52px] z-40 hidden h-[calc(100vh-52px)] shrink-0 flex-col overflow-hidden border-r border-border/60 bg-card/95 backdrop-blur-sm lg:flex"
+        "eb-sidebar fixed left-0 top-[56px] z-40 hidden h-[calc(100vh-56px)] shrink-0 flex-col overflow-hidden border-r border-border/60 bg-card/95 backdrop-blur-sm lg:flex"
       )}
       aria-label="Dashboard navigation"
     >
@@ -204,7 +209,7 @@ export default function DashboardSidebar() {
         aria-label="Dashboard navigation"
       >
         <Section title="Learning">{learning.map((item) => (
-            <NavRow key={item.href} item={item} active={isActivePath(pathname, item.href)} />
+            <NavRow key={item.href} item={item} active={isActivePath(pathname, item.href, page)} />
           ))}</Section>
 
         <div
@@ -213,7 +218,7 @@ export default function DashboardSidebar() {
         />
 
         <Section title="Progress">{progress.map((item) => (
-            <NavRow key={item.href} item={item} active={isActivePath(pathname, item.href)} />
+            <NavRow key={item.href} item={item} active={isActivePath(pathname, item.href, page)} />
           ))}</Section>
 
         <div className="mt-auto px-3.5 pb-3">

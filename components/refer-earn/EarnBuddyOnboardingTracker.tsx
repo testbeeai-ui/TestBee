@@ -9,6 +9,7 @@ import {
   reconcileEarnBuddyCompanionSteps,
 } from "@/lib/onboarding/earnBuddyCompanionOnboarding";
 import { fetchEarnBuddyOnboardingStatus } from "@/lib/onboarding/earnBuddyCompanionApi";
+import { startVisiblePoll } from "@/lib/telemetry/visiblePoll";
 
 type EarnBuddyOnboardingTrackerProps = {
   /** Learning Buddy tab is visible. */
@@ -38,8 +39,7 @@ export function EarnBuddyOnboardingTracker({
     };
 
     sync();
-    const pollId = window.setInterval(sync, 12_000);
-    return () => window.clearInterval(pollId);
+    return startVisiblePoll({ intervalMs: 12_000, onTick: sync });
   }, [active, hasInvitedBuddyJoined]);
 
   return null;

@@ -1,0 +1,174 @@
+/* Dive design tokens — scoped to Dive wizard */
+.wrap {
+  --dive-bg: #0b0f17;
+  --dive-panel: #121722;
+  --dive-panel2: #151b26;
+  --dive-border: rgba(255, 255, 255, 0.1);
+  --dive-border-solid: #1e2634;
+  --dive-border-strong: #2a3444;
+  --dive-chrome: #0b0f17;
+  --dive-hover: #243041;
+  --dive-text: #eaeff5;
+  --dive-muted: #8b96a5;
+  --dive-teal: #10b981;
+  --dive-on-teal: #ffffff;
+  --dive-amber: #ef9f27;
+  --dive-purple: #7f77dd;
+  --dive-blue: #378add;
+  --dive-pink: #d4537e;
+
+  /* Fluid type + spacing scale (mobile → desktop) */
+  --dive-fs-xs: clamp(0.6875rem, 0.65rem + 0.2vw, 0.75rem); /* 11–12 */
+  --dive-fs-sm: clamp(0.75rem, 0.7rem + 0.25vw, 0.8125rem); /* 12–13 */
+  --dive-fs-md: clamp(0.8125rem, 0.75rem + 0.35vw, 0.875rem); /* 13–14 */
+  --dive-fs-base: clamp(0.875rem, 0.8rem + 0.4vw, 0.9375rem); /* 14–15 */
+  --dive-fs-lg: clamp(0.9375rem, 0.85rem + 0.45vw, 1rem); /* 15–16 */
+  --dive-fs-title: clamp(1.125rem, 1rem + 0.9vw, 1.5rem); /* 18–24 */
+  --dive-fs-display: clamp(1.75rem, 1.4rem + 1.4vw, 2.25rem); /* XI/XII */
+  --dive-space-section: clamp(1rem, 0.75rem + 1vw, 1.5rem);
+  --dive-space-block: clamp(0.75rem, 0.6rem + 0.6vw, 1.125rem);
+  --dive-panel-pad: clamp(1rem, 0.85rem + 0.8vw, 1.5rem);
+  --dive-radius: clamp(10px, 0.5rem + 0.4vw, 14px);
+
+  /* Use horizontal viewport space — early steps self-limit via inner max-width */
+  max-width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: clamp(8px, 1.2vw, 16px) clamp(16px, 3.5vw, 40px) clamp(64px, 8vw, 104px);
+  color: var(--dive-text);
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: var(--dive-fs-base);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (min-width: 1400px) {
+  .wrap {
+    max-width: 1280px;
+  }
+}
+
+.root {
+  --dive-bg: #0e1117;
+  --dive-text: #eaeff5;
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 64px);
+  width: 100%;
+  color: var(--dive-text);
+  overflow-x: hidden;
+  background:
+    radial-gradient(ellipse 90% 55% at 12% -8%, rgba(29, 158, 117, 0.11), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 92% 8%, rgba(55, 138, 221, 0.09), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(127, 119, 221, 0.06), transparent 55%),
+    linear-gradient(180deg, #10151d 0%, #0e1117 42%, #0c1016 100%);
+}
+
+.root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(234, 239, 245, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(234, 239, 245, 0.02) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 78%);
+}
+
+/* Shared button primitives */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  padding: clamp(10px, 1.4vw, 13px) clamp(16px, 2vw, 22px);
+  font-size: var(--dive-fs-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.15s;
+  line-height: 1.25;
+}
+
+.btnPrimary {
+  background: var(--dive-teal);
+  color: var(--dive-on-teal);
+  box-shadow: 0 4px 14px rgba(29, 158, 117, 0.35);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.btnOutline {
+  background: transparent;
+  border: 1px solid var(--dive-border);
+  color: var(--dive-text);
+}
+
+.btnOutline:hover {
+  border-color: var(--dive-muted);
+}
+
+.btnGhost {
+  background: var(--dive-panel2);
+  color: var(--dive-text);
+  border: 1px solid var(--dive-border);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btnFull {
+  width: 100%;
+}
+
+/* Shared progress primitives */
+.statBarTrack {
+  width: 100%;
+  height: 7px;
+  border-radius: 5px;
+  background: var(--dive-panel2);
+  border: 1px solid var(--dive-border);
+  overflow: hidden;
+}
+
+.statBarFill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.4s ease;
+}
+
+.statCompletion {
+  background: linear-gradient(90deg, var(--dive-blue), var(--dive-teal));
+}
+
+.statProficiency {
+  background: linear-gradient(90deg, var(--dive-pink), var(--dive-amber), var(--dive-teal));
+}
+
+/* Shared panel recipe */
+.panel {
+  background: var(--dive-panel);
+  border: 1px solid var(--dive-border);
+  border-radius: var(--dive-radius);
+}
+.panelSolid {
+  background: var(--dive-panel2);
+  border: 1px solid var(--dive-border-solid);
+  border-radius: var(--dive-radius);
+}
+.dialogChrome {
+  background: var(--dive-chrome);
+  border-color: var(--dive-border-solid);
+}

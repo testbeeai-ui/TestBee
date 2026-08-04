@@ -1,6 +1,7 @@
 "use client";
 
 import katex from "katex";
+import "@/lib/math/katexStyles";
 import { repairBankMathLatex } from "@/lib/mock/mockRichTextKatex";
 import { cn } from "@/lib/utils";
 

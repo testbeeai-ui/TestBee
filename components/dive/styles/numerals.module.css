@@ -1,0 +1,342 @@
+/* Numerals + premium gate */
+/* Numerals pack picker */
+.numeralGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  .numeralGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.numeralCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 154px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, #131822 0%, #0f141d 100%);
+  color: var(--dive-text);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.numeralCard:hover {
+  border-color: rgba(168, 85, 247, 0.45);
+  background: linear-gradient(180deg, #171f2e 0%, #121824 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.numeralCardDone {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: linear-gradient(180deg, #102018 0%, #0f141d 100%);
+}
+
+.numeralCardDone:hover {
+  border-color: rgba(74, 222, 128, 0.55);
+  background: linear-gradient(180deg, #13261c 0%, #121824 100%);
+}
+
+.numeralIndexDone {
+  background: rgba(22, 163, 74, 0.2) !important;
+  border-color: rgba(74, 222, 128, 0.45) !important;
+  color: #4ade80 !important;
+}
+
+.numeralDoneCta {
+  color: #4ade80 !important;
+}
+
+.numeralCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.numeralCardTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #f1f5f9;
+}
+
+.numeralPlayIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #a855f7, #ec4899);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.35);
+  transition: transform 0.2s ease;
+}
+
+.numeralCard:hover .numeralPlayIcon {
+  transform: scale(1.1);
+}
+
+.numeralPlayIconDone {
+  background: linear-gradient(135deg, #16a34a, #22c55e) !important;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.35) !important;
+}
+
+.numeralFormula {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  overflow-x: auto;
+  text-align: center;
+  color: #f1f5f9;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.numeralFormula::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.numeralFormula :global(.katex),
+.numeralFormula :global(.katex-display) {
+  margin: 0;
+  font-size: 0.95em;
+  color: #f1f5f9;
+}
+
+.numeralCardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.numeralHint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--dive-muted);
+  line-height: 1.4;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--dive-muted);
+  font-size: 14px;
+}
+
+.emptyState strong {
+  color: var(--dive-text);
+  display: block;
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+
+/* ═══════════════════════════════════════════
+   PREMIUM GATE  —  Solid design (Duolingo-style)
+   ═══════════════════════════════════════════ */
+
+.premiumGate {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #1a2133;
+  border: 2px solid #2a3554;
+  box-shadow: 0 8px 32px #0a0f1e, 0 2px 8px #0a0f1e;
+}
+
+/* ── Amber hero banner at top ──────────────── */
+.premiumGate::before {
+  content: "";
+  display: block;
+  height: 6px;
+  width: 100%;
+  background: linear-gradient(90deg, #d97706, #ef9f27, #f59e0b);
+  flex-shrink: 0;
+}
+
+/* inner padding wrapper — not the gate itself so ::before can bleed full-width */
+.premiumGateInner {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: clamp(20px, 3vw, 28px);
+}
+
+/* ── Top row: icon + plan badge ─────────────────── */
+.premiumGateTopRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.premiumGateIcon {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #d97706;
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px #92400e;
+}
+
+.premiumGatePlanBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #2a1f00;
+  border: 1.5px solid #78450a;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #fbbf24;
+  letter-spacing: 0.03em;
+}
+
+.premiumGatePlanBadge strong {
+  color: #fcd34d;
+  font-weight: 800;
+}
+
+/* ── Headline block ──────────────────────────────── */
+.premiumGateHeadline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.premiumGateTitle {
+  color: #f1f5f9;
+  font-size: clamp(1.1rem, 0.95rem + 0.5vw, 1.25rem);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.premiumGateCopy {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+/* ── Divider ─────────────────────────────────────── */
+.premiumGateDivider {
+  width: 100%;
+  height: 1.5px;
+  background: #253047;
+  margin-bottom: 18px;
+  border-radius: 1px;
+}
+
+/* ── Feature list ────────────────────────────────── */
+.premiumGateList {
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.premiumGateList li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: #111827;
+  border: 1.5px solid #1e2d45;
+  color: #e2e8f0;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.premiumGateCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: #166534;
+  color: #4ade80;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* ── CTA button ──────────────────────────────────── */
+.premiumGateCta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 14px;
+  /* Solid amber — no gradient tricks */
+  background: #f59e0b;
+  color: #1c1108;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  /* Hard shadow like Duolingo's buttons */
+  box-shadow: 0 4px 0 #b45309;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.premiumGateCta:hover {
+  background: #fbbf24;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #b45309;
+}
+
+.premiumGateCta:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #b45309;
+}
+
+.premiumAccessNote {
+  margin: 0 0 12px;
+  font-size: var(--dive-fs-xs);
+  color: var(--dive-teal);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+

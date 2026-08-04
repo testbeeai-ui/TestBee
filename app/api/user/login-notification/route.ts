@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { getSupabaseAndFullUser } from "@/lib/auth/apiAuth";
 import { sendEmail, isEmailConfigured } from "@/lib/email/emailService";
 import { buildStudentLoginNotificationEmail } from "@/lib/email/loginNotificationTemplate";
 import { buildNewUserWelcomeEmail } from "@/lib/email/newUserWelcomeTemplate";
@@ -52,7 +52,8 @@ function resolveDisplayName(
 
 /** POST — welcome letter for new accounts; login confirmation for returning students. */
 export async function POST(req: NextRequest) {
-  const auth = await getSupabaseAndUser(req);
+  // Needs `created_at` / `last_sign_in_at`, which the access token does not carry.
+  const auth = await getSupabaseAndFullUser(req);
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

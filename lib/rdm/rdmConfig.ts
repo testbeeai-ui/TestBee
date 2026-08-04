@@ -44,9 +44,13 @@ export type RdmConfigParams = {
   /** Min questions in submit payload to award DailyDose RDM; keep in sync with question fetch */
   play_dailydose_min_questions_for_rdm: number;
 
-  /** Lessons subtopic: advanced 3-set quiz daily RDM (claim_topic_quiz_advanced_daily_rdm) */
+  /** Lessons/Dive subtopic: quiz set 1 ≥60% RDM (claim_quiz_set_complete_rdm), once per subtopic */
+  subtopic_quiz_set_rdm: number;
+  /** Lessons/Dive subtopic: advanced multi-set quiz overall ≥60% RDM (claim_topic_quiz_advanced_daily_rdm), once per subtopic */
   subtopic_quiz_advanced_rdm: number;
-  /** Lessons subtopic: numerals pack complete daily RDM (claim_numerals_pack_complete_daily_rdm) */
+  /** Lessons/Dive subtopic: first numerals formula pack ≥60% RDM (claim_numerals_formula_complete_rdm), once per subtopic */
+  subtopic_numerals_formula_rdm: number;
+  /** Lessons/Dive subtopic: numerals pack overall ≥60% RDM (claim_numerals_pack_complete_daily_rdm), once per subtopic+level */
   subtopic_numerals_pack_rdm: number;
   /** Lessons subtopic: quiz result community-share bonus (claim_quiz_community_share_rdm) */
   quiz_community_share_rdm: number;
@@ -125,7 +129,9 @@ export const DEFAULT_RDM_CONFIG: RdmConfigParams = {
   study_streak_bonus_rdm: 500,
   play_dailydose_min_questions_for_rdm: 10,
 
+  subtopic_quiz_set_rdm: 5,
   subtopic_quiz_advanced_rdm: 15,
+  subtopic_numerals_formula_rdm: 5,
   subtopic_numerals_pack_rdm: 20,
   quiz_community_share_rdm: 5,
   numerals_community_share_rdm: 5,

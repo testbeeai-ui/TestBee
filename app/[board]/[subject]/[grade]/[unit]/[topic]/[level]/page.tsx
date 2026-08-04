@@ -133,6 +133,9 @@ import {
 } from "@/lib/saved/savedContentSaveLimit";
 import { applyInstacueCreateDailyRdmReward } from "@/lib/rdm/claims/applyInstacueCreateDailyRdmReward";
 import { applyTopicQuizAdvancedDailyRdmReward } from "@/lib/rdm/claims/applyTopicQuizAdvancedDailyRdmReward";
+import { claimNumeralsFormulaCompleteRdm } from "@/lib/rdm/claims/claimNumeralsFormulaCompleteRdm";
+import { claimQuizSetCompleteRdm } from "@/lib/rdm/claims/claimQuizSetCompleteRdm";
+import { isFirstNumeralsPackForRdm } from "@/lib/rdm/subtopicUnitRdmCopy";
 import {
   fetchSubtopicContent,
   upsertSubtopicContent,
@@ -178,9 +181,11 @@ import { cn, fuzzySubtopicKey } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchBitsAttempt,
+  fetchBitsAttemptsBySet,
   saveBitsAttempt,
   clearBitsAttemptSet,
   fetchFormulaPracticeAttempt,
+  fetchFormulaPracticeAttempts,
   saveFormulaPracticeAttempt,
   clearFormulaPracticeAttempt,
   type BitsAttemptRecord,
@@ -226,6 +231,7 @@ import {
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { reportInstacueCardReadBatch } from "@/lib/rdm/reports/reportInstacueCardRead";
 import { localDayKeyFromDate, startOfLocalDay } from "@/lib/dashboard/dashboardDayActivity";
+import { shouldSendTelemetry } from "@/lib/telemetry/networkConditions";
 import { makeSubtopicEngagementStorageKey } from "@/lib/curriculum/subtopicEngagementStorageKey";
 import { isSubtopicLessonCompleteAtAdvanced } from "@/lib/curriculum/lessonCompletionRollup";
 import { fetchAdvancedLessonCompletionKeys } from "@/lib/curriculum/lessonCompletionClient";
@@ -3282,6 +3288,17 @@ function TopicPageInner() {
       level: difficultyLevel,
     } as const;
 
+    // Engagement does not depend on the attempts, so both requests go out together
+    // rather than paying two serial cross-region round trips.
+    const wantsEngagement =
+      Boolean(engagementScope) &&
+      Boolean(session?.access_token) &&
+      engagementHydratedRef.current !== bitsSignature;
+    const engagementPromise =
+      wantsEngagement && engagementScope
+        ? fetchSubtopicEngagement(engagementScope).catch(() => null)
+        : null;
+
     void (async () => {
       try {
         if (!multi) {
@@ -3298,27 +3315,24 @@ function TopicPageInner() {
           }
         } else {
           const setIndices = getNonEmptyAdvancedSetIndices(total);
-          const attempts = await Promise.all(
-            setIndices.map((set) => fetchBitsAttempt({ ...scopeBase, set }))
-          );
+          const attempts = await fetchBitsAttemptsBySet(scopeBase, setIndices);
           if (cancelled) return;
           const next: Partial<Record<AdvancedQuizSetIndex, BitsAttemptRecord | null>> = {};
-          setIndices.forEach((s, i) => {
-            const a = attempts[i];
+          for (const s of setIndices) {
+            const a = attempts[s];
             if (a && a.bitsSignature === bitsSignature) {
               next[s] = a;
             }
-          });
+          }
           setBitsAttemptBySet(next);
           setBitsAttempt(null);
         }
 
-        if (!engagementScope || !session?.access_token) return;
-        if (engagementHydratedRef.current === bitsSignature) return;
+        if (!engagementPromise || !engagementScope) return;
         const timerScopeKey = makeSubtopicEngagementStorageKey(engagementScope);
 
         try {
-          const e = await fetchSubtopicEngagement(engagementScope);
+          const e = await engagementPromise;
           if (cancelled || !e || e.bitsSignature !== bitsSignature) return;
           if (engagementHydratedRef.current === bitsSignature) return;
           engagementHydratedRef.current = bitsSignature;
@@ -3498,37 +3512,37 @@ function TopicPageInner() {
       level: difficultyLevel,
     } as const;
 
-    void Promise.all(
-      dbPracticeFormulas.map(async (_, fi) => {
-        const f = dbPracticeFormulas[fi];
-        if (!f || cancelled) return;
-        const qs = formulaQuestionsOverride[fi] ?? f.bitsQuestions ?? [];
-        if (qs.length === 0) return;
-        const sig = getBitsSignature(qs);
-        try {
-          const attempt = await fetchFormulaPracticeAttempt(scope, fi);
-          if (cancelled) return;
-          setFormulaNumeralsAttemptByIdx((prev) => {
-            if (!attempt || attempt.bitsSignature !== sig) {
-              if (!prev[fi]) return prev;
-              const next = { ...prev };
-              delete next[fi];
-              return next;
+    const signatureByIdx = new Map<number, string>();
+    dbPracticeFormulas.forEach((f, fi) => {
+      const qs = formulaQuestionsOverride[fi] ?? f?.bitsQuestions ?? [];
+      if (qs.length === 0) return;
+      signatureByIdx.set(fi, getBitsSignature(qs));
+    });
+
+    void (async () => {
+      const indices = [...signatureByIdx.keys()];
+      if (indices.length === 0) return;
+      const attempts = await fetchFormulaPracticeAttempts(scope, indices).catch(() => null);
+      if (cancelled) return;
+
+      setFormulaNumeralsAttemptByIdx((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        for (const fi of indices) {
+          const attempt = attempts?.[fi] ?? null;
+          if (attempt && attempt.bitsSignature === signatureByIdx.get(fi)) {
+            if (next[fi] !== attempt) {
+              next[fi] = attempt;
+              changed = true;
             }
-            return { ...prev, [fi]: attempt };
-          });
-        } catch {
-          if (!cancelled) {
-            setFormulaNumeralsAttemptByIdx((prev) => {
-              if (!prev[fi]) return prev;
-              const next = { ...prev };
-              delete next[fi];
-              return next;
-            });
+          } else if (next[fi]) {
+            delete next[fi];
+            changed = true;
           }
         }
-      })
-    );
+        return changed ? next : prev;
+      });
+    })();
 
     return () => {
       cancelled = true;
@@ -4136,6 +4150,7 @@ function TopicPageInner() {
     if (isOverview || !focusTimerRunning) return;
     if (!engagementScope || !session?.access_token) return;
     const interval = setInterval(() => {
+      if (!shouldSendTelemetry()) return;
       const snap = buildEngagementSnapshotRef.current();
       if (!snap) return;
       void saveSubtopicEngagement(engagementScope, snap).catch(() => {});
@@ -4880,16 +4895,21 @@ function TopicPageInner() {
                                       errJson.error ?? progRes.status
                                     );
                                   }
-                                  try {
-                                    const rewardRes = await fetch(
-                                      `/api/classroom/${assignClassroomId}/posts/${assignPostId}/task-progress`,
-                                      {
-                                        headers: {
-                                          Authorization: `Bearer ${session.access_token}`,
-                                        },
-                                      }
-                                    );
-                                    if (rewardRes.ok) {
+                                  // Read back only to surface a bonus-RDM toast. Awaiting it
+                                  // delayed the "marked as complete" confirmation by a full
+                                  // round trip for a message most students never see, so it
+                                  // now runs alongside the rest of the completion work.
+                                  void (async () => {
+                                    try {
+                                      const rewardRes = await fetch(
+                                        `/api/classroom/${assignClassroomId}/posts/${assignPostId}/task-progress`,
+                                        {
+                                          headers: {
+                                            Authorization: `Bearer ${session.access_token}`,
+                                          },
+                                        }
+                                      );
+                                      if (!rewardRes.ok) return;
                                       const rewardJson = (await rewardRes.json()) as {
                                         completionReward?: {
                                           grantStatus?: string;
@@ -4904,10 +4924,10 @@ function TopicPageInner() {
                                             "Your teacher's completion reward was added to your wallet.",
                                         });
                                       }
+                                    } catch {
+                                      /* non-fatal */
                                     }
-                                  } catch {
-                                    /* non-fatal */
-                                  }
+                                  })();
                                 } catch (e) {
                                   console.warn("Assignment task-progress sync failed", e);
                                 }
@@ -6881,6 +6901,12 @@ function TopicPageInner() {
                           onDismissUpsell={() => setQuestionBankUpsellOpen(false)}
                           upgradeHref={TOPIC_QUESTION_BANK_UPGRADE_PATH}
                           bankSets={quizBankSetRows}
+                          rdmInfo={{
+                            badgeAmount: rdmConfig.subtopic_quiz_advanced_rdm,
+                            perSetAmount: rdmConfig.subtopic_quiz_set_rdm,
+                            overallAmount: rdmConfig.subtopic_quiz_advanced_rdm,
+                          }}
+                          rdmHint={`+${rdmConfig.subtopic_quiz_set_rdm} RDM on set 1 (≥60%) · +${rdmConfig.subtopic_quiz_advanced_rdm} overall (≥60%, once per subtopic).`}
                           reviewPreviousLabel={
                             showPreviousQuizAttempt && displayBitsAttempt && !useAdvancedSetsUi
                               ? "Review previous answers"
@@ -7628,6 +7654,37 @@ function TopicPageInner() {
                                                 description: `Correct: ${correctCount}, Wrong: ${wrongCount}`,
                                               });
                                               if (
+                                                topicNode &&
+                                                subtopicName &&
+                                                !isClassroomAssignmentLesson &&
+                                                activeQuizSet === 1 &&
+                                                sliceLen > 0 &&
+                                                (correctCount / sliceLen) * 100 >= 60
+                                              ) {
+                                                try {
+                                                  const setClaim = await claimQuizSetCompleteRdm({
+                                                    board: boardName,
+                                                    subject: topicNode.subject,
+                                                    classLevel: topicNode.classLevel,
+                                                    topic: topicNode.topic,
+                                                    subtopicName,
+                                                    level: difficultyLevel,
+                                                    quizSet: activeQuizSet,
+                                                  });
+                                                  if (setClaim.awarded && setClaim.balance != null) {
+                                                    setRdmFromProfile(setClaim.balance);
+                                                    void refreshProfile();
+                                                    toast({
+                                                      title: `+${rdmConfig.subtopic_quiz_set_rdm} RDM`,
+                                                      description:
+                                                        "Quiz set 1: ≥60%. Credited once for this subtopic.",
+                                                    });
+                                                  }
+                                                } catch {
+                                                  /* best-effort set bonus */
+                                                }
+                                              }
+                                              if (
                                                 isLastNonEmptyAdvancedSet(
                                                   dbBitsQuestions.length,
                                                   activeQuizSet
@@ -7652,14 +7709,15 @@ function TopicPageInner() {
                                                     toast({
                                                       title: `+${rdmConfig.subtopic_quiz_advanced_rdm} RDM`,
                                                       description:
-                                                        "Topic quiz: ≥60% overall with all sets complete. Credited for today (IST).",
+                                                        "Topic quiz: ≥60% overall with all sets complete. Credited once for this subtopic.",
                                                     });
                                                   } else if (
+                                                    reward.reason === "already_claimed_subtopic" ||
                                                     reward.reason === "already_claimed_today"
                                                   ) {
                                                     toast({
-                                                      title: "Daily topic-quiz bonus already used",
-                                                      description: `You already earned +${rdmConfig.subtopic_quiz_advanced_rdm} RDM from a topic quiz today (IST).`,
+                                                      title: "Overall quiz bonus already claimed",
+                                                      description: `You already earned +${rdmConfig.subtopic_quiz_advanced_rdm} RDM for this subtopic's quiz.`,
                                                     });
                                                   } else if (
                                                     reward.reason &&
@@ -8057,7 +8115,7 @@ function TopicPageInner() {
                     className={cn(
                       practiceFormulasForUi.length > 0 && selectedFormulaIdx !== null
                         ? "flex min-h-0 max-h-[92vh] w-[min(100vw-1.25rem,56rem)] max-w-5xl flex-col gap-3 overflow-hidden p-4 sm:p-5"
-                        : "max-h-[85vh] max-w-2xl overflow-y-auto"
+                        : "max-h-[90vh] w-[min(100vw-1.25rem,44rem)] max-w-none overflow-y-auto p-5 sm:p-6"
                     )}
                   >
                     <DialogHeader
@@ -8075,15 +8133,15 @@ function TopicPageInner() {
                         }
                       >
                         {selectedFormulaIdx === null
-                          ? "Which formula do you want to practice?"
+                          ? "Numerals"
                           : (practiceFormulasForUi[selectedFormulaIdx]?.name ?? "Practice Formula")}
                       </DialogTitle>
                       <DialogDescription asChild>
                         <div className="text-sm text-muted-foreground">
                           {selectedFormulaIdx === null ? (
                             <>
-                              <span className="text-muted-foreground">Formulas from </span>
-                              <MathText className="inline text-foreground [&_.katex]:text-[1em]">
+                              <span className="text-muted-foreground">Select a formula to practice · </span>
+                              <MathText className="inline text-foreground/70 [&_.katex]:text-[0.95em]">
                                 {displaySubtopicTitle}
                               </MathText>
                             </>
@@ -8117,67 +8175,83 @@ function TopicPageInner() {
                         )}
                       </div>
                     ) : selectedFormulaIdx === null ? (
-                      <div className="space-y-4">
-                        {practiceFormulasForUi.map((f, fi) => (
-                          <button
-                            key={fi}
-                            type="button"
-                            className="w-full text-left rounded-2xl border border-border p-4 space-y-2 hover:border-primary/50 hover:bg-muted/20 transition-colors"
-                            onClick={() => {
-                              // #region agent log
-                              fetch(
-                                "http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c",
-                                {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                    "X-Debug-Session-Id": "548b33",
-                                  },
-                                  body: JSON.stringify({
-                                    sessionId: "548b33",
-                                    runId: "pre-fix",
-                                    hypothesisId: "H4",
-                                    location: "page.tsx:4616",
-                                    message: "formula chooser option clicked",
-                                    data: { formulaIdx: fi, formulaName: f.name },
-                                    timestamp: Date.now(),
-                                  }),
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-1">
+                        {practiceFormulasForUi.map((f, fi) => {
+                          const qCount = f.bitsQuestions?.length ?? 0;
+                          const attempted = !!formulaNumeralsAttemptByIdx[fi];
+                          return (
+                            <div
+                              key={fi}
+                              role="button"
+                              tabIndex={0}
+                              className={cn(
+                                "group relative flex flex-col gap-3 rounded-2xl border p-4 cursor-pointer outline-none",
+                                "bg-gradient-to-b from-card/80 to-card/40",
+                                "border-border/60 hover:border-primary/40",
+                                "transition-all duration-200 ease-out",
+                                "hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.15),0_8px_24px_-6px_hsl(var(--primary)/0.12)]",
+                                "focus-visible:ring-2 focus-visible:ring-primary/50",
+                                attempted && "border-green-500/30 hover:border-green-400/50"
+                              )}
+                              onClick={() => {
+                                const merged: Record<number, { qIdx: number; answers: Record<number, number> }> = { ...formulaByIdx };
+                                if (selectedFormulaIdx !== null) {
+                                  merged[selectedFormulaIdx] = { qIdx: formulaBitsCurrentIdx, answers: { ...formulaBitsSelectedAnswers } };
                                 }
-                              ).catch(() => {});
-                              // #endregion
-                              const merged: Record<
-                                number,
-                                { qIdx: number; answers: Record<number, number> }
-                              > = {
-                                ...formulaByIdx,
-                              };
-                              if (selectedFormulaIdx !== null) {
-                                merged[selectedFormulaIdx] = {
-                                  qIdx: formulaBitsCurrentIdx,
-                                  answers: { ...formulaBitsSelectedAnswers },
-                                };
-                              }
-                              const d = merged[fi];
-                              setFormulaByIdx(merged);
-                              setFormulaNumeralsReviewMode(false);
-                              setSelectedFormulaIdx(fi);
-                              setFormulaBitsCurrentIdx(d?.qIdx ?? 0);
-                              setFormulaBitsSelectedAnswers(d?.answers ? { ...d.answers } : {});
-                            }}
-                          >
-                            <p className="text-lg font-bold text-foreground">{f.name}</p>
-                            <p className="text-sm text-muted-foreground [&_.katex]:text-[0.95em]">
-                              <MathText>{f.description}</MathText>
-                            </p>
-                            <div className="rounded-lg bg-muted/60 px-3 py-2 text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
-                              <MathText>{`$$${stripFormulaDelimiters(f.formulaLatex)}$$`}</MathText>
+                                const d = merged[fi];
+                                setFormulaByIdx(merged);
+                                setFormulaNumeralsReviewMode(false);
+                                setSelectedFormulaIdx(fi);
+                                setFormulaBitsCurrentIdx(d?.qIdx ?? 0);
+                                setFormulaBitsSelectedAnswers(d?.answers ? { ...d.answers } : {});
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") e.currentTarget.click();
+                              }}
+                            >
+                              {/* Top row: index badge + attempted badge */}
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground tabular-nums">
+                                  {fi + 1}
+                                </span>
+                                {attempted && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-400 border border-green-500/20">
+                                    <svg className="h-2.5 w-2.5" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                    Done
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Formula name */}
+                              <div>
+                                <p className="text-[15px] font-semibold text-foreground leading-snug tracking-tight">
+                                  {f.name}
+                                </p>
+                                {f.description && (
+                                  <p className="mt-0.5 text-xs text-muted-foreground/80 line-clamp-1 [&_.katex]:text-[0.9em]">
+                                    <MathText>{f.description}</MathText>
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Formula display box */}
+                              <div className="flex items-center justify-center min-h-[52px] rounded-xl bg-muted/40 border border-border/40 px-3 py-3 overflow-x-auto [&_.katex]:text-[1.1em] text-primary/90 group-hover:bg-muted/60 transition-colors">
+                                <MathText>{`$$${stripFormulaDelimiters(f.formulaLatex)}$$`}</MathText>
+                              </div>
+
+                              {/* Footer: question count + cta */}
+                              <div className="flex items-center justify-between gap-2 mt-auto pt-0.5">
+                                <span className="text-[11px] text-muted-foreground/60 tabular-nums">
+                                  {qCount} practice Q{qCount !== 1 ? "s" : ""}
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary/70 group-hover:text-primary transition-colors">
+                                  Solve
+                                  <svg className="h-3 w-3 translate-x-0 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 12 12" fill="none"><path d="M2.5 6h7M7 3.5L9.5 6 7 8.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                </span>
+                              </div>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {f.bitsQuestions?.length ?? 0} question
-                              {(f.bitsQuestions?.length ?? 0) !== 1 ? "s" : ""}
-                            </p>
-                          </button>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       (() => {
@@ -8672,6 +8746,42 @@ function TopicPageInner() {
                                         ...prev,
                                         [selectedFormulaIdx]: persisted,
                                       }));
+                                      if (
+                                        topicNode &&
+                                        subtopicName &&
+                                        total > 0 &&
+                                        (correctCount / total) * 100 >= 60 &&
+                                        isFirstNumeralsPackForRdm(
+                                          selectedFormulaIdx,
+                                          dbPracticeFormulas.map((pf, i) => ({
+                                            bitsQuestions:
+                                              formulaQuestionsOverride[i] ?? pf.bitsQuestions ?? [],
+                                          }))
+                                        )
+                                      ) {
+                                        try {
+                                          const formulaClaim = await claimNumeralsFormulaCompleteRdm({
+                                            board: boardNameNum,
+                                            subject: topicNode.subject,
+                                            classLevel: topicNode.classLevel as 11 | 12,
+                                            topic: topicNode.topic,
+                                            subtopicName,
+                                            level: difficultyLevel,
+                                            formulaIndex: selectedFormulaIdx,
+                                          });
+                                          if (formulaClaim.awarded && formulaClaim.balance != null) {
+                                            setRdmFromProfile(formulaClaim.balance);
+                                            void refreshProfile();
+                                            toast({
+                                              title: `+${rdmConfig.subtopic_numerals_formula_rdm} RDM`,
+                                              description:
+                                                "First numerals pack: ≥60%. Credited once for this subtopic.",
+                                            });
+                                          }
+                                        } catch {
+                                          /* best-effort formula bonus */
+                                        }
+                                      }
                                       const nextAttempts: Partial<
                                         Record<number, BitsAttemptRecord>
                                       > = {
@@ -8706,12 +8816,15 @@ function TopicPageInner() {
                                           toast({
                                             title: `+${rdmConfig.subtopic_numerals_pack_rdm} RDM`,
                                             description:
-                                              "Numerals: ≥60% overall with every formula submitted. Credited once per IST day across subtopics.",
+                                              "Numerals: ≥60% overall with every formula submitted. Credited once for this subtopic.",
                                           });
-                                        } else if (packClaim.reason === "already_claimed_today") {
+                                        } else if (
+                                          packClaim.reason === "already_claimed_subtopic" ||
+                                          packClaim.reason === "already_claimed_today"
+                                        ) {
                                           toast({
-                                            title: "Daily numerals bonus already used",
-                                            description: `You already earned +${rdmConfig.subtopic_numerals_pack_rdm} RDM from numerals today (IST).`,
+                                            title: "Overall numerals bonus already claimed",
+                                            description: `You already earned +${rdmConfig.subtopic_numerals_pack_rdm} RDM for this subtopic's numerals.`,
                                           });
                                         } else if (
                                           packClaim.reason &&

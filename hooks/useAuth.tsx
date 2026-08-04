@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useCallback, useEffect, useRef, useState, ReactNode } from "react";
+import { useContext, useCallback, useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import type { AuthError, User, Session } from "@supabase/supabase-js";
@@ -353,7 +353,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     profile?.subject_combo,
   ]);
 
-  const signInWithGoogle = async (redirectPath: string = "/onboarding") => {
+  /**
+   * The auth actions below are wrapped in `useCallback` so the context value can be
+   * memoized. Without stable identities every consumer of `useAuth()` — which is most
+   * of the app — re-renders on any auth or profile state change.
+   *
+   * They close over nothing reactive: `supabase` and `useUserStore.getState()` are
+   * module-level, and React setters are stable.
+   */
+  const signInWithGoogle = useCallback(async (redirectPath: string = "/onboarding") => {
     const normalized = redirectPath.startsWith("/") ? redirectPath : `/${redirectPath}`;
     try {
       const pendingLesson = readPendingDeepLink();
@@ -369,18 +377,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       },
     });
     if (error) console.error("signInWithOAuth", error);
-  };
+  }, []);
 
-  const signInWithEmail = async (email: string, password: string) => {
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (!error) {
       await supabase.auth.signOut({ scope: "others" });
       triggerLoginNotificationEmail();
     }
     return { error };
-  };
+  }, []);
 
-  const signUpWithEmail = async (email: string, password: string, name: string) => {
+  const signUpWithEmail = useCallback(async (email: string, password: string, name: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -391,9 +399,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
     const needsEmailConfirmation = Boolean(!error && data?.user && !data?.session);
     return { error, needsEmailConfirmation };
-  };
+  }, []);
 
-  const verifySignUpEmailOtp = async (email: string, token: string) => {
+  const verifySignUpEmailOtp = useCallback(async (email: string, token: string) => {
     const cleaned = token.replace(/\s/g, "");
     const { error } = await supabase.auth.verifyOtp({
       email: email.trim(),
@@ -404,17 +412,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       triggerLoginNotificationEmail();
     }
     return { error };
-  };
+  }, []);
 
-  const resendSignUpEmailOtp = async (email: string) => {
+  const resendSignUpEmailOtp = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resend({
       type: "signup",
       email: email.trim(),
     });
     return { error };
-  };
+  }, []);
 
-  const signOut = async (redirectAfter?: string) => {
+  const signOut = useCallback(async (redirectAfter?: string) => {
     /**
      * Clear local React + store state FIRST so the UI snaps to "logged out"
      * even if the network signOut call lags. Without this, a slow Supabase
@@ -470,7 +478,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     router.replace(target);
     router.refresh();
-  };
+  }, [router]);
 
   const fetchProfileRef = useRef(fetchProfile);
   fetchProfileRef.current = fetchProfile;
@@ -480,25 +488,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await fetchProfileRef.current(user.id);
   }, [user?.id]);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        profile,
-        loading,
-        signInWithGoogle,
-        signInWithEmail,
-        signUpWithEmail,
-        verifySignUpEmailOtp,
-        resendSignUpEmailOtp,
-        signOut,
-        refreshProfile,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      session,
+      profile,
+      loading,
+      signInWithGoogle,
+      signInWithEmail,
+      signUpWithEmail,
+      verifySignUpEmailOtp,
+      resendSignUpEmailOtp,
+      signOut,
+      refreshProfile,
+    }),
+    [
+      user,
+      session,
+      profile,
+      loading,
+      signInWithGoogle,
+      signInWithEmail,
+      signUpWithEmail,
+      verifySignUpEmailOtp,
+      resendSignUpEmailOtp,
+      signOut,
+      refreshProfile,
+    ]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

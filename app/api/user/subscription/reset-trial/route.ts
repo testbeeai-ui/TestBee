@@ -1,24 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient, createClientWithToken } from "@/integrations/supabase/server";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
-
-async function getSupabaseAndUser(request: Request) {
-  const cookieClient = await createClient();
-  let user = (await cookieClient.auth.getUser()).data?.user ?? null;
-  if (!user) {
-    const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
-    if (token) {
-      const {
-        data: { user: u },
-      } = await cookieClient.auth.getUser(token);
-      user = u ?? null;
-      if (user) {
-        return { supabase: createClientWithToken(token), user };
-      }
-    }
-  }
-  return user ? { supabase: cookieClient, user } : null;
-}
 
 /**
  * Demo/admin helper: re-arm the free trial to a clean Day 1.

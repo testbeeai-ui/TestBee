@@ -45,7 +45,7 @@ export type TopicQuizAdvancedClaimScope = {
   subtopicName: string;
 };
 
-/** Server verifies all advanced sets + re-grades from Supabase content; awards RDM from `subtopic_quiz_advanced_rdm` at most once per IST day. */
+/** Server verifies all advanced sets + re-grades from Supabase content; awards RDM from `subtopic_quiz_advanced_rdm` once per subtopic (lifetime). */
 export async function claimTopicQuizAdvancedDailyRdm(
   scope: TopicQuizAdvancedClaimScope
 ): Promise<{ data: TopicQuizAdvancedRdmResult; error: Error | null }> {

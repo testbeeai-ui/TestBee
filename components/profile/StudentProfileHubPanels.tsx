@@ -71,7 +71,10 @@ import {
 } from "@/lib/dashboard/dashboardDayActivity";
 import { computeStudyStreakFromDayMs } from "@/lib/dashboard/studyStreakClient";
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
-import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
+import {
+  EDUBLAST_STUDY_DAYS_REFRESH,
+  studyDaysRefreshReason,
+} from "@/lib/dashboard/studyDayBumpEvents";
 import { fetchStudyDays } from "@/lib/dashboard/studyDaysClient";
 import { useSitePresenceLiveMsToday } from "@/components/providers/SitePresenceProvider";
 import { eachDayOfInterval, endOfWeek, format, startOfWeek } from "date-fns";
@@ -1996,7 +1999,26 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
     }
   }, [profile.id]);
 
+  /**
+   * `user_study_day_totals` is written every ~22s by the presence heartbeat, which only
+   * ever changes accumulated study time. Reloading the attendance, learning-activity and
+   * Gyan panels on that signal meant four GETs every 22 seconds of sitting on this page
+   * for three panels that had not changed, so realtime now refreshes study days alone.
+   *
+   * The heavier panels reload from `scheduleProfileFullReload`, driven by the local
+   * activity event (a quiz/lesson/Gyan action) and by window focus.
+   */
   const scheduleProfileStudyDayReload = useCallback(() => {
+    if (profileRealtimeDebounceRef.current != null) {
+      clearTimeout(profileRealtimeDebounceRef.current);
+    }
+    profileRealtimeDebounceRef.current = setTimeout(() => {
+      profileRealtimeDebounceRef.current = null;
+      void loadStudyDays();
+    }, 450);
+  }, [loadStudyDays]);
+
+  const scheduleProfileFullReload = useCallback(() => {
     if (profileRealtimeDebounceRef.current != null) {
       clearTimeout(profileRealtimeDebounceRef.current);
     }
@@ -2114,10 +2136,16 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
   }, [loadStudyDays]);
 
   useEffect(() => {
-    const onRefresh = () => void loadStudyDays();
+    const onRefresh = (event: Event) => {
+      if (studyDaysRefreshReason(event) === "presence") {
+        void loadStudyDays();
+        return;
+      }
+      scheduleProfileFullReload();
+    };
     window.addEventListener(EDUBLAST_STUDY_DAYS_REFRESH, onRefresh);
     return () => window.removeEventListener(EDUBLAST_STUDY_DAYS_REFRESH, onRefresh);
-  }, [loadStudyDays]);
+  }, [loadStudyDays, scheduleProfileFullReload]);
 
   useEffect(() => {
     if (!profile.id) return;

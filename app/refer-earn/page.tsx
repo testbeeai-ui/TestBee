@@ -71,6 +71,7 @@ import {
   reconcileEarnBuddyCompanionSteps,
 } from "@/lib/onboarding/earnBuddyCompanionOnboarding";
 import { fetchEarnBuddyOnboardingStatus } from "@/lib/onboarding/earnBuddyCompanionApi";
+import { startVisiblePoll } from "@/lib/telemetry/visiblePoll";
 import {
   isOnboardingTaskCompanionLaunched,
   ONBOARDING_ACTIVE_TASK_CHANGED_EVENT,
@@ -255,8 +256,7 @@ function ReferEarnPageContent() {
       });
     };
     syncBuddyOnboarding();
-    const pollId = window.setInterval(syncBuddyOnboarding, 12_000);
-    return () => window.clearInterval(pollId);
+    return startVisiblePoll({ intervalMs: 12_000, onTick: syncBuddyOnboarding });
   }, []);
 
   useEffect(() => {
@@ -674,8 +674,7 @@ function ReferEarnPageContent() {
       );
     };
     sync();
-    const pollId = window.setInterval(sync, 12_000);
-    return () => window.clearInterval(pollId);
+    return startVisiblePoll({ intervalMs: 12_000, onTick: sync });
   }, [activeReferClaim]);
 
   const tierBanner = useMemo(() => {

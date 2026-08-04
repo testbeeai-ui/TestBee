@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["lib/**/*.test.ts"],
+    include: ["lib/**/*.test.ts", "app/**/*.test.ts"],
     passWithNoTests: true,
     env: {
       NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",

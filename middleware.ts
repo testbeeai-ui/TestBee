@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { loadSessionProfile } from "@/lib/auth/middlewareProfileCache";
+import { resolveSessionUser } from "@/lib/auth/middlewareSessionUser";
 import {
   isOAuthAuthorizationCode,
   shouldRedirectOAuthCodeToCallback,
@@ -21,6 +23,7 @@ const STUDENT_ONLY_PREFIXES = [
   "/revision",
   "/explore-1",
   "/explore",
+  "/dive",
   "/magic-wall",
   "/doubts",
   "/exam-prep",
@@ -92,7 +95,7 @@ export async function middleware(request: NextRequest) {
   if (
     (pathname === "/auth/callback" ||
       pathname === "/auth/mobile-callback" ||
-      pathname === "/preview-raknas-amu") &&
+      pathname === PREVIEW_AUTH_PATH) &&
     isOAuthAuthorizationCode(oauthCode)
   ) {
     return NextResponse.next();
@@ -100,14 +103,12 @@ export async function middleware(request: NextRequest) {
 
   if (isPublicPath(pathname)) {
     const { supabase, getResponse } = createSupabaseMiddleware(request);
-    await supabase.auth.getUser();
+    await resolveSessionUser(supabase);
     return getResponse();
   }
 
   const { supabase, getResponse } = createSupabaseMiddleware(request);
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await resolveSessionUser(supabase);
 
   if (!user) {
     const url = request.nextUrl.clone();
@@ -116,16 +117,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, onboarding_complete")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await loadSessionProfile(supabase, user.id);
 
   const gate = await evaluateWhitelistGate(supabase, {
     userId: user.id,
-    email: user.email,
-    onboardingComplete: profile?.onboarding_complete === true,
+    email: user.email ?? undefined,
+    onboardingComplete: profile?.onboardingComplete === true,
   });
 
   if (!gate.allowed) {
@@ -163,5 +160,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // Skip every `_next` internal (chunks, RSC data, image optimizer) and any request
+  // with a static asset extension. These can never need an auth redirect, and each
+  // one that reaches the middleware costs a session check.
+  matcher: [
+    "/((?!_next/|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|bmp|woff|woff2|ttf|otf|eot|css|html|txt|xml|webmanifest|mp3|mp4|webm|ogg|wav|pdf|zip)$).*)",
+  ],
 };

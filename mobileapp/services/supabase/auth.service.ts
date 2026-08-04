@@ -26,7 +26,7 @@ export async function refreshSession(): Promise<Session | null> {
 export type SignInPhase = "browser" | "finishing";
 
 /**
- * Google via Supabase → preview-raknas-amu (website) → deep link back with session tokens.
+ * Google via Supabase → /preview (website) → deep link back with session tokens.
  */
 export async function signInWithGoogle(
   onPhase?: (phase: SignInPhase) => void

@@ -39,8 +39,10 @@ export function stripFormulaDelimiters(raw: string): string {
     .replace(/\$\$+\s*$/g, "")
     .trim();
 
-  // Model output often escapes literal braces in denominator groups (\{...\}) which breaks display intent.
-  out = out.replace(/\\\{/g, "{").replace(/\\\}/g, "}");
+  // Only unwrap bogus single-token escaped braces like \{\pi} / \{ \} — keep real set
+  // notation \{ x \in A \} intact (stripping those produced "leq1" broken cards).
+  out = out.replace(/\\\{\s*(\\?[A-Za-z]+)\s*\\\}/g, "$1");
+  out = out.replace(/\\\{\s*\\\}/g, "");
   // Occasionally Greek symbols arrive as escaped unicode letters (\θ, \τ) instead of TeX commands.
   out = out.replace(/\\θ/g, "\\theta").replace(/\\τ/g, "\\tau");
   // Keep common symbols resilient when command was partially dropped.

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient, createClientWithToken } from "@/integrations/supabase/server";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import type {
   SavedBit,
@@ -35,24 +35,6 @@ import {
 } from "@/lib/saved/savedContentEtag";
 import { isSupabaseNetworkError } from "@/lib/supabase/supabaseNodeFetch";
 
-async function getSupabaseAndUser(request: Request) {
-  const cookieClient = await createClient();
-  let user = (await cookieClient.auth.getUser()).data?.user ?? null;
-  if (!user) {
-    const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
-    if (token) {
-      const {
-        data: { user: u },
-      } = await cookieClient.auth.getUser(token);
-      user = u ?? null;
-      if (user) {
-        return { supabase: createClientWithToken(token), user };
-      }
-    }
-  }
-  return user ? { supabase: cookieClient, user } : null;
-}
-
 /** Map frontend type names to item_type enum values */
 const TYPE_MAP: Record<string, ItemType> = {
   savedBits: "saved_bit",
@@ -84,29 +66,30 @@ type CapContext = {
   counts: Map<ItemType, number>;
 };
 
-async function createCapContext(
-  supabase: ReturnType<typeof createClientWithToken>,
-  userId: string
-): Promise<CapContext> {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(
-      "plan_tier, free_trial_activated, payment_card_details, subscription_started_at, time_travel_offset_ms"
-    )
-    .eq("id", userId)
-    .maybeSingle();
-  const cfg = await fetchSubscriptionConfig(supabase as unknown as Parameters<
-    typeof fetchSubscriptionConfig
-  >[0]);
+type AuthedSupabase = NonNullable<Awaited<ReturnType<typeof getSupabaseAndUser>>>["supabase"];
+
+async function createCapContext(supabase: AuthedSupabase, userId: string): Promise<CapContext> {
+  const [profileRes, cfg] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(
+        "plan_tier, free_trial_activated, payment_card_details, subscription_started_at, time_travel_offset_ms"
+      )
+      .eq("id", userId)
+      .maybeSingle(),
+    fetchSubscriptionConfig(
+      supabase as unknown as Parameters<typeof fetchSubscriptionConfig>[0]
+    ),
+  ]);
   return {
-    profile: (profile as ProfilePlanRow | null) ?? null,
+    profile: (profileRes.data as ProfilePlanRow | null) ?? null,
     cfg,
     counts: new Map(),
   };
 }
 
 async function getItemTypeCount(
-  supabase: ReturnType<typeof createClientWithToken>,
+  supabase: AuthedSupabase,
   ctx: CapContext,
   userId: string,
   itemType: ItemType
@@ -125,7 +108,7 @@ async function getItemTypeCount(
 
 /** Check plan-based save cap for an item type (one profile read per POST). */
 async function checkCap(
-  supabase: ReturnType<typeof createClientWithToken>,
+  supabase: AuthedSupabase,
   ctx: CapContext,
   userId: string,
   itemType: ItemType,
@@ -170,7 +153,7 @@ async function checkCap(
  * Incremental sync: upsert changed rows, delete only removed content_ids.
  */
 async function syncItemType(
-  supabase: ReturnType<typeof createClientWithToken>,
+  supabase: AuthedSupabase,
   userId: string,
   itemType: ItemType,
   items: Record<string, unknown>[]
@@ -188,7 +171,7 @@ async function syncItemType(
   if (upsertResult.error) return upsertResult;
 
   const toDelete = diffRemovedContentIds(
-    (existingRows ?? []).map((r) => r.content_id as string),
+    (existingRows ?? []).map((r: { content_id: string }) => r.content_id),
     items,
     itemType
   );

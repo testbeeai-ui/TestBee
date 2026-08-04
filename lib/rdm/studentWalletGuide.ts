@@ -37,8 +37,10 @@ export function buildStudentWalletGuide(
     { label: "Gyan++ · comment", value: `+${c.gyan_comment_rdm}` },
     { label: "Gyan++ · upvote", value: `+${c.gyan_upvote_rdm}` },
     { label: "Gyan++ · save for revision", value: `+${c.gyan_save_rdm}` },
-    { label: "Lessons · advanced quiz", value: `+${c.subtopic_quiz_advanced_rdm}` },
-    { label: "Lessons · numerals pack", value: `+${c.subtopic_numerals_pack_rdm}` },
+    { label: "Lessons · quiz set 1 (≥60%)", value: `+${c.subtopic_quiz_set_rdm}` },
+    { label: "Lessons · advanced quiz overall", value: `+${c.subtopic_quiz_advanced_rdm}` },
+    { label: "Lessons · first numerals pack (≥60%)", value: `+${c.subtopic_numerals_formula_rdm}` },
+    { label: "Lessons · numerals pack overall", value: `+${c.subtopic_numerals_pack_rdm}` },
     {
       label: "Lessons · community share",
       value: `+${c.quiz_community_share_rdm} / +${c.numerals_community_share_rdm}`,

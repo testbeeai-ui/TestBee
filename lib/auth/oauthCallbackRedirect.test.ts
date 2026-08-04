@@ -29,7 +29,7 @@ describe("oauthCallbackRedirect", () => {
     ).toBe(false);
     expect(
       shouldRedirectOAuthCodeToCallback(
-        "/preview-raknas-amu",
+        "/preview",
         "25449542-835d-4793-9404-1404cd2fd34e"
       )
     ).toBe(false);

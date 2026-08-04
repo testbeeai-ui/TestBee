@@ -148,6 +148,7 @@ Anything that is not Next.js / tooling config now lives under:
 | Setup | `mobileapp/README.md`, `mobileapp/.env.example` |
 
 ## Decisions Log
+- 2026-07-10: **Dashboard sidebar PR fixes** — AppLayout no longer mounts a duplicate dashboard rail, dashboard active state handles `?page=dashboard`, drawer icon color aliases are global, and fixed chrome offsets match the 56px nav.
 - 2026-07-03: **Gyan++ daily checklist panel** — centered modal, opaque bg (no feed bleed-through), progress segments, shorter copy, compact timer.
 - 2026-07-03: **Community Wall polish** — tighter nav-to-content spacing, compact typography, Gyan++ `DoubtVotePill` likes on posts, hover-scroll right rail with full widget stack visible.
 - 2026-07-03: **Community Wall UI** — top nav News & Blogs → Community (`/explore/community`); 3-column shell (sidebar, hero+compose+feed, right widgets w/o Who to Follow); `RawFeedPostCard`/`RawCommunityFeed` reskin + sort/post-type filters; deep links from curriculum → `/explore/community?focusPost=`. — ran `npm install`; verified `node`, `npm`, `python`, `modal`, `hivemind`; installed global `supabase` CLI; initialized and indexed `codegraph` for this repo. `hivemind graph build` works, but `hivemind graph init` still reports a PATH-detection issue in this shell.
@@ -381,3 +382,6 @@ Anything that is not Next.js / tooling config now lives under:
 - 2026-07-06: **Contact Us pipeline** — `contact_messages` table + `/api/contact` saves submissions and sends category auto-reply email; admin F&W new Contact Us tab (`ContactUsTab.tsx`); removed Email us / Partnership sidebar blocks on `/contact`.
 - 2026-07-06: **Lesson InstaCue flip** — tap anywhere on card flips (removed content stopPropagation); reset to question on Prev/Next (`useLayoutEffect` on card id).
 - 2026-07-06: **Community post delete** — three-dot menu on own posts only (`RawFeedPostCard` + `RawCommunityFeed`); delete via `lessons_raw_posts` RLS; unsaves from revision if saved.
+- 2026-07-14: **Preview auth URL** — canonical path is `/preview` (`PREVIEW_AUTH_PATH`); `/preview-raknas-amu` (+ older obfuscated paths) redirect via middleware; web + mobileapp configs updated.
+- 2026-07-14: **AppLayout CSS Modules** — moved `--eb-*` tokens from illegal `:root` onto `.nav`/`.drawer` (fixes Webpack “Selector :root is not pure”).
+- 2026-07-14: **mobileapp parked** — not in active use; deleted `mobileapp/tsconfig.json` (Expo config kept as `tsconfig.expo.json`); hidden via `.vscode/settings.json` + `.cursorignore` (web `tsconfig` already excludes it).

@@ -26,7 +26,8 @@ export type OnboardingProgressSyncResult = {
   noop?: boolean;
 };
 
-const ONBOARDING_REWARD_CACHE_TTL_MS = 3_000;
+/** Long enough that remounts / Soft Nav on Dive don't re-hit profiles mid-session. */
+const ONBOARDING_REWARD_CACHE_TTL_MS = 60_000;
 
 let onboardingRewardCached: { at: number; data: OnboardingRewardState } | null = null;
 let onboardingRewardInFlight: Promise<OnboardingRewardState> | null = null;

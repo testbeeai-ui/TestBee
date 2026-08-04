@@ -252,10 +252,20 @@ export async function GET(req: NextRequest) {
   const answerRows = (answersRes.data ?? []) as { doubt_id: string }[];
   const doubtIdsFromAnswers = answerRows.map((a) => a.doubt_id);
 
-  const doubtsForVoteTargets =
+  // These three author lookups are independent — run together so a busy community
+  // day pays one RTT instead of up to three sequential India→Tokyo hops.
+  const [doubtsForVoteTargets, ansAuthorsRes, doubtsForMyAnswersRes] = await Promise.all([
     doubtIdsFromVotes.length > 0
-      ? await sb.from("doubts").select("id, user_id").in("id", doubtIdsFromVotes)
-      : { data: [] as { id: string; user_id: string }[] };
+      ? sb.from("doubts").select("id, user_id").in("id", doubtIdsFromVotes)
+      : Promise.resolve({ data: [] as { id: string; user_id: string }[] }),
+    answerIdsFromVotes.length > 0
+      ? sb.from("doubt_answers").select("id, user_id").in("id", answerIdsFromVotes)
+      : Promise.resolve({ data: [] as { id: string; user_id: string }[] }),
+    doubtIdsFromAnswers.length > 0
+      ? sb.from("doubts").select("id, user_id").in("id", doubtIdsFromAnswers)
+      : Promise.resolve({ data: [] as { id: string; user_id: string }[] }),
+  ]);
+
   const doubtAuthorById = new Map<string, string>();
   for (const d of (doubtsForVoteTargets.data ?? []) as { id: string; user_id: string }[]) {
     doubtAuthorById.set(d.id, d.user_id);
@@ -267,22 +277,15 @@ export async function GET(req: NextRequest) {
       communityActionsToday++;
     }
   }
-  if (answerIdsFromVotes.length > 0) {
-    const { data: ansAuthors } = await sb
-      .from("doubt_answers")
-      .select("id, user_id")
-      .in("id", answerIdsFromVotes);
-    for (const a of (ansAuthors ?? []) as { id: string; user_id: string }[]) {
-      if (a.user_id !== uid) communityActionsToday++;
-    }
+  for (const a of (ansAuthorsRes.data ?? []) as { id: string; user_id: string }[]) {
+    if (a.user_id !== uid) communityActionsToday++;
   }
-  if (doubtIdsFromAnswers.length > 0) {
-    const { data: doubtsForMyAnswers } = await sb
-      .from("doubts")
-      .select("id, user_id")
-      .in("id", doubtIdsFromAnswers);
+  {
     const authorByDoubt = new Map(
-      (doubtsForMyAnswers ?? []).map((d: { id: string; user_id: string }) => [d.id, d.user_id])
+      ((doubtsForMyAnswersRes.data ?? []) as { id: string; user_id: string }[]).map((d) => [
+        d.id,
+        d.user_id,
+      ])
     );
     for (const a of answerRows) {
       if (authorByDoubt.get(a.doubt_id) && authorByDoubt.get(a.doubt_id) !== uid) {

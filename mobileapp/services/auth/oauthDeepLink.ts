@@ -5,7 +5,7 @@ import { getOAuthBridgeOrigin, MOBILE_OAUTH_CALLBACK_PATH, PREVIEW_AUTH_PATH } f
 const NATIVE_SCHEME = "edublast";
 
 /**
- * OAuth return URL — preview-raknas-amu forwards tokens/code here after Google sign-in.
+ * OAuth return URL — /preview forwards tokens/code here after Google sign-in.
  */
 export function getAppOAuthCallbackUrl(): string {
   if (Constants.appOwnership === "expo") {

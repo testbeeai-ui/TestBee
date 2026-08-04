@@ -1,7 +1,8 @@
 /* AppLayout Redesigned Student Navbar & Drawer Styles */
 
-/* CSS variables must be on :root so the nav + drawer (siblings of .container) can inherit them */
-:root {
+/* Tokens on local roots (CSS Modules forbids bare :root). Descendants inherit. */
+.nav,
+.drawer {
   --eb-navy: #0A0F1E;
   --eb-navy2: #0F1729;
   --eb-navy3: #141E33;
@@ -31,9 +32,10 @@
   --eb-red: #E24B4A;
   --eb-rl: #F09595;
   --eb-rb: #1F0E0E;
-}
-
-.container {
+  --blue: var(--eb-blue);
+  --teal: var(--eb-teal);
+  --purple: var(--eb-purple);
+  --amber: var(--eb-amber);
   --navy: var(--eb-navy);
   --navy2: var(--eb-navy2);
   --navy3: var(--eb-navy3);
@@ -46,17 +48,13 @@
   --t1: var(--eb-t1);
   --t2: var(--eb-t2);
   --t3: var(--eb-t3);
-  --teal: var(--eb-teal);
   --tl: var(--eb-tl);
   --tb: var(--eb-tb);
   --td: var(--eb-td);
-  --amber: var(--eb-amber);
   --al: var(--eb-al);
   --ab: var(--eb-ab);
-  --purple: var(--eb-purple);
   --pl: var(--eb-pl);
   --pb: var(--eb-pb);
-  --blue: var(--eb-blue);
   --bl: var(--eb-bl);
   --bb: var(--eb-bb);
   --pink: var(--eb-pink);
@@ -329,7 +327,7 @@
 
 .drawer {
   position: fixed;
-  top: 52px;
+  top: 56px;
   right: 0;
   bottom: 0;
   width: 340px;

@@ -33,7 +33,7 @@ import {
   markNewsBlogCompanionListOpened,
   reconcileNewsBlogCompanionSteps,
 } from "@/lib/onboarding/newsBlogCompanionOnboarding";
-import { ONBOARDING_REWARD_TASKS } from "@/components/dashboard/OnboardingRewardDialog";
+import { ONBOARDING_REWARD_TASKS } from "@/lib/onboarding/onboardingRewardTasks";
 import {
   PLAY_DAILYDOSE_COMPANION_TASK,
   TASK_ID as PLAY_DAILYDOSE_TASK_ID,

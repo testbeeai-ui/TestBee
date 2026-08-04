@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/integrations/supabase/server";
 import { isAdminUser } from "@/lib/admin/admin";
+import { type AuthedUser, authedUserFromUser, verifyAuthedUser } from "@/lib/auth/verifiedUser";
 
 type AuthSuccess = {
-  user: User;
+  user: AuthedUser;
   accessToken: string | null;
 };
 
@@ -26,11 +26,12 @@ export async function requireAuthenticatedUser(request: Request): Promise<AuthRe
   const bearer = getBearerToken(request);
 
   if (bearer) {
-    const {
-      data: { user: tokenUser },
-    } = await cookieClient.auth.getUser(bearer);
-    if (tokenUser) return { user: tokenUser, accessToken: bearer };
+    const fromBearer = await verifyAuthedUser(cookieClient, bearer);
+    if (fromBearer) return { user: fromBearer, accessToken: bearer };
   }
+
+  const fromCookies = await verifyAuthedUser(cookieClient);
+  if (fromCookies) return { user: fromCookies, accessToken: null };
 
   const {
     data: { user },
@@ -38,7 +39,7 @@ export async function requireAuthenticatedUser(request: Request): Promise<AuthRe
   if (!user) {
     return { response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
-  return { user, accessToken: null };
+  return { user: authedUserFromUser(user), accessToken: null };
 }
 
 export async function requireAdminUser(request: Request): Promise<AuthResult> {

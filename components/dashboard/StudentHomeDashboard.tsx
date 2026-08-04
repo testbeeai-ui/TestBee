@@ -40,6 +40,7 @@ import { isSubtopicLessonCompleteAtAdvanced } from "@/lib/curriculum/lessonCompl
 import {
   EDUBLAST_STUDY_DAYS_REFRESH,
   notifyStudyDaysRefresh,
+  studyDaysRefreshReason,
 } from "@/lib/dashboard/studyDayBumpEvents";
 import { fetchStudyDays } from "@/lib/dashboard/studyDaysClient";
 import { getLocalCalendarDateIso } from "@/lib/onboarding/dailyChecklistTaskStorage";
@@ -609,8 +610,10 @@ export default function StudentHomeDashboard() {
           filter: `user_id=eq.${profile.id}`,
         },
         () => {
-          void loadStudyDays();
-          notifyStudyDaysRefresh();
+          // Only notify: this component listens for the same event above, so fetching
+          // directly here as well meant every totals write cost two GETs. The debounce in
+          // `notifyStudyDaysRefresh` also coalesces this with the write that caused it.
+          notifyStudyDaysRefresh("activity");
         }
       )
       .subscribe();
@@ -951,7 +954,10 @@ export default function StudentHomeDashboard() {
   useEffect(() => {
     if (!SHOW_DASHBOARD_CHECKLIST) return;
     let debounceId: number | null = null;
-    const onBump = () => {
+    const onBump = (event: Event) => {
+      // Presence flushes fire every ~22s just for "tab still open" time and can never
+      // change checklist items, so only real activity triggers a checklist refetch.
+      if (studyDaysRefreshReason(event) === "presence") return;
       if (debounceId != null) window.clearTimeout(debounceId);
       debounceId = window.setTimeout(() => {
         debounceId = null;

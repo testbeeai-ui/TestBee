@@ -4972,6 +4972,7 @@ export type Database = {
           display_title: string | null
           id: string
           instacue_cards: Json
+          learning_outcomes_questions?: Json
           level: string
           practice_formulas: Json
           reading_references: Json
@@ -4991,6 +4992,7 @@ export type Database = {
           display_title?: string | null
           id?: string
           instacue_cards?: Json
+          learning_outcomes_questions?: Json
           level: string
           practice_formulas?: Json
           reading_references?: Json
@@ -5010,6 +5012,7 @@ export type Database = {
           display_title?: string | null
           id?: string
           instacue_cards?: Json
+          learning_outcomes_questions?: Json
           level?: string
           practice_formulas?: Json
           reading_references?: Json
@@ -5019,6 +5022,78 @@ export type Database = {
           topic?: string
           updated_at?: string
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      dive_hub_progress: {
+        Row: {
+          user_id: string
+          storage_key: string
+          completed: string[] | null
+          quiz_score: number | null
+          numeral_score: number | null
+          outcomes_score: number | null
+          undertaking_accepted: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          storage_key: string
+          completed?: string[] | null
+          quiz_score?: number | null
+          numeral_score?: number | null
+          outcomes_score?: number | null
+          undertaking_accepted?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          storage_key?: string
+          completed?: string[] | null
+          quiz_score?: number | null
+          numeral_score?: number | null
+          outcomes_score?: number | null
+          undertaking_accepted?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      learning_outcomes_questions: {
+        Row: {
+          id?: string
+          board: string
+          subject: string
+          class_level: number
+          topic: string
+          subtopic_name: string
+          level: string
+          questions: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Insert: {
+          id?: string
+          board: string
+          subject: string
+          class_level: number
+          topic: string
+          subtopic_name: string
+          level: string
+          questions?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          board?: string
+          subject?: string
+          class_level?: number
+          topic?: string
+          subtopic_name?: string
+          level?: string
+          questions?: Json
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -6133,6 +6208,18 @@ export type Database = {
         Args: { p_answer_indices: number[]; p_paper_id: string }
         Returns: Json
       }
+      claim_numerals_formula_complete_rdm: {
+        Args: {
+          p_board: string
+          p_class_level: number
+          p_formula_index: number
+          p_level: string
+          p_subject: string
+          p_subtopic_name: string
+          p_topic: string
+        }
+        Returns: Json
+      }
       claim_numerals_community_share_rdm: {
         Args: { p_post_id: string }
         Returns: Json
@@ -6142,6 +6229,18 @@ export type Database = {
           p_board: string
           p_class_level: number
           p_level: string
+          p_subject: string
+          p_subtopic_name: string
+          p_topic: string
+        }
+        Returns: Json
+      }
+      claim_quiz_set_complete_rdm: {
+        Args: {
+          p_board: string
+          p_class_level: number
+          p_level: string
+          p_quiz_set: number
           p_subject: string
           p_subtopic_name: string
           p_topic: string

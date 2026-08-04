@@ -10,6 +10,7 @@ import { SUBJECT_META } from "@/components/subject-chat/profPiChatTheme";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import "@/lib/math/katexStyles";
 import type { Subject } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsAppAdmin } from "@/hooks/useIsAppAdmin";

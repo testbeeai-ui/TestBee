@@ -120,11 +120,16 @@ export async function POST(req: NextRequest) {
     if (chapterTitle) chatScope.chapterTitle = chapterTitle;
     const contextKey = buildSubjectChatContextKey(chatScope);
 
-    const chatAccessFresh = await resolveSubjectChatAccessForUser(
-      authCtx.supabase,
-      authCtx.user.id,
-      profile
-    );
+    // Re-check only when the first read left the user near the daily cap. Unlimited
+    // plans and users with headroom skip a second count query (~165ms India→Tokyo).
+    // Near the limit we still re-resolve to close the tiny race with concurrent tabs.
+    const nearDailyCap =
+      chatAccess.dailyLimit > 0 &&
+      typeof chatAccess.remaining === "number" &&
+      chatAccess.remaining <= 1;
+    const chatAccessFresh = nearDailyCap
+      ? await resolveSubjectChatAccessForUser(authCtx.supabase, authCtx.user.id, profile)
+      : chatAccess;
     if (!chatAccessFresh.canSend) {
       return NextResponse.json(
         {

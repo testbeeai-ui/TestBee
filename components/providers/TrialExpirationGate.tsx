@@ -1,10 +1,9 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
-import TrialExpirationOverlay from "@/components/dashboard/TrialExpirationOverlay";
 import {
   explainTrialGateDecision,
   isTrialGateAudience,
@@ -18,6 +17,20 @@ import {
   TIME_TRAVEL_OFFSET_CHANGED_EVENT,
   type TimeTravelOffsetChangedDetail,
 } from "@/lib/dev/timeTravel";
+import {
+  fetchTrialPaymentGateRequired,
+  invalidateTrialPaymentGateCache,
+} from "@/lib/subscription/trialPaymentGateApi";
+
+/**
+ * This gate runs for every page via `app/providers.tsx`, but the overlay itself only
+ * renders for students whose trial has actually ended. A static import put the overlay and
+ * its animation dependencies in the shared chunk for everyone else.
+ */
+const TrialExpirationOverlay = dynamic(
+  () => import("@/components/dashboard/TrialExpirationOverlay"),
+  { ssr: false }
+);
 
 const GATE_BYPASS_PREFIXES = ["/auth", "/admin", "/teacher-portal"];
 
@@ -44,23 +57,14 @@ function TrialExpirationGateInner() {
     setNowMs(Date.now() + effectiveOffsetMs);
   }, [effectiveOffsetMs]);
 
-  const fetchServerGate = useCallback(async () => {
-    try {
-      const headers = await getClientApiAuthHeaders();
-      const res = await fetch("/api/user/trial-payment-gate", {
-        credentials: "same-origin",
-        headers,
-      });
-      const body = (await res.json().catch(() => ({}))) as {
-        required?: boolean;
-      };
-      if (res.ok && typeof body.required === "boolean") {
-        setServerRequired(body.required);
-      }
-    } catch {
-      setServerRequired(null);
-    }
-  }, []);
+  const fetchServerGate = useCallback(
+    async (opts?: { fresh?: boolean }) => {
+      if (!user?.id) return;
+      const required = await fetchTrialPaymentGateRequired(user.id, opts);
+      if (required !== null) setServerRequired(required);
+    },
+    [user?.id]
+  );
 
   useEffect(() => {
     setTravelOffsetMs(null);
@@ -74,7 +78,8 @@ function TrialExpirationGateInner() {
       if (detail && typeof detail.offsetMs === "number") {
         setTravelOffsetMs(detail.offsetMs);
       }
-      void refreshProfile().then(() => fetchServerGate());
+      invalidateTrialPaymentGateCache();
+      void refreshProfile().then(() => fetchServerGate({ fresh: true }));
       tickClock();
     };
     window.addEventListener(TIME_TRAVEL_OFFSET_CHANGED_EVENT, onTimeTravel);
@@ -84,7 +89,7 @@ function TrialExpirationGateInner() {
     };
   }, [tickClock, refreshProfile, fetchServerGate]);
 
-  // Fetch server gate once per session/profile change — not on every 1s clock tick (nowMs).
+  // Fetch server gate once per session/profile — not on every 1s clock tick (nowMs).
   useEffect(() => {
     if (!user?.id || loading) return;
     void fetchServerGate();
@@ -137,8 +142,9 @@ function TrialExpirationGateInner() {
       onCompletionHold={() => setCompletionHold(true)}
       onFinished={() => setCompletionHold(false)}
       onSuccess={async () => {
+        invalidateTrialPaymentGateCache();
         await refreshProfile();
-        await fetchServerGate();
+        await fetchServerGate({ fresh: true });
       }}
     />
   );

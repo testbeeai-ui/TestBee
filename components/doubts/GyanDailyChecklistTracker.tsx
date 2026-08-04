@@ -12,6 +12,7 @@ import {
   useGyanDoubtsPendingFocusMs,
 } from "@/components/doubts/GyanDoubtsFocusTracker";
 import { Bookmark, CheckCircle2, Clock, ListChecks, Loader2, Users, X } from "lucide-react";
+import { startVisiblePoll } from "@/lib/telemetry/visiblePoll";
 import { cn } from "@/lib/utils";
 
 const FIVE_MIN_MS = 5 * 60 * 1000;
@@ -323,20 +324,7 @@ function useGyanChecklistData() {
 function useChecklistPanelEffects(open: boolean, load: () => Promise<void>, onEscape?: () => void) {
   useEffect(() => {
     if (!open) return;
-    const id = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      void load();
-    }, POLL_MS);
-    return () => window.clearInterval(id);
-  }, [load, open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onVis = () => {
-      if (document.visibilityState === "visible") void load();
-    };
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
+    return startVisiblePoll({ intervalMs: POLL_MS, onTick: () => void load() });
   }, [load, open]);
 
   useEffect(() => {

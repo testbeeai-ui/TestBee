@@ -1,9 +1,9 @@
 /** Secret preview / whitelist sign-in entry (production path). */
-export const PREVIEW_AUTH_PATH = "/preview-raknas-amu";
+export const PREVIEW_AUTH_PATH = "/preview";
 
 /** Older obfuscated paths — redirect in middleware only. */
 export const PREVIEW_AUTH_LEGACY_PATHS = [
-  "/preview",
+  "/preview-raknas-amu",
   "/preview-1006",
   "/preview-1006-raknas-amu-tsalbude",
 ] as const;

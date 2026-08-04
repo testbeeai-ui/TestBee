@@ -1,25 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  createAdminClient,
-  createClient,
-  createClientWithToken,
-} from "@/integrations/supabase/server";
-
-async function getAuthedUser(request: Request) {
-  const tokenFromHeader = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? null;
-  if (tokenFromHeader) {
-    const supabaseWithToken = createClientWithToken(tokenFromHeader);
-    const {
-      data: { user },
-    } = await supabaseWithToken.auth.getUser();
-    return { user: user ?? null };
-  }
-  const cookieClient = await createClient();
-  const {
-    data: { user },
-  } = await cookieClient.auth.getUser();
-  return { user: user ?? null };
-}
+import { createAdminClient } from "@/integrations/supabase/server";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 
 export async function GET(
   request: Request,
@@ -30,8 +11,9 @@ export async function GET(
     return NextResponse.json({ error: "classroom id and post id required" }, { status: 400 });
   }
 
-  const { user } = await getAuthedUser(request);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await getSupabaseAndUser(request);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { user } = auth;
 
   const admin = createAdminClient();
   if (!admin) return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });

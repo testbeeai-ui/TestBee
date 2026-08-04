@@ -107,6 +107,19 @@ function parseBody(body: unknown): UpsertBody | null {
   };
 }
 
+/**
+ * Chapter hub copy is authored by admins and changes on the order of weeks, but every
+ * navigation into a chapter re-fetched it across regions. `private` keeps it in the
+ * student's own browser cache only (the payload includes their `canEdit` flag), and
+ * `stale-while-revalidate` means a revisit paints from cache while refreshing behind it.
+ *
+ * Admins get no caching at all so their own edits are visible immediately.
+ */
+function topicContentCacheControl(canEdit: boolean): string {
+  if (canEdit) return "private, no-store";
+  return "private, max-age=300, stale-while-revalidate=3600";
+}
+
 export async function GET(request: Request) {
   try {
     const ctx = await getSupabaseAndUser(request);
@@ -123,17 +136,21 @@ export async function GET(request: Request) {
       url.searchParams.get("includeLatestRun") === "true";
 
     const { supabase, user } = ctx;
-    const canEdit = await isAdminUser(supabase, user.id);
     const topicContentTable = supabase.from("topic_content") as unknown as TopicContentTableClient;
-    const { data, error } = await topicContentTable
-      .select("why_study, what_learn, real_world, subtopic_previews")
-      .eq("board", params.board)
-      .eq("subject", params.subject)
-      .eq("class_level", params.classLevel)
-      .eq("topic", params.topic)
-      .eq("level", params.level)
-      .eq("hub_scope", params.hubScope)
-      .maybeSingle();
+    // The admin check costs its own round trip (or two) and the content row does not depend
+    // on it, so both go out together instead of one after the other.
+    const [canEdit, { data, error }] = await Promise.all([
+      isAdminUser(supabase, user.id),
+      topicContentTable
+        .select("why_study, what_learn, real_world, subtopic_previews")
+        .eq("board", params.board)
+        .eq("subject", params.subject)
+        .eq("class_level", params.classLevel)
+        .eq("topic", params.topic)
+        .eq("level", params.level)
+        .eq("hub_scope", params.hubScope)
+        .maybeSingle(),
+    ]);
 
     if (error) {
       // If the migration is not yet applied, still return canEdit so admins can see the agent button.
@@ -192,15 +209,18 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({
-      whyStudy: data?.why_study ?? "",
-      whatLearn: data?.what_learn ?? "",
-      realWorld: data?.real_world ?? "",
-      subtopicPreviews: normalizeSubtopicPreviews(data?.subtopic_previews),
-      exists: !!data,
-      canEdit,
-      ...(includeLatestRun ? { lastRun } : {}),
-    });
+    return NextResponse.json(
+      {
+        whyStudy: data?.why_study ?? "",
+        whatLearn: data?.what_learn ?? "",
+        realWorld: data?.real_world ?? "",
+        subtopicPreviews: normalizeSubtopicPreviews(data?.subtopic_previews),
+        exists: !!data,
+        canEdit,
+        ...(includeLatestRun ? { lastRun } : {}),
+      },
+      { headers: { "Cache-Control": topicContentCacheControl(canEdit) } }
+    );
   } catch (e) {
     console.error("topic-content GET error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

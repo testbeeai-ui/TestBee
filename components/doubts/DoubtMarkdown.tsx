@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import "@/lib/math/katexStyles";
 import { stripSarvamThinking } from "@/lib/sarvamGyanClient";
 import { sanitizeProfPiMultilingualOutput } from "@/lib/gyan/sanitizeProfPiMultilingualOutput";
 

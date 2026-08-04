@@ -85,14 +85,14 @@ export function describeDailyRewardClaim(actionType: string): {
     case "TOPIC_QUIZ_ADVANCED_60":
       return {
         category: "play",
-        title: "Play · Topic quiz (advanced)",
-        detail: "Quant Blitz / curriculum quizzes — 60+ tier",
+        title: "Lessons · Topic quiz overall",
+        detail: "Advanced multi-set quiz ≥60% — once per subtopic",
       };
     case "NUMERALS_PACK_COMPLETE":
       return {
         category: "play",
-        title: "Play · Numerals pack",
-        detail: "Logic Maze numerals completion",
+        title: "Lessons · Numerals pack overall",
+        detail: "Full numerals pack ≥60% — once per subtopic",
       };
     case "DAILY_DOSE_ACADEMIC":
       return {
