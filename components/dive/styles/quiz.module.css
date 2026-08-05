@@ -177,6 +177,16 @@
   background: #0b0f17 !important;
 }
 
+/* Finish summary / short viewports — body is the scroll region */
+.quizModalBody.quizModalBodyScroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
 .quizPlay {
   display: flex;
   flex-direction: column;

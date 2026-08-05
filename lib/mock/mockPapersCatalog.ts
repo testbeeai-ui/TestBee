@@ -3,13 +3,17 @@ import type { MockPaper, MockPaperType, Subject } from "@/types";
 export type LibraryCategoryFilter = "all" | MockPaperType;
 
 /** Exam chips shown on the Mock papers / Past papers library tabs. */
-export type LibraryExamFilter = "all" | "kcet" | "bitsat" | "jee-main";
+export type LibraryExamFilter = "all" | "kcet" | "bitsat" | "jee-main" | "comedk";
 
-/** Map a chip id to the canonical exam_name string stored in Supabase. */
+/**
+ * Map a chip id to the canonical `exam_name` stored on `mock_papers` / `past_papers`.
+ * COMEDK Mock-Papers imports must use exam_name exactly `"COMEDK"`.
+ */
 export const EXAM_FILTER_TO_NAME: Record<Exclude<LibraryExamFilter, "all">, string> = {
   kcet: "KCET",
   bitsat: "BITSAT",
   "jee-main": "JEE Main",
+  comedk: "COMEDK",
 };
 
 /** Generic exam-name matcher shared by Mock + Past paper filters. */

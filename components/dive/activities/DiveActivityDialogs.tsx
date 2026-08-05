@@ -1245,9 +1245,11 @@ export default function DiveActivityDialogs({
           {!loading && open === "quiz" ? (
             <div
               className={
-                finishSummary?.activity === "quiz" || quizPlaySet != null
-                  ? styles.quizModalBody
-                  : `${styles.quizModalBody} overflow-y-auto px-6 py-5 sm:px-7 sm:py-6 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]`
+                finishSummary?.activity === "quiz"
+                  ? `${styles.quizModalBody} ${styles.quizModalBodyScroll}`
+                  : quizPlaySet != null
+                    ? styles.quizModalBody
+                    : `${styles.quizModalBody} overflow-y-auto px-6 py-5 sm:px-7 sm:py-6 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]`
               }
             >
               {finishSummary?.activity === "quiz" ? (
@@ -1353,9 +1355,11 @@ export default function DiveActivityDialogs({
           {!loading && open === "numerals" ? (
             <div
               className={
-                finishSummary?.activity === "numerals" || activeFormula
-                  ? styles.quizModalBody
-                  : styles.modalBody
+                finishSummary?.activity === "numerals"
+                  ? `${styles.quizModalBody} ${styles.quizModalBodyScroll}`
+                  : activeFormula
+                    ? styles.quizModalBody
+                    : styles.modalBody
               }
             >
               {finishSummary?.activity === "numerals" ? (
@@ -1639,7 +1643,13 @@ export default function DiveActivityDialogs({
           ) : null}
 
           {!loading && open === "outcomes" ? (
-            <div className={styles.quizModalBody}>
+            <div
+              className={
+                finishSummary?.activity === "outcomes"
+                  ? `${styles.quizModalBody} ${styles.quizModalBodyScroll}`
+                  : styles.quizModalBody
+              }
+            >
               {finishSummary?.activity === "outcomes" ? (
                 <FinishSummaryPanel
                   title="Learning Outcomes complete"

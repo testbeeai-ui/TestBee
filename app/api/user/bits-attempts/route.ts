@@ -634,12 +634,16 @@ export async function POST(request: Request) {
         .from("profiles")
         .update({ bits_test_attempts: next } as never)
         .eq("id", user.id);
-      // If the table write already succeeded, profile JSON is best-effort for claims.
-      if (writeErr && !wroteOnTable) {
-        return NextResponse.json({ error: writeErr.message }, { status: 500 });
-      }
+      // Profile JSON must succeed: claim_topic_quiz_advanced_daily_rdm /
+      // claim_numerals_pack_complete_daily_rdm still read bits_test_attempts.
+      // Fail the request so the client can retry even if the table write landed.
       if (writeErr) {
-        console.warn("[bits-attempts] profile bits_test_attempts dual-write:", writeErr.message);
+        console.error(
+          "[bits-attempts] profile bits_test_attempts dual-write failed",
+          writeErr.message,
+          { wroteOnTable }
+        );
+        return NextResponse.json({ error: writeErr.message }, { status: 500 });
       }
     }
 

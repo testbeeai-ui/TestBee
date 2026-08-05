@@ -64,7 +64,6 @@ import {
 import {
   filterMockPapers,
   mockPaperTypeLabel,
-  type LibraryCategoryFilter,
   type LibraryExamFilter,
 } from "@/lib/mock/mockPapersCatalog";
 import { filterPastPapers } from "@/lib/mock/pastPapersCatalog";
@@ -196,7 +195,6 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const [showCbseMcqTabGuide, setShowCbseMcqTabGuide] = useState(false);
   const prepClassesOnboardingParam = searchParams.get(PREP_CLASSES_ONBOARDING_QUERY);
   const [showPrepClassesViewAllGuide, setShowPrepClassesViewAllGuide] = useState(false);
-  const [mockLibraryCategory, setMockLibraryCategory] = useState<LibraryCategoryFilter>("all");
   const [librarySearch, setLibrarySearch] = useState("");
   const [librarySubjectFilter, setLibrarySubjectFilter] = useState<Subject | "all">("all");
   const [libraryExamFilter, setLibraryExamFilter] = useState<LibraryExamFilter>("all");
@@ -879,7 +877,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     if (libraryCollectionTab === "quick" || libraryCollectionTab === "past") return [];
     return filterMockPapers(
       mockPapersByClassLevel,
-      mockLibraryCategory,
+      "all",
       librarySearch,
       librarySubjectFilter,
       subjects,
@@ -888,7 +886,6 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   }, [
     mockPapersByClassLevel,
     libraryCollectionTab,
-    mockLibraryCategory,
     librarySearch,
     librarySubjectFilter,
     libraryExamFilter,
@@ -1599,8 +1596,6 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
                   }
                 }
               }}
-              mockLibraryCategory={mockLibraryCategory}
-              setMockLibraryCategory={setMockLibraryCategory}
               duration={duration}
               setDuration={setDuration}
               subjects={subjects}

@@ -130,6 +130,22 @@ const EXAM_CARDS: Array<{
     iconBg: "bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300",
     icon: BookText,
   },
+  {
+    key: "bitsat",
+    title: "BITSAT",
+    subtitleSuffix: "BITS pattern",
+    tone: "border-purple-500/35 dark:border-purple-400/35",
+    iconBg: "bg-purple-500/15 text-purple-600 dark:bg-purple-500/20 dark:text-purple-300",
+    icon: BrainCircuit,
+  },
+  {
+    key: "comedk",
+    title: "COMEDK",
+    subtitleSuffix: "UGET pattern",
+    tone: "border-orange-500/35 dark:border-orange-400/35",
+    iconBg: "bg-orange-500/15 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300",
+    icon: BookText,
+  },
 ];
 
 const QUICK_ACTIONS = [
