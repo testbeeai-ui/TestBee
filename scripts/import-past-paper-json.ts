@@ -397,7 +397,7 @@ function extractStemAndOptionsAbcdDot(
   let optionsStartBlock = -1;
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i]!;
-    const inner = b.text.replace(/^\s+/, "");
+    const inner = b.text.replace(/^\s+/, "").replace(/^&nbsp;/i, "");
     if (!inner) continue;
     const first = inner.charAt(0);
     if (!/[a-dA-D]/.test(first)) continue;
@@ -474,30 +474,154 @@ function cleanOptionBody(raw: string): string {
     .trim();
 }
 
-/** MCQ where choices only appear inside a composite figure (no (1)–(4) text).
- *
- * Called only after the abcd / abcdDot / 124 extractors all returned null,
- * so reaching this function means none of them recognised a real options
- * sequence. Accept the question as image-only whenever the HTML contains an
- * <img> (the figure carries the options).
+/**
+ * (a)(b)(c)(d) with (b) omitted but an <img> between (a) and (c) carries option B.
  */
+function extractStemOptionsAcDMissingBWithImg(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
+  const html = rawHtml.trim();
+  if (/\(\s*b\s*\)/i.test(html)) return null;
+
+  const reA = /\(\s*a\s*\)/i;
+  const reC = /\(\s*c\s*\)/i;
+  const reD = /\(\s*d\s*\)/i;
+  const ma = reA.exec(html);
+  const mc = reC.exec(html);
+  const md = reD.exec(html);
+  if (!ma || !mc || !md) return null;
+
+  const aIdx = ma.index;
+  const cIdx = mc.index;
+  const dIdx = md.index;
+  if (!(aIdx < cIdx && cIdx < dIdx)) return null;
+
+  const afterA = endOfParenMarkerFrom(html, aIdx);
+  const mid = html.slice(afterA, cIdx);
+  const imgMatch = /<img\b[^>]*\/?>/i.exec(mid);
+  if (!imgMatch) return null;
+
+  const optA = mid.slice(0, imgMatch.index).trim();
+  const optB = imgMatch[0];
+  const afterC = endOfParenMarkerFrom(html, cIdx);
+  const optC = html.slice(afterC, dIdx).trim();
+  const afterD = endOfParenMarkerFrom(html, dIdx);
+  const optD = html.slice(afterD).trim();
+  const stemHtml = html.slice(0, aIdx).trim();
+
+  return { stemHtml, options: [optA, optB, optC, optD] };
+}
+
+/**
+ * First four `(1)–(4)` or `(a)–(d)` markers in order — tolerates duplicate labels
+ * and mixed `(4)` / `(d)`. Skips derivative `(n)` after `f'`.
+ */
+function extractStemOptionsFirstFourMarkers(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
+  const html = rawHtml.trim();
+  const re = /\(\s*([1-4]|[a-dA-D])\s*\.?\s*\)/g;
+  const hits: { start: number; end: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const tok = m[1]!;
+    if (/^[1-4]$/.test(tok) && isParenDigitAfterDerivative(html, m.index)) continue;
+    hits.push({ start: m.index, end: m.index + m[0].length });
+  }
+  if (hits.length < 4) return null;
+  const four = hits.slice(0, 4);
+  const stemHtml = html.slice(0, four[0]!.start).trim();
+  const options: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    const bodyStart = four[i]!.end;
+    const bodyEnd = i < 3 ? four[i + 1]!.start : html.length;
+    options.push(html.slice(bodyStart, bodyEnd).trim());
+  }
+  return { stemHtml, options };
+}
+
+/**
+ * Tolerant COMEDK option parse: first four option markers in document order
+ * become A–D regardless of OCR letter order/typos (`b,`, `el.`, `a&nbsp;`, a/c/b/d).
+ */
+function extractStemAndOptionsLooseDotMarkers(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
+  const html = rawHtml.trim();
+  if (!html) return null;
+
+  // Also accept OCR digit-as-letter: "6." → b, "0." → a/o, "1." → l/i.
+  const re =
+    /(?:^|>|\n|\r)\s*(?:&nbsp;\s*)*(?:([a-dA-D]|[601])(?:[.,)]|\s|&nbsp;)|([eE][lL])\.)/g;
+  const hits: { start: number; end: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const full = m[0]!;
+    const markerOffset = full.search(/[a-dA-DeE601]/);
+    const start = m.index + (markerOffset >= 0 ? markerOffset : 0);
+    hits.push({ start, end: m.index + full.length });
+    if (hits.length >= 4) break;
+  }
+
+  if (hits.length < 4) {
+    hits.length = 0;
+    const loose =
+      /(?<![A-Za-z0-9])(?:([a-dA-D]|[601])(?:[.,)](?:\s|&nbsp;)|&nbsp;|\s+(?=[\\$<\d\-]))|([eE][lL])\.)/g;
+    while ((m = loose.exec(html)) !== null) {
+      hits.push({ start: m.index, end: m.index + m[0].length });
+      if (hits.length >= 4) break;
+    }
+  }
+
+  if (hits.length < 4) {
+    if (hits.length >= 2 && html.includes("<img")) {
+      const stemHtml = html.slice(0, hits[0]!.start).trim();
+      const optA = cleanOptionBody(html.slice(hits[0]!.end, hits[1]!.start));
+      const afterB = html.slice(hits[1]!.end);
+      const img = /<img\b[^>]*\/?>/i.exec(afterB);
+      const optB = cleanOptionBody(img ? afterB.slice(0, img.index) : afterB);
+      const note =
+        "<p><em>Remaining choices appear in the figure. Select the matching label.</em></p>";
+      return {
+        stemHtml: `${stemHtml}\n${note}`.trim(),
+        options: [
+          optA || "<p><strong>(a)</strong></p>",
+          optB || "<p><strong>(b)</strong></p>",
+          "<p><strong>(c)</strong> — as labeled in the figure</p>",
+          "<p><strong>(d)</strong> — as labeled in the figure</p>",
+        ],
+      };
+    }
+    return null;
+  }
+
+  const four = hits.slice(0, 4);
+  const stemHtml = html.slice(0, four[0]!.start).trim();
+  const options = [
+    cleanOptionBody(html.slice(four[0]!.end, four[1]!.start)),
+    cleanOptionBody(html.slice(four[1]!.end, four[2]!.start)),
+    cleanOptionBody(html.slice(four[2]!.end, four[3]!.start)),
+    cleanOptionBody(html.slice(four[3]!.end)),
+  ];
+  if (options.some((o) => !o)) return null;
+  return { stemHtml, options };
+}
+
+/** MCQ where choices only appear inside a composite figure (no (1)–(4) text). */
 function extractImageOnlyMcq(rawHtml: string): { stemHtml: string; options: string[] } | null {
   const html = rawHtml.trim();
   if (!html.includes("<img")) return null;
-
-  // Reject if digit or letter option markers are present (prose like "acceleration (a)" is OK).
-  const digitMarkers = html.match(/\(\s*[1-4]\s*\.?\s*\)|(?<!\()\b[1-4]\s*\)/g) ?? [];
-  if (digitMarkers.length >= 2) return null;
-  const letterMarkers = html.match(/\(\s*[A-Da-d]\s*\.?\s*\)/g) ?? [];
-  if (letterMarkers.length >= 2) return null;
+  const markerRe = /\(\s*([1-4]|[aA]|[A-Da-d])\s*\.?\s*\)/;
+  if (markerRe.test(html)) return null;
+  if (/(?<![A-Za-z0-9])[aA]\.\s*&nbsp;|(?<![A-Za-z0-9])[aA]\.\s+\S/.test(html)) return null;
 
   const note =
-    "<p><em>Choices are labeled in the figure above. Select the matching option.</em></p>";
+    "<p><em>Choices are labeled (1)–(4) in the figure above. Select the matching label.</em></p>";
   const options = [
-    "<p><strong>(A)</strong> — as labeled in the figure</p>",
-    "<p><strong>(B)</strong> — as labeled in the figure</p>",
-    "<p><strong>(C)</strong> — as labeled in the figure</p>",
-    "<p><strong>(D)</strong> — as labeled in the figure</p>",
+    "<p><strong>(1)</strong> — as labeled in the figure</p>",
+    "<p><strong>(2)</strong> — as labeled in the figure</p>",
+    "<p><strong>(3)</strong> — as labeled in the figure</p>",
+    "<p><strong>(4)</strong> — as labeled in the figure</p>",
   ];
   return { stemHtml: `${html}\n${note}`.trim(), options };
 }
@@ -583,8 +707,11 @@ function extractStemAndOptions(rawHtml: string): { stemHtml: string; options: st
     extractStemAndOptionsAbcdFlexible(rawHtml) ??
     extractStemAndOptionsAbcd(rawHtml) ??
     extractStemAndOptionsAbcdDot(rawHtml) ??
+    extractStemAndOptionsLooseDotMarkers(rawHtml) ??
+    extractStemOptionsAcDMissingBWithImg(rawHtml) ??
     extractStemAndOptionsFourSequential(rawHtml) ??
     extractStemAndOptions124(rawHtml) ??
+    extractStemOptionsFirstFourMarkers(rawHtml) ??
     extractImageOnlyMcq(rawHtml)
   );
 }
@@ -599,8 +726,19 @@ function numericChoiceToLetter(raw: string | undefined): "A" | "B" | "C" | "D" |
 function resolveMcqLetter(q: JsonQuestion): "A" | "B" | "C" | "D" | null {
   const ansRaw = str(q, "answer");
   const ans = ansRaw.toUpperCase();
+  if (ans === "WRONGANS" || ans === "WRONG" || ans === "N/A" || ans === "NA") {
+    const fromBad =
+      numericChoiceToLetter(str(q, "fk_optionId")) ?? numericChoiceToLetter(str(q, "optionId"));
+    if (fromBad) return fromBad;
+  }
   const c0 = ans.charAt(0);
-  if (["A", "B", "C", "D"].includes(c0)) return c0 as "A" | "B" | "C" | "D";
+  if (["A", "B", "C", "D"].includes(c0) && ansRaw.length <= 2) {
+    return c0 as "A" | "B" | "C" | "D";
+  }
+  const lower0 = ansRaw.charAt(0).toLowerCase();
+  if (["a", "b", "c", "d"].includes(lower0) && ansRaw.length <= 2) {
+    return lower0.toUpperCase() as "A" | "B" | "C" | "D";
+  }
   const fromAnswer = numericChoiceToLetter(ansRaw);
   if (fromAnswer) return fromAnswer;
   const fromOpt =
@@ -638,6 +776,13 @@ const EXAM_CONFIG: Record<string, ExamImportConfig> = {
     classLevel: 11,
     totalMarksMultiplier: 1,
   },
+  COMEDK: {
+    durationMinutes: 180,
+    markingScheme:
+      "+1 per correct response, 0 for incorrect or unattempted (COMEDK UGET pattern).",
+    classLevel: 12,
+    totalMarksMultiplier: 1,
+  },
   "JEE Advanced": {
     durationMinutes: 180,
     markingScheme:
@@ -655,8 +800,9 @@ async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const jsonPath = process.env.JSON_PATH;
+  const dryRun = process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true";
 
-  if (!url || !key) {
+  if (!dryRun && (!url || !key)) {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   }
   if (!jsonPath) {
@@ -685,16 +831,18 @@ async function main() {
     slugify(`${examName}-${examSetName}-${exam.examSetId ?? ""}`).replace(/-+$/, "") ||
     slugify(title);
 
-  const supabase = createClient(url, key);
+  const supabase = !dryRun && url && key ? createClient(url, key) : null;
 
-  const { data: existingRows, error: existingErr } = await supabase
-    .from("past_papers")
-    .select("id, slug, title")
-    .or(`slug.eq.${slug},title.eq.${title}`);
-  if (existingErr) throw existingErr;
-  for (const row of existingRows ?? []) {
-    const { error: delErr } = await supabase.from("past_papers").delete().eq("id", row.id);
-    if (delErr) throw delErr;
+  if (supabase) {
+    const { data: existingRows, error: existingErr } = await supabase
+      .from("past_papers")
+      .select("id, slug, title")
+      .or(`slug.eq.${slug},title.eq.${title}`);
+    if (existingErr) throw existingErr;
+    for (const row of existingRows ?? []) {
+      const { error: delErr } = await supabase.from("past_papers").delete().eq("id", row.id);
+      if (delErr) throw delErr;
+    }
   }
 
   type Prepared = Record<string, unknown> & { _sortKey: number };
@@ -740,10 +888,12 @@ async function main() {
         const sortKey =
           parseInt(str(q, "set_question_number") || str(q, "questionNumber") || "0", 10) ||
           prepared.length + 999;
-        const [selfStem, selfSol] = await Promise.all([
-          selfHostImages(malformed.stemHtml),
-          selfHostImages(str(q, "solutionText") || null),
-        ]);
+        const [selfStem, selfSol] = dryRun
+          ? [malformed.stemHtml, str(q, "solutionText") || null]
+          : await Promise.all([
+              selfHostImages(malformed.stemHtml),
+              selfHostImages(str(q, "solutionText") || null),
+            ]);
         prepared.push({
           _sortKey: sortKey,
           sort_order: 0,
@@ -779,10 +929,12 @@ async function main() {
       parseInt(str(q, "set_question_number") || str(q, "questionNumber") || "0", 10) ||
       prepared.length + 999;
 
-    const [selfStem, selfSol] = await Promise.all([
-      selfHostImages(parsed.stemHtml),
-      selfHostImages(str(q, "solutionText") || null),
-    ]);
+    const [selfStem, selfSol] = dryRun
+      ? [parsed.stemHtml, str(q, "solutionText") || null]
+      : await Promise.all([
+          selfHostImages(parsed.stemHtml),
+          selfHostImages(str(q, "solutionText") || null),
+        ]);
 
     prepared.push({
       _sortKey: sortKey,
@@ -809,6 +961,32 @@ async function main() {
   if (batch.length === 0) {
     throw new Error("No valid questions parsed from JSON");
   }
+
+  if (dryRun) {
+    if (skipped > 0) {
+      throw new Error(`DRY_RUN: skipped ${skipped} of ${questions.length} — refusing incomplete import`);
+    }
+    console.log(
+      JSON.stringify(
+        {
+          dry_run: true,
+          exam_name: examName,
+          exam_set_name: examSetName,
+          imported_slug: slug,
+          questions_in_json: questions.length,
+          questions_ok: batch.length,
+          rows_skipped: skipped,
+          malformed_recovered: malformedQuestions.length,
+          subjects_covered: Array.from(coveredSet),
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  if (!supabase) throw new Error("Supabase client missing");
 
   const subjectOrder: Record<Subject, number> = {
     physics: 0,

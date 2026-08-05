@@ -11,6 +11,8 @@ import type { DifficultyLevel } from "@/lib/slugs";
 
 const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
 const ACTIVITY_SET = new Set<string>(DIVE_ACTIVITY_IDS);
+/** Only POST /api/dive/assessment may mark these complete (with a graded score). */
+const ASSESSMENT_ACTIVITY_IDS = new Set<DiveActivityId>(["quiz", "numerals", "outcomes"]);
 
 function sanitize(value: unknown, maxLen = 300): string {
   if (typeof value !== "string") return "";
@@ -158,7 +160,8 @@ export async function GET(request: Request) {
 
 /**
  * PUT — sync completed activities + undertaking.
- * Assessment scores are server-graded via POST /api/dive/assessment; client score fields are ignored.
+ * Assessment scores and quiz/numerals/outcomes completion are server-graded via
+ * POST /api/dive/assessment; client may only add non-assessment activity IDs.
  */
 export async function PUT(request: Request) {
   try {
@@ -182,7 +185,9 @@ export async function PUT(request: Request) {
     if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
 
     const prev = rowToProgress(existing);
-    const clientCompleted = parseCompleted(body?.completed ?? body?.progress?.completed);
+    const clientCompleted = parseCompleted(body?.completed ?? body?.progress?.completed).filter(
+      (id) => !ASSESSMENT_ACTIVITY_IDS.has(id)
+    );
     const completed = Array.from(new Set([...prev.completed, ...clientCompleted]));
     const undertakingAccepted =
       prev.undertakingAccepted ||

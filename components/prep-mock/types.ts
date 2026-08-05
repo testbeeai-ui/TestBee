@@ -1,5 +1,4 @@
 import type { MockPaper, PastPaper, Subject } from "@/types";
-import type { LibraryCategoryFilter } from "@/lib/mock/mockPapersCatalog";
 
 export type MockPageMode = "dashboard" | "library";
 

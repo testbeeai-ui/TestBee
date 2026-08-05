@@ -24,7 +24,6 @@ import { cn } from "@/lib/utils";
 import { isUnlimited } from "@/lib/subscription/subscriptionConfig";
 import {
   mockPaperTypeLabel,
-  type LibraryCategoryFilter,
   type LibraryExamFilter,
 } from "@/lib/mock/mockPapersCatalog";
 import { QUICK_DURATIONS, subjectEmojis, SUBJECT_LABELS } from "@/components/prep-mock/constants";
@@ -36,6 +35,7 @@ const EXAM_CHIPS: { id: LibraryExamFilter; label: string }[] = [
   { id: "kcet", label: "KCET" },
   { id: "bitsat", label: "BITSAT" },
   { id: "jee-main", label: "JEE Main" },
+  { id: "comedk", label: "COMEDK" },
 ];
 
 export type MockTestLibraryViewProps = {
@@ -43,8 +43,6 @@ export type MockTestLibraryViewProps = {
   isAdminUser: boolean;
   libraryCollectionTab: LibraryCollectionTab;
   setLibraryCollectionTab: (tab: LibraryCollectionTab) => void;
-  mockLibraryCategory: LibraryCategoryFilter;
-  setMockLibraryCategory: (cat: LibraryCategoryFilter) => void;
   duration: number;
   setDuration: (d: number) => void;
   subjects: Subject[];
@@ -84,8 +82,6 @@ export default function MockTestLibraryView({
   isAdminUser,
   libraryCollectionTab,
   setLibraryCollectionTab,
-  mockLibraryCategory,
-  setMockLibraryCategory,
   duration,
   setDuration,
   subjects,
@@ -856,10 +852,7 @@ export default function MockTestLibraryView({
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => {
-                  setLibraryCollectionTab(tab.id);
-                  if (tab.id !== "mock") setMockLibraryCategory("all");
-                }}
+                onClick={() => setLibraryCollectionTab(tab.id)}
                 className={cn(
                   "tab",
                   libraryCollectionTab === tab.id && "on",
@@ -1018,46 +1011,7 @@ export default function MockTestLibraryView({
               </div>
             </div>
 
-            {libraryCollectionTab === "mock" ? (
-              <div className="sub-tab-bar flex gap-2 overflow-x-auto pb-2">
-                {(
-                  [
-                    { id: "all" as const, label: "All mock papers" },
-                    { id: "ncert" as const, label: "NCERT Exemplar" },
-                    { id: "chapter" as const, label: "Chapter-wise" },
-                    { id: "full" as const, label: "Full syllabus" },
-                    { id: "mock" as const, label: "Mock paper" },
-                  ] satisfies { id: LibraryCategoryFilter; label: string }[]
-                ).map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setMockLibraryCategory(tab.id)}
-                    className={cn("ep", mockLibraryCategory === tab.id && "on")}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
             <div className="divl"></div>
-            <div className="showing">
-              Showing{" "}
-              <span className="font-semibold">
-                {libraryCollectionTab === "past"
-                  ? finalPastPapers.length
-                  : finalMockPapers.length}
-              </span>{" "}
-              paper
-              {(libraryCollectionTab === "past"
-                ? finalPastPapers.length
-                : finalMockPapers.length) === 1
-                ? ""
-                : "s"}{" "}
-              in this view
-              {catalogLoading ? " · loading…" : ""}.
-            </div>
 
             {catalogError ? (
               <div className="edu-card rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-destructive">
@@ -1110,7 +1064,8 @@ export default function MockTestLibraryView({
                           &middot;{" "}
                           {paper.exam === "BITSAT" ||
                           paper.exam === "JEE Main" ||
-                          paper.exam === "KCET"
+                          paper.exam === "KCET" ||
+                          paper.exam === "COMEDK"
                             ? "12th standard"
                             : `Class ${paper.classLevel}`}
                         </span>

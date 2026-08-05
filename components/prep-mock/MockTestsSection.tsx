@@ -81,6 +81,10 @@ export default function MockTestsSection({
             tag = "bitsat";
             badgeLabel = `B${index + 1}`;
             badgeClassName = "bg-purple-600";
+          } else if (exam.includes("comedk")) {
+            tag = "comedk";
+            badgeLabel = `C${index + 1}`;
+            badgeClassName = "bg-orange-600";
           }
 
           return {
@@ -142,6 +146,7 @@ export default function MockTestsSection({
     { id: "jee", label: "JEE Main" },
     { id: "kcet", label: "KCET" },
     { id: "bitsat", label: "BITSAT" },
+    { id: "comedk", label: "COMEDK" },
   ].filter(
     (pill) =>
       pill.id === "all" ||

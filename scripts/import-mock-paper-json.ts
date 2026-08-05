@@ -1,8 +1,12 @@
 /**
- * Import one JEE-style mock paper JSON (exam object + questions[]) into mock_papers + mock_questions.
+ * Import one mock paper JSON (exam object + questions[]) into mock_papers + mock_questions.
  *
  * Usage:
  *   JSON_PATH="C:/path/to/paper.json" npx tsx --env-file-if-exists=.env scripts/import-mock-paper-json.ts
+ *
+ * Set examName in JSON to the canonical catalog value, e.g. "COMEDK", "JEE Main", "BITSAT", "KCET".
+ * COMEDK Mock-Papers store in `mock_papers` / `mock_questions` with exam_name = "COMEDK"
+ * (same tables as other Mock papers — not past_papers).
  *
  * Env: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  *
@@ -11,8 +15,8 @@
 
 import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
-import { buildMockPaperCatalogTitle } from "../lib/mockPaperCatalogTitle";
-import { DEFAULT_JEE_MAIN_MOCK_MARKING } from "../lib/mockPaperMarkingScheme";
+import { buildMockPaperCatalogTitle } from "../lib/mock/mockPaperCatalogTitle";
+import { markingSchemeForExamName } from "../lib/mock/mockPaperMarkingScheme";
 
 type JsonQuestion = Record<string, unknown>;
 
@@ -215,12 +219,175 @@ function extractStemOptionsFirstFourMarkers(
   return { stemHtml, options };
 }
 
+/** Strip paragraph boundaries and stray &nbsp; noise from a sliced option body. */
+function cleanOptionBody(raw: string): string {
+  return raw
+    .replace(/<\/p>\s*<p[^>]*>/gi, " ")
+    .replace(/<\/?p\b[^>]*>/gi, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Bare `a.` `b.` `c.` `d.` markers (COMEDK / BITSAT style), often one per <p>.
+ * Dot is required so prose like "An ideal…" does not match.
+ */
+function extractStemAndOptionsAbcdDot(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
+  const html = rawHtml.trim();
+  if (!html) return null;
+
+  type Block = { absStart: number; innerStart: number; text: string };
+  const blocks: Block[] = [];
+  const findRe = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
+  let fm: RegExpExecArray | null;
+  let lastEnd = 0;
+  while ((fm = findRe.exec(html)) !== null) {
+    const absStart = fm.index;
+    const innerStart = fm.index + fm[0].indexOf(">") + 1;
+    blocks.push({ absStart, innerStart, text: fm[1]! });
+    lastEnd = absStart + fm[0].length;
+  }
+  if (lastEnd < html.length) {
+    blocks.push({ absStart: lastEnd, innerStart: lastEnd, text: html.slice(lastEnd) });
+  }
+  if (blocks.length === 0) return null;
+
+  let optionsStartBlock = -1;
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i]!;
+    const inner = b.text.replace(/^\s+/, "").replace(/^&nbsp;/i, "");
+    if (!inner) continue;
+    const first = inner.charAt(0);
+    if (!/[a-dA-D]/.test(first)) continue;
+    if (inner.charAt(1) !== ".") continue;
+    optionsStartBlock = i;
+    break;
+  }
+  if (optionsStartBlock < 0) return null;
+
+  type Hit = { letter: "A" | "B" | "C" | "D"; absStart: number; absEnd: number };
+  const hits: Hit[] = [];
+  const inBlockRe = /(?<![A-Za-z0-9])([a-dA-D])\./g;
+
+  for (let i = optionsStartBlock; i < blocks.length; i++) {
+    const b = blocks[i]!;
+    inBlockRe.lastIndex = 0;
+    let mm: RegExpExecArray | null;
+    while ((mm = inBlockRe.exec(b.text)) !== null) {
+      const letter = mm[1]!.toUpperCase() as "A" | "B" | "C" | "D";
+      if (hits.some((h) => h.letter === letter)) continue;
+      const startInBlock = mm.index;
+      const prev = startInBlock > 0 ? b.text.charAt(startInBlock - 1) : "";
+      if (/[A-Za-z0-9]/.test(prev)) continue;
+      const absStart = b.innerStart + mm.index;
+      const absEnd = absStart + mm[0].length;
+      hits.push({ letter, absStart, absEnd });
+      if (hits.length >= 4) break;
+    }
+    if (hits.length >= 4) break;
+  }
+
+  if (hits.length < 4) return null;
+  hits.sort((x, y) => x.absStart - y.absStart);
+  const required: Array<"A" | "B" | "C" | "D"> = ["A", "B", "C", "D"];
+  for (let i = 0; i < 4; i++) {
+    if (hits[i]!.letter !== required[i]) return null;
+  }
+
+  const stemHtml = html.slice(0, hits[0]!.absStart).trim();
+  return {
+    stemHtml,
+    options: [
+      cleanOptionBody(html.slice(hits[0]!.absEnd, hits[1]!.absStart)),
+      cleanOptionBody(html.slice(hits[1]!.absEnd, hits[2]!.absStart)),
+      cleanOptionBody(html.slice(hits[2]!.absEnd, hits[3]!.absStart)),
+      cleanOptionBody(html.slice(hits[3]!.absEnd)),
+    ],
+  };
+}
+
+/**
+ * Tolerant COMEDK option parse: first four option markers in document order
+ * become A–D regardless of OCR letter order/typos (`b,`, `el.`, `a&nbsp;`, a/c/b/d).
+ */
+function extractStemAndOptionsLooseDotMarkers(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
+  const html = rawHtml.trim();
+  if (!html) return null;
+
+  // Markers at paragraph starts: a. / b, / c) / d&nbsp; / el. / bare `b&nbsp;` (OCR).
+  const re =
+    /(?:^|>|\n|\r)\s*(?:&nbsp;\s*)*(?:([a-dA-D])(?:[.,)]|\s|&nbsp;)|([eE][lL])\.)/g;
+  const hits: { start: number; end: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const full = m[0]!;
+    const markerOffset = full.search(/[a-dA-DeE]/);
+    const start = m.index + (markerOffset >= 0 ? markerOffset : 0);
+    hits.push({ start, end: m.index + full.length });
+    if (hits.length >= 4) break;
+  }
+
+  // Fallback: letter + punctuation/nbsp inside blocks (no line-start requirement).
+  if (hits.length < 4) {
+    hits.length = 0;
+    const loose =
+      /(?<![A-Za-z0-9])(?:([a-dA-D])(?:[.,)](?:\s|&nbsp;)|&nbsp;|\s+(?=[\\$<\d\-]))|([eE][lL])\.)/g;
+    while ((m = loose.exec(html)) !== null) {
+      hits.push({ start: m.index, end: m.index + m[0].length });
+      if (hits.length >= 4) break;
+    }
+  }
+
+  if (hits.length < 4) {
+    // Two labeled options + figure (remaining choices in image).
+    if (hits.length >= 2 && html.includes("<img")) {
+      const stemHtml = html.slice(0, hits[0]!.start).trim();
+      const optA = cleanOptionBody(html.slice(hits[0]!.end, hits[1]!.start));
+      const afterB = html.slice(hits[1]!.end);
+      const img = /<img\b[^>]*\/?>/i.exec(afterB);
+      const optB = cleanOptionBody(
+        img ? afterB.slice(0, img.index) : afterB
+      );
+      const note =
+        "<p><em>Remaining choices appear in the figure. Select the matching label.</em></p>";
+      return {
+        stemHtml: `${stemHtml}\n${note}`.trim(),
+        options: [
+          optA || "<p><strong>(a)</strong></p>",
+          optB || "<p><strong>(b)</strong></p>",
+          "<p><strong>(c)</strong> — as labeled in the figure</p>",
+          "<p><strong>(d)</strong> — as labeled in the figure</p>",
+        ],
+      };
+    }
+    return null;
+  }
+
+  const four = hits.slice(0, 4);
+  const stemHtml = html.slice(0, four[0]!.start).trim();
+  const options = [
+    cleanOptionBody(html.slice(four[0]!.end, four[1]!.start)),
+    cleanOptionBody(html.slice(four[1]!.end, four[2]!.start)),
+    cleanOptionBody(html.slice(four[2]!.end, four[3]!.start)),
+    cleanOptionBody(html.slice(four[3]!.end)),
+  ];
+  if (options.some((o) => !o)) return null;
+  return { stemHtml, options };
+}
+
 /** MCQ where choices only appear inside a composite figure (no (1)–(4) text). */
 function extractImageOnlyMcq(rawHtml: string): { stemHtml: string; options: string[] } | null {
   const html = rawHtml.trim();
   if (!html.includes("<img")) return null;
   const markerRe = /\(\s*([1-4]|[aA]|[A-Da-d])\s*\.?\s*\)/;
   if (markerRe.test(html)) return null;
+  // Bare a./b. options live elsewhere — don't treat as image-only.
+  if (/(?<![A-Za-z0-9])[aA]\.\s*&nbsp;|(?<![A-Za-z0-9])[aA]\.\s+\S/.test(html)) return null;
 
   const note =
     "<p><em>Choices are labeled (1)–(4) in the figure above. Select the matching label.</em></p>";
@@ -236,6 +403,8 @@ function extractImageOnlyMcq(rawHtml: string): { stemHtml: string; options: stri
 function extractStemAndOptions(rawHtml: string): { stemHtml: string; options: string[] } | null {
   return (
     extractStemAndOptionsAbcd(rawHtml) ??
+    extractStemAndOptionsAbcdDot(rawHtml) ??
+    extractStemAndOptionsLooseDotMarkers(rawHtml) ??
     extractStemOptionsAcDMissingBWithImg(rawHtml) ??
     extractStemAndOptions124(rawHtml) ??
     extractStemOptionsFirstFourMarkers(rawHtml) ??
@@ -253,10 +422,18 @@ function numericChoiceToLetter(raw: string | undefined): "A" | "B" | "C" | "D" |
 function resolveMcqLetter(q: JsonQuestion): "A" | "B" | "C" | "D" | null {
   const ansRaw = str(q, "answer");
   const ans = ansRaw.toUpperCase();
+  // Prefer numeric option ids when answer is a sentinel like "wrongAns".
+  if (ans === "WRONGANS" || ans === "WRONG" || ans === "N/A" || ans === "NA") {
+    const fromBad =
+      numericChoiceToLetter(str(q, "fk_optionId")) ?? numericChoiceToLetter(str(q, "optionId"));
+    if (fromBad) return fromBad;
+  }
   const c0 = ans.charAt(0);
-  if (["A", "B", "C", "D"].includes(c0)) return c0 as "A" | "B" | "C" | "D";
+  if (["A", "B", "C", "D"].includes(c0) && ansRaw.length <= 2) {
+    return c0 as "A" | "B" | "C" | "D";
+  }
   const lower0 = ansRaw.charAt(0).toLowerCase();
-  if (["a", "b", "c", "d"].includes(lower0)) {
+  if (["a", "b", "c", "d"].includes(lower0) && ansRaw.length <= 2) {
     return lower0.toUpperCase() as "A" | "B" | "C" | "D";
   }
   const fromAnswer = numericChoiceToLetter(str(q, "answer"));
@@ -334,8 +511,9 @@ async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const jsonPath = process.env.JSON_PATH;
+  const dryRunEarly = process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true";
 
-  if (!url || !key) {
+  if (!dryRunEarly && (!url || !key)) {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   }
   if (!jsonPath) {
@@ -359,16 +537,19 @@ async function main() {
     slugify(`${examTypeName}-${examSetName}-${exam.examSetId ?? ""}`).replace(/-+$/, "") ||
     slugify(title);
 
-  const supabase = createClient(url, key);
+  const dryRun = process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true";
+  const supabase = dryRun ? null : createClient(url!, key!);
 
-  const { data: existingRows, error: existingErr } = await supabase
-    .from("mock_papers")
-    .select("id, slug, title")
-    .or(`slug.eq.${slug},title.eq.${title}`);
-  if (existingErr) throw existingErr;
-  for (const row of existingRows ?? []) {
-    const { error: delErr } = await supabase.from("mock_papers").delete().eq("id", row.id);
-    if (delErr) throw delErr;
+  if (!dryRun && supabase) {
+    const { data: existingRows, error: existingErr } = await supabase
+      .from("mock_papers")
+      .select("id, slug, title")
+      .or(`slug.eq.${slug},title.eq.${title}`);
+    if (existingErr) throw existingErr;
+    for (const row of existingRows ?? []) {
+      const { error: delErr } = await supabase.from("mock_papers").delete().eq("id", row.id);
+      if (delErr) throw delErr;
+    }
   }
 
   type Prepared = Record<string, unknown> & { _sortKey: number };
@@ -459,8 +640,34 @@ async function main() {
     (a, b) => (subjectOrder[a] ?? 9) - (subjectOrder[b] ?? 9)
   );
 
-  const durationMinutes = 180;
-  const totalMarks = 300;
+  const examKey = examName.toLowerCase();
+  const marksPerQ =
+    examKey === "comedk" || examKey === "kcet" ? 1 : examKey === "bitsat" ? 3 : 4;
+  const durationMinutes = examKey === "kcet" ? 240 : 180;
+  const totalMarks = batch.length * marksPerQ;
+  const classLevel = examKey === "comedk" ? 12 : 11;
+  const markingScheme = markingSchemeForExamName(examName);
+
+  if (dryRun) {
+    console.log(
+      JSON.stringify({
+        dryRun: true,
+        slug,
+        title,
+        examName,
+        totalSource: questions.length,
+        imported: batch.length,
+        skipped,
+        subjectsCovered,
+      })
+    );
+    if (skipped > 0) {
+      throw new Error(`DRY_RUN: skipped ${skipped} of ${questions.length} — refusing incomplete import`);
+    }
+    return;
+  }
+
+  if (!supabase) throw new Error("Supabase client missing");
 
   const { data: paper, error: paperErr } = await supabase
     .from("mock_papers")
@@ -473,9 +680,9 @@ async function main() {
       duration_minutes: durationMinutes,
       total_marks: totalMarks,
       question_count: batch.length,
-      marking_scheme: DEFAULT_JEE_MAIN_MOCK_MARKING,
-      class_level: 11,
-      tags: [examTypeName, examSetName, "JEE Main", "Mock"].filter(Boolean),
+      marking_scheme: markingScheme,
+      class_level: classLevel,
+      tags: [examTypeName, examSetName, examName, "Mock"].filter(Boolean),
       subjects_covered: subjectsCovered,
       published: true,
     })

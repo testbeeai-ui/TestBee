@@ -5,7 +5,13 @@ import type {
 import type { MockSubjectScore } from "@/lib/mock/mockTestAttemptTypes";
 import type { Subject } from "@/types";
 
-export type ExamCategoryKey = "cbse" | "jee-main" | "jee-advanced" | "kcet";
+export type ExamCategoryKey =
+  | "cbse"
+  | "jee-main"
+  | "jee-advanced"
+  | "kcet"
+  | "bitsat"
+  | "comedk";
 
 export type CategorySubjectMarks = {
   subject: Subject;
@@ -36,6 +42,8 @@ export function examCategoryForAttempt(entry: MockLibraryHistoryEntry): ExamCate
   const t = titleLower(entry.title);
 
   if (t.includes("kcet")) return "kcet";
+  if (t.includes("comedk")) return "comedk";
+  if (t.includes("bitsat")) return "bitsat";
   if (t.includes("jee advanced") || t.includes("jee adv")) return "jee-advanced";
   if (t.includes("jee main")) return "jee-main";
 
@@ -125,6 +133,8 @@ export function aggregateMockPerformanceByCategory(
     "jee-main": [],
     "jee-advanced": [],
     kcet: [],
+    bitsat: [],
+    comedk: [],
   };
 
   for (const entry of entries) {
@@ -137,6 +147,8 @@ export function aggregateMockPerformanceByCategory(
     "jee-main": aggregateList(buckets["jee-main"]),
     "jee-advanced": aggregateList(buckets["jee-advanced"]),
     kcet: aggregateList(buckets.kcet),
+    bitsat: aggregateList(buckets.bitsat),
+    comedk: aggregateList(buckets.comedk),
   };
 }
 
