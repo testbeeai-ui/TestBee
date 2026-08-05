@@ -398,13 +398,14 @@ function extractImageOnlyMcq(rawHtml: string): { stemHtml: string; options: stri
 }
 
 function extractStemAndOptions(rawHtml: string): { stemHtml: string; options: string[] } | null {
+  // Prefer structured (a)/(1) markers before the OCR-tolerant loose pass so
+  // incidental "a." / "1." hits in the stem cannot steal numbered MCQs.
   return (
     extractStemAndOptionsAbcd(rawHtml) ??
     extractStemAndOptionsAbcdDot(rawHtml) ??
     extractStemOptionsAcDMissingBWithImg(rawHtml) ??
     extractStemAndOptions124(rawHtml) ??
     extractStemOptionsFirstFourMarkers(rawHtml) ??
-    // After stricter (1)–(4) / paren parsers so incidental a./b. markers cannot win.
     extractStemAndOptionsLooseDotMarkers(rawHtml) ??
     extractImageOnlyMcq(rawHtml)
   );
