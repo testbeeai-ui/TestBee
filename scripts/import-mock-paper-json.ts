@@ -320,8 +320,7 @@ function extractStemAndOptionsLooseDotMarkers(
   if (!html) return null;
 
   // Markers at paragraph starts: a. / b, / c) / d&nbsp; / el. / bare `b&nbsp;` (OCR).
-  const re =
-    /(?:^|>|\n|\r)\s*(?:&nbsp;\s*)*(?:([a-dA-D])(?:[.,)]|\s|&nbsp;)|([eE][lL])\.)/g;
+  const re = /(?:^|>|\n|\r)\s*(?:&nbsp;\s*)*(?:([a-dA-D])(?:[.,)]|\s|&nbsp;)|([eE][lL])\.)/g;
   const hits: { start: number; end: number }[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
@@ -350,9 +349,7 @@ function extractStemAndOptionsLooseDotMarkers(
       const optA = cleanOptionBody(html.slice(hits[0]!.end, hits[1]!.start));
       const afterB = html.slice(hits[1]!.end);
       const img = /<img\b[^>]*\/?>/i.exec(afterB);
-      const optB = cleanOptionBody(
-        img ? afterB.slice(0, img.index) : afterB
-      );
+      const optB = cleanOptionBody(img ? afterB.slice(0, img.index) : afterB);
       const note =
         "<p><em>Remaining choices appear in the figure. Select the matching label.</em></p>";
       return {
@@ -404,10 +401,11 @@ function extractStemAndOptions(rawHtml: string): { stemHtml: string; options: st
   return (
     extractStemAndOptionsAbcd(rawHtml) ??
     extractStemAndOptionsAbcdDot(rawHtml) ??
-    extractStemAndOptionsLooseDotMarkers(rawHtml) ??
     extractStemOptionsAcDMissingBWithImg(rawHtml) ??
     extractStemAndOptions124(rawHtml) ??
     extractStemOptionsFirstFourMarkers(rawHtml) ??
+    // After stricter (1)–(4) / paren parsers so incidental a./b. markers cannot win.
+    extractStemAndOptionsLooseDotMarkers(rawHtml) ??
     extractImageOnlyMcq(rawHtml)
   );
 }
@@ -641,8 +639,7 @@ async function main() {
   );
 
   const examKey = examName.toLowerCase();
-  const marksPerQ =
-    examKey === "comedk" || examKey === "kcet" ? 1 : examKey === "bitsat" ? 3 : 4;
+  const marksPerQ = examKey === "comedk" || examKey === "kcet" ? 1 : examKey === "bitsat" ? 3 : 4;
   const durationMinutes = examKey === "kcet" ? 240 : 180;
   const totalMarks = batch.length * marksPerQ;
   const classLevel = examKey === "comedk" ? 12 : 11;
@@ -662,7 +659,9 @@ async function main() {
       })
     );
     if (skipped > 0) {
-      throw new Error(`DRY_RUN: skipped ${skipped} of ${questions.length} — refusing incomplete import`);
+      throw new Error(
+        `DRY_RUN: skipped ${skipped} of ${questions.length} — refusing incomplete import`
+      );
     }
     return;
   }

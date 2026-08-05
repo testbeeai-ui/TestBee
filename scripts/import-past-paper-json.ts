@@ -202,10 +202,7 @@ function extractStemAndOptionsAbcdFlexible(
   // occurrence. The stem may contain a stray "(c)" that would otherwise
   // steal the C slot. Then find the first contiguous A→B→C→D run.
   const all: Hit[] = [];
-  const patterns: RegExp[] = [
-    /\(\s*([A-Da-d])\s*\.?\s*\)/g,
-    /(?<![A-Za-z0-9(])([A-Da-d])\s*\)/g,
-  ];
+  const patterns: RegExp[] = [/\(\s*([A-Da-d])\s*\.?\s*\)/g, /(?<![A-Za-z0-9(])([A-Da-d])\s*\)/g];
   for (const re of patterns) {
     re.lastIndex = 0;
     let m: RegExpExecArray | null;
@@ -551,8 +548,7 @@ function extractStemAndOptionsLooseDotMarkers(
   if (!html) return null;
 
   // Also accept OCR digit-as-letter: "6." → b, "0." → a/o, "1." → l/i.
-  const re =
-    /(?:^|>|\n|\r)\s*(?:&nbsp;\s*)*(?:([a-dA-D]|[601])(?:[.,)]|\s|&nbsp;)|([eE][lL])\.)/g;
+  const re = /(?:^|>|\n|\r)\s*(?:&nbsp;\s*)*(?:([a-dA-D]|[601])(?:[.,)]|\s|&nbsp;)|([eE][lL])\.)/g;
   const hits: { start: number; end: number }[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
@@ -688,7 +684,12 @@ function extractMalformedLabelMcq(
   for (let i = 0; i < 4; i++) {
     const cur = first4[i]!;
     const nextStart = i + 1 < first4.length ? first4[i + 1]!.absStart : optionText.length;
-    bodies.push(optionText.slice(cur.end, nextStart).replace(/\u0000/g, " ").trim());
+    bodies.push(
+      optionText
+        .slice(cur.end, nextStart)
+        .replace(/\u0000/g, " ")
+        .trim()
+    );
   }
 
   const wrap = (label: "A" | "B" | "C" | "D", body: string): string =>
@@ -696,9 +697,13 @@ function extractMalformedLabelMcq(
 
   return {
     stemHtml: stemBlock.inner.trim(),
-    options: [wrap("A", bodies[0]!), wrap("B", bodies[1]!), wrap("C", bodies[2]!), wrap("D", bodies[3]!)],
-    note:
-      "Option labels in source were corrupted (duplicates / missing letters / OCR typos). Options were re-numbered A–D in document order.",
+    options: [
+      wrap("A", bodies[0]!),
+      wrap("B", bodies[1]!),
+      wrap("C", bodies[2]!),
+      wrap("D", bodies[3]!),
+    ],
+    note: "Option labels in source were corrupted (duplicates / missing letters / OCR typos). Options were re-numbered A–D in document order.",
   };
 }
 
@@ -707,11 +712,12 @@ function extractStemAndOptions(rawHtml: string): { stemHtml: string; options: st
     extractStemAndOptionsAbcdFlexible(rawHtml) ??
     extractStemAndOptionsAbcd(rawHtml) ??
     extractStemAndOptionsAbcdDot(rawHtml) ??
-    extractStemAndOptionsLooseDotMarkers(rawHtml) ??
     extractStemOptionsAcDMissingBWithImg(rawHtml) ??
     extractStemAndOptionsFourSequential(rawHtml) ??
     extractStemAndOptions124(rawHtml) ??
     extractStemOptionsFirstFourMarkers(rawHtml) ??
+    // After stricter (1)–(4) / paren parsers so incidental a./1./0. markers cannot win.
+    extractStemAndOptionsLooseDotMarkers(rawHtml) ??
     extractImageOnlyMcq(rawHtml)
   );
 }
@@ -771,15 +777,13 @@ const EXAM_CONFIG: Record<string, ExamImportConfig> = {
   },
   KCET: {
     durationMinutes: 240,
-    markingScheme:
-      "+1 per correct response, 0 for incorrect or unattempted (KCET pattern).",
+    markingScheme: "+1 per correct response, 0 for incorrect or unattempted (KCET pattern).",
     classLevel: 11,
     totalMarksMultiplier: 1,
   },
   COMEDK: {
     durationMinutes: 180,
-    markingScheme:
-      "+1 per correct response, 0 for incorrect or unattempted (COMEDK UGET pattern).",
+    markingScheme: "+1 per correct response, 0 for incorrect or unattempted (COMEDK UGET pattern).",
     classLevel: 12,
     totalMarksMultiplier: 1,
   },
@@ -817,11 +821,7 @@ async function main() {
   const questions = exam.questions ?? [];
   if (questions.length === 0) throw new Error("No questions in JSON");
 
-  const examName = (
-    process.env.EXAM_NAME_OVERRIDE?.trim() ||
-    exam.examName ||
-    "BITSAT"
-  ).trim();
+  const examName = (process.env.EXAM_NAME_OVERRIDE?.trim() || exam.examName || "BITSAT").trim();
   const examTypeName = (exam.examTypeName ?? "Previous Question Paper Set").trim();
   const examConfig = resolveExamConfig(examName);
   const examSetName = (exam.examSetName ?? "Paper Set").trim();
@@ -877,11 +877,7 @@ async function main() {
       if (malformed) {
         const letter = resolveMcqLetter(q);
         if (!letter) {
-          console.warn(
-            "Skip questionId",
-            str(q, "questionId"),
-            "(correct answer not resolved)"
-          );
+          console.warn("Skip questionId", str(q, "questionId"), "(correct answer not resolved)");
           skipped++;
           continue;
         }
@@ -964,7 +960,9 @@ async function main() {
 
   if (dryRun) {
     if (skipped > 0) {
-      throw new Error(`DRY_RUN: skipped ${skipped} of ${questions.length} — refusing incomplete import`);
+      throw new Error(
+        `DRY_RUN: skipped ${skipped} of ${questions.length} — refusing incomplete import`
+      );
     }
     console.log(
       JSON.stringify(
