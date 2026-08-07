@@ -148,6 +148,7 @@ Anything that is not Next.js / tooling config now lives under:
 | Setup | `mobileapp/README.md`, `mobileapp/.env.example` |
 
 ## Decisions Log
+- 2026-08-07: **`parseNumericAnswerHint` shared** — moved to `lib/parseNumericAnswerHint.ts`; two-value lists (`2120,2121`, `212,213`) use median instead of comma-stripped merge; thousand forms (`2,120`) still compact. Used by past/mock importers + mcq-json-import-core.
 - 2026-08-07: **Past-paper import bugfixes** — two-value comma answers no longer merge digits; `relocateOptionImagesToStem` only moves single-option spills; confirm script numerical check uses `queAnsType` only (matches importer).
 - 2026-08-05: **Importer parser order** — `extractStemAndOptionsLooseDotMarkers` runs after `(1)–(4)` / paren extractors in mock + past-paper JSON importers so incidental `a.`/`1.`/`0.` markers cannot short-circuit numbered MCQs.
 - 2026-07-10: **Dashboard sidebar PR fixes** — AppLayout no longer mounts a duplicate dashboard rail, dashboard active state handles `?page=dashboard`, drawer icon color aliases are global, and fixed chrome offsets match the 56px nav.

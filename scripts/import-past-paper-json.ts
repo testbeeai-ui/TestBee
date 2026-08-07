@@ -16,6 +16,7 @@
 
 import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { parseNumericAnswerHint } from "../lib/parseNumericAnswerHint";
 import { selfHostImages } from "./pastPaperImageHost";
 
 type JsonQuestion = Record<string, unknown>;
@@ -1442,59 +1443,6 @@ function resolveMcqLetter(q: JsonQuestion): "A" | "B" | "C" | "D" | null {
   const fromOpt =
     numericChoiceToLetter(str(q, "fk_optionId")) ?? numericChoiceToLetter(str(q, "optionId"));
   if (fromOpt) return fromOpt;
-  return null;
-}
-
-function parseNumericAnswerHint(answerRaw: string): number | null {
-  const s = String(answerRaw).trim().replace(/−/g, "-");
-  if (!s || /^(small\s*answer|-|\*|n\/?a|wrongans|wrong)$/i.test(s)) return null;
-
-  const bracket = s.match(/\[(-?\d+(?:\.\d+)?)\]/);
-  if (bracket) {
-    const n = Number(bracket[1]);
-    return Number.isFinite(n) ? n : null;
-  }
-
-  // Accepted-range / multi-value lists like "2120,2121" or "2120,2121,...,2140".
-  // Skip thousand-separated forms (e.g. "2,120") so compact path can join them.
-  const rangeParts = s
-    .split(/[\s,;]+/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => Number(p))
-    .filter((n) => Number.isFinite(n) && Math.abs(n) < 1e9);
-  const normalized = s.replace(/\s/g, "");
-  const isThousandSeparated = /^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(normalized);
-  if (rangeParts.length >= 2 && !isThousandSeparated) {
-    const sorted = [...rangeParts].sort((a, b) => a - b);
-    return Math.round(sorted[Math.floor(sorted.length / 2)]!);
-  }
-
-  const wordMap: Record<string, number> = {
-    zero: 0,
-    one: 1,
-    two: 2,
-    three: 3,
-    four: 4,
-    five: 5,
-    six: 6,
-    seven: 7,
-    eight: 8,
-    nine: 9,
-    ten: 10,
-  };
-  const word = s.toLowerCase().match(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten)\b/);
-  if (word && wordMap[word[1]!] != null && !/-?\d/.test(s)) {
-    return wordMap[word[1]!]!;
-  }
-
-  const compact = s.replace(/,/g, "").replace(/\s+/g, " ");
-  const m = compact.match(/-?\s*\d+(?:\.\d+)?/);
-  if (m) {
-    const n = Number.parseFloat(m[0].replace(/\s/g, ""));
-    if (!Number.isFinite(n) || Math.abs(n) >= 1e9) return null;
-    return n;
-  }
   return null;
 }
 

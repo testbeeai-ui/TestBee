@@ -2,6 +2,8 @@
  * Shared MCQ JSON parsing for mock_papers imports (JEE + CBSE NCERT).
  */
 
+import { parseNumericAnswerHint } from "../../lib/parseNumericAnswerHint";
+
 export type JsonQuestion = Record<string, unknown>;
 
 export type ExamJson = {
@@ -243,22 +245,6 @@ function resolveMcqLetter(q: JsonQuestion): "A" | "B" | "C" | "D" | null {
   const fromOpt =
     numericChoiceToLetter(str(q, "fk_optionId")) ?? numericChoiceToLetter(str(q, "optionId"));
   if (fromOpt) return fromOpt;
-  return null;
-}
-
-function parseNumericAnswerHint(answerRaw: string): number | null {
-  const s = String(answerRaw).trim().replace(/−/g, "-");
-  const bracket = s.match(/\[(\d+)\]/);
-  if (bracket) {
-    const n = Number(bracket[1]);
-    return Number.isFinite(n) ? n : null;
-  }
-  const compact = s.replace(/,/g, "").replace(/\s+/g, " ");
-  const m = compact.match(/-?\s*\d+(?:\.\d+)?/);
-  if (m) {
-    const n = Number.parseFloat(m[0].replace(/\s/g, ""));
-    return Number.isFinite(n) ? n : null;
-  }
   return null;
 }
 
