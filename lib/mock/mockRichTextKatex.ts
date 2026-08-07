@@ -52,9 +52,44 @@ export function escapeHtmlTextNode(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/**
+ * Bank HTML often pads after figures with dozens of `<br>` / `&nbsp;` (OCR paste junk).
+ * That creates a huge empty gap above the options in the NTA exam UI.
+ */
+export function collapseSpuriousMockHtmlWhitespace(html: string): string {
+  let s = String(html ?? "");
+  if (!s) return s;
+
+  s = s.replace(/<br\s*\/?>/gi, "<br>");
+  s = s.replace(/(?:<br>\s*){2,}/gi, "<br>");
+
+  // Drop block elements that have no visible text (only nbsp / br / empty wrappers).
+  // Keep blocks that contain media — `<img>` has no text content.
+  const stripVisible = (fragment: string) =>
+    fragment
+      .replace(/<[^>]+>/g, "")
+      .replace(/&nbsp;/gi, "")
+      .replace(/\u00a0/g, "")
+      .replace(/\s+/g, "");
+
+  s = s.replace(/<(p|div)(\s[^>]*)?>[\s\S]*?<\/\1>/gi, (block) => {
+    if (/<img\b/i.test(block)) return block;
+    return stripVisible(block).length === 0 ? "" : block;
+  });
+
+  // Trailing spacer after the last <img> inside an otherwise-real paragraph
+  s = s.replace(/(<img\b[^>]*>)(?:\s|&nbsp;|\u00a0|<br>)+/gi, "$1");
+  s = s.replace(/(?:&nbsp;|\u00a0){2,}/gi, " ");
+  s = s.replace(/[ \t]{3,}/g, " ");
+  s = s.replace(/(?:\r?\n\s*){3,}/g, "\n\n");
+  return s.trim();
+}
+
 /** Typo repair after sanitize: missing space between `</span>` and a following word. */
 export function patchNtaHtmlPresentation(html: string): string {
-  return patchMockHtmlImages(html.replace(/<\/span>([a-z])/gi, "</span> $1"));
+  return patchMockHtmlImages(
+    collapseSpuriousMockHtmlWhitespace(html.replace(/<\/span>([a-z])/gi, "</span> $1"))
+  );
 }
 
 const TESTBEE_QIMAGE_RE =

@@ -248,7 +248,7 @@ export function NtaExamShell({
               >
                 Question {currentIndex + 1}:
               </h2>
-              <div className="mb-4 w-full min-w-0 max-h-[min(50vh,24rem)] overflow-y-auto pr-1 sm:max-h-[50vh] sm:mb-5 lg:mb-6 lg:max-h-[42vh] xl:max-h-none xl:mb-8">
+              <div className="mb-4 w-full min-w-0 sm:mb-5 lg:mb-6 xl:mb-6">
                 <NtaQuestionStem q={q} />
               </div>
               <p className="mb-1.5 text-sm font-bold sm:mb-2 sm:text-base lg:mb-2.5">Options :</p>
