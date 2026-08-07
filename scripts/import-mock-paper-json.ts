@@ -397,6 +397,62 @@ function extractImageOnlyMcq(rawHtml: string): { stemHtml: string; options: stri
   return { stemHtml: `${html}\n${note}`.trim(), options };
 }
 
+/** Bare `1.` / `1)` / `4,` option markers (JEE mock chemistry style), one per <p>. */
+function extractStemAndOptions1234Dot(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
+  const html = rawHtml.trim();
+  if (!html) return null;
+
+  type Block = { absStart: number; innerStart: number; text: string };
+  const blocks: Block[] = [];
+  const findRe = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
+  let fm: RegExpExecArray | null;
+  let lastEnd = 0;
+  while ((fm = findRe.exec(html)) !== null) {
+    const absStart = fm.index;
+    const innerStart = fm.index + fm[0].indexOf(">") + 1;
+    blocks.push({ absStart, innerStart, text: fm[1]! });
+    lastEnd = absStart + fm[0].length;
+  }
+  if (lastEnd < html.length) {
+    blocks.push({ absStart: lastEnd, innerStart: lastEnd, text: html.slice(lastEnd) });
+  }
+  if (blocks.length === 0) return null;
+
+  // Only accept markers that START a paragraph (ignore "H_2SO_4." mid-formula).
+  const startMarker = /^\s*(?:&nbsp;\s*)*([1-4])\s*[\.,\)]/;
+  type Hit = { digit: 1 | 2 | 3 | 4; absStart: number; absEnd: number };
+  const hits: Hit[] = [];
+
+  for (const b of blocks) {
+    const m = startMarker.exec(b.text);
+    if (!m) continue;
+    const digit = Number(m[1]) as 1 | 2 | 3 | 4;
+    if (hits.some((h) => h.digit === digit)) continue;
+    const absStart = b.innerStart + (m.index ?? 0);
+    const absEnd = absStart + m[0].length;
+    hits.push({ digit, absStart, absEnd });
+    if (hits.length >= 4) break;
+  }
+
+  if (hits.length < 4) return null;
+  hits.sort((x, y) => x.absStart - y.absStart);
+  for (let i = 0; i < 4; i++) {
+    if (hits[i]!.digit !== ((i + 1) as 1 | 2 | 3 | 4)) return null;
+  }
+
+  const stemHtml = html.slice(0, hits[0]!.absStart).trim();
+  const options = [
+    cleanOptionBody(html.slice(hits[0]!.absEnd, hits[1]!.absStart)),
+    cleanOptionBody(html.slice(hits[1]!.absEnd, hits[2]!.absStart)),
+    cleanOptionBody(html.slice(hits[2]!.absEnd, hits[3]!.absStart)),
+    cleanOptionBody(html.slice(hits[3]!.absEnd)),
+  ];
+  if (options.some((o) => !o)) return null;
+  return { stemHtml, options };
+}
+
 function extractStemAndOptions(rawHtml: string): { stemHtml: string; options: string[] } | null {
   // Prefer structured (a)/(1) markers before the OCR-tolerant loose pass so
   // incidental "a." / "1." hits in the stem cannot steal numbered MCQs.
@@ -405,6 +461,7 @@ function extractStemAndOptions(rawHtml: string): { stemHtml: string; options: st
     extractStemAndOptionsAbcdDot(rawHtml) ??
     extractStemOptionsAcDMissingBWithImg(rawHtml) ??
     extractStemAndOptions124(rawHtml) ??
+    extractStemAndOptions1234Dot(rawHtml) ??
     extractStemOptionsFirstFourMarkers(rawHtml) ??
     extractStemAndOptionsLooseDotMarkers(rawHtml) ??
     extractImageOnlyMcq(rawHtml)
@@ -446,17 +503,83 @@ function resolveMcqLetter(q: JsonQuestion): "A" | "B" | "C" | "D" | null {
 /** Parse numeric answer from prose, brackets, or spaced decimals (e.g. `[1107]`, `- 2.7`). */
 function parseNumericAnswerHint(answerRaw: string): number | null {
   const s = String(answerRaw).trim().replace(/−/g, "-");
-  const bracket = s.match(/\[(\d+)\]/);
+  if (!s || /^(small\s*answer|-|\*|n\/?a|wrongans|wrong)$/i.test(s)) return null;
+
+  const bracket = s.match(/\[(-?\d+(?:\.\d+)?)\]/);
   if (bracket) {
     const n = Number(bracket[1]);
     return Number.isFinite(n) ? n : null;
   }
+
+  const wordMap: Record<string, number> = {
+    zero: 0,
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+  };
+  const word = s.toLowerCase().match(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten)\b/);
+  if (word && wordMap[word[1]!] != null && !/-?\d/.test(s)) {
+    return wordMap[word[1]!]!;
+  }
+
   const compact = s.replace(/,/g, "").replace(/\s+/g, " ");
   const m = compact.match(/-?\s*\d+(?:\.\d+)?/);
   if (m) {
     const n = Number.parseFloat(m[0].replace(/\s/g, ""));
     return Number.isFinite(n) ? n : null;
   }
+  return null;
+}
+
+function stripHtmlToText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Resolve numerical answer from `answer`, then solution prose / word numbers.
+ * Handles JEE "Small Data" rows where answer is a sentinel like "small answer".
+ */
+function resolveNumericAnswerRaw(q: JsonQuestion): string | null {
+  const ans = str(q, "answer");
+  if (parseNumericAnswerHint(ans) != null) return ans;
+
+  const sol = stripHtmlToText(str(q, "solutionText"));
+  if (!sol) return null;
+
+  // Prefer explicit "answer is N" / "basicity is one" / "= N" near the end.
+  const explicit =
+    sol.match(
+      /(?:answer|basicity|ratio|number|total|sum|value|equals?|is)\s*[:=]?\s*(-?\d+(?:\.\d+)?)/i
+    ) ??
+    sol.match(
+      /(?:answer|basicity|ratio|number|total|sum|value|equals?|is)\s*[:=]?\s*(zero|one|two|three|four|five|six|seven|eight|nine|ten)\b/i
+    );
+  if (explicit) return explicit[1]!;
+
+  // "6 sigma & 2 pi" style — if question asks for sum, add first two ints.
+  const qPlain = stripHtmlToText(str(q, "questionText")).toLowerCase();
+  if (/\bsum\b/.test(qPlain)) {
+    const nums = [...sol.matchAll(/-?\d+(?:\.\d+)?/g)].map((m) => Number(m[0]));
+    if (nums.length >= 2 && nums.every((n) => Number.isFinite(n))) {
+      return String(nums[0]! + nums[1]!);
+    }
+  }
+
+  if (parseNumericAnswerHint(sol) != null) return sol;
   return null;
 }
 
@@ -501,9 +624,22 @@ function buildNumericMcq(
   return { options: four.map(String), correctLetter: letter };
 }
 
+/** Last-resort numerical when source answer/solution lack a parseable value. */
+function buildPlaceholderNumericMcq(): {
+  options: string[];
+  correctLetter: "A" | "B" | "C" | "D";
+} {
+  return { options: ["0", "1", "2", "3"], correctLetter: "A" };
+}
+
 function isNumericalQuestion(q: JsonQuestion): boolean {
   const t = str(q, "queAnsType").toLowerCase();
   return t !== "mcq" && t.length > 0;
+}
+
+function isPlaceholderStem(qHtml: string): boolean {
+  const plain = stripHtmlToText(qHtml).toLowerCase();
+  return plain === "no question" || plain === "no solushion" || plain === "no solution";
 }
 
 async function main() {
@@ -575,17 +711,30 @@ async function main() {
     let correctLetter: "A" | "B" | "C" | "D";
 
     if (isNumericalQuestion(q)) {
-      const syn = buildNumericMcq(str(q, "answer"));
-      if (!syn) {
-        console.warn("Skip questionId", str(q, "questionId"), "(numeric answer not parsed)");
-        skipped++;
-        continue;
-      }
-      const note =
-        '<p class="text-sm opacity-80"><em>Numerical (integer). Choose the option that matches the correct value rounded to the nearest integer.</em></p>';
+      const rawAns = resolveNumericAnswerRaw(q);
+      const syn = rawAns ? buildNumericMcq(rawAns) : null;
+      const used = syn ?? buildPlaceholderNumericMcq();
+      const note = syn
+        ? '<p class="text-sm opacity-80"><em>Numerical (integer). Choose the option that matches the correct value rounded to the nearest integer.</em></p>'
+        : '<p class="text-sm opacity-80"><em>Numerical — source answer was missing or incomplete; verify against the solution / figure.</em></p>';
       questionHtml = `${note}\n${qHtml}`.trim();
-      options = syn.options;
-      correctLetter = syn.correctLetter;
+      options = used.options;
+      correctLetter = used.correctLetter;
+    } else if (isPlaceholderStem(qHtml)) {
+      const letter =
+        resolveMcqLetter(q) ??
+        numericChoiceToLetter(str(q, "fk_optionId")) ??
+        numericChoiceToLetter(str(q, "optionId")) ??
+        "A";
+      questionHtml =
+        '<p><em>Placeholder stem in source (“no question”). Options preserved from catalog answer key.</em></p>';
+      options = [
+        "<p><strong>(1)</strong></p>",
+        "<p><strong>(2)</strong></p>",
+        "<p><strong>(3)</strong></p>",
+        "<p><strong>(4)</strong></p>",
+      ];
+      correctLetter = letter;
     } else {
       const parsed = extractStemAndOptions(qHtml);
       if (!parsed) {
