@@ -30,10 +30,13 @@ export function parseNumericAnswerHint(answerRaw: string): number | null {
     const sorted = [...rangeParts].sort((a, b) => a - b);
     const span = sorted[sorted.length - 1]! - sorted[0]!;
     // "212,213" matches the thousand pattern but is a tight accepted-answer list.
-    // Keep genuine thousands (span usually large, or zero-padded groups like "10,020").
+    // "500,600,700" also matches but is a wide multi-value list — use median.
+    // Keep genuine thousands: short leading group ("1,234,567") or zero-padding ("10,020").
     const hasLeadingZeroGroup = rawParts.some((p, i) => i > 0 && /^0\d/.test(p));
+    const firstGroupLen = rawParts[0]!.replace(/^-/, "").length;
     const looksLikeAnswerList =
-      !isThousandSeparated || (!hasLeadingZeroGroup && span <= 50);
+      !isThousandSeparated ||
+      (!hasLeadingZeroGroup && (span <= 50 || (rangeParts.length >= 3 && firstGroupLen >= 3)));
     if (looksLikeAnswerList) {
       return Math.round(sorted[Math.floor(sorted.length / 2)]!);
     }
