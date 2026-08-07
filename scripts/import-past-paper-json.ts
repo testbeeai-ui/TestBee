@@ -16,6 +16,8 @@
 
 import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { parseNumericAnswerHint } from "../lib/parseNumericAnswerHint";
+import { relocateOptionImagesToStem } from "../lib/pastPaper/relocateOptionImagesToStem";
 import { selfHostImages } from "./pastPaperImageHost";
 
 type JsonQuestion = Record<string, unknown>;
@@ -1191,57 +1193,6 @@ function attachMissingImages(
 }
 
 /**
- * Option splitters often leave figures (esp. data: URIs after (A)–(D)) inside
- * the last option. Move those images onto the stem so the exam UI shows them.
- * Do NOT move when:
- * - every option is itself an image choice, or
- * - removing the image would leave that option empty (image-only choice D).
- */
-function relocateOptionImagesToStem(
-  stemHtml: string,
-  options: string[]
-): { stemHtml: string; options: string[] } {
-  const withImgs = options
-    .map((o, i) => ({ i, imgs: collectImgTags(o), raw: o }))
-    .filter((x) => x.imgs.length > 0);
-  if (withImgs.length === 0) return { stemHtml, options };
-
-  const allImgs = withImgs.flatMap((x) => x.imgs);
-  const allDataUris = allImgs.every((t) => /data:/i.test(t));
-  // Spill pattern: only one option (usually D) carries figure(s).
-  const singleSpill = withImgs.length === 1;
-  if (!allDataUris && !singleSpill) return { stemHtml, options };
-
-  // Image-only choice (e.g. (A)(B)(C) text + (D) = figure): keep the image
-  // in the option — do not empty it by relocating to the stem.
-  const wouldEmptyChoice = withImgs.some((x) => {
-    const without = x.raw
-      .replace(/<img\b[^>]*\/?>/gi, "")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-    return without.length === 0;
-  });
-  if (wouldEmptyChoice) return { stemHtml, options };
-
-  const moved: string[] = [];
-  const nextOptions = options.map((o) => {
-    const imgs = collectImgTags(o);
-    if (imgs.length === 0) return o;
-    for (const img of imgs) moved.push(img);
-    return o
-      .replace(/<img\b[^>]*\/?>/gi, "")
-      .replace(/\s+/g, " ")
-      .trim();
-  });
-  return {
-    stemHtml: `${stemHtml}\n${moved.join("\n")}`.trim(),
-    options: nextOptions,
-  };
-}
-
-/**
  * Last-resort fallback for source-typo cases where option labels are
  * corrupted — duplicate letters ("(a)(b)(b)(b)"), missing letters
  * ("(a)(b)(d)(d)"), OCR typos ("o." or "(n)" instead of "a." or "(c)"),
@@ -1443,56 +1394,6 @@ function resolveMcqLetter(q: JsonQuestion): "A" | "B" | "C" | "D" | null {
   const fromOpt =
     numericChoiceToLetter(str(q, "fk_optionId")) ?? numericChoiceToLetter(str(q, "optionId"));
   if (fromOpt) return fromOpt;
-  return null;
-}
-
-function parseNumericAnswerHint(answerRaw: string): number | null {
-  const s = String(answerRaw).trim().replace(/−/g, "-");
-  if (!s || /^(small\s*answer|-|\*|n\/?a|wrongans|wrong)$/i.test(s)) return null;
-
-  const bracket = s.match(/\[(-?\d+(?:\.\d+)?)\]/);
-  if (bracket) {
-    const n = Number(bracket[1]);
-    return Number.isFinite(n) ? n : null;
-  }
-
-  // Accepted-range lists like "2120,2121,...,2140" — use the median integer.
-  const rangeParts = s
-    .split(/[\s,;]+/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => Number(p))
-    .filter((n) => Number.isFinite(n) && Math.abs(n) < 1e9);
-  if (rangeParts.length >= 3) {
-    const sorted = [...rangeParts].sort((a, b) => a - b);
-    return Math.round(sorted[Math.floor(sorted.length / 2)]!);
-  }
-
-  const wordMap: Record<string, number> = {
-    zero: 0,
-    one: 1,
-    two: 2,
-    three: 3,
-    four: 4,
-    five: 5,
-    six: 6,
-    seven: 7,
-    eight: 8,
-    nine: 9,
-    ten: 10,
-  };
-  const word = s.toLowerCase().match(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten)\b/);
-  if (word && wordMap[word[1]!] != null && !/-?\d/.test(s)) {
-    return wordMap[word[1]!]!;
-  }
-
-  const compact = s.replace(/,/g, "").replace(/\s+/g, " ");
-  const m = compact.match(/-?\s*\d+(?:\.\d+)?/);
-  if (m) {
-    const n = Number.parseFloat(m[0].replace(/\s/g, ""));
-    if (!Number.isFinite(n) || Math.abs(n) >= 1e9) return null;
-    return n;
-  }
   return null;
 }
 

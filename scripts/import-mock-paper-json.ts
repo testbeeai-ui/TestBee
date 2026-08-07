@@ -17,6 +17,7 @@ import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { buildMockPaperCatalogTitle } from "../lib/mock/mockPaperCatalogTitle";
 import { markingSchemeForExamName } from "../lib/mock/mockPaperMarkingScheme";
+import { parseNumericAnswerHint } from "../lib/parseNumericAnswerHint";
 
 type JsonQuestion = Record<string, unknown>;
 
@@ -497,44 +498,6 @@ function resolveMcqLetter(q: JsonQuestion): "A" | "B" | "C" | "D" | null {
   const fromOpt =
     numericChoiceToLetter(str(q, "fk_optionId")) ?? numericChoiceToLetter(str(q, "optionId"));
   if (fromOpt) return fromOpt;
-  return null;
-}
-
-/** Parse numeric answer from prose, brackets, or spaced decimals (e.g. `[1107]`, `- 2.7`). */
-function parseNumericAnswerHint(answerRaw: string): number | null {
-  const s = String(answerRaw).trim().replace(/−/g, "-");
-  if (!s || /^(small\s*answer|-|\*|n\/?a|wrongans|wrong)$/i.test(s)) return null;
-
-  const bracket = s.match(/\[(-?\d+(?:\.\d+)?)\]/);
-  if (bracket) {
-    const n = Number(bracket[1]);
-    return Number.isFinite(n) ? n : null;
-  }
-
-  const wordMap: Record<string, number> = {
-    zero: 0,
-    one: 1,
-    two: 2,
-    three: 3,
-    four: 4,
-    five: 5,
-    six: 6,
-    seven: 7,
-    eight: 8,
-    nine: 9,
-    ten: 10,
-  };
-  const word = s.toLowerCase().match(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten)\b/);
-  if (word && wordMap[word[1]!] != null && !/-?\d/.test(s)) {
-    return wordMap[word[1]!]!;
-  }
-
-  const compact = s.replace(/,/g, "").replace(/\s+/g, " ");
-  const m = compact.match(/-?\s*\d+(?:\.\d+)?/);
-  if (m) {
-    const n = Number.parseFloat(m[0].replace(/\s/g, ""));
-    return Number.isFinite(n) ? n : null;
-  }
   return null;
 }
 
