@@ -1206,11 +1206,10 @@ function relocateOptionImagesToStem(
     .filter((x) => x.imgs.length > 0);
   if (withImgs.length === 0) return { stemHtml, options };
 
-  const allImgs = withImgs.flatMap((x) => x.imgs);
-  const allDataUris = allImgs.every((t) => /data:/i.test(t));
   // Spill pattern: only one option (usually D) carries figure(s).
+  // Multi-option image MCQs (including all-data-URI choices) must keep figures.
   const singleSpill = withImgs.length === 1;
-  if (!allDataUris && !singleSpill) return { stemHtml, options };
+  if (!singleSpill) return { stemHtml, options };
 
   // Image-only choice (e.g. (A)(B)(C) text + (D) = figure): keep the image
   // in the option — do not empty it by relocating to the stem.
@@ -1456,14 +1455,17 @@ function parseNumericAnswerHint(answerRaw: string): number | null {
     return Number.isFinite(n) ? n : null;
   }
 
-  // Accepted-range lists like "2120,2121,...,2140" — use the median integer.
+  // Accepted-range / multi-value lists like "2120,2121" or "2120,2121,...,2140".
+  // Skip thousand-separated forms (e.g. "2,120") so compact path can join them.
   const rangeParts = s
     .split(/[\s,;]+/)
     .map((p) => p.trim())
     .filter(Boolean)
     .map((p) => Number(p))
     .filter((n) => Number.isFinite(n) && Math.abs(n) < 1e9);
-  if (rangeParts.length >= 3) {
+  const normalized = s.replace(/\s/g, "");
+  const isThousandSeparated = /^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(normalized);
+  if (rangeParts.length >= 2 && !isThousandSeparated) {
     const sorted = [...rangeParts].sort((a, b) => a - b);
     return Math.round(sorted[Math.floor(sorted.length / 2)]!);
   }

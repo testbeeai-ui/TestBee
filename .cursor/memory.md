@@ -148,6 +148,7 @@ Anything that is not Next.js / tooling config now lives under:
 | Setup | `mobileapp/README.md`, `mobileapp/.env.example` |
 
 ## Decisions Log
+- 2026-08-07: **Past-paper import bugfixes** — two-value comma answers no longer merge digits; `relocateOptionImagesToStem` only moves single-option spills; confirm script numerical check uses `queAnsType` only (matches importer).
 - 2026-08-05: **Importer parser order** — `extractStemAndOptionsLooseDotMarkers` runs after `(1)–(4)` / paren extractors in mock + past-paper JSON importers so incidental `a.`/`1.`/`0.` markers cannot short-circuit numbered MCQs.
 - 2026-07-10: **Dashboard sidebar PR fixes** — AppLayout no longer mounts a duplicate dashboard rail, dashboard active state handles `?page=dashboard`, drawer icon color aliases are global, and fixed chrome offsets match the 56px nav.
 - 2026-07-03: **Gyan++ daily checklist panel** — centered modal, opaque bg (no feed bleed-through), progress segments, shorter copy, compact timer.

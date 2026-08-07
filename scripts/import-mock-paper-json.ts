@@ -511,6 +511,21 @@ function parseNumericAnswerHint(answerRaw: string): number | null {
     return Number.isFinite(n) ? n : null;
   }
 
+  // Accepted-range / multi-value lists like "2120,2121" or "2120,2121,...,2140".
+  // Skip thousand-separated forms (e.g. "2,120") so compact path can join them.
+  const rangeParts = s
+    .split(/[\s,;]+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => Number(p))
+    .filter((n) => Number.isFinite(n) && Math.abs(n) < 1e9);
+  const normalized = s.replace(/\s/g, "");
+  const isThousandSeparated = /^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(normalized);
+  if (rangeParts.length >= 2 && !isThousandSeparated) {
+    const sorted = [...rangeParts].sort((a, b) => a - b);
+    return Math.round(sorted[Math.floor(sorted.length / 2)]!);
+  }
+
   const wordMap: Record<string, number> = {
     zero: 0,
     one: 1,

@@ -54,10 +54,9 @@ function optList(optionsJson: unknown): string[] {
 }
 
 function isNumericalSrc(q: Record<string, unknown>): boolean {
-  const t = String(q.queAnsType || q.answerType || q.questionType || "")
-    .toLowerCase();
-  if (t && t !== "mcq") return true;
-  return false;
+  // Match import-past-paper-json `isNumericalQuestion` — queAnsType only.
+  const t = String(q.queAnsType || "").toLowerCase();
+  return t !== "mcq" && t.length > 0;
 }
 
 function mcqLetterFromSrc(q: Record<string, unknown>): string | null {
