@@ -1440,6 +1440,9 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
                   {
                     name: "Starter",
                     price: "Rs 499",
+                    originalPrice: "Rs 999",
+                    discount: "50% off",
+                    saving: "You save Rs 500 every month",
                     period: "/month",
                     desc: "Expanded practice limits for consistent aspirants.",
                     badge: "Most popular",
@@ -1459,6 +1462,9 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
                   {
                     name: "Pro",
                     price: "Rs 899",
+                    originalPrice: "Rs 1,499",
+                    discount: "40% off",
+                    saving: "You save Rs 600 every month",
                     period: "/month",
                     desc: "Unlimited daily practice and full analytics tier.",
                     badge: "Most powerful",
@@ -1493,11 +1499,64 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
                       </div>
                       <p className="mt-1 text-[11px] text-zinc-500 leading-normal min-h-[36px]">{plan.desc}</p>
                       
-                      <div className="mt-4 flex items-baseline gap-1">
-                        <span className="text-3xl font-extrabold text-white">{plan.price}</span>
-                        {plan.period && (
-                          <span className="text-xs text-zinc-500 font-medium">{plan.period}</span>
-                        )}
+                      <div className="mt-4 flex flex-col gap-1">
+                        {"originalPrice" in plan && plan.originalPrice ? (
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                            <span className="inline-flex items-center gap-2">
+                              <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-zinc-400">
+                                MRP
+                              </span>
+                              <span className="relative inline-flex items-center px-0.5 text-[1.35rem] font-black leading-none tracking-tight text-white/90">
+                                {plan.originalPrice}
+                                <svg
+                                  className="pointer-events-none absolute inset-x-[-4px] inset-y-[-2px] h-[calc(100%+4px)] w-[calc(100%+8px)]"
+                                  viewBox="0 0 100 24"
+                                  preserveAspectRatio="none"
+                                  aria-hidden
+                                >
+                                  <line
+                                    x1="2"
+                                    y1="20"
+                                    x2="98"
+                                    y2="4"
+                                    stroke="#FF2D2D"
+                                    strokeWidth="3.25"
+                                    strokeLinecap="round"
+                                  />
+                                  <line
+                                    x1="2"
+                                    y1="20"
+                                    x2="98"
+                                    y2="4"
+                                    stroke="#FF6B6B"
+                                    strokeWidth="1.25"
+                                    strokeLinecap="round"
+                                    opacity="0.85"
+                                  />
+                                </svg>
+                              </span>
+                            </span>
+                            <span className="rounded-md bg-[#FF2D2D] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-[0_0_16px_rgba(255,45,45,0.35)]">
+                              {"discount" in plan ? String(plan.discount).toUpperCase() : "OFFER"}
+                            </span>
+                          </div>
+                        ) : null}
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-[2.35rem] font-black leading-none tracking-[-0.045em] text-white">
+                            {plan.price}
+                          </span>
+                          {plan.period && (
+                            <span className="text-sm font-bold text-zinc-300">{plan.period}</span>
+                          )}
+                        </div>
+                        {"saving" in plan && plan.saving ? (
+                          <div className="flex items-center gap-2 text-[11px] font-extrabold tracking-wide text-emerald-400">
+                            <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-emerald-500/20 text-[10px] text-emerald-300">
+                              ↓
+                            </span>
+                            <span>{plan.saving}</span>
+                          </div>
+                        ) : null}
                       </div>
 
                       <div className="mt-6 border-t border-zinc-800/60 pt-4">

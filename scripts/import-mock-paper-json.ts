@@ -767,7 +767,7 @@ async function main() {
   const marksPerQ = examKey === "comedk" || examKey === "kcet" ? 1 : examKey === "bitsat" ? 3 : 4;
   const durationMinutes = examKey === "kcet" ? 240 : 180;
   const totalMarks = batch.length * marksPerQ;
-  const classLevel = examKey === "comedk" ? 12 : 11;
+  const classLevel = 11;
   const markingScheme = markingSchemeForExamName(examName);
 
   if (dryRun) {

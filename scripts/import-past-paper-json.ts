@@ -1529,7 +1529,7 @@ const EXAM_CONFIG: Record<string, ExamImportConfig> = {
   COMEDK: {
     durationMinutes: 180,
     markingScheme: "+1 per correct response, 0 for incorrect or unattempted (COMEDK UGET pattern).",
-    classLevel: 12,
+    classLevel: 11,
     totalMarksMultiplier: 1,
   },
   "JEE Advanced": {

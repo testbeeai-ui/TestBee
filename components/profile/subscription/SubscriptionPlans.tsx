@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { PricingPlanCard } from "@/components/pricing/PricingPlanCard";
+import { PlanPriceDisplay } from "@/components/pricing/PlanPriceDisplay";
 import { buildPlanKeyFeatureRows } from "@/lib/subscription/planCardKeyFeatures";
 import { getPricingCardTheme } from "@/lib/subscription/pricingCardTheme";
 import { PLAN_TIERS } from "./types";
@@ -25,11 +26,6 @@ import { planHasSubjectChatMultilingual } from "@/lib/subscription/subjectChatLi
 interface Props {
   profile: Profile;
   onNavigate: (view: SubViewId) => void;
-}
-
-function humanPrice(priceMonthly: number): string {
-  if (priceMonthly <= 0) return "Rs 0";
-  return `Rs ${priceMonthly}`;
 }
 
 export default function SubscriptionPlans({ profile, onNavigate }: Props) {
@@ -213,12 +209,14 @@ export default function SubscriptionPlans({ profile, onNavigate }: Props) {
               badge={plan.badge}
               description={plan.description}
               priceLine={
-                <span className="flex items-baseline">
-                  {billingMode === "annual" ? "Coming soon" : humanPrice(plan.priceMonthly)}
-                  {billingMode === "monthly" && plan.priceMonthly > 0 ? (
-                    <span className="ml-1 text-sm font-medium text-slate-400">/month</span>
-                  ) : null}
-                </span>
+                <PlanPriceDisplay
+                  priceMonthly={plan.priceMonthly}
+                  priceOriginalMonthly={plan.priceOriginalMonthly}
+                  annualComingSoon={billingMode === "annual"}
+                  accent={
+                    plan.id === "starter" ? "starter" : plan.id === "pro" ? "pro" : "default"
+                  }
+                />
               }
               priceSubline={
                 plan.priceYearly > 0 ? `or Rs ${plan.priceYearly}/year` : undefined

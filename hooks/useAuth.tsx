@@ -110,6 +110,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (data) {
       let row = data as unknown as Profile;
+      if (!row.student_code?.trim()) {
+        // RPC exists in DB; generated Database types may lag until regenerate.
+        const { data: minted, error: mintErr } = await (supabase as any).rpc(
+          "ensure_my_student_code",
+        );
+        if (mintErr) {
+          console.warn("[auth] ensure_my_student_code:", mintErr.message);
+        } else if (typeof minted === "string" && minted.trim()) {
+          row = { ...row, student_code: minted };
+        }
+      }
       let isSignInFlow = false;
       try {
         isSignInFlow = sessionStorage.getItem("auth_mode") === "signin";

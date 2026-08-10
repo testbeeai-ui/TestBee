@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { PricingPlanCard } from "@/components/pricing/PricingPlanCard";
+import { PlanPriceDisplay } from "@/components/pricing/PlanPriceDisplay";
 import { buildPlanKeyFeatureRows } from "@/lib/subscription/planCardKeyFeatures";
 import { getPricingCardTheme } from "@/lib/subscription/pricingCardTheme";
 import { PLAN_TIERS } from "@/components/profile/subscription/types";
@@ -22,11 +23,6 @@ import LandingNavbar from "@/components/landing/LandingNavbar";
 import LandingFooter from "@/components/landing/LandingFooter";
 import { INVESTOR_NAV_LINKS } from "@/components/landing/landing-constants";
 import { cn } from "@/lib/utils";
-
-function humanPrice(priceMonthly: number): string {
-  if (priceMonthly <= 0) return "Rs 0";
-  return `Rs ${priceMonthly}`;
-}
 
 export default function PricingClient() {
   const { profile, user: authUser, loading: authLoading } = useAuth();
@@ -172,12 +168,14 @@ export default function PricingClient() {
               badge={plan.badge}
               description={plan.description}
               priceLine={
-                <span className="flex items-baseline">
-                  {billingMode === "annual" ? "Coming soon" : humanPrice(plan.priceMonthly)}
-                  {billingMode === "monthly" && plan.priceMonthly > 0 ? (
-                    <span className="ml-1 text-sm font-medium text-slate-400">/month</span>
-                  ) : null}
-                </span>
+                <PlanPriceDisplay
+                  priceMonthly={plan.priceMonthly}
+                  priceOriginalMonthly={plan.priceOriginalMonthly}
+                  annualComingSoon={billingMode === "annual"}
+                  accent={
+                    plan.id === "starter" ? "starter" : plan.id === "pro" ? "pro" : "default"
+                  }
+                />
               }
               keyFeatures={plan.keyFeatures}
               categories={plan.categories}

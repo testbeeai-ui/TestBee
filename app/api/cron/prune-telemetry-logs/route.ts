@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/integrations/supabase/server";
 
 /**
- * Prune old ai_token_logs (>90d) and student_learning_dwell_events (>180d).
+ * Prune old ai_token_logs (>90d) and student_learning_dwell (>180d).
  * Manual or external cron only — not scheduled in vercel.json by default.
  */
 export async function GET(request: Request) {

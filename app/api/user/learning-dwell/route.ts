@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import type { Json } from "@/integrations/supabase/types";
 import type { DifficultyLevel } from "@/lib/slugs";
 import type { Board, Subject } from "@/types";
 import {
@@ -78,6 +79,8 @@ export async function POST(request: Request) {
       delta_ms: number;
       bits_question_index: number | null;
       client_session_id: string | null;
+      tags: string[];
+      meta: Json;
       occurred_at?: string;
     }> = [];
 
@@ -100,6 +103,15 @@ export async function POST(request: Request) {
         const t = Date.parse(ev.occurredAt);
         if (Number.isFinite(t)) occurredAt = new Date(t).toISOString();
       }
+      const tags = [
+        scope.board.toLowerCase(),
+        scope.subject.toLowerCase(),
+        `class-${scope.classLevel}`,
+        scope.level.toLowerCase(),
+        panel,
+        `topic:${scope.topic.toLowerCase().slice(0, 80)}`,
+        `subtopic:${scope.subtopicName.toLowerCase().slice(0, 80)}`,
+      ];
       rows.push({
         user_id: user.id,
         board: scope.board,
@@ -112,6 +124,11 @@ export async function POST(request: Request) {
         delta_ms: deltaMs,
         bits_question_index: bitsIdx,
         client_session_id: clientSessionId,
+        tags,
+        meta: {
+          source: "learning-dwell",
+          ...(bitsIdx != null ? { bits_question_index: bitsIdx } : {}),
+        } satisfies Json,
         ...(occurredAt ? { occurred_at: occurredAt } : {}),
       });
     }
@@ -120,7 +137,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No valid events" }, { status: 400 });
     }
 
-    const { error } = await supabase.from("student_learning_dwell_events").insert(rows);
+    const { error } = await supabase.from("student_learning_dwell").insert(rows);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({ ok: true, inserted: rows.length });

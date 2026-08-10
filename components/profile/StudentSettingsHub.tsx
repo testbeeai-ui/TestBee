@@ -19,6 +19,7 @@ import {
   resetTrialToDayOne,
 } from "@/lib/subscription/trialDemoQuickActions";
 import EduBlastFeedbackForm, { ContactUsSettingsCard } from "./EduBlastFeedbackForm";
+import { formatStudentId } from "@/lib/identity/studentId";
 import {
   Heart,
   LogOut,
@@ -32,6 +33,7 @@ import {
   RotateCcw,
   CheckCheck,
   Loader2,
+  Hash,
 } from "lucide-react";
 
 /** Account hub: Settings (left) + Edufundz Eligibility & Contact cards (right), matching desktop reference layout. */
@@ -39,6 +41,7 @@ export default function StudentSettingsHub() {
   const router = useRouter();
   const { signOut, profile, refreshProfile } = useAuth();
   const { theme, setTheme } = useTheme();
+  const studentId = formatStudentId(profile?.student_code);
 
   useEffect(() => {
     if (theme !== "dark") {
@@ -248,6 +251,22 @@ export default function StudentSettingsHub() {
               Manage notifications and settings
             </p>
             <div className="space-y-4 2xl:space-y-5">
+              {studentId ? (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-3 py-2.5 dark:border-emerald-500/20 dark:bg-emerald-500/5 2xl:px-4 2xl:py-3">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 font-semibold text-foreground dark:text-slate-100">
+                      <Hash className="h-4 w-4 text-emerald-400" />
+                      Student ID
+                    </p>
+                    <p className="text-xs text-muted-foreground dark:text-slate-400">
+                      Same ID on Edubite and EduDeca
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-mono text-sm font-bold tracking-wide text-emerald-400 2xl:text-base">
+                    {studentId}
+                  </p>
+                </div>
+              ) : null}
               <div className="space-y-3 2xl:space-y-3">
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 dark:border-white/10 dark:bg-slate-900/70 2xl:px-4 2xl:py-3">
                   <div className="min-w-0">

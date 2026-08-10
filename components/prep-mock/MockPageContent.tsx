@@ -853,16 +853,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     if (view === "landing") setView("setup");
   }, [isLibraryPage, view]);
 
-  const mockPapersByClassLevel = useMemo(() => {
-    const userLevel = user?.classLevel ?? 12;
-    return mockCatalogPapers.filter((p) => p.classLevel <= userLevel);
-  }, [mockCatalogPapers, user?.classLevel]);
-
-  const pastPapersByClassLevel = useMemo(() => {
-    const userLevel = user?.classLevel ?? 12;
-    return pastCatalogPapers.filter((p) => p.classLevel <= userLevel);
-  }, [pastCatalogPapers, user?.classLevel]);
-
+  // Mock / past catalogs are not gated by the user's class — any enrolled student can open them.
   const featuredDashboardPaper = useMemo(() => {
     const bySlug = pastCatalogPapers.find((p) => p.slug === FEATURED_DASHBOARD_PYQ_SLUG);
     if (bySlug) return bySlug;
@@ -876,7 +867,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const filteredMockCatalogPapers = useMemo(() => {
     if (libraryCollectionTab === "quick" || libraryCollectionTab === "past") return [];
     return filterMockPapers(
-      mockPapersByClassLevel,
+      mockCatalogPapers,
       "all",
       librarySearch,
       librarySubjectFilter,
@@ -884,7 +875,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
       libraryExamFilter
     );
   }, [
-    mockPapersByClassLevel,
+    mockCatalogPapers,
     libraryCollectionTab,
     librarySearch,
     librarySubjectFilter,
@@ -895,14 +886,14 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const filteredPastCatalogPapers = useMemo(() => {
     if (libraryCollectionTab !== "past") return [];
     return filterPastPapers(
-      pastPapersByClassLevel,
+      pastCatalogPapers,
       librarySearch,
       librarySubjectFilter,
       subjects,
       libraryExamFilter
     );
   }, [
-    pastPapersByClassLevel,
+    pastCatalogPapers,
     libraryCollectionTab,
     librarySearch,
     librarySubjectFilter,
@@ -1609,8 +1600,8 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
               setLibraryExamFilter={setLibraryExamFilter}
               filteredPastCatalogPapers={filteredPastCatalogPapers}
               filteredMockCatalogPapers={filteredMockCatalogPapers}
-              pastPapersByClassLevel={pastPapersByClassLevel}
-              mockPapersByClassLevel={mockPapersByClassLevel}
+              pastCatalogPapers={pastCatalogPapers}
+              mockCatalogPapers={mockCatalogPapers}
               catalogLoading={catalogLoading}
               catalogError={catalogError}
               openNtaInstructionsForPaper={openNtaInstructionsForPaper}

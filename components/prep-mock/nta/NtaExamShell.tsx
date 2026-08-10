@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { Question } from "@/types";
 import {
   ShapeNotVisited,
@@ -47,7 +47,7 @@ export interface NtaExamShellProps {
 
 export function NtaExamShell({
   candidateName,
-  avatarUrl,
+  avatarUrl: avatarUrlProp,
   examNameLine,
   subjectPaperLine,
   secondsLeft,
@@ -68,6 +68,12 @@ export function NtaExamShell({
   onSubmitClick,
 }: NtaExamShellProps) {
   const [paletteOpen, setPaletteOpen] = useState(true);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const avatarUrl = avatarUrlProp && !avatarFailed ? avatarUrlProp : null;
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatarUrlProp]);
   const q = questions[currentIndex];
   const counts = useMemo(
     () => computeNtaLegendCounts(questions, visitedIds, answers, flagged),
@@ -123,7 +129,12 @@ export function NtaExamShell({
               >
                 {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- remote Supabase avatar URL
-                  <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={avatarUrl}
+                    alt=""
+                    onError={() => setAvatarFailed(true)}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   <svg
                     width="32"
