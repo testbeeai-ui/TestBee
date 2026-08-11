@@ -155,21 +155,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (syncErr) {
           console.warn("[auth] sync_my_profile_role_from_whitelist:", syncErr.message);
         }
-        const effectiveRole =
-          syncedRole === "teacher" || syncedRole === "student"
-            ? syncedRole
-            : intendedRole;
-        if (effectiveRole !== row.role) {
-          const { data: refreshed } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", userId)
-            .maybeSingle();
-          if (refreshed && (refreshed as { role?: string }).role === effectiveRole) {
-            row = refreshed as unknown as Profile;
-          } else {
-            // Keep UI on the whitelist role even if the row has not refreshed yet.
-            row = { ...row, role: effectiveRole };
+        // Only trust whitelist RPC — never elevate from sessionStorage intendedRole alone.
+        if (syncedRole === "teacher" || syncedRole === "student") {
+          const effectiveRole = syncedRole as "student" | "teacher";
+          if (effectiveRole !== row.role) {
+            const { data: refreshed } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", userId)
+              .maybeSingle();
+            if (refreshed && (refreshed as { role?: string }).role === effectiveRole) {
+              row = refreshed as unknown as Profile;
+            } else {
+              // Keep UI on the whitelist role even if the row has not refreshed yet.
+              row = { ...row, role: effectiveRole };
+            }
           }
         }
       }
@@ -221,10 +221,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const { data: syncedRole } = await (supabase as any).rpc(
             "sync_my_profile_role_from_whitelist",
           );
+          // Only elevate when whitelist sync confirms teacher.
           if (syncedRole === "teacher") {
             p = { ...p, role: "teacher" };
-          } else {
-            p = { ...p, role: intendedRole };
           }
         }
         applyProfileOnboardingLocalState(userId, p);
@@ -262,10 +261,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const { data: syncedRole } = await (supabase as any).rpc(
               "sync_my_profile_role_from_whitelist",
             );
+            // Only trust whitelist RPC — never elevate from intendedRole alone.
             if (syncedRole === "teacher" || syncedRole === "student") {
               row = { ...row, role: syncedRole };
-            } else {
-              row = { ...row, role: intendedRole };
             }
           }
           applyProfileOnboardingLocalState(userId, row);
