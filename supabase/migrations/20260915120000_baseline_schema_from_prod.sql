@@ -10425,8 +10425,16 @@ ALTER TABLE ONLY "public"."quiz_community_share_rdm_claims"
 
 
 
-ALTER TABLE ONLY "public"."rdm_config"
-    ADD CONSTRAINT "rdm_config_pkey" PRIMARY KEY ("key");
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'rdm_config_pkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."rdm_config"
+      ADD CONSTRAINT "rdm_config_pkey" PRIMARY KEY ("key");
+  END IF;
+END $$;
 
 
 
