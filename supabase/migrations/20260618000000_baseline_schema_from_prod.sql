@@ -37,6 +37,15 @@ ALTER SCHEMA "public" OWNER TO "pg_database_owner";
 COMMENT ON SCHEMA "public" IS 'standard public schema';
 
 
+CREATE SCHEMA IF NOT EXISTS "extensions";
+
+
+-- Required by baseline functions/columns on fresh Preview DBs (prod already has these).
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm" WITH SCHEMA "extensions";
+CREATE EXTENSION IF NOT EXISTS "vector" WITH SCHEMA "public";
+
 
 DO $$ BEGIN
   CREATE TYPE "public"."app_role" AS ENUM (
