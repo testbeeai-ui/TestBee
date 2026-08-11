@@ -38,14 +38,15 @@ COMMENT ON SCHEMA "public" IS 'standard public schema';
 
 
 
-CREATE SCHEMA IF NOT EXISTS "storage";
-
-
-CREATE TYPE "public"."app_role" AS ENUM (
-    'admin',
-    'teacher',
-    'student'
-);
+DO $$ BEGIN
+  CREATE TYPE "public"."app_role" AS ENUM (
+      'admin',
+      'teacher',
+      'student'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 
 ALTER TYPE "public"."app_role" OWNER TO "postgres";
@@ -13000,38 +13001,6 @@ ALTER TABLE "public"."waitlist_submissions" ENABLE ROW LEVEL SECURITY;
 
 
 CREATE POLICY "waitlist_submissions_insert_public" ON "public"."waitlist_submissions" FOR INSERT WITH CHECK (true);
-
-
-
-CREATE POLICY "academic_ms_insert_own" ON "storage"."objects" FOR INSERT TO "authenticated" WITH CHECK ((("bucket_id" = 'academic-marksheets'::"text") AND ("owner" = "auth"."uid"()) AND "public"."is_owner_prefixed_storage_path"("name")));
-
-
-
-CREATE POLICY "academic_ms_update_own" ON "storage"."objects" FOR UPDATE TO "authenticated" USING ((("bucket_id" = 'academic-marksheets'::"text") AND ("owner" = "auth"."uid"()))) WITH CHECK ((("bucket_id" = 'academic-marksheets'::"text") AND ("owner" = "auth"."uid"()) AND "public"."is_owner_prefixed_storage_path"("name")));
-
-
-
-CREATE POLICY "achievement_ms_insert_own" ON "storage"."objects" FOR INSERT TO "authenticated" WITH CHECK ((("bucket_id" = 'achievement-marksheets'::"text") AND ("owner" = "auth"."uid"()) AND "public"."is_owner_prefixed_storage_path"("name")));
-
-
-
-CREATE POLICY "achievement_ms_update_own" ON "storage"."objects" FOR UPDATE TO "authenticated" USING ((("bucket_id" = 'achievement-marksheets'::"text") AND ("owner" = "auth"."uid"()))) WITH CHECK ((("bucket_id" = 'achievement-marksheets'::"text") AND ("owner" = "auth"."uid"()) AND "public"."is_owner_prefixed_storage_path"("name")));
-
-
-
-CREATE POLICY "profile_avatars_insert_own" ON "storage"."objects" FOR INSERT TO "authenticated" WITH CHECK ((("bucket_id" = 'profile-avatars'::"text") AND ("owner" = "auth"."uid"()) AND "public"."is_owner_prefixed_storage_path"("name")));
-
-
-
-CREATE POLICY "profile_avatars_update_own" ON "storage"."objects" FOR UPDATE TO "authenticated" USING ((("bucket_id" = 'profile-avatars'::"text") AND ("owner" = "auth"."uid"()))) WITH CHECK ((("bucket_id" = 'profile-avatars'::"text") AND ("owner" = "auth"."uid"()) AND "public"."is_owner_prefixed_storage_path"("name")));
-
-
-
-CREATE POLICY "teacher_verif_insert_own" ON "storage"."objects" FOR INSERT TO "authenticated" WITH CHECK ((("bucket_id" = 'teacher-verification-docs'::"text") AND ("owner" = "auth"."uid"()) AND "public"."is_owner_prefixed_storage_path"("name")));
-
-
-
-CREATE POLICY "teacher_verif_update_own" ON "storage"."objects" FOR UPDATE TO "authenticated" USING ((("bucket_id" = 'teacher-verification-docs'::"text") AND ("owner" = "auth"."uid"()))) WITH CHECK ((("bucket_id" = 'teacher-verification-docs'::"text") AND ("owner" = "auth"."uid"()) AND "public"."is_owner_prefixed_storage_path"("name")));
 
 
 
