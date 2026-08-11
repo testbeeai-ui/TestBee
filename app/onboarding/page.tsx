@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense, useRef } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -156,33 +155,38 @@ function OnboardingContent() {
   useEffect(() => {
     const requestedRole = searchParams.get("role");
     const fromUrl = requestedRole === "student" || requestedRole === "teacher";
-    const fromProfile = profile?.role === "student" || profile?.role === "teacher";
-    if (role) return;
-    if (fromUrl) {
-      setRole(requestedRole as "student" | "teacher");
-      setStep("details");
-      track("onboarding_role_selected", { role: requestedRole });
+    let fromWhitelist: "student" | "teacher" | null = null;
+    try {
+      const stored = sessionStorage.getItem("auth_intended_role");
+      if (stored === "teacher" || stored === "student") fromWhitelist = stored;
+    } catch (_) {}
+    const fromProfile =
+      profile?.role === "student" || profile?.role === "teacher"
+        ? (profile.role as "student" | "teacher")
+        : null;
+
+    // Whitelist teacher wins over stale student profile / URL.
+    const resolved: "student" | "teacher" | null =
+      fromWhitelist === "teacher"
+        ? "teacher"
+        : fromUrl
+          ? (requestedRole as "student" | "teacher")
+          : fromWhitelist ?? fromProfile;
+
+    if (resolved) {
+      // Allow student → teacher correction when whitelist/sync arrives after first paint.
+      if (!role || (role === "student" && resolved === "teacher")) {
+        setRole(resolved);
+        setStep("details");
+        track("onboarding_role_selected", { role: resolved });
+      }
       return;
     }
-    if (fromProfile) {
-      setRole(profile!.role as "student" | "teacher");
+
+    if (!role && profileTimeout) {
+      setRole("student");
       setStep("details");
-      track("onboarding_role_selected", { role: profile!.role });
-    }
-    if (profileTimeout && !role) {
-      // Use URL param or sessionStorage fallback instead of hardcoded student
-      const urlRole = searchParams.get("role");
-      let fallbackRole: "student" | "teacher" = "student";
-      if (urlRole === "teacher" || urlRole === "student") {
-        fallbackRole = urlRole;
-      } else {
-        try {
-          const stored = sessionStorage.getItem("auth_intended_role");
-          if (stored === "teacher" || stored === "student") fallbackRole = stored;
-        } catch (_) {}
-      }
-      setRole(fallbackRole);
-      setStep("details");
+      track("onboarding_role_selected", { role: "student" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, profile?.role, role, profileTimeout]);
@@ -232,10 +236,9 @@ function OnboardingContent() {
     if (!termsAccepted) return;
     setSaving(true);
     try {
-      const updates: Record<string, unknown> = {
+      const payload: Record<string, unknown> = {
         name: name.trim() || (role === "teacher" ? "Teacher" : "Student"),
         role: role!,
-        onboarding_complete: true,
         visibility,
       };
 
@@ -249,27 +252,23 @@ function OnboardingContent() {
               : studentTargetExams.includes("other")
                 ? "other"
                 : "cbse";
-        (updates as Record<string, unknown>).class_level = studentClassLevel;
-        (updates as Record<string, unknown>).target_exam = primaryTargetExam;
-        (updates as Record<string, unknown>).exam_tags = studentTargetExams;
-        (updates as Record<string, unknown>).subject_combo = subjectCombo;
-        (updates as Record<string, unknown>).stream = "science";
+        payload.class_level = studentClassLevel;
+        payload.target_exam = primaryTargetExam;
+        payload.exam_tags = studentTargetExams;
+        payload.subject_combo = subjectCombo;
+        payload.stream = "science";
       } else {
-        (updates as Record<string, unknown>).subjects = teachingSubjects.length
-          ? teachingSubjects
-          : null;
-        (updates as Record<string, unknown>).teaching_levels = selectedLevels.length
+        payload.subjects = teachingSubjects.length ? teachingSubjects : [];
+        payload.teaching_levels = selectedLevels.length
           ? encodeTeachingLevelLabels(selectedLevels)
-          : null;
-        (updates as Record<string, unknown>).exam_tags = selectedExams.length
-          ? selectedExams
-          : null;
+          : [];
+        payload.exam_tags = selectedExams.length ? selectedExams : [];
       }
 
-      const payload = { id: user.id, ...updates } as Database["public"]["Tables"]["profiles"]["Insert"];
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .upsert(payload, { onConflict: "id" });
+      // SECURITY DEFINER RPC: sets role from whitelist; client cannot escalate to teacher.
+      const { error: profileError } = await (supabase as any).rpc("complete_user_onboarding", {
+        p_payload: payload,
+      });
       if (profileError) {
         toast({
           title: "Could not save profile",
@@ -277,11 +276,6 @@ function OnboardingContent() {
           variant: "destructive",
         });
         return;
-      }
-
-      if (role === "teacher") {
-        await supabase.from("user_roles").upsert({ user_id: user.id, role: "teacher" });
-        // Role is already stored on profiles.role; user_roles sync is best-effort (RLS may block until policy is added).
       }
 
       await refreshProfile();
