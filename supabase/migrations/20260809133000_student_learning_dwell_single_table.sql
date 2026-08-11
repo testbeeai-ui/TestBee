@@ -150,3 +150,13 @@ BEGIN
   );
 END;
 $$;
+
+-- Maintenance helpers: not callable by anon/authenticated clients.
+REVOKE ALL ON FUNCTION public.ensure_dwell_events_partition(date) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ensure_dwell_events_partition(date) TO service_role;
+
+REVOKE ALL ON FUNCTION public.prune_empty_dwell_partitions(integer, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.prune_empty_dwell_partitions(integer, integer) TO service_role;
+
+REVOKE ALL ON FUNCTION public.prune_telemetry_logs(integer, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.prune_telemetry_logs(integer, integer) TO service_role;

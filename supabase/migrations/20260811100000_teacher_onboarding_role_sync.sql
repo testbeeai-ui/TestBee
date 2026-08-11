@@ -34,6 +34,18 @@ BEGIN
 END;
 $function$;
 
+-- Bind when profiles already exists (prod). Fresh preview DBs bind after baseline.
+DO $$
+BEGIN
+  IF to_regclass('public.profiles') IS NOT NULL THEN
+    DROP TRIGGER IF EXISTS trg_profiles_prevent_privilege_escalation ON public.profiles;
+    CREATE TRIGGER trg_profiles_prevent_privilege_escalation
+      BEFORE INSERT OR UPDATE ON public.profiles
+      FOR EACH ROW
+      EXECUTE FUNCTION public.profiles_prevent_privilege_escalation();
+  END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION public.sync_my_profile_role_from_whitelist()
 RETURNS text
 LANGUAGE plpgsql
