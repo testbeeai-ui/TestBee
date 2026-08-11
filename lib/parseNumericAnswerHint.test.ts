@@ -9,6 +9,12 @@ describe("parseNumericAnswerHint", () => {
     expect(parseNumericAnswerHint("1,2")).toBe(2);
   });
 
+  it("uses the median of wide three-value lists that match thousand shape", () => {
+    // Regression: was compact-stripped to 500600700
+    expect(parseNumericAnswerHint("500,600,700")).toBe(600);
+    expect(parseNumericAnswerHint("100,250,400")).toBe(250);
+  });
+
   it("uses the median of accepted ranges with ellipsis", () => {
     expect(parseNumericAnswerHint("2120,2121,...,2140")).toBe(2121);
   });

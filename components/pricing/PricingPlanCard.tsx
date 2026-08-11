@@ -89,8 +89,8 @@ export function PricingPlanCard({
         ) : null}
       </div>
 
-      <div className="relative mt-3 flex h-14 shrink-0 flex-col justify-center">
-        <div className="text-3xl font-extrabold tracking-tight text-white">{priceLine}</div>
+      <div className="relative mt-3 flex min-h-[4.75rem] shrink-0 flex-col justify-center">
+        <div className="tracking-tight text-white">{priceLine}</div>
         <div className="mt-0.5 min-h-[16px] text-xs font-semibold text-slate-500">
           {priceSubline ?? "\u00a0"}
         </div>

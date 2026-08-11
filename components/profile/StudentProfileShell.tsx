@@ -18,6 +18,7 @@ import {
   Ticket,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { formatStudentId } from "@/lib/identity/studentId";
 import { cn } from "@/lib/utils";
 import { normalizePlanTier } from "@/lib/subscription/subscriptionConfig";
 
@@ -101,6 +102,7 @@ export default function StudentProfileShell({
   const planKey = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
   const isPaid = planKey === "starter" || planKey === "pro";
   const hasPayment = !!profile?.payment_card_details;
+  const studentId = formatStudentId(profile?.student_code);
 
   const visibleSubscriptionItems = SUBSCRIPTION_ITEMS;
 
@@ -163,6 +165,12 @@ export default function StudentProfileShell({
                   {loggingOut ? "Signing out" : "Logout"}
                 </button>
               </div>
+              <p
+                data-testid="student-id-sidebar"
+                className="m-0 mt-1.5 truncate font-mono text-[10px] font-semibold leading-none tracking-wide text-emerald-500/90 sm:text-[11px]"
+              >
+                {studentId ?? "Student ID pending"}
+              </p>
             </div>
           </div>
           {rdmDisplay != null ? (

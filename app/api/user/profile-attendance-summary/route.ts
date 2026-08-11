@@ -36,7 +36,7 @@ export async function GET(request: Request) {
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id),
       supabase
-        .from("student_learning_dwell_events")
+        .from("student_learning_dwell")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("panel", "instacue")
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
   }
   if (instacueRes.error) {
     console.error(
-      "[profile-attendance-summary] student_learning_dwell_events",
+      "[profile-attendance-summary] student_learning_dwell",
       instacueRes.error.message
     );
   }

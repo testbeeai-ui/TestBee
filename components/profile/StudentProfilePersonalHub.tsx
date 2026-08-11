@@ -54,6 +54,7 @@ import {
   markProfileCompanionFormStarted,
   maybeMarkProfileOnboardingFromBasicInfo,
 } from "@/lib/onboarding/profileCompanionOnboarding";
+import { formatStudentId } from "@/lib/identity/studentId";
 
 const fieldFocus =
   "focus-visible:border-emerald-500 focus-visible:ring-emerald-500/30 dark:focus-visible:border-emerald-500";
@@ -123,6 +124,7 @@ export default function StudentProfilePersonalHub({
   }, [searchParams]);
 
   const email = authUser.email ?? "";
+  const studentId = formatStudentId(profile.student_code);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -538,6 +540,19 @@ export default function StudentProfilePersonalHub({
                   </Button>
                 ) : null}
               </div>
+
+              <div
+                data-testid="student-id-basic-info"
+                className="mt-3 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2.5 sm:mt-4 sm:px-4"
+              >
+                <p className="m-0 truncate text-sm font-semibold text-emerald-300 sm:text-base">
+                  Student ID:{" "}
+                  <span className="font-mono font-bold tracking-wide">
+                    {studentId ?? "—"}
+                  </span>
+                </p>
+              </div>
+
               <div className="mt-3 grid grid-cols-1 gap-3 min-[600px]:grid-cols-2 sm:mt-4 sm:gap-4 lg:gap-x-6 2xl:gap-x-8">
                 <div className="min-w-0">
                   <label className="mb-1 block text-[11px] font-semibold text-foreground sm:mb-1.5 sm:text-xs dark:text-slate-200">

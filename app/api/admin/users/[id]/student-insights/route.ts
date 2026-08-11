@@ -964,7 +964,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     const since90 = new Date(Date.now() - 90 * 86400000).toISOString();
     const dwellRes = await admin
-      .from("student_learning_dwell_events")
+      .from("student_learning_dwell")
       .select("board, subject, class_level, topic, subtopic_name, level, panel, delta_ms")
       .eq("user_id", userId)
       .gte("occurred_at", since90)

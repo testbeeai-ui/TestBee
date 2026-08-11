@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,12 @@ export function StudentProfilePhotoUpload({
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const showAvatar = Boolean(avatarUrl) && !avatarFailed;
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatarUrl]);
 
   const uploadFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -35,6 +41,7 @@ export function StudentProfilePhotoUpload({
       return;
     }
     setUploading(true);
+    setAvatarFailed(false);
     try {
       const path = `${profileId}/avatar-${Date.now()}.jpg`;
       const { error: upErr } = await supabase.storage
@@ -75,9 +82,14 @@ export function StudentProfilePhotoUpload({
     >
       <div className="flex items-center gap-3">
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-emerald-500/40">
-          {avatarUrl ? (
+          {showAvatar ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+            <img
+              src={avatarUrl!}
+              alt=""
+              onError={() => setAvatarFailed(true)}
+              className="h-full w-full object-cover"
+            />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-emerald-600/20 text-sm font-black text-emerald-400">
               {initials.slice(0, 2).toUpperCase()}

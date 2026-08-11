@@ -121,7 +121,7 @@ export async function GET(request: Request) {
       .eq("user_id" as never, buddyId as never)
       .maybeSingle(),
     (admin ?? supabase)
-      .from("student_learning_dwell_events")
+      .from("student_learning_dwell")
       .select("board, subject, class_level, topic, subtopic_name, level, panel, occurred_at")
       .eq("user_id", buddyId)
       .gte("occurred_at", sinceLatestDwell)

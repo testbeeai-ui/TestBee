@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { Question } from "@/types";
 import {
   ShapeNotVisited,
@@ -47,7 +47,7 @@ export interface NtaExamShellProps {
 
 export function NtaExamShell({
   candidateName,
-  avatarUrl,
+  avatarUrl: avatarUrlProp,
   examNameLine,
   subjectPaperLine,
   secondsLeft,
@@ -68,6 +68,12 @@ export function NtaExamShell({
   onSubmitClick,
 }: NtaExamShellProps) {
   const [paletteOpen, setPaletteOpen] = useState(true);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const avatarUrl = avatarUrlProp && !avatarFailed ? avatarUrlProp : null;
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatarUrlProp]);
   const q = questions[currentIndex];
   const counts = useMemo(
     () => computeNtaLegendCounts(questions, visitedIds, answers, flagged),
@@ -123,7 +129,12 @@ export function NtaExamShell({
               >
                 {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- remote Supabase avatar URL
-                  <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={avatarUrl}
+                    alt=""
+                    onError={() => setAvatarFailed(true)}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   <svg
                     width="32"
@@ -248,7 +259,7 @@ export function NtaExamShell({
               >
                 Question {currentIndex + 1}:
               </h2>
-              <div className="mb-4 w-full min-w-0 max-h-[min(50vh,24rem)] overflow-y-auto pr-1 sm:max-h-[50vh] sm:mb-5 lg:mb-6 lg:max-h-[42vh] xl:max-h-none xl:mb-8">
+              <div className="mb-4 w-full min-w-0 sm:mb-5 lg:mb-6 xl:mb-6">
                 <NtaQuestionStem q={q} />
               </div>
               <p className="mb-1.5 text-sm font-bold sm:mb-2 sm:text-base lg:mb-2.5">Options :</p>

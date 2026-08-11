@@ -22,6 +22,9 @@ export interface RawPostRow {
     paperId?: string | null;
     sharePaperKind?: string | null;
     attemptKey?: string | null;
+    correctCount?: number | null;
+    totalQuestions?: number | null;
+    scorePercent?: number | null;
   } | null;
   boost_count: number;
   upvote_count: number;

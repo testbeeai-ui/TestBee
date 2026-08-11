@@ -116,7 +116,7 @@ export default function PrivacyPolicyBody() {
         <div className="mt-1.5 flex flex-wrap gap-3.5 text-[11px] text-white/30">
           <span className="flex items-center gap-1">
             <i className="ti ti-calendar text-[13px]" />
-            Effective: 14 May 2026
+            Effective: 10 August 2026
           </span>
           <span className="flex items-center gap-1">
             <i className="ti ti-shield-check text-[13px]" />
@@ -137,7 +137,7 @@ export default function PrivacyPolicyBody() {
       </div>
 
       <div className="mb-4 flex items-center justify-between rounded-lg border border-white/10 bg-[#1C2333] px-3.5 py-2.5 text-xs">
-        <span className="text-white/50">Version 1.0 — Initial publication</span>
+        <span className="text-white/50">Version 1.1 — Google Calendar data update</span>
         <span className="text-white/30">Next review: May 2027</span>
       </div>
 
@@ -243,6 +243,14 @@ export default function PrivacyPolicyBody() {
               </td>
               <td className="p-2">Grant application (explicit consent)</td>
             </tr>
+            <tr>
+              <td className="p-2 font-medium text-[#E8EAF0]">Google Calendar (teachers)</td>
+              <td className="p-2">
+                Calendar account email, event IDs, class schedules, event titles, descriptions,
+                attendee email addresses, and Google Meet links
+              </td>
+              <td className="p-2">Teacher-authorised Google Calendar connection</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -257,7 +265,49 @@ export default function PrivacyPolicyBody() {
         </p>
       </HighlightBox>
 
-      <SectionHeading id="pp-4">4. Purpose and legal basis for processing</SectionHeading>
+      <SectionHeading id="pp-4">4. Google Calendar data for teachers</SectionHeading>
+      <p className="text-sm leading-relaxed text-white/50">
+        Teachers may choose to connect their Google Calendar account to EduBlast to schedule and
+        manage live classes. We access Google Calendar data only after the teacher authorises the
+        connection and only to provide the teacher-facing Calendar and Google Meet features.
+      </p>
+      <SubHeading>How we use Google Calendar data</SubHeading>
+      <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-white/50">
+        <li>
+          Create, update, and delete Google Calendar events for live classes scheduled by the
+          teacher in EduBlast.
+        </li>
+        <li>
+          Add enrolled students as event attendees and include a Google Meet link when the teacher
+          schedules a class.
+        </li>
+        <li>
+          Maintain the minimum connection and event identifiers needed to manage teacher-created
+          class schedules.
+        </li>
+      </ul>
+      <SubHeading>Google API Services User Data Policy — Limited Use</SubHeading>
+      <p className="text-sm leading-relaxed text-white/50">
+        EduBlast uses Google Calendar data solely to provide and improve the user-facing Calendar
+        and live-class scheduling features requested by the connected teacher. We do not sell,
+        rent, use for advertising, use for behavioural profiling, or transfer Google Calendar data
+        to third parties for their own purposes. We do not use Google Calendar data to develop,
+        train, or improve general-purpose artificial intelligence or machine-learning models.
+      </p>
+      <p className="text-sm leading-relaxed text-white/50">
+        Google Calendar data is not shared with analytics providers. Access by EduBlast personnel
+        is limited to what is necessary to operate, secure, support, or comply with applicable law
+        in relation to the Calendar feature.
+      </p>
+      <SubHeading>Disconnecting Google Calendar</SubHeading>
+      <p className="text-sm leading-relaxed text-white/50">
+        A teacher may disconnect Google Calendar at any time from the Teacher Portal or through
+        their Google Account security settings. When a teacher disconnects in EduBlast, we revoke
+        the connection and delete the stored Google Calendar refresh token. Disconnecting does not
+        automatically delete events already created in the teacher&apos;s Google Calendar.
+      </p>
+
+      <SectionHeading id="pp-5">5. Purpose and legal basis for processing</SectionHeading>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
@@ -299,8 +349,8 @@ export default function PrivacyPolicyBody() {
               <td className="p-2">Legitimate interest / legal obligation</td>
             </tr>
             <tr className="border-b border-white/10">
-              <td className="p-2">AI model improvement (anonymised only)</td>
-              <td className="p-2">Anonymised interaction data</td>
+              <td className="p-2">AI model improvement (non-Google data only)</td>
+              <td className="p-2">Anonymised interaction data, excluding Google API data</td>
               <td className="p-2">Consent (opt-in preference)</td>
             </tr>
             <tr className="border-b border-white/10">
@@ -322,7 +372,7 @@ export default function PrivacyPolicyBody() {
         </table>
       </div>
 
-      <SectionHeading id="pp-5">5. Data retention</SectionHeading>
+      <SectionHeading id="pp-6">6. Data retention</SectionHeading>
       <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-white/50">
         <li>
           <strong>Active account data:</strong> Retained for the duration of the account plus 3
@@ -353,7 +403,7 @@ export default function PrivacyPolicyBody() {
         </li>
       </ul>
 
-      <SectionHeading id="pp-6">6. Data sharing and third parties</SectionHeading>
+      <SectionHeading id="pp-7">7. Data sharing and third parties</SectionHeading>
       <p className="text-sm leading-relaxed text-white/50">
         EduBlast does not sell personal data to any third party. We do not permit third parties to
         use your personal data for their own marketing purposes.
@@ -389,7 +439,7 @@ export default function PrivacyPolicyBody() {
             </tr>
             <tr className="border-b border-white/10">
               <td className="p-2">Analytics providers</td>
-              <td className="p-2">Anonymised, aggregated usage data</td>
+              <td className="p-2">Anonymised, aggregated usage data excluding Google API data</td>
               <td className="p-2">Platform improvement</td>
               <td className="p-2">Anonymisation before sharing</td>
             </tr>
@@ -416,7 +466,7 @@ export default function PrivacyPolicyBody() {
         </p>
       </HighlightBox>
 
-      <SectionHeading id="pp-7">7. Your rights under the DPDP Act 2023</SectionHeading>
+      <SectionHeading id="pp-8">8. Your rights under the DPDP Act 2023</SectionHeading>
       <HighlightBox color="teal" title="DPDP Act 2023 — Data Principal rights">
         <p className="text-sm leading-relaxed text-white/50">
           Under the Digital Personal Data Protection Act 2023, you have the following rights as a
@@ -463,7 +513,7 @@ export default function PrivacyPolicyBody() {
         identity verification.
       </p>
 
-      <SectionHeading id="pp-8">8. Consent management</SectionHeading>
+      <SectionHeading id="pp-9">9. Consent management</SectionHeading>
       <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-white/50">
         <li>
           EduBlast obtains consent through a clear, plain-language consent notice at registration.
@@ -488,7 +538,7 @@ export default function PrivacyPolicyBody() {
         </li>
       </ul>
 
-      <SectionHeading id="pp-9">9. Data security</SectionHeading>
+      <SectionHeading id="pp-10">10. Data security</SectionHeading>
       <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-white/50">
         <li>
           All data transmitted to and from the Platform is encrypted using TLS 1.2 or higher
@@ -516,7 +566,7 @@ export default function PrivacyPolicyBody() {
         </li>
       </ul>
 
-      <SectionHeading id="pp-10">10. Minors and child data protection</SectionHeading>
+      <SectionHeading id="pp-11">11. Minors and child data protection</SectionHeading>
       <HighlightBox color="blue" title="Special protections for users under 18">
         <p className="text-sm leading-relaxed text-white/50">
           The DPDP Act 2023 imposes heightened obligations for processing data of children (persons
@@ -558,7 +608,7 @@ export default function PrivacyPolicyBody() {
         </li>
       </ul>
 
-      <SectionHeading id="pp-11">11. Cookies and tracking technologies</SectionHeading>
+      <SectionHeading id="pp-12">12. Cookies and tracking technologies</SectionHeading>
       <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-white/50">
         <li>
           <strong>Essential cookies:</strong> Required for basic platform functionality
@@ -585,7 +635,7 @@ export default function PrivacyPolicyBody() {
         </li>
       </ul>
 
-      <SectionHeading id="pp-12">12. Grievance officer and escalation</SectionHeading>
+      <SectionHeading id="pp-13">13. Grievance officer and escalation</SectionHeading>
       <HighlightBox color="teal" title="Grievance redressal — DPDP Act 2023, Section 13">
         <p className="text-sm leading-relaxed text-white/50">
           In accordance with the DPDP Act 2023 and the IT (Intermediary Guidelines) Rules 2021,
@@ -629,7 +679,7 @@ export default function PrivacyPolicyBody() {
         </li>
       </ol>
       <p className="mt-5 text-[11px] text-white/20">
-        This Privacy Policy was last reviewed and approved on 14 May 2026. EduBlast will review and
+        This Privacy Policy was last reviewed and approved on 10 August 2026. EduBlast will review and
         update this Policy at least annually, or sooner if required by changes in applicable law,
         regulatory guidance, or significant changes to data processing activities. Material changes
         will be notified to registered users by email at least 14 days before taking effect.

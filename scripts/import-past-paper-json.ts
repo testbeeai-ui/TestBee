@@ -1006,7 +1006,15 @@ function extractImageOnlyMcq(rawHtml: string): { stemHtml: string; options: stri
     "<p><strong>(3)</strong> — as labeled in the figure</p>",
     "<p><strong>(4)</strong> — as labeled in the figure</p>",
   ];
-  return { stemHtml: `${html}\n${note}`.trim(), options };
+  // Keep stem through the last figure only — OCR often pads after with <br>/&nbsp; spam.
+  let stemHtml = html.slice(0, last.index + last[0].length);
+  if (/<strong\b/i.test(stemHtml) && !/<\/strong>\s*$/i.test(stemHtml)) {
+    stemHtml += "</strong>";
+  }
+  if (/<p\b/i.test(stemHtml) && !/<\/p>\s*$/i.test(stemHtml)) {
+    stemHtml += "</p>";
+  }
+  return { stemHtml: `${stemHtml.trim()}\n${note}`.trim(), options };
 }
 
 /** Normalize `(4</strong>)` / `(1<em>)</em>` so option markers survive broken wraps. */
@@ -1521,7 +1529,7 @@ const EXAM_CONFIG: Record<string, ExamImportConfig> = {
   COMEDK: {
     durationMinutes: 180,
     markingScheme: "+1 per correct response, 0 for incorrect or unattempted (COMEDK UGET pattern).",
-    classLevel: 12,
+    classLevel: 11,
     totalMarksMultiplier: 1,
   },
   "JEE Advanced": {

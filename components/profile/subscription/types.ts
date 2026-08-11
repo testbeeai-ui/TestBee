@@ -21,6 +21,8 @@ export interface PlanTier {
   id: "free_trial" | "free" | "starter" | "pro";
   name: string;
   priceMonthly: number;
+  /** List / MRP price shown struck through when higher than priceMonthly. */
+  priceOriginalMonthly?: number;
   priceYearly: number;
   description: string;
   badge?: string;
@@ -142,6 +144,7 @@ export const PLAN_TIERS: PlanTier[] = [
     id: "starter",
     name: "Starter",
     priceMonthly: 499,
+    priceOriginalMonthly: 999,
     priceYearly: 0,
     description: "Expanded practice limits for consistent aspirants.",
     badge: "Most popular",
@@ -199,6 +202,7 @@ export const PLAN_TIERS: PlanTier[] = [
     id: "pro",
     name: "Pro",
     priceMonthly: 899,
+    priceOriginalMonthly: 1499,
     priceYearly: 0,
     description: "Unlimited daily practice and full analytics tier.",
     badge: "Most powerful",

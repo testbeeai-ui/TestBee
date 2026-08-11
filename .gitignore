@@ -62,3 +62,9 @@ supabase/.temp/
 
 # transient debug dumps (moved here from project root)
 /docs/dev-notes/.tsc-check.txt
+
+# local parse/seed scratch outputs (never commit)
+/tmp-*
+tmp-*
+*.xlsx
+~$*

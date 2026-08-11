@@ -68,7 +68,7 @@ export async function GET(request: Request) {
       .eq("user_id" as never, buddyId as never)
       .maybeSingle(),
     supabase
-      .from("student_learning_dwell_events")
+      .from("student_learning_dwell")
       .select("occurred_at")
       .eq("user_id", buddyId)
       .order("occurred_at", { ascending: false })

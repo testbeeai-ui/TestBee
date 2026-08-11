@@ -196,7 +196,7 @@ async function main() {
       question_count: batch.length,
       marking_scheme:
         "+4 for each correct response, −1 for each incorrect response, 0 if unattempted (JEE Main pattern).",
-      /* 11 so class-11 and class-12 learners both pass mock page filter (paper.classLevel <= userLevel). */
+      /* Catalog metadata only — library listing is not gated by user class. */
       class_level: 11,
       tags: ["JEE Main", "2019", "January", "PYQ", "Shift 1"],
       subjects_covered: subjectsCovered,

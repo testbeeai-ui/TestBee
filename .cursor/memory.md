@@ -148,6 +148,8 @@ Anything that is not Next.js / tooling config now lives under:
 | Setup | `mobileapp/README.md`, `mobileapp/.env.example` |
 
 ## Decisions Log
+- 2026-08-11: **rdm_config_pkey idempotent in baseline** — `20260915120000` skips adding `rdm_config_pkey` if `20260618110000_ensure_rdm_config_table` already created it (fresh/preview migrate).
+- 2026-08-11: **Teacher role whitelist sync** — `fetchProfile` only sets teacher/student from `sync_my_profile_role_from_whitelist`; no fallback to sessionStorage `intendedRole` when RPC returns null.
 - 2026-08-07: **`relocateOptionImagesToStem` regression** — extracted to `lib/pastPaper/relocateOptionImagesToStem.ts`; never relocate when multiple options carry figures (even all `data:` URIs). Tests lock multi-image MCQ behavior.
 - 2026-08-07: **`parseNumericAnswerHint` shared** — moved to `lib/parseNumericAnswerHint.ts`; two-value lists (`2120,2121`, `212,213`) use median instead of comma-stripped merge; thousand forms (`2,120`) still compact. Used by past/mock importers + mcq-json-import-core.
 - 2026-08-07: **Past-paper import bugfixes** — two-value comma answers no longer merge digits; `relocateOptionImagesToStem` only moves single-option spills; confirm script numerical check uses `queAnsType` only (matches importer).

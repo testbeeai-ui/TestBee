@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       accepted_answer_payouts: {
@@ -441,6 +416,67 @@ export type Database = {
           },
         ]
       }
+      classroom_assignment_completion_rdm_grants: {
+        Row: {
+          amount: number
+          assignment_post_id: string
+          created_at: string
+          due_at: string | null
+          id: string
+          paid_at: string | null
+          refunded_at: string | null
+          status: string
+          student_id: string
+          teacher_id: string
+        }
+        Insert: {
+          amount: number
+          assignment_post_id: string
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          paid_at?: string | null
+          refunded_at?: string | null
+          status?: string
+          student_id: string
+          teacher_id: string
+        }
+        Update: {
+          amount?: number
+          assignment_post_id?: string
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          paid_at?: string | null
+          refunded_at?: string | null
+          status?: string
+          student_id?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_assignment_completion_rdm_gra_assignment_post_id_fkey"
+            columns: ["assignment_post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_assignment_completion_rdm_grants_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_assignment_completion_rdm_grants_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classroom_assignment_responses: {
         Row: {
           classroom_id: string
@@ -502,6 +538,7 @@ export type Database = {
       classroom_assignment_task_progress: {
         Row: {
           completed_at: string
+          doubt_id: string | null
           id: string
           post_id: string
           task_id: string
@@ -509,6 +546,7 @@ export type Database = {
         }
         Insert: {
           completed_at?: string
+          doubt_id?: string | null
           id?: string
           post_id: string
           task_id: string
@@ -516,12 +554,20 @@ export type Database = {
         }
         Update: {
           completed_at?: string
+          doubt_id?: string | null
           id?: string
           post_id?: string
           task_id?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "classroom_assignment_task_progress_doubt_id_fkey"
+            columns: ["doubt_id"]
+            isOneToOne: false
+            referencedRelation: "doubts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classroom_assignment_task_progress_post_id_fkey"
             columns: ["post_id"]
@@ -934,6 +980,61 @@ export type Database = {
           },
         ]
       }
+      classroom_subtopic_unlock_grants: {
+        Row: {
+          amount_rdm: number
+          assignment_post_id: string
+          chapter_quiz: Json | null
+          created_at: string
+          id: string
+          status: string
+          student_id: string
+          teacher_id: string
+        }
+        Insert: {
+          amount_rdm: number
+          assignment_post_id: string
+          chapter_quiz?: Json | null
+          created_at?: string
+          id?: string
+          status?: string
+          student_id: string
+          teacher_id: string
+        }
+        Update: {
+          amount_rdm?: number
+          assignment_post_id?: string
+          chapter_quiz?: Json | null
+          created_at?: string
+          id?: string
+          status?: string
+          student_id?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_subtopic_unlock_grants_assignment_post_id_fkey"
+            columns: ["assignment_post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_subtopic_unlock_grants_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_subtopic_unlock_grants_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classrooms: {
         Row: {
           allow_adhoc_trial: boolean
@@ -1011,8 +1112,60 @@ export type Database = {
           },
         ]
       }
+      contact_messages: {
+        Row: {
+          admin_note: string | null
+          admin_status: string
+          category: string
+          created_at: string
+          email: string
+          id: string
+          name: string
+          payload: Json
+          phone: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          role: string
+          ticket_id: string
+          user_id: string | null
+        }
+        Insert: {
+          admin_note?: string | null
+          admin_status?: string
+          category: string
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          payload?: Json
+          phone?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role: string
+          ticket_id: string
+          user_id?: string | null
+        }
+        Update: {
+          admin_note?: string | null
+          admin_status?: string
+          category?: string
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          payload?: Json
+          phone?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role?: string
+          ticket_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       coupons: {
         Row: {
+          balance_applied_at: string | null
           bought_by_teacher_id: string | null
           code: string
           created_at: string
@@ -1027,6 +1180,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          balance_applied_at?: string | null
           bought_by_teacher_id?: string | null
           code: string
           created_at?: string
@@ -1041,6 +1195,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          balance_applied_at?: string | null
           bought_by_teacher_id?: string | null
           code?: string
           created_at?: string
@@ -1273,6 +1428,39 @@ export type Database = {
           },
         ]
       }
+      dive_hub_progress: {
+        Row: {
+          completed: string[]
+          numeral_score: number | null
+          outcomes_score: number | null
+          quiz_score: number | null
+          storage_key: string
+          undertaking_accepted: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: string[]
+          numeral_score?: number | null
+          outcomes_score?: number | null
+          quiz_score?: number | null
+          storage_key: string
+          undertaking_accepted?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: string[]
+          numeral_score?: number | null
+          outcomes_score?: number | null
+          quiz_score?: number | null
+          storage_key?: string
+          undertaking_accepted?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       doubt_answer_reports: {
         Row: {
           answer_id: string
@@ -1497,6 +1685,578 @@ export type Database = {
           },
         ]
       }
+      edubite_brain_gym_progress: {
+        Row: {
+          payload: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          payload: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          payload?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      edubite_content_questions: {
+        Row: {
+          active_date: string
+          class_level: string | null
+          content_key: string | null
+          correct: number
+          created_at: string
+          created_by: string | null
+          domain: string
+          id: string
+          metadata: Json
+          opts: Json
+          published: boolean
+          q: string
+          sort_order: number
+          tag: string | null
+          updated_at: string
+        }
+        Insert: {
+          active_date: string
+          class_level?: string | null
+          content_key?: string | null
+          correct: number
+          created_at?: string
+          created_by?: string | null
+          domain: string
+          id?: string
+          metadata?: Json
+          opts: Json
+          published?: boolean
+          q: string
+          sort_order?: number
+          tag?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active_date?: string
+          class_level?: string | null
+          content_key?: string | null
+          correct?: number
+          created_at?: string
+          created_by?: string | null
+          domain?: string
+          id?: string
+          metadata?: Json
+          opts?: Json
+          published?: boolean
+          q?: string
+          sort_order?: number
+          tag?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      edubite_game_state: {
+        Row: {
+          payload: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          payload: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          payload?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      edubite_inspiration_blocks: {
+        Row: {
+          id: string
+          payload: Json
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          payload: Json
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          payload?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      edubite_inspiration_phenomena: {
+        Row: {
+          badge: string
+          content_key: string
+          created_at: string
+          explanation: string
+          follow_up_question: string
+          icon: string
+          id: number
+          linked_concepts: string
+          number: number
+          question: string
+          sort_order: number
+          source: string
+          subject: string
+          updated_at: string
+          volume: number
+        }
+        Insert: {
+          badge: string
+          content_key: string
+          created_at?: string
+          explanation: string
+          follow_up_question: string
+          icon: string
+          id?: number
+          linked_concepts: string
+          number: number
+          question: string
+          sort_order?: number
+          source: string
+          subject: string
+          updated_at?: string
+          volume: number
+        }
+        Update: {
+          badge?: string
+          content_key?: string
+          created_at?: string
+          explanation?: string
+          follow_up_question?: string
+          icon?: string
+          id?: number
+          linked_concepts?: string
+          number?: number
+          question?: string
+          sort_order?: number
+          source?: string
+          subject?: string
+          updated_at?: string
+          volume?: number
+        }
+        Relationships: []
+      }
+      edubite_inspiration_quotes: {
+        Row: {
+          category: string
+          content_key: string
+          id: number
+          quote: string
+          sort_order: number
+        }
+        Insert: {
+          category?: string
+          content_key: string
+          id?: number
+          quote: string
+          sort_order?: number
+        }
+        Update: {
+          category?: string
+          content_key?: string
+          id?: number
+          quote?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      edubite_inspiration_role_models: {
+        Row: {
+          avatar: string
+          bio: string
+          content_key: string
+          id: number
+          index_label: string
+          inspire_why: string
+          name: string
+          number: number
+          pcm_connections: string
+          quote: string
+          sort_order: number
+          tag: string
+          updated_at: string
+          volume: number
+        }
+        Insert: {
+          avatar: string
+          bio: string
+          content_key: string
+          id?: number
+          index_label: string
+          inspire_why: string
+          name: string
+          number: number
+          pcm_connections: string
+          quote: string
+          sort_order?: number
+          tag: string
+          updated_at?: string
+          volume: number
+        }
+        Update: {
+          avatar?: string
+          bio?: string
+          content_key?: string
+          id?: number
+          index_label?: string
+          inspire_why?: string
+          name?: string
+          number?: number
+          pcm_connections?: string
+          quote?: string
+          sort_order?: number
+          tag?: string
+          updated_at?: string
+          volume?: number
+        }
+        Relationships: []
+      }
+      edubite_monthly_challenge_enrollments: {
+        Row: {
+          display_name: string
+          enrolled_at: string
+          id: string
+          month_key: string
+          stake_rdm: number
+          user_id: string
+        }
+        Insert: {
+          display_name?: string
+          enrolled_at?: string
+          id?: string
+          month_key: string
+          stake_rdm?: number
+          user_id: string
+        }
+        Update: {
+          display_name?: string
+          enrolled_at?: string
+          id?: string
+          month_key?: string
+          stake_rdm?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      edubite_monthly_challenge_entries: {
+        Row: {
+          answer: string
+          display_name: string
+          id: string
+          is_winner: boolean
+          month_key: string
+          submitted_at: string
+          user_id: string
+          verified_at: string | null
+          verified_by: string | null
+          verified_correct: boolean
+          winner_announced_at: string | null
+        }
+        Insert: {
+          answer: string
+          display_name?: string
+          id?: string
+          is_winner?: boolean
+          month_key: string
+          submitted_at?: string
+          user_id: string
+          verified_at?: string | null
+          verified_by?: string | null
+          verified_correct?: boolean
+          winner_announced_at?: string | null
+        }
+        Update: {
+          answer?: string
+          display_name?: string
+          id?: string
+          is_winner?: boolean
+          month_key?: string
+          submitted_at?: string
+          user_id?: string
+          verified_at?: string | null
+          verified_by?: string | null
+          verified_correct?: boolean
+          winner_announced_at?: string | null
+        }
+        Relationships: []
+      }
+      edubite_pledge_reel_days: {
+        Row: {
+          created_at: string
+          day: number
+          pledge_slot: string
+          theme: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day: number
+          pledge_slot?: string
+          theme: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day?: number
+          pledge_slot?: string
+          theme?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      edubite_pledge_reel_slides: {
+        Row: {
+          caption: string
+          day: number
+          emphasis_word: string
+          headline: string
+          icon: string
+          id: string
+          pledge_slot: string
+          slide_index: number
+        }
+        Insert: {
+          caption: string
+          day: number
+          emphasis_word: string
+          headline: string
+          icon: string
+          id?: string
+          pledge_slot: string
+          slide_index: number
+        }
+        Update: {
+          caption?: string
+          day?: number
+          emphasis_word?: string
+          headline?: string
+          icon?: string
+          id?: string
+          pledge_slot?: string
+          slide_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edubite_pledge_reel_slides_day_fkey"
+            columns: ["pledge_slot", "day"]
+            isOneToOne: false
+            referencedRelation: "edubite_pledge_reel_days"
+            referencedColumns: ["pledge_slot", "day"]
+          },
+        ]
+      }
+      edubite_puzzle_progress: {
+        Row: {
+          payload: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          payload: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          payload?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      edubite_rdm_rewards: {
+        Row: {
+          amount: number
+          category: string
+          description: string
+          label: string
+          reward_key: string
+          sort_order: number
+          unit: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          amount: number
+          category: string
+          description?: string
+          label: string
+          reward_key: string
+          sort_order?: number
+          unit?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          description?: string
+          label?: string
+          reward_key?: string
+          sort_order?: number
+          unit?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      edubite_reward_claims: {
+        Row: {
+          claim_id: string
+          created_at: string
+          rdm_awarded: number
+          user_id: string
+        }
+        Insert: {
+          claim_id: string
+          created_at?: string
+          rdm_awarded: number
+          user_id: string
+        }
+        Update: {
+          claim_id?: string
+          created_at?: string
+          rdm_awarded?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      edudeca_daily_attempts: {
+        Row: {
+          challenge_date: string
+          correct_count: number
+          created_at: string
+          id: string
+          level: number
+          reason: string | null
+          results: Json
+          strikes: number
+          user_id: string
+          won: boolean
+        }
+        Insert: {
+          challenge_date: string
+          correct_count?: number
+          created_at?: string
+          id?: string
+          level: number
+          reason?: string | null
+          results?: Json
+          strikes?: number
+          user_id: string
+          won?: boolean
+        }
+        Update: {
+          challenge_date?: string
+          correct_count?: number
+          created_at?: string
+          id?: string
+          level?: number
+          reason?: string | null
+          results?: Json
+          strikes?: number
+          user_id?: string
+          won?: boolean
+        }
+        Relationships: []
+      }
+      edudeca_questions: {
+        Row: {
+          correct_index: number
+          created_at: string
+          difficulty_rating: number | null
+          explanation: string | null
+          id: string
+          level: number
+          options: Json
+          published: boolean
+          sort_order: number
+          stem: string
+          subject_id: string
+        }
+        Insert: {
+          correct_index: number
+          created_at?: string
+          difficulty_rating?: number | null
+          explanation?: string | null
+          id: string
+          level: number
+          options: Json
+          published?: boolean
+          sort_order?: number
+          stem: string
+          subject_id: string
+        }
+        Update: {
+          correct_index?: number
+          created_at?: string
+          difficulty_rating?: number | null
+          explanation?: string | null
+          id?: string
+          level?: number
+          options?: Json
+          published?: boolean
+          sort_order?: number
+          stem?: string
+          subject_id?: string
+        }
+        Relationships: []
+      }
+      edudeca_user_progress: {
+        Row: {
+          anti_capture_enabled: boolean
+          campaign_level: number
+          created_at: string
+          disciplines: Json | null
+          free_zone_complete: boolean
+          is_proctored_paid: boolean
+          last_challenge_date: string | null
+          streak_days: number
+          subject_levels: Json
+          updated_at: string
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          anti_capture_enabled?: boolean
+          campaign_level?: number
+          created_at?: string
+          disciplines?: Json | null
+          free_zone_complete?: boolean
+          is_proctored_paid?: boolean
+          last_challenge_date?: string | null
+          streak_days?: number
+          subject_levels?: Json
+          updated_at?: string
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          anti_capture_enabled?: boolean
+          campaign_level?: number
+          created_at?: string
+          disciplines?: Json | null
+          free_zone_complete?: boolean
+          is_proctored_paid?: boolean
+          last_challenge_date?: string | null
+          streak_days?: number
+          subject_levels?: Json
+          updated_at?: string
+          user_id?: string
+          xp?: number
+        }
+        Relationships: []
+      }
       episodic_memory: {
         Row: {
           chunk_text: string
@@ -1666,6 +2426,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      learning_outcomes_questions: {
+        Row: {
+          board: string
+          class_level: number
+          created_at: string
+          id: string
+          level: string
+          questions: Json
+          source: string | null
+          subject: string
+          subtopic_name: string
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          board?: string
+          class_level: number
+          created_at?: string
+          id?: string
+          level: string
+          questions?: Json
+          source?: string | null
+          subject: string
+          subtopic_name: string
+          topic: string
+          updated_at?: string
+        }
+        Update: {
+          board?: string
+          class_level?: number
+          created_at?: string
+          id?: string
+          level?: string
+          questions?: Json
+          source?: string | null
+          subject?: string
+          subtopic_name?: string
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       lessons_raw_post_boosts: {
         Row: {
@@ -2208,6 +3010,35 @@ export type Database = {
           },
         ]
       }
+      mobile_push_tokens: {
+        Row: {
+          platform: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          platform: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          platform?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mobile_push_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mock_community_share_rdm_claims: {
         Row: {
           attempt_key: string
@@ -2668,6 +3499,106 @@ export type Database = {
           },
           {
             foreignKeyName: "numerals_community_share_rdm_claims_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      numerals_formula_complete_rdm_claims: {
+        Row: {
+          board: string
+          claimed_at: string
+          class_level: number
+          formula_index: number
+          level: string
+          rdm_amount: number
+          subject: string
+          subtopic: string
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          board: string
+          claimed_at?: string
+          class_level: number
+          formula_index: number
+          level: string
+          rdm_amount: number
+          subject: string
+          subtopic: string
+          topic: string
+          user_id: string
+        }
+        Update: {
+          board?: string
+          claimed_at?: string
+          class_level?: number
+          formula_index?: number
+          level?: string
+          rdm_amount?: number
+          subject?: string
+          subtopic?: string
+          topic?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "numerals_formula_complete_rdm_claims_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      numerals_pack_complete_rdm_claims: {
+        Row: {
+          board: string
+          claimed_at: string
+          class_level: number
+          correct_count: number | null
+          level: string
+          rdm_amount: number
+          score_percent: number | null
+          subject: string
+          subtopic: string
+          topic: string
+          total_questions: number | null
+          user_id: string
+        }
+        Insert: {
+          board: string
+          claimed_at?: string
+          class_level: number
+          correct_count?: number | null
+          level: string
+          rdm_amount: number
+          score_percent?: number | null
+          subject: string
+          subtopic: string
+          topic: string
+          total_questions?: number | null
+          user_id: string
+        }
+        Update: {
+          board?: string
+          claimed_at?: string
+          class_level?: number
+          correct_count?: number | null
+          level?: string
+          rdm_amount?: number
+          score_percent?: number | null
+          subject?: string
+          subtopic?: string
+          topic?: string
+          total_questions?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "numerals_pack_complete_rdm_claims_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -3390,6 +4321,103 @@ export type Database = {
           },
         ]
       }
+      quiz_overall_complete_rdm_claims: {
+        Row: {
+          board: string
+          claimed_at: string
+          class_level: number
+          correct_count: number | null
+          rdm_amount: number
+          score_percent: number | null
+          subject: string
+          subtopic: string
+          topic: string
+          total_questions: number | null
+          user_id: string
+        }
+        Insert: {
+          board: string
+          claimed_at?: string
+          class_level: number
+          correct_count?: number | null
+          rdm_amount: number
+          score_percent?: number | null
+          subject: string
+          subtopic: string
+          topic: string
+          total_questions?: number | null
+          user_id: string
+        }
+        Update: {
+          board?: string
+          claimed_at?: string
+          class_level?: number
+          correct_count?: number | null
+          rdm_amount?: number
+          score_percent?: number | null
+          subject?: string
+          subtopic?: string
+          topic?: string
+          total_questions?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_overall_complete_rdm_claims_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_set_complete_rdm_claims: {
+        Row: {
+          board: string
+          claimed_at: string
+          class_level: number
+          level: string
+          quiz_set: number
+          rdm_amount: number
+          subject: string
+          subtopic: string
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          board: string
+          claimed_at?: string
+          class_level: number
+          level: string
+          quiz_set: number
+          rdm_amount: number
+          subject: string
+          subtopic: string
+          topic: string
+          user_id: string
+        }
+        Update: {
+          board?: string
+          claimed_at?: string
+          class_level?: number
+          level?: string
+          quiz_set?: number
+          rdm_amount?: number
+          subject?: string
+          subtopic?: string
+          topic?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_set_complete_rdm_claims_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rdm_config: {
         Row: {
           description: string | null
@@ -3461,6 +4489,7 @@ export type Database = {
           credited_week_start_ist: string
           id: string
           ref_code: string
+          referee_is_teacher: boolean
           referee_rdm: number
           referee_user_id: string
           referrer_is_teacher: boolean
@@ -3473,6 +4502,7 @@ export type Database = {
           credited_week_start_ist: string
           id?: string
           ref_code: string
+          referee_is_teacher?: boolean
           referee_rdm?: number
           referee_user_id: string
           referrer_is_teacher?: boolean
@@ -3485,6 +4515,7 @@ export type Database = {
           credited_week_start_ist?: string
           id?: string
           ref_code?: string
+          referee_is_teacher?: boolean
           referee_rdm?: number
           referee_user_id?: string
           referrer_is_teacher?: boolean
@@ -3663,7 +4694,7 @@ export type Database = {
           },
         ]
       }
-      student_learning_dwell_2025_12: {
+      student_learning_dwell: {
         Row: {
           bits_question_index: number | null
           board: string
@@ -3672,10 +4703,12 @@ export type Database = {
           delta_ms: number
           id: string
           level: string
+          meta: Json
           occurred_at: string
           panel: string
           subject: string
           subtopic_name: string
+          tags: string[]
           topic: string
           user_id: string
         }
@@ -3687,10 +4720,12 @@ export type Database = {
           delta_ms: number
           id?: string
           level: string
+          meta?: Json
           occurred_at?: string
           panel: string
           subject: string
           subtopic_name: string
+          tags?: string[]
           topic: string
           user_id: string
         }
@@ -3702,928 +4737,18 @@ export type Database = {
           delta_ms?: number
           id?: string
           level?: string
+          meta?: Json
           occurred_at?: string
           panel?: string
           subject?: string
           subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2026_01: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2026_02: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2026_03: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2026_04: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2026_05: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2026_06: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2026_07: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2026_08: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2026_09: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2026_10: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2026_11: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2026_12: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2027_01: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2027_02: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2027_03: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2027_04: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2027_05: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_2027_06: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
-          topic?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      student_learning_dwell_events: {
-        Row: {
-          bits_question_index: number | null
-          board: string
-          class_level: number
-          client_session_id: string | null
-          delta_ms: number
-          id: string
-          level: string
-          occurred_at: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Insert: {
-          bits_question_index?: number | null
-          board: string
-          class_level: number
-          client_session_id?: string | null
-          delta_ms: number
-          id?: string
-          level: string
-          occurred_at?: string
-          panel: string
-          subject: string
-          subtopic_name: string
-          topic: string
-          user_id: string
-        }
-        Update: {
-          bits_question_index?: number | null
-          board?: string
-          class_level?: number
-          client_session_id?: string | null
-          delta_ms?: number
-          id?: string
-          level?: string
-          occurred_at?: string
-          panel?: string
-          subject?: string
-          subtopic_name?: string
+          tags?: string[]
           topic?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "student_learning_dwell_events_user_id_fkey1"
+            foreignKeyName: "student_learning_dwell_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -4972,7 +5097,7 @@ export type Database = {
           display_title: string | null
           id: string
           instacue_cards: Json
-          learning_outcomes_questions?: Json
+          learning_outcomes_questions: Json
           level: string
           practice_formulas: Json
           reading_references: Json
@@ -5022,78 +5147,6 @@ export type Database = {
           topic?: string
           updated_at?: string
           updated_by?: string | null
-        }
-        Relationships: []
-      }
-      dive_hub_progress: {
-        Row: {
-          user_id: string
-          storage_key: string
-          completed: string[] | null
-          quiz_score: number | null
-          numeral_score: number | null
-          outcomes_score: number | null
-          undertaking_accepted: boolean | null
-          updated_at: string
-        }
-        Insert: {
-          user_id: string
-          storage_key: string
-          completed?: string[] | null
-          quiz_score?: number | null
-          numeral_score?: number | null
-          outcomes_score?: number | null
-          undertaking_accepted?: boolean | null
-          updated_at?: string
-        }
-        Update: {
-          user_id?: string
-          storage_key?: string
-          completed?: string[] | null
-          quiz_score?: number | null
-          numeral_score?: number | null
-          outcomes_score?: number | null
-          undertaking_accepted?: boolean | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      learning_outcomes_questions: {
-        Row: {
-          id?: string
-          board: string
-          subject: string
-          class_level: number
-          topic: string
-          subtopic_name: string
-          level: string
-          questions: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Insert: {
-          id?: string
-          board: string
-          subject: string
-          class_level: number
-          topic: string
-          subtopic_name: string
-          level: string
-          questions?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          board?: string
-          subject?: string
-          class_level?: number
-          topic?: string
-          subtopic_name?: string
-          level?: string
-          questions?: Json
-          created_at?: string
-          updated_at?: string
         }
         Relationships: []
       }
@@ -6098,6 +6151,10 @@ export type Database = {
         Args: { p_day: string; p_schedule_time: string; p_time_zone: string }
         Returns: string
       }
+      _student_bits_attempt: {
+        Args: { p_attempt_key: string; p_uid: string }
+        Returns: Json
+      }
       _weekday_short_en: { Args: { p_d: string }; Returns: string }
       accept_buddy_invite:
         | { Args: { p_acceptor_id: string; p_token: string }; Returns: Json }
@@ -6208,6 +6265,10 @@ export type Database = {
         Args: { p_answer_indices: number[]; p_paper_id: string }
         Returns: Json
       }
+      claim_numerals_community_share_rdm: {
+        Args: { p_post_id: string }
+        Returns: Json
+      }
       claim_numerals_formula_complete_rdm: {
         Args: {
           p_board: string
@@ -6218,10 +6279,6 @@ export type Database = {
           p_subtopic_name: string
           p_topic: string
         }
-        Returns: Json
-      }
-      claim_numerals_community_share_rdm: {
-        Args: { p_post_id: string }
         Returns: Json
       }
       claim_numerals_pack_complete_daily_rdm: {
@@ -6235,6 +6292,10 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_quiz_community_share_rdm: {
+        Args: { p_post_id: string }
+        Returns: Json
+      }
       claim_quiz_set_complete_rdm: {
         Args: {
           p_board: string
@@ -6245,10 +6306,6 @@ export type Database = {
           p_subtopic_name: string
           p_topic: string
         }
-        Returns: Json
-      }
-      claim_quiz_community_share_rdm: {
-        Args: { p_post_id: string }
         Returns: Json
       }
       claim_refer_challenge_reward: {
@@ -6288,6 +6345,12 @@ export type Database = {
         Returns: Json
       }
       deduct_rdm: { Args: { amt: number; uid: string }; Returns: number }
+      edubite_apply_brain_gym_mutation: {
+        Args: { p_mutation: Json; p_progress: Json }
+        Returns: Json
+      }
+      edubite_is_content_admin: { Args: never; Returns: boolean }
+      edubite_lock_puzzle_attempt: { Args: { p_attempt: Json }; Returns: Json }
       end_buddy_pair:
         | { Args: { p_user_id: string }; Returns: Json }
         | {
@@ -6676,9 +6739,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: ["admin", "teacher", "student"],

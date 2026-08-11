@@ -56,8 +56,8 @@ export type MockTestLibraryViewProps = {
   setLibraryExamFilter: (v: LibraryExamFilter) => void;
   filteredPastCatalogPapers: PastPaper[];
   filteredMockCatalogPapers: MockPaper[];
-  pastPapersByClassLevel: PastPaper[];
-  mockPapersByClassLevel: MockPaper[];
+  pastCatalogPapers: PastPaper[];
+  mockCatalogPapers: MockPaper[];
   catalogLoading: boolean;
   catalogError: string | null;
   openNtaInstructionsForPaper: (
@@ -94,8 +94,8 @@ export default function MockTestLibraryView({
   setLibraryExamFilter,
   filteredPastCatalogPapers,
   filteredMockCatalogPapers,
-  pastPapersByClassLevel,
-  mockPapersByClassLevel,
+  pastCatalogPapers,
+  mockCatalogPapers,
   catalogLoading,
   catalogError,
   openNtaInstructionsForPaper,
@@ -1028,15 +1028,15 @@ export default function MockTestLibraryView({
                 <ListOrdered className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
                 <p className="font-semibold text-foreground">
                   {(libraryCollectionTab === "past"
-                    ? pastPapersByClassLevel.length
-                    : mockPapersByClassLevel.length) === 0
-                    ? "No papers published for your class yet"
+                    ? pastCatalogPapers.length
+                    : mockCatalogPapers.length) === 0
+                    ? "No papers published yet"
                     : "No papers match your filters"}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {(libraryCollectionTab === "past"
-                    ? pastPapersByClassLevel.length
-                    : mockPapersByClassLevel.length) === 0
+                    ? pastCatalogPapers.length
+                    : mockCatalogPapers.length) === 0
                     ? "Ask your admin to publish mock papers or run the seed import."
                     : "Try another exam or clear the search."}
                 </p>

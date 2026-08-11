@@ -395,7 +395,19 @@ function extractImageOnlyMcq(rawHtml: string): { stemHtml: string; options: stri
     "<p><strong>(3)</strong> — as labeled in the figure</p>",
     "<p><strong>(4)</strong> — as labeled in the figure</p>",
   ];
-  return { stemHtml: `${html}\n${note}`.trim(), options };
+  const imgs = [...html.matchAll(/<img\b[^>]*\/?>/gi)];
+  const last = imgs[imgs.length - 1];
+  let stemHtml = html;
+  if (last?.index != null) {
+    stemHtml = html.slice(0, last.index + last[0].length);
+    if (/<strong\b/i.test(stemHtml) && !/<\/strong>\s*$/i.test(stemHtml)) {
+      stemHtml += "</strong>";
+    }
+    if (/<p\b/i.test(stemHtml) && !/<\/p>\s*$/i.test(stemHtml)) {
+      stemHtml += "</p>";
+    }
+  }
+  return { stemHtml: `${stemHtml.trim()}\n${note}`.trim(), options };
 }
 
 /** Bare `1.` / `1)` / `4,` option markers (JEE mock chemistry style), one per <p>. */
@@ -755,7 +767,7 @@ async function main() {
   const marksPerQ = examKey === "comedk" || examKey === "kcet" ? 1 : examKey === "bitsat" ? 3 : 4;
   const durationMinutes = examKey === "kcet" ? 240 : 180;
   const totalMarks = batch.length * marksPerQ;
-  const classLevel = examKey === "comedk" ? 12 : 11;
+  const classLevel = 11;
   const markingScheme = markingSchemeForExamName(examName);
 
   if (dryRun) {

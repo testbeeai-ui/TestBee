@@ -6,6 +6,8 @@ import type { Json } from "@/integrations/supabase/types";
 
 export interface Profile {
   id: string;
+  /** Public Student ID: EB-YY + alternating letter/digit (DB-allocated). */
+  student_code?: string | null;
   /** Profile row creation time from Supabase (ISO). */
   created_at?: string | null;
   name: string;

@@ -110,6 +110,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (data) {
       let row = data as unknown as Profile;
+      if (!row.student_code?.trim()) {
+        // RPC exists in DB; generated Database types may lag until regenerate.
+        const { data: minted, error: mintErr } = await (supabase as any).rpc(
+          "ensure_my_student_code",
+        );
+        if (mintErr) {
+          console.warn("[auth] ensure_my_student_code:", mintErr.message);
+        } else if (typeof minted === "string" && minted.trim()) {
+          row = { ...row, student_code: minted };
+        }
+      }
       let isSignInFlow = false;
       try {
         isSignInFlow = sessionStorage.getItem("auth_mode") === "signin";
@@ -137,20 +148,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } catch (_) {}
       }
       if (intendedRole && row.role !== intendedRole && !row.onboarding_complete) {
-        // Update profile to correct role before setting it
-        const { data: updated } = await supabase
-          .from("profiles")
-          .update({ role: intendedRole })
-          .eq("id", userId)
-          .select()
-          .maybeSingle();
-        if (updated) {
-          const updatedProfile = updated as unknown as Profile;
-          applyProfileOnboardingLocalState(userId, updatedProfile);
-          setProfile(updatedProfile);
-          if (typeof updatedProfile.rdm === "number")
-            useUserStore.getState().setRdmFromProfile(updatedProfile.rdm);
-          return;
+        // Whitelist-backed role sync (SECURITY DEFINER). Direct client role writes are blocked.
+        const { data: syncedRole, error: syncErr } = await (supabase as any).rpc(
+          "sync_my_profile_role_from_whitelist",
+        );
+        if (syncErr) {
+          console.warn("[auth] sync_my_profile_role_from_whitelist:", syncErr.message);
+        }
+        // Only trust whitelist RPC — never elevate from sessionStorage intendedRole alone.
+        if (syncedRole === "teacher" || syncedRole === "student") {
+          const effectiveRole = syncedRole as "student" | "teacher";
+          if (effectiveRole !== row.role) {
+            const { data: refreshed } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", userId)
+              .maybeSingle();
+            if (refreshed && (refreshed as { role?: string }).role === effectiveRole) {
+              row = refreshed as unknown as Profile;
+            } else {
+              // Keep UI on the whitelist role even if the row has not refreshed yet.
+              row = { ...row, role: effectiveRole };
+            }
+          }
         }
       }
       applyProfileOnboardingLocalState(userId, row);
@@ -177,6 +197,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (stored === "teacher" || stored === "student") intendedRole = stored;
         } catch (_) {}
       }
+      // Insert as student only — privilege trigger blocks client teacher inserts.
+      // Whitelist sync below elevates to teacher when approved_emails says so.
       const { data: inserted } = await supabase
         .from("profiles")
         .upsert(
@@ -184,7 +206,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             id: userId,
             name: name || "User",
             avatar_url: userMeta?.avatar_url ?? null,
-            role: intendedRole,
+            role: "student",
             onboarding_complete: false,
             google_connected: false,
             signup_google: userMeta?.provider === "google",
@@ -194,7 +216,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .select()
         .maybeSingle();
       if (inserted) {
-        const p = inserted as unknown as Profile;
+        let p = inserted as unknown as Profile;
+        if (intendedRole === "teacher") {
+          const { data: syncedRole } = await (supabase as any).rpc(
+            "sync_my_profile_role_from_whitelist",
+          );
+          // Only elevate when whitelist sync confirms teacher.
+          if (syncedRole === "teacher") {
+            p = { ...p, role: "teacher" };
+          }
+        }
         applyProfileOnboardingLocalState(userId, p);
         setProfile(p);
         if (typeof p.rdm === "number") useUserStore.getState().setRdmFromProfile(p.rdm);
@@ -221,6 +252,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (repairErr)
               console.error("[auth] repair onboarding_complete (refetch):", repairErr.message);
             if (repaired) row = repaired as unknown as Profile;
+          }
+          if (
+            intendedRole &&
+            row.role !== intendedRole &&
+            !row.onboarding_complete
+          ) {
+            const { data: syncedRole } = await (supabase as any).rpc(
+              "sync_my_profile_role_from_whitelist",
+            );
+            // Only trust whitelist RPC — never elevate from intendedRole alone.
+            if (syncedRole === "teacher" || syncedRole === "student") {
+              row = { ...row, role: syncedRole };
+            }
           }
           applyProfileOnboardingLocalState(userId, row);
           setProfile(row);
