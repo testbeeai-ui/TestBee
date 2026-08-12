@@ -3,6 +3,10 @@ import {
   isLocalDevHostname,
   isVercelPreviewHostname,
 } from "@/lib/auth/canonicalSignInOrigin";
+import {
+  isUnableToExchangeExternalCode,
+  supabaseGoogleOAuthRedirectUri,
+} from "@/lib/auth/oauthProviderCallbackError";
 import { PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
 
 export function productionSignInUrl(): string {
@@ -16,13 +20,40 @@ export function oauthTryAgainPathForHost(hostname: string): string {
   return `${PREVIEW_AUTH_PATH}?mode=signin`;
 }
 
-export function oauthSignInFailedMessage(hostname?: string): string {
+function supabaseProjectUrlForHelp(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/+$/, "");
+  return "https://<your-project>.supabase.co";
+}
+
+export function oauthSignInFailedMessage(
+  hostname?: string,
+  errorDescription?: string | null
+): string {
   const host = hostname?.trim() || "this site";
   const signInUrl = productionSignInUrl();
   const onPreview = isVercelPreviewHostname(host);
   const onLocal = isLocalDevHostname(host);
+  const supabaseUrl = supabaseProjectUrlForHelp();
+  const googleRedirect = supabaseGoogleOAuthRedirectUri(supabaseUrl);
 
   const lines = [`Google sign-in did not complete on ${host}.`, ""];
+
+  // Supabase ↔ Google handshake failed (wrong Client Secret / redirect URI).
+  if (isUnableToExchangeExternalCode(errorDescription)) {
+    lines.push(
+      "Supabase could not finish Google's login handshake (Unable to exchange external code).",
+      "",
+      "Admin fix (this is not a localhost cookie issue):",
+      "1. Google Cloud Console → APIs & Services → Credentials → your OAuth 2.0 Web client",
+      "2. Authorized redirect URIs must include exactly:",
+      `   ${googleRedirect}`,
+      "3. Supabase → Authentication → Providers → Google: Client ID + Client Secret must be from that same Web client.",
+      "4. Save, wait ~1 minute, then sign in again from http://localhost:3000 (or www.edublast.in).",
+      ""
+    );
+    return lines.join("\n");
+  }
 
   if (onLocal) {
     lines.push(

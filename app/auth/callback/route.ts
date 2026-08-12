@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/integrations/supabase/types";
 import { authCallbackCookieOptions } from "@/lib/auth/authCallbackCookies";
 import { shouldRetryOAuthExchangeOnClient } from "@/lib/auth/oauthCallbackRedirect";
+import { readOAuthProviderCallbackError } from "@/lib/auth/oauthProviderCallbackError";
 
 /**
  * Exchange Google OAuth PKCE code on the server and attach session cookies.
@@ -14,8 +15,19 @@ import { shouldRetryOAuthExchangeOnClient } from "@/lib/auth/oauthCallbackRedire
  */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const code = url.searchParams.get("code")?.trim() ?? "";
   const finish = new URL("/auth/callback/finish", url.origin);
+
+  // Supabase may bounce here with ?error=… (e.g. Unable to exchange external code)
+  // before any PKCE `code` is issued — forward that, do not mask as missing_code.
+  const providerError = readOAuthProviderCallbackError(url.searchParams);
+  if (providerError && !url.searchParams.get("code")?.trim()) {
+    finish.searchParams.set("error", "oauth_exchange_failed");
+    finish.searchParams.set("error_description", providerError.errorDescription);
+    finish.searchParams.set("provider_error", providerError.error);
+    return NextResponse.redirect(finish);
+  }
+
+  const code = url.searchParams.get("code")?.trim() ?? "";
 
   if (code.length < 16) {
     finish.searchParams.set("error", "oauth_exchange_failed");

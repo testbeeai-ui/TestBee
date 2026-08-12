@@ -15,6 +15,18 @@ describe("oauthSignInFailedMessage", () => {
     expect(msg).not.toContain("edublast.vercel.app");
   });
 
+  it("explains Unable to exchange external code as a Google provider credential issue", () => {
+    const msg = oauthSignInFailedMessage(
+      "localhost",
+      "Unable to exchange external code: 4/0A"
+    );
+    expect(msg).toContain("Unable to exchange external code");
+    expect(msg).toContain("Authorized redirect URIs");
+    expect(msg).toContain("/auth/v1/callback");
+    expect(msg).toContain("Client Secret");
+    expect(msg).not.toContain("clear cookies for localhost");
+  });
+
   it("points production sign-in at www.edublast.in", () => {
     expect(productionSignInUrl()).toBe(
       "https://www.edublast.in/preview?mode=signin&role=student"

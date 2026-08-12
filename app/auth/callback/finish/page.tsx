@@ -49,8 +49,8 @@ function AuthCallbackFinishContent() {
       const host = typeof window !== "undefined" ? window.location.hostname : undefined;
       setAuthError(
         urlError === "oauth_exchange_failed"
-          ? oauthSignInFailedMessage(host)
-          : errorDescription || urlError || oauthSignInFailedMessage(host)
+          ? oauthSignInFailedMessage(host, errorDescription)
+          : errorDescription || urlError || oauthSignInFailedMessage(host, errorDescription)
       );
       setReady(true);
       return;
