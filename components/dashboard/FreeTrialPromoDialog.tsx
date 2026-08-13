@@ -487,6 +487,7 @@ export function FreeTrialPromoDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         hideClose={true}
+        overlayClassName="z-[100]"
         onPointerDownOutside={(e) => {
           e.preventDefault();
         }}
@@ -494,7 +495,7 @@ export function FreeTrialPromoDialog({
           e.preventDefault();
         }}
         className={cn(
-          "flex max-h-[min(95dvh,800px)] w-[min(100vw-2rem,520px)] flex-col gap-0 overflow-hidden",
+          "z-[100] flex max-h-[min(95dvh,800px)] w-[min(100vw-2rem,520px)] flex-col gap-0 overflow-hidden",
           "border border-[#334060] bg-[#161B25] p-0 text-[#E8EAF0] shadow-2xl sm:rounded-2xl"
         )}
       >

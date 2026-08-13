@@ -477,11 +477,12 @@ export function isOnboardingTaskComplete(
 }
 
 /**
- * Structural dashboard popup order:
- * 1. Until trial activated → free trial promo on every /home visit
+ * Structural student popup order:
+ * 1. Until trial activated → free trial promo (app-wide via FreeTrialActivationGate)
  * 2. After activation, checklist incomplete → onboarding checklist
  * 3. Checklist complete, not claimed → claim reward popup (no checklist)
- * 4. Claimed → none (Today's checklist is separate — 30s cooldown after claim; see daily checklist helpers)
+ * 4. Trial ended → card / continue-free (app-wide via TrialExpirationGate)
+ * 5. Claimed / resolved → none (Today's checklist is separate — 30s cooldown after claim)
  */
 export function getDashboardPopupPhase(
   profile?: OnboardingProfileFields | null,

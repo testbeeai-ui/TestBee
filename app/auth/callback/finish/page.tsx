@@ -40,6 +40,7 @@ function AuthCallbackFinishContent() {
 
   const urlError = mounted ? searchParams.get("error") : null;
   const errorDescription = mounted ? searchParams.get("error_description") : null;
+  const pendingCode = mounted ? searchParams.get("code") : null;
   const hasUrlError = !!(urlError || errorDescription);
 
   useEffect(() => {
@@ -48,8 +49,8 @@ function AuthCallbackFinishContent() {
       const host = typeof window !== "undefined" ? window.location.hostname : undefined;
       setAuthError(
         urlError === "oauth_exchange_failed"
-          ? oauthSignInFailedMessage(host)
-          : errorDescription || urlError || oauthSignInFailedMessage(host)
+          ? oauthSignInFailedMessage(host, errorDescription)
+          : errorDescription || urlError || oauthSignInFailedMessage(host, errorDescription)
       );
       setReady(true);
       return;
@@ -66,8 +67,20 @@ function AuthCallbackFinishContent() {
       return;
     }
 
+    if (pendingCode && pendingCode.length >= 16) {
+      void (async () => {
+        const { error } = await supabase.auth.exchangeCodeForSession(pendingCode);
+        window.history.replaceState(null, "", "/auth/callback/finish");
+        if (error) {
+          setAuthError(oauthSignInFailedMessage(window.location.hostname));
+        }
+        setReady(true);
+      })();
+      return;
+    }
+
     setReady(true);
-  }, [mounted, hasUrlError, urlError, errorDescription]);
+  }, [mounted, hasUrlError, urlError, errorDescription, pendingCode]);
 
   const doRedirect = useCallback(
     (path: string, stored: string | null) => {
@@ -101,45 +114,42 @@ function AuthCallbackFinishContent() {
     const onboardPath = isTeacher ? "/onboarding?role=teacher" : "/onboarding?role=student";
 
     if (user && profile?.onboarding_complete) {
-      void (async () => {
-        await supabase.auth.signOut({ scope: "others" });
-        const pending = readPendingDeepLink();
-        const fromOAuth = destinationFromOAuthStored(stored);
-        const dest = pending ?? fromOAuth ?? postOnboardPath;
-        clearPendingDeepLink();
-        doRedirect(dest, stored);
-      })();
+      void supabase.auth.signOut({ scope: "others" }).catch(() => {});
+      const pending = readPendingDeepLink();
+      const fromOAuth = destinationFromOAuthStored(stored);
+      const dest = pending ?? fromOAuth ?? postOnboardPath;
+      clearPendingDeepLink();
+      doRedirect(dest, stored);
       return;
     }
     if (user && profile !== null && !profile?.onboarding_complete) {
-      void (async () => {
-        await supabase.auth.signOut({ scope: "others" });
-        doRedirect(onboardPath, stored);
-      })();
+      void supabase.auth.signOut({ scope: "others" }).catch(() => {});
+      doRedirect(onboardPath, stored);
       return;
     }
 
-    const authSub = supabase.auth.onAuthStateChange(() => {});
-    const subscription = authSub?.data?.subscription;
-
-    const pollUntil = Date.now() + 15000;
-    const poll = async () => {
+    const host = typeof window !== "undefined" ? window.location.hostname : undefined;
+    const failTimer = window.setTimeout(() => {
       if (redirected.current) return;
-      const session = await readClientSession();
-      if (!session?.user) {
-        if (Date.now() < pollUntil) setTimeout(poll, 400);
-        else doRedirect(oauthTryAgainPath(), stored);
+      if (user) {
+        doRedirect(onboardPath, stored);
+        return;
       }
-    };
+      setAuthError(oauthSignInFailedMessage(host));
+    }, 8000);
 
     if (!user && !loading) {
-      const t = setTimeout(poll, 600);
-      return () => {
-        clearTimeout(t);
-        subscription?.unsubscribe?.();
+      const pollUntil = Date.now() + 8000;
+      const poll = async () => {
+        if (redirected.current) return;
+        const session = await readClientSession();
+        if (session?.user) return;
+        if (Date.now() < pollUntil) window.setTimeout(poll, 400);
       };
+      window.setTimeout(poll, 400);
     }
-    return () => subscription?.unsubscribe?.();
+
+    return () => window.clearTimeout(failTimer);
   }, [
     user,
     profile,

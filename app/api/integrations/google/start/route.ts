@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createClientWithToken } from "@/integrations/supabase/server";
-import { getGoogleOAuthEnv, GOOGLE_CALENDAR_SCOPE } from "@/lib/integrations/googleEnv";
+import {
+  getGoogleOAuthEnv,
+  GOOGLE_CALENDAR_SCOPE,
+  oauthHostFromHeaders,
+} from "@/lib/integrations/googleEnv";
 import { signGoogleOAuthState } from "@/lib/integrations/googleOAuthState";
 
 async function resolveUserId(request: NextRequest): Promise<string | null> {
@@ -20,8 +24,8 @@ async function resolveUserId(request: NextRequest): Promise<string | null> {
   return user?.id ?? null;
 }
 
-function buildGoogleAuthUrl(input: { userId: string }) {
-  const { clientId, redirectUri } = getGoogleOAuthEnv();
+function buildGoogleAuthUrl(input: { userId: string; hostHeader?: string | null }) {
+  const { clientId, redirectUri } = getGoogleOAuthEnv(input.hostHeader);
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -42,7 +46,10 @@ export async function GET(request: NextRequest) {
     }
 
     const state = await signGoogleOAuthState(userId);
-    const { params } = buildGoogleAuthUrl({ userId });
+    const { params } = buildGoogleAuthUrl({
+      userId,
+      hostHeader: oauthHostFromHeaders(request.headers),
+    });
     params.set("state", state);
 
     const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
@@ -73,7 +80,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     }
     const state = await signGoogleOAuthState(userId, { popup });
-    const { params } = buildGoogleAuthUrl({ userId });
+    const { params } = buildGoogleAuthUrl({
+      userId,
+      hostHeader: oauthHostFromHeaders(request.headers),
+    });
     params.set("state", state);
     const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
     return NextResponse.json({ url });

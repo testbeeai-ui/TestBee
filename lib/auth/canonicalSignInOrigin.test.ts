@@ -7,6 +7,7 @@ import {
 describe("canonicalSignInOrigin", () => {
   it("treats vercel preview hosts as preview", () => {
     expect(isVercelPreviewHostname("edu-blast-testbees-projects.vercel.app")).toBe(true);
+    expect(isVercelPreviewHostname("edublast.vercel.app")).toBe(true);
     expect(isVercelPreviewHostname("www.edublast.in")).toBe(false);
     expect(isVercelPreviewHostname("edublast.in")).toBe(false);
     expect(isVercelPreviewHostname("localhost")).toBe(false);

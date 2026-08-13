@@ -8,6 +8,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "next-themes";
 import { useState, Suspense, type ReactNode } from "react";
 import { PageViewTracker } from "@/components/providers/PageViewTracker";
+import { FreeTrialActivationGate } from "@/components/providers/FreeTrialActivationGate";
 import { TrialExpirationGate } from "@/components/providers/TrialExpirationGate";
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -25,6 +26,7 @@ export function Providers({ children }: { children: ReactNode }) {
             <Suspense fallback={null}>
               <PageViewTracker />
             </Suspense>
+            <FreeTrialActivationGate />
             <TrialExpirationGate />
             {children}
             <ToasterPortal />

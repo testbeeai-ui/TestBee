@@ -26,3 +26,21 @@ export function shouldRedirectOAuthCodeToCallback(pathname: string, code: string
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 }
+
+/** PKCE exchange lives on these routes — middleware must not touch the cookies. */
+export function isOAuthPkceLandingPath(pathname: string): boolean {
+  return (
+    pathname === "/auth/callback" ||
+    pathname === "/auth/mobile-callback" ||
+    pathname.startsWith("/auth/callback/")
+  );
+}
+
+export function shouldRetryOAuthExchangeOnClient(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("code verifier") ||
+    m.includes("pkce") ||
+    m.includes("both auth code and code verifier")
+  );
+}

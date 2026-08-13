@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/integrations/supabase/server";
 import { exchangeAuthorizationCode, fetchPrimaryCalendarEmail } from "@/lib/integrations/googleCalendarServer";
 import { persistTeacherGoogleCalendarEmail } from "@/lib/integrations/googleCalendarAccount";
-import { getGoogleOAuthEnv } from "@/lib/integrations/googleEnv";
+import { getGoogleOAuthEnv, oauthHostFromHeaders } from "@/lib/integrations/googleEnv";
 import { verifyGoogleOAuthState } from "@/lib/integrations/googleOAuthState";
 
 function popupCompleteRedirect(
@@ -61,7 +61,9 @@ export async function GET(request: NextRequest) {
   try {
     const { userId, popup } = await verifyGoogleOAuthState(state);
     popupFlow = popup;
-    const { clientId, clientSecret, redirectUri } = getGoogleOAuthEnv();
+    const { clientId, clientSecret, redirectUri } = getGoogleOAuthEnv(
+      oauthHostFromHeaders(request.headers)
+    );
     const tokens = await exchangeAuthorizationCode({
       code,
       redirectUri,

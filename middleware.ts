@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { loadSessionProfile } from "@/lib/auth/middlewareProfileCache";
 import { resolveSessionUser } from "@/lib/auth/middlewareSessionUser";
 import {
-  isOAuthAuthorizationCode,
+  isOAuthPkceLandingPath,
   shouldRedirectOAuthCodeToCallback,
 } from "@/lib/auth/oauthCallbackRedirect";
 import { PREVIEW_AUTH_LEGACY_PATHS, PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
@@ -91,13 +91,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  /** Let OAuth landing pages handle PKCE without middleware rewriting to /auth/callback. */
-  if (
-    (pathname === "/auth/callback" ||
-      pathname === "/auth/mobile-callback" ||
-      pathname === PREVIEW_AUTH_PATH) &&
-    isOAuthAuthorizationCode(oauthCode)
-  ) {
+  /** PKCE exchange must see the original cookies — do not refresh/rewrite first. */
+  if (isOAuthPkceLandingPath(pathname)) {
     return NextResponse.next();
   }
 

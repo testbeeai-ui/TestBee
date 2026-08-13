@@ -63,7 +63,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useSitePresenceLiveMsToday } from "@/components/providers/SitePresenceProvider";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { FreeTrialPromoDialog } from "@/components/dashboard/FreeTrialPromoDialog";
 import DashboardMemoryRecallPanel from "@/components/dashboard/DashboardMemoryRecallPanel";
 
 import {
@@ -861,7 +860,6 @@ export default function StudentHomeDashboard() {
   const dailyChecklistCommittedRef = useRef(false);
   const [isChecklistOpen, setIsChecklistOpen] = useState(false);
   const dailyChecklistAutoOpenedRef = useRef(false);
-  const [freeTrialPromoOpen, setFreeTrialPromoOpen] = useState(false);
   const [trialActivated, setTrialActivated] = useState(() =>
     typeof window !== "undefined" ? getFreeTrialActivated(profile) : false
   );
@@ -872,9 +870,6 @@ export default function StudentHomeDashboard() {
   const checklistTapCount = useMemo(
     () => (isAppAdmin ? Object.values(checklistTaps).filter(Boolean).length : 0),
     [checklistTaps, isAppAdmin]
-  );
-  const [welcomeRdm, setWelcomeRdm] = useState(
-    DEFAULT_RDM_CONFIG.free_trial_welcome_rdm
   );
   const [checklistRewardRdm, setChecklistRewardRdm] = useState(
     DEFAULT_RDM_CONFIG.free_trial_checklist_reward_rdm
@@ -973,9 +968,8 @@ export default function StudentHomeDashboard() {
 
   const applyDashboardPopupPhase = useCallback(() => {
     const activated = getFreeTrialActivated(profile);
-    const phase = getDashboardPopupPhase(profile, profile?.id);
     setTrialActivated(activated);
-    setFreeTrialPromoOpen(phase === "free_trial");
+    // Free-trial activation promo: FreeTrialActivationGate in app/providers.tsx (all routes).
     // Site-tour carousel auto-opens from AppLayout `SiteTourCarouselHost` (not legacy checklist).
     // eslint-disable-next-line react-hooks/exhaustive-deps -- granular fields avoid re-running on unrelated profile columns (e.g. RDM ticks)
   }, [
@@ -1008,7 +1002,6 @@ export default function StudentHomeDashboard() {
       });
       setChecklistRewardRdm(state.checklistRewardRdm);
       setSiteTourClaimedEver(state.claimedEver === true);
-      setWelcomeRdm(state.freeTrialWelcomeRdm ?? DEFAULT_RDM_CONFIG.free_trial_welcome_rdm);
       startTransition(() => applyDashboardPopupPhase());
     });
     return () => {
@@ -1125,21 +1118,15 @@ export default function StudentHomeDashboard() {
     return !isFreeTrialPeriodEndedForProfile(profile, dashboardClock);
   }, [profile, dashboardClock]);
 
-  useEffect(() => {
-    if (!freeTrialEndedForClock || profile?.trial_end_bonus_activated) return;
-    startTransition(() => {
-      setFreeTrialPromoOpen(false);
-    });
-  }, [freeTrialEndedForClock, profile?.trial_end_bonus_activated]);
-
   const trialExpirationOpen = useMemo(
     () => shouldShowTrialExpirationOverlay(profile, dashboardClock),
     [profile, dashboardClock]
   );
 
-  const freeTrialDialogOpen = !trialActivated && freeTrialPromoOpen;
-
-  const higherPriorityPopupOpen = freeTrialDialogOpen || trialExpirationOpen;
+  /** Blocks lower-priority home popups while activation/expiry gates own the screen. */
+  const higherPriorityPopupOpen =
+    (!trialActivated && getDashboardPopupPhase(profile, profile?.id) === "free_trial") ||
+    trialExpirationOpen;
 
   const tryAutoOpenDailyChecklist = useCallback(() => {
     // Disabled auto-opening of Today's checklist as requested by the user.
@@ -2329,12 +2316,7 @@ export default function StudentHomeDashboard() {
         </Dialog>
       ) : null}
 
-      <FreeTrialPromoDialog
-        open={freeTrialDialogOpen}
-        onOpenChange={setFreeTrialPromoOpen}
-        welcomeRdm={welcomeRdm}
-        checklistRewardRdm={checklistRewardRdm}
-      />
+      {/* Free-trial activation: FreeTrialActivationGate in app/providers.tsx (all student routes) */}
       {/* Trial-end payment gate: TrialExpirationGate in app/providers.tsx (single overlay) */}
     </div>
   );
