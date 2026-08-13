@@ -148,6 +148,7 @@ Anything that is not Next.js / tooling config now lives under:
 | Setup | `mobileapp/README.md`, `mobileapp/.env.example` |
 
 ## Decisions Log
+- 2026-08-13: **Teacher OAuth finish bugs** — wait for PKCE session before re-exchanging `code`; don't timeout-redirect to student onboarding before profile loads; bypass `/onboarding` in `FreeTrialActivationGate`.
 - 2026-08-11: **rdm_config_pkey idempotent in baseline** — `20260915120000` skips adding `rdm_config_pkey` if `20260618110000_ensure_rdm_config_table` already created it (fresh/preview migrate).
 - 2026-08-11: **Teacher role whitelist sync** — `fetchProfile` only sets teacher/student from `sync_my_profile_role_from_whitelist`; no fallback to sessionStorage `intendedRole` when RPC returns null.
 - 2026-08-07: **`relocateOptionImagesToStem` regression** — extracted to `lib/pastPaper/relocateOptionImagesToStem.ts`; never relocate when multiple options carry figures (even all `data:` URIs). Tests lock multi-image MCQ behavior.

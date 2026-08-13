@@ -69,11 +69,16 @@ function AuthCallbackFinishContent() {
 
     if (pendingCode && pendingCode.length >= 16) {
       void (async () => {
-        const { error } = await supabase.auth.exchangeCodeForSession(pendingCode);
-        window.history.replaceState(null, "", "/auth/callback/finish");
-        if (error) {
-          setAuthError(oauthSignInFailedMessage(window.location.hostname));
+        // PKCE codes are single-use; wait for detectSessionInUrl before exchanging.
+        let session = await readClientSession();
+        if (!session) {
+          const { error } = await supabase.auth.exchangeCodeForSession(pendingCode);
+          session = await readClientSession();
+          if (error && !session) {
+            setAuthError(oauthSignInFailedMessage(window.location.hostname));
+          }
         }
+        window.history.replaceState(null, "", "/auth/callback/finish");
         setReady(true);
       })();
       return;
@@ -128,13 +133,12 @@ function AuthCallbackFinishContent() {
       return;
     }
 
+    // Wait for profile so we don't mis-route teachers as students.
+    if (user) return;
+
     const host = typeof window !== "undefined" ? window.location.hostname : undefined;
     const failTimer = window.setTimeout(() => {
       if (redirected.current) return;
-      if (user) {
-        doRedirect(onboardPath, stored);
-        return;
-      }
       setAuthError(oauthSignInFailedMessage(host));
     }, 8000);
 
