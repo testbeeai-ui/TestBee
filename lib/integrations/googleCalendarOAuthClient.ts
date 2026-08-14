@@ -89,6 +89,9 @@ export async function redirectToGoogleCalendarConsent(options?: {
 
     window.addEventListener("message", onMessage);
 
+    // COOP (Cross-Origin-Opener-Policy) often blocks window.closed / window.focus
+    // after Google navigates the popup. Treat that as opaque, not as "user closed".
+    // Rely on postMessage from /integrations/google/oauth-complete, plus a timeout.
     const intervalId = window.setInterval(() => {
       if (settled) return;
       try {
@@ -96,8 +99,13 @@ export async function redirectToGoogleCalendarConsent(options?: {
           finish({ mode: "popup", connected: false, reason: "closed" });
         }
       } catch {
-        finish({ mode: "popup", connected: false, reason: "closed" });
+        // Ignore COOP-blocked closed checks; wait for postMessage or timeout.
       }
     }, 400);
+
+    window.setTimeout(() => {
+      if (settled) return;
+      finish({ mode: "popup", connected: false, reason: "timeout" });
+    }, 180_000);
   });
 }

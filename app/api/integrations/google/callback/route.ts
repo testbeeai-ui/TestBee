@@ -5,6 +5,23 @@ import { persistTeacherGoogleCalendarEmail } from "@/lib/integrations/googleCale
 import { getGoogleOAuthEnv, oauthHostFromHeaders } from "@/lib/integrations/googleEnv";
 import { verifyGoogleOAuthState } from "@/lib/integrations/googleOAuthState";
 
+function classifyCallbackFailure(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("redirect_uri_mismatch") || m.includes("redirect_uri")) {
+    return "redirect_uri_mismatch";
+  }
+  if (m.includes("invalid_grant") || m.includes("invalid_client")) {
+    return "token_exchange_failed";
+  }
+  if (m.includes("oauth state") || m.includes("jwt") || m.includes("state secret")) {
+    return "invalid_state";
+  }
+  if (m.includes("google_calendar_email") || m.includes("column")) {
+    return "schema_mismatch";
+  }
+  return "callback_failed";
+}
+
 function popupCompleteRedirect(
   request: NextRequest,
   result: "connected" | "error",
@@ -99,31 +116,44 @@ export async function GET(request: NextRequest) {
       },
       { onConflict: "user_id" }
     );
-    if (upsertErr) throw upsertErr;
+    if (upsertErr) {
+      console.error("[google/callback] token upsert failed:", upsertErr.message);
+      throw upsertErr;
+    }
 
-    const calendarEmail = tokens.access_token
-      ? await fetchPrimaryCalendarEmail(tokens.access_token)
-      : null;
-    await persistTeacherGoogleCalendarEmail(admin, userId, calendarEmail);
+    try {
+      const calendarEmail = tokens.access_token
+        ? await fetchPrimaryCalendarEmail(tokens.access_token)
+        : null;
+      await persistTeacherGoogleCalendarEmail(admin, userId, calendarEmail);
+    } catch (emailErr) {
+      console.warn("[google/callback] calendar email persist skipped:", emailErr);
+    }
 
     const { error: profileErr } = await admin
       .from("profiles")
       .update({ google_connected: true, updated_at: new Date().toISOString() })
       .eq("id", userId);
-    if (profileErr) throw profileErr;
+    if (profileErr) {
+      console.error("[google/callback] profile google_connected update failed:", profileErr.message);
+      throw profileErr;
+    }
 
     if (popupFlow) {
       return popupCompleteRedirect(request, "connected");
     }
     redirectBase.searchParams.set("google", "connected");
     return NextResponse.redirect(redirectBase);
-  } catch {
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("[google/callback] failed:", message);
+    const reason = classifyCallbackFailure(message);
     return popupFlow
-      ? popupCompleteRedirect(request, "error", "callback_failed")
+      ? popupCompleteRedirect(request, "error", reason)
       : NextResponse.redirect(
           (() => {
             redirectBase.searchParams.set("google", "error");
-            redirectBase.searchParams.set("reason", "callback_failed");
+            redirectBase.searchParams.set("reason", reason);
             return redirectBase;
           })()
         );

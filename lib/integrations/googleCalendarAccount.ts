@@ -13,10 +13,13 @@ export async function persistTeacherGoogleCalendarEmail(
 ): Promise<void> {
   const trimmed = email?.trim();
   if (!trimmed) return;
-  await admin
+  const { error } = await admin
     .from("profiles")
     .update({ google_calendar_email: trimmed, updated_at: new Date().toISOString() })
     .eq("id", userId);
+  if (error) {
+    console.warn("[google] persistTeacherGoogleCalendarEmail:", error.message);
+  }
 }
 
 /**
