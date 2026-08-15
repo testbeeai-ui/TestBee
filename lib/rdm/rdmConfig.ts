@@ -68,6 +68,8 @@ export type RdmConfigParams = {
   /** Gyan++: teacher answer reward shown in Teacher Section UI */
   gyan_teacher_answer_rdm: number;
 
+  /** One-time RDM credited when a user first completes teacher-profile onboarding. */
+  teacher_profile_welcome_rdm: number;
   /** Welcome bonus RDM credited immediately to the student upon activating the 14-day free trial. */
   free_trial_welcome_rdm: number;
   /** Penalty RDM deducted from a free-trial user when they spend less than 30 minutes on-site during a trial day. */
@@ -142,6 +144,7 @@ export const DEFAULT_RDM_CONFIG: RdmConfigParams = {
   gyan_save_rdm: 3,
   gyan_teacher_answer_rdm: 5,
 
+  teacher_profile_welcome_rdm: 500,
   free_trial_welcome_rdm: 500,
   free_trial_inactive_penalty_rdm: 50,
   free_inactive_penalty_rdm: 50,

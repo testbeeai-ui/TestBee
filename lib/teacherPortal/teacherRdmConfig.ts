@@ -38,6 +38,7 @@ export const TEACHER_RDM_CHARGE_CONFIG_KEYS: Record<TeacherRdmChargeAction, stri
 };
 
 export const TEACHER_GYAN_REWARD_CONFIG_KEY = "gyan_teacher_answer_rdm";
+export const TEACHER_PROFILE_WELCOME_RDM_KEY = "teacher_profile_welcome_rdm";
 
 export type TeacherRdmCosts = Record<TeacherRdmChargeAction, number> & {
   gyan_teacher_answer: number;
@@ -205,6 +206,15 @@ export const TEACHER_RDM_ADMIN_META: Record<
     summary: string;
   }
 > = {
+  [TEACHER_PROFILE_WELCOME_RDM_KEY]: {
+    title: "New teacher profile · one-time welcome",
+    kind: "reward",
+    summary:
+      "Credits 500 RDM (default) once when a new teacher completes Teacher Profile onboarding. Never paid again on later logins or profile edits.",
+    teacherSurface: "Onboarding · Teacher Profile (first completion)",
+    serverPath:
+      "credit_teacher_profile_welcome_rdm (profiles trigger; teacher_welcome_rdm_claimed_at)",
+  },
   referral_teacher_signup_reward: {
     title: "Teacher referral · referred teacher signup",
     kind: "reward",
@@ -461,6 +471,9 @@ export const TEACHER_RDM_ADMIN_META: Record<
     serverPath: "classroom_members cap",
   },
 };
+
+/** One-time welcome for a new teacher profile — first subsection on the Teachers admin tab. */
+export const TEACHER_RDM_ADMIN_WELCOME_KEYS = [TEACHER_PROFILE_WELCOME_RDM_KEY] as const;
 
 /** Teacher growth rewards (referrals + bulk invite) — surfaced in the Teachers admin section. */
 export const TEACHER_RDM_ADMIN_GROWTH_KEYS = [

@@ -23,6 +23,7 @@ export type TeacherWalletGuideInput = {
   bulkInviteFlat?: number;
   bulkInviteMinStudents?: number;
   bulkPaidBonus?: number;
+  profileWelcome?: number;
 };
 
 export function buildTeacherWalletGuide(
@@ -34,6 +35,10 @@ export function buildTeacherWalletGuide(
   const ref = DEFAULT_RDM_CONFIG;
 
   const earn: WalletGuideRow[] = [
+    {
+      label: "New teacher welcome (once)",
+      value: `+${input.profileWelcome ?? ref.teacher_profile_welcome_rdm}`,
+    },
     { label: "Gyan++ answer", value: `+${costs.gyan_teacher_answer}` },
     {
       label: "Schedule live lesson",
@@ -99,6 +104,7 @@ export function buildTeacherWalletGuide(
   );
 
   const notes = [
+    "New teacher profiles receive a one-time welcome credit when Teacher Profile onboarding completes (default 500 RDM).",
     "Monthly included: Free 12 · Starter 24 · Pro 60 (assignments + live lessons). Free/Starter must upgrade at cap; Pro can continue with extra charges above.",
     "Pro: no flat publish fee in quota. MCQ test history reprints are free.",
     "Top up in Subscriptions — Razorpay (500 / 1,000 / 2,200 RDM).",

@@ -6,6 +6,9 @@ describe("buildTeacherWalletGuide", () => {
     const guide = buildTeacherWalletGuide();
     expect(guide.earn.length).toBeGreaterThan(3);
     expect(guide.spend.length).toBeGreaterThan(3);
+    expect(guide.earn.some((r) => r.label === "New teacher welcome (once)")).toBe(true);
+    expect(guide.earn.find((r) => r.label === "New teacher welcome (once)")?.value).toBe("+500");
+    expect(guide.notes.some((n) => n.includes("one-time welcome"))).toBe(true);
     expect(guide.earn.some((r) => r.label === "Gyan++ answer")).toBe(true);
     expect(guide.spend.some((r) => r.label === "MCQ unlock · free student")).toBe(true);
   });

@@ -44,6 +44,7 @@ export default function TeacherWalletView({
         referralTeacherSignup: referStats.teacherSignupRewardRdm,
         referralStudentSignup: referStats.teacherStudentSignupRewardRdm,
         referralPaidBonus: referStats.teacherPaidBonusRdm,
+        profileWelcome: referStats.teacherProfileWelcomeRdm,
       }),
     [costs, liveClassDelivery, referStats]
   );

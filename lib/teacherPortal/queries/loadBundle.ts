@@ -1814,6 +1814,7 @@ export async function loadTeacherPortalBundle(
     teacherStudentSignupRewardRdm: rdmConfig.referral_teacher_student_signup_reward,
     teacherPaidBonusRdm: rdmConfig.referral_teacher_paid_bonus,
     teacherPaidWindowDays: rdmConfig.referral_teacher_paid_window_days,
+    teacherProfileWelcomeRdm: rdmConfig.teacher_profile_welcome_rdm,
   };
 
   return {
