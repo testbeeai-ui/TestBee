@@ -1,9 +1,23 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useState,
+  type ReactElement,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import Link from "next/link";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import type { PublicProfile } from "@/lib/profile/publicProfileService";
+import {
+  getPublicProfileCached,
+  peekPublicProfile,
+  prefetchPublicProfile,
+} from "@/lib/profile/publicProfileClientCache";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HelpCircle, MessageSquare, Zap, ChevronRight, Flame } from "lucide-react";
 
@@ -19,31 +33,70 @@ interface UserHoverCardProps {
   displayName?: string;
 }
 
-export function UserHoverCard({ userId, children, displayName }: UserHoverCardProps) {
-  const [profile, setProfile] = useState<PublicProfile | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [fetched, setFetched] = useState(false);
+export function UserHoverCard({ userId, children }: UserHoverCardProps) {
+  const [profile, setProfile] = useState<PublicProfile | null>(
+    () => peekPublicProfile(userId) ?? null
+  );
+  const [loading, setLoading] = useState(() => peekPublicProfile(userId) === undefined);
+
+  const applyPeek = useCallback(() => {
+    const peeked = peekPublicProfile(userId);
+    setProfile(peeked ?? null);
+    setLoading(peeked === undefined);
+  }, [userId]);
+
+  useEffect(() => {
+    applyPeek();
+  }, [applyPeek]);
 
   const loadProfile = useCallback(async () => {
-    if (fetched || loading) return;
+    const peeked = peekPublicProfile(userId);
+    if (peeked !== undefined) {
+      setProfile(peeked);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const res = await fetch(`/api/public-profile/${userId}`, {
-        credentials: "include",
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache" },
-      });
-      const p = (await res.json()) as PublicProfile | null;
-      if (res.ok && p && typeof p === "object" && "id" in p) setProfile(p as PublicProfile);
+      const p = await getPublicProfileCached(userId);
+      setProfile(p);
     } finally {
       setLoading(false);
-      setFetched(true);
     }
-  }, [userId, fetched, loading]);
+  }, [userId]);
+
+  const onTriggerPointerEnter = useCallback(() => {
+    void prefetchPublicProfile(userId)
+      .then((p) => {
+        setProfile(p);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
+  }, [userId]);
+
+  const trigger = (() => {
+    const only = Children.count(children) === 1 ? Children.only(children) : null;
+    if (!isValidElement(only)) {
+      return (
+        <div className="min-w-0 w-fit max-w-full" onPointerEnter={onTriggerPointerEnter}>
+          {children}
+        </div>
+      );
+    }
+    const el = only as ReactElement<{ onPointerEnter?: (e: ReactPointerEvent) => void }>;
+    return cloneElement(el, {
+      onPointerEnter: (e: ReactPointerEvent) => {
+        el.props.onPointerEnter?.(e);
+        onTriggerPointerEnter();
+      },
+    });
+  })();
 
   return (
-    <HoverCard openDelay={300} closeDelay={100} onOpenChange={(open) => open && loadProfile()}>
-      <HoverCardTrigger asChild>{children}</HoverCardTrigger>
+    <HoverCard openDelay={300} closeDelay={100} onOpenChange={(open) => open && void loadProfile()}>
+      <HoverCardTrigger asChild>{trigger}</HoverCardTrigger>
       <HoverCardContent align="start" className="w-[340px] p-0 overflow-hidden rounded-xl">
         {loading ? (
           <div className="p-5 space-y-4 animate-pulse">

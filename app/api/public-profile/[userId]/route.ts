@@ -73,7 +73,7 @@ async function ensureProfileFromAuth(
  */
 export async function GET(request: Request, { params }: { params: Promise<{ userId: string }> }) {
   const headers = new Headers();
-  headers.set("Cache-Control", "private, no-store, max-age=0");
+  headers.set("Cache-Control", "private, max-age=60");
 
   try {
     const { userId } = await params;
