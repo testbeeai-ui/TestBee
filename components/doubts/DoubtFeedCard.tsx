@@ -120,7 +120,9 @@ export default function DoubtFeedCard({
 
   const d = doubt;
   const doubtMyVote = getMyVote?.("doubt", d.id) ?? 0;
-  const authorName = d.profiles?.name ?? "Student";
+  const isAuthorTeacher = d.profiles?.role === "teacher";
+  const isAuthorAI = isAiTutorDoubtAuthor(d.profiles, d.user_id);
+  const authorName = isAuthorAI ? PROF_PI_ANSWER_LABEL : (d.profiles?.name ?? "Student");
   const authorInitials = authorName.slice(0, 2).toUpperCase();
   const doubtLikeCount = d.upvotes;
   const subjectCanon = canonicalDoubtSubject(d.subject);
@@ -133,9 +135,6 @@ export default function DoubtFeedCard({
   const bodyPreviewMd = isLongBody
     ? truncatePreservingInlineMath(bodyMd, FEED_QUESTION_PREVIEW)
     : bodyMd;
-
-  const isAuthorTeacher = d.profiles?.role === "teacher";
-  const isAuthorAI = isAiTutorDoubtAuthor(d.profiles);
 
   const curriculumNode = pickCurriculumNodeFromDoubt(d);
   /** Any doubt linked to a curriculum cell (bot or auto-attached after Prof-Pi). */

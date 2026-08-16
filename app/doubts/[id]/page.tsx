@@ -50,6 +50,7 @@ import {
   getSubjectColor,
   DOUBT_FLAIRS,
 } from "@/components/doubts/doubtTypes";
+import { attachAuthorProfiles } from "@/lib/profile/attachAuthorProfiles";
 import {
   AiCurriculumSourceStrip,
   pickCurriculumNodeFromDoubt,
@@ -187,7 +188,8 @@ export default function DoubtDetailPage() {
       setDoubt(null);
       return;
     }
-    setDoubt(data as Doubt);
+    const [row] = await attachAuthorProfiles(supabase, [data as Doubt]);
+    setDoubt(row ?? null);
   }, [id]);
 
   const fetchAnswers = useCallback(async () => {
@@ -204,7 +206,7 @@ export default function DoubtDetailPage() {
       setAnswers([]);
       return;
     }
-    setAnswers((data as Answer[]) || []);
+    setAnswers(await attachAuthorProfiles(supabase, (data as Answer[]) || []));
   }, [id]);
 
   const fetchMyVotes = useCallback(async () => {

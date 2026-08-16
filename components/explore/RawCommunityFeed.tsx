@@ -14,6 +14,7 @@ import { matchesCommunityPostType } from "@/lib/explore/communityPostScore";
 import { selectSavedCommunityPosts, useUserStore } from "@/store/useUserStore";
 import { syncAllSavedContent } from "@/lib/saved/savedContentService";
 import RawFeedPostCard, { type CommentRow } from "./RawFeedPostCard";
+import { attachAuthorProfiles } from "@/lib/profile/attachAuthorProfiles";
 import type { RawPostRow } from "./rawFeedTypes";
 import type { SavedCommunityPost } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -245,7 +246,10 @@ export default function RawCommunityFeed({
           });
           return null;
         }
-        return normalizeLegacyRows((second.data ?? []) as unknown[]);
+        return attachAuthorProfiles(
+          supabase,
+          normalizeLegacyRows((second.data ?? []) as unknown[])
+        );
       }
 
       if (first.error) {
@@ -256,7 +260,7 @@ export default function RawCommunityFeed({
         });
         return null;
       }
-      return (first.data ?? []) as unknown as RawPostRow[];
+      return attachAuthorProfiles(supabase, (first.data ?? []) as unknown as RawPostRow[]);
     },
     [filter, sort, toast]
   );
@@ -447,7 +451,8 @@ export default function RawCommunityFeed({
       }
 
       if (cancelled || !row) return;
-      const focusRow = row;
+      const [focusRow] = await attachAuthorProfiles(supabase, [row]);
+      if (cancelled || !focusRow) return;
       setPosts((prev) => {
         if (prev.some((p) => p.id === focusRow.id)) return prev;
         return [focusRow, ...prev];
@@ -510,7 +515,8 @@ export default function RawCommunityFeed({
       toast({ title: "Could not load thread", description: error.message, variant: "destructive" });
       return;
     }
-    setCommentsByPost((m) => ({ ...m, [postId]: (data ?? []) as CommentRow[] }));
+    const comments = await attachAuthorProfiles(supabase, (data ?? []) as CommentRow[]);
+    setCommentsByPost((m) => ({ ...m, [postId]: comments }));
   };
 
   const submitComment = async (postId: string) => {
@@ -540,7 +546,8 @@ export default function RawCommunityFeed({
     }
     setCommentDraft((m) => ({ ...m, [postId]: "" }));
     setReplyParentId((m) => ({ ...m, [postId]: null }));
-    const row = data as CommentRow;
+    const [row] = await attachAuthorProfiles(supabase, [data as CommentRow]);
+    if (!row) return;
     setCommentsByPost((m) => ({
       ...m,
       [postId]: [...(m[postId] ?? []), row],

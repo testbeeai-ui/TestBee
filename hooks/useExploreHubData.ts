@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { computeStreakDays } from "@/lib/dashboard/gauntletStreak";
+import { attachAuthorProfiles } from "@/lib/profile/attachAuthorProfiles";
 
 export interface ExploreStats {
   streakDays: number;
@@ -130,7 +131,7 @@ export function useExploreHubData(userId: string | undefined, rdm: number): Expl
       if (cancelled) return;
 
       // Feed
-      const posts: FeedPost[] = ((feedRes.data as DoubtFeedRow[] | null) ?? []).map((d) => ({
+      const mapped: FeedPost[] = ((feedRes.data as DoubtFeedRow[] | null) ?? []).map((d) => ({
         id: d.id,
         user_id: d.user_id,
         title: d.title,
@@ -145,6 +146,8 @@ export function useExploreHubData(userId: string | undefined, rdm: number): Expl
         answer_count: d.doubt_answers?.length ?? 0,
         profiles: d.profiles ?? null,
       }));
+      const posts = await attachAuthorProfiles(supabase, mapped);
+      if (cancelled) return;
       setFeedPosts(posts);
 
       // Trending
