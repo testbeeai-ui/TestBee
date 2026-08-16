@@ -1,3 +1,12 @@
+import {
+  chunkIds,
+  parseHoverPreviewRows,
+  uniqueUserIds,
+  HOVER_PREVIEW_MAX_PAGE_IDS,
+  type HoverPreviewRow,
+} from "@/lib/profile/hoverPreview";
+import { primeHoverPreviews, peekPublicProfile } from "@/lib/profile/publicProfileClientCache";
+
 export type ProfilePreviewRow = {
   id: string;
   name: string | null;
@@ -66,35 +75,51 @@ export function mergeAuthorProfiles<T extends { user_id: string; profiles?: unkn
   }));
 }
 
-function parsePreviewRows(data: unknown): ProfilePreviewRow[] {
-  if (!Array.isArray(data)) return [];
-  const rows: ProfilePreviewRow[] = [];
-  for (const item of data) {
-    if (!isObjectRecord(item) || typeof item.id !== "string") continue;
-    rows.push({
-      id: item.id,
-      name: typeof item.name === "string" ? item.name : null,
-      avatar_url: typeof item.avatar_url === "string" ? item.avatar_url : null,
-      role: typeof item.role === "string" ? item.role : null,
-    });
+async function loadAuthorPreviews(client: object, userIds: string[]): Promise<HoverPreviewRow[]> {
+  const uniqueIds = uniqueUserIds(userIds).slice(0, HOVER_PREVIEW_MAX_PAGE_IDS);
+  if (uniqueIds.length === 0) return [];
+
+  const cached: HoverPreviewRow[] = [];
+  const toFetch: string[] = [];
+  for (const id of uniqueIds) {
+    const peeked = peekPublicProfile(id);
+    if (peeked === undefined) {
+      toFetch.push(id);
+      continue;
+    }
+    if (peeked) {
+      cached.push({
+        id: peeked.id,
+        name: peeked.name,
+        avatar_url: peeked.avatarUrl,
+        rdm: peeked.rdm,
+        created_at: null,
+        questions_asked: peeked.questionsAsked,
+        answers_given: peeked.answersGiven,
+      });
+    }
   }
-  return rows;
+
+  const fetched =
+    toFetch.length === 0
+      ? []
+      : (
+          await Promise.all(
+            chunkIds(toFetch).map(async (chunk) => {
+              const { data, error } = await asPreviewRpc(client).rpc("profile_public_previews", {
+                p_ids: chunk,
+              });
+              if (error) return [] as HoverPreviewRow[];
+              return parseHoverPreviewRows(data);
+            })
+          )
+        ).flat();
+
+  primeHoverPreviews(fetched);
+  return [...cached, ...fetched];
 }
 
-async function loadAuthorPreviews(
-  client: object,
-  userIds: string[]
-): Promise<ProfilePreviewRow[]> {
-  const missingIds = [...new Set(userIds.filter(Boolean))].slice(0, 500);
-  if (missingIds.length === 0) return [];
-  const { data, error } = await asPreviewRpc(client).rpc("profile_public_previews", {
-    p_ids: missingIds,
-  });
-  if (error) return [];
-  return parsePreviewRows(data);
-}
-
-/** Fill missing author name/avatar via profile_public_previews (own-row RLS bypass). */
+/** Fill author chips and warm hover cache via one batched profile_public_previews RPC. */
 export async function attachAuthorProfiles<T extends { user_id: string; profiles?: unknown }>(
   client: object,
   rows: T[]
@@ -103,11 +128,10 @@ export async function attachAuthorProfiles<T extends { user_id: string; profiles
     ...row,
     profiles: unwrapProfileEmbed(row.profiles),
   })) as T[];
-  const missingIds = unwrapped
-    .filter((row) => !unwrapProfileEmbed(row.profiles)?.name?.trim())
-    .map((row) => row.user_id);
-  if (missingIds.length === 0) return unwrapped;
-  return mergeAuthorProfiles(unwrapped, await loadAuthorPreviews(client, missingIds)) as T[];
+  const ids = unwrapped.map((row) => row.user_id);
+  const previews = await loadAuthorPreviews(client, ids);
+  if (previews.length === 0) return unwrapped;
+  return mergeAuthorProfiles(unwrapped, previews) as T[];
 }
 
 type GyanFeedRow = {
@@ -116,28 +140,19 @@ type GyanFeedRow = {
   doubt_answers?: Array<{ user_id: string; profiles?: unknown }>;
 };
 
-/** One RPC for Gyan++ askers plus nested answers. */
+/** One (chunked) RPC for Gyan++ askers plus nested answers; also warms hover cache. */
 export async function attachGyanFeedAuthors<T extends GyanFeedRow>(
   client: object,
   rows: readonly T[]
 ): Promise<T[]> {
   const ids: string[] = [];
   for (const row of rows) {
-    if (!unwrapProfileEmbed(row.profiles)?.name?.trim()) ids.push(row.user_id);
+    ids.push(row.user_id);
     for (const answer of row.doubt_answers ?? []) {
-      if (!unwrapProfileEmbed(answer.profiles)?.name?.trim()) ids.push(answer.user_id);
+      ids.push(answer.user_id);
     }
   }
   const previews = await loadAuthorPreviews(client, ids);
-  if (previews.length === 0 && ids.length === 0) {
-    return rows.map((row) => ({
-      ...row,
-      profiles: unwrapProfileEmbed(row.profiles),
-      doubt_answers: row.doubt_answers
-        ? mergeAuthorProfiles(row.doubt_answers, [])
-        : row.doubt_answers,
-    })) as T[];
-  }
   return rows.map((row) => {
     const [hydrated] = mergeAuthorProfiles([row], previews);
     const answers = row.doubt_answers

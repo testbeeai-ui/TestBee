@@ -13,11 +13,9 @@ import {
 import Link from "next/link";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import type { PublicProfile } from "@/lib/profile/publicProfileService";
-import {
-  getPublicProfileCached,
-  peekPublicProfile,
-  prefetchPublicProfile,
-} from "@/lib/profile/publicProfileClientCache";
+import { peekPublicProfile, prefetchHoverPreviews } from "@/lib/profile/publicProfileClientCache";
+import { fetchHoverPreviewRows } from "@/lib/profile/hoverPreviewRpc";
+import { hoverPreviewHasSubjectBreakdown } from "@/lib/profile/hoverPreview";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HelpCircle, MessageSquare, Zap, ChevronRight, Flame } from "lucide-react";
 
@@ -58,23 +56,23 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
     }
     setLoading(true);
     try {
-      const p = await getPublicProfileCached(userId);
-      setProfile(p);
+      await prefetchHoverPreviews([userId], fetchHoverPreviewRows);
+      const next = peekPublicProfile(userId);
+      setProfile(next ?? null);
     } finally {
       setLoading(false);
     }
   }, [userId]);
 
   const onTriggerPointerEnter = useCallback(() => {
-    void prefetchPublicProfile(userId)
-      .then((p) => {
-        setProfile(p);
-        setLoading(false);
+    void prefetchHoverPreviews([userId], fetchHoverPreviewRows)
+      .then(() => {
+        applyPeek();
       })
       .catch(() => {
         setLoading(false);
       });
-  }, [userId]);
+  }, [userId, applyPeek]);
 
   const trigger = (() => {
     const only = Children.count(children) === 1 ? Children.only(children) : null;
@@ -95,9 +93,15 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
   })();
 
   return (
-    <HoverCard openDelay={300} closeDelay={100} onOpenChange={(open) => open && void loadProfile()}>
+    <HoverCard openDelay={50} closeDelay={100} onOpenChange={(open) => open && void loadProfile()}>
       <HoverCardTrigger asChild>{trigger}</HoverCardTrigger>
-      <HoverCardContent align="start" className="w-[340px] p-0 overflow-hidden rounded-xl">
+      <HoverCardContent
+        align="start"
+        side="bottom"
+        sideOffset={8}
+        collisionPadding={{ top: 64, bottom: 16, left: 8, right: 8 }}
+        className="z-[80] w-[340px] max-h-[min(70vh,26rem)] overflow-y-auto p-0 rounded-xl"
+      >
         {loading ? (
           <div className="p-5 space-y-4 animate-pulse">
             <div className="flex gap-3">
@@ -133,7 +137,9 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
                   <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{profile.bio}</p>
                 )}
                 <p className="text-sm font-bold text-edu-orange mt-1">{profile.rdm} RDM</p>
-                <p className="text-[11px] text-muted-foreground">Since {profile.memberSince}</p>
+                {profile.memberSince ? (
+                  <p className="text-[11px] text-muted-foreground">Since {profile.memberSince}</p>
+                ) : null}
                 {(profile.streakDays > 0 || profile.rdmFromDoubts > 0) && (
                   <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
                     {profile.streakDays > 0 && (
@@ -149,7 +155,7 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-muted/60 p-2 text-center">
                 <HelpCircle className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
                 <span className="text-xs font-bold text-foreground block">
@@ -164,55 +170,61 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
                 </span>
                 <span className="text-[10px] text-muted-foreground">Answered</span>
               </div>
-              <div className="rounded-lg bg-muted/60 p-2 text-center">
-                <Flame className="w-3.5 h-3.5 text-edu-orange mx-auto mb-0.5" />
-                <span className="text-xs font-bold text-foreground block">
-                  {profile.streakDays}d
-                </span>
-                <span className="text-[10px] text-muted-foreground">Streak</span>
-              </div>
-              <div className="rounded-lg bg-muted/60 p-2 text-center">
-                <Zap className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
-                <span className="text-xs font-bold text-foreground block">
-                  {profile.strikeRate}%
-                </span>
-                <span className="text-[10px] text-muted-foreground">Strike</span>
-              </div>
+              {(profile.streakDays > 0 || profile.strikeRate > 0) && (
+                <>
+                  <div className="rounded-lg bg-muted/60 p-2 text-center">
+                    <Flame className="w-3.5 h-3.5 text-edu-orange mx-auto mb-0.5" />
+                    <span className="text-xs font-bold text-foreground block">
+                      {profile.streakDays}d
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">Streak</span>
+                  </div>
+                  <div className="rounded-lg bg-muted/60 p-2 text-center">
+                    <Zap className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
+                    <span className="text-xs font-bold text-foreground block">
+                      {profile.strikeRate}%
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">Strike</span>
+                  </div>
+                </>
+              )}
             </div>
 
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Subject Breakdown
-              </p>
-              <div className="space-y-1.5">
-                {(["physics", "chemistry", "math"] as const).map((sub) => {
-                  const val = profile.subjectStats[sub] || 0;
-                  const max = Math.max(
-                    profile.subjectStats.physics,
-                    profile.subjectStats.chemistry,
-                    profile.subjectStats.math,
-                    1
-                  );
-                  const pct = max > 0 ? (val / max) * 100 : 0;
-                  return (
-                    <div key={sub} className="flex items-center gap-2">
-                      <span className="text-[10px] font-medium text-muted-foreground w-16 capitalize">
-                        {sub}
-                      </span>
-                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${SUBJECT_COLORS[sub] ?? "bg-muted"}`}
-                          style={{ width: `${pct}%` }}
-                        />
+            {hoverPreviewHasSubjectBreakdown(profile) && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Subject Breakdown
+                </p>
+                <div className="space-y-1.5">
+                  {(["physics", "chemistry", "math"] as const).map((sub) => {
+                    const val = profile.subjectStats[sub] || 0;
+                    const max = Math.max(
+                      profile.subjectStats.physics,
+                      profile.subjectStats.chemistry,
+                      profile.subjectStats.math,
+                      1
+                    );
+                    const pct = max > 0 ? (val / max) * 100 : 0;
+                    return (
+                      <div key={sub} className="flex items-center gap-2">
+                        <span className="text-[10px] font-medium text-muted-foreground w-16 capitalize">
+                          {sub}
+                        </span>
+                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${SUBJECT_COLORS[sub] ?? "bg-muted"}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-bold text-foreground w-6 text-right">
+                          {val}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-bold text-foreground w-6 text-right">
-                        {val}
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {(profile.recentDoubts.length > 0 || profile.recentAnswers.length > 0) && (
               <div className="grid grid-cols-2 gap-2">
@@ -281,7 +293,7 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-muted/60 p-2 text-center">
                 <HelpCircle className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
                 <span className="text-xs font-bold text-foreground block">0</span>
@@ -291,37 +303,6 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
                 <MessageSquare className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
                 <span className="text-xs font-bold text-foreground block">0</span>
                 <span className="text-[10px] text-muted-foreground">Answered</span>
-              </div>
-              <div className="rounded-lg bg-muted/60 p-2 text-center">
-                <Flame className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
-                <span className="text-xs font-bold text-foreground block">
-                  0d
-                </span>
-                <span className="text-[10px] text-muted-foreground">Streak</span>
-              </div>
-              <div className="rounded-lg bg-muted/60 p-2 text-center">
-                <Zap className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
-                <span className="text-xs font-bold text-foreground block">0%</span>
-                <span className="text-[10px] text-muted-foreground">Strike</span>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Subject Breakdown
-              </p>
-              <div className="space-y-1.5">
-                {(["physics", "chemistry", "math"] as const).map((sub) => (
-                  <div key={sub} className="flex items-center gap-2">
-                    <span className="text-[10px] font-medium text-muted-foreground w-16 capitalize">
-                      {sub}
-                    </span>
-                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full w-0 rounded-full bg-muted" />
-                    </div>
-                    <span className="text-[10px] font-bold text-foreground w-6 text-right">0</span>
-                  </div>
-                ))}
               </div>
             </div>
 

@@ -4,6 +4,7 @@ import {
   getPublicProfileCached,
   invalidatePublicProfileClientCache,
   peekPublicProfile,
+  prefetchHoverPreviews,
   prefetchPublicProfile,
 } from "@/lib/profile/publicProfileClientCache";
 
@@ -106,5 +107,60 @@ describe("public profile client cache", () => {
 
     await getPublicProfileCached(SAMPLE.id, fetchFn);
     expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("prefetchHoverPreviews", () => {
+  it("loads many authors in one request and peeks each immediately", async () => {
+    const a = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const b = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const fetchBatch = vi.fn(async () => [
+      {
+        id: a,
+        name: "SHRUTI DHUPAD",
+        avatar_url: "https://img",
+        rdm: 1100,
+        created_at: "2026-06-01T00:00:00.000Z",
+        questions_asked: 1,
+        answers_given: 0,
+      },
+      {
+        id: b,
+        name: "Prof-Pi",
+        avatar_url: null,
+        rdm: 847,
+        created_at: "2026-01-01T00:00:00.000Z",
+        questions_asked: 0,
+        answers_given: 12,
+      },
+    ]);
+
+    await prefetchHoverPreviews([a, b, a], fetchBatch);
+
+    expect(fetchBatch).toHaveBeenCalledTimes(1);
+    expect(fetchBatch).toHaveBeenCalledWith([a, b]);
+    expect(peekPublicProfile(a)?.name).toBe("SHRUTI DHUPAD");
+    expect(peekPublicProfile(a)?.rdm).toBe(1100);
+    expect(peekPublicProfile(a)?.questionsAsked).toBe(1);
+    expect(peekPublicProfile(b)?.name).toBe("Prof-Pi");
+    expect(peekPublicProfile(b)?.answersGiven).toBe(12);
+  });
+
+  it("does not refetch ids already cached", async () => {
+    const a = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const fetchBatch = vi.fn(async () => [
+      {
+        id: a,
+        name: "SHRUTI DHUPAD",
+        avatar_url: null,
+        rdm: 10,
+        created_at: "2026-06-01T00:00:00.000Z",
+        questions_asked: 0,
+        answers_given: 0,
+      },
+    ]);
+    await prefetchHoverPreviews([a], fetchBatch);
+    await prefetchHoverPreviews([a], fetchBatch);
+    expect(fetchBatch).toHaveBeenCalledTimes(1);
   });
 });
