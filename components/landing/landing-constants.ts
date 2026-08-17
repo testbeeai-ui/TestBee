@@ -1,6 +1,7 @@
 /* ─── Landing page text content (investor spec, verbatim) ───────────────── */
 
 export const NAV_LINKS = [
+  { label: "About Us", href: "/about-us" },
   { label: "Features", href: "/#features" },
   { label: "For students", href: "/#personas" },
   { label: "News & Blogs", href: "/news-blog" },
@@ -12,6 +13,7 @@ export const NAV_LINKS = [
 /** Dark investor landing (matches marketing shell in product screenshots). */
 export const INVESTOR_NAV_LINKS = [
   { label: "Home", href: "/" },
+  { label: "About Us", href: "/about-us" },
   { label: "Features", href: "/#investor-features" },
   { label: "News & Blogs", href: "/news-blog" },
   { label: "Ts & Cs", href: "/terms-conditions" },
@@ -20,12 +22,23 @@ export const INVESTOR_NAV_LINKS = [
   { label: "Contact Us", href: "/contact" },
 ];
 
-export const FOOTER_LINKS = [
-  { label: "About", href: "#" },
+type FooterLink = {
+  label: string;
+  href: string;
+  external?: boolean;
+};
+
+export const FOOTER_LINKS: FooterLink[] = [
+  { label: "About Us", href: "/about-us" },
   { label: "Features", href: "#features" },
   { label: "Edufundz", href: "#" },
   { label: "For schools", href: "#" },
   { label: "For teachers", href: "#personas" },
+  {
+    label: "WhatsApp Community",
+    href: "https://chat.whatsapp.com/KRGYkPhUWSRF89Ghp04iCb",
+    external: true,
+  },
   { label: "Privacy Policy", href: "/terms-conditions/privacy-policy" },
   { label: "Terms", href: "/terms-conditions/terms-and-conditions" },
 ];
