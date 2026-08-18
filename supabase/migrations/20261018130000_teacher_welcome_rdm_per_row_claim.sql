@@ -1,7 +1,6 @@
--- Drop the session GUC first-claim flag. PostgreSQL fires every BEFORE ROW
--- stamp, then queues AFTER ROW credits until end of statement, so a single
--- app.teacher_welcome_rdm_just_stamped value only kept the last id.
--- Credit from per-row OLD → NEW claimed_at instead.
+-- Credit UPDATE from per-row OLD → NEW claimed_at (a single GUC id only kept
+-- the last row). INSERT has no OLD, so restore/reinsert of an already-stamped
+-- onboarded teacher still needs the just-stamped id list.
 
 CREATE OR REPLACE FUNCTION public.stamp_teacher_profile_welcome_rdm()
 RETURNS trigger
@@ -12,6 +11,7 @@ AS $$
 DECLARE
   qualifying boolean;
   was_qualifying boolean;
+  stamped text;
 BEGIN
   IF TG_OP = 'UPDATE'
      AND OLD.teacher_welcome_rdm_claimed_at IS NOT NULL THEN
@@ -37,6 +37,20 @@ BEGIN
 
   IF NEW.teacher_welcome_rdm_claimed_at IS NULL THEN
     NEW.teacher_welcome_rdm_claimed_at := now();
+    -- AFTER INSERT cannot see the incoming stamp; record ids this statement
+    -- actually stamped so restore/reinsert of a claimed row does not pay.
+    IF TG_OP = 'INSERT' THEN
+      stamped := nullif(current_setting('app.teacher_welcome_rdm_just_stamped', true), '');
+      IF stamped IS NULL THEN
+        PERFORM set_config('app.teacher_welcome_rdm_just_stamped', NEW.id::text, true);
+      ELSIF NEW.id::text <> ALL (string_to_array(stamped, ',')) THEN
+        PERFORM set_config(
+          'app.teacher_welcome_rdm_just_stamped',
+          stamped || ',' || NEW.id::text,
+          true
+        );
+      END IF;
+    END IF;
   END IF;
 
   RETURN NEW;
@@ -53,6 +67,7 @@ DECLARE
   qualifying boolean;
   was_qualifying boolean;
   v_amount integer;
+  stamped text;
 BEGIN
   qualifying :=
     NEW.role = 'teacher'
@@ -81,6 +96,15 @@ BEGIN
     RETURN NEW;
   END IF;
 
+  -- INSERT has no OLD. A restore that already carries claimed_at looks like a
+  -- first claim unless BEFORE recorded this id as just stamped.
+  IF TG_OP = 'INSERT' THEN
+    stamped := nullif(current_setting('app.teacher_welcome_rdm_just_stamped', true), '');
+    IF stamped IS NULL OR NOT (NEW.id::text = ANY (string_to_array(stamped, ','))) THEN
+      RETURN NEW;
+    END IF;
+  END IF;
+
   SELECT coalesce(
     (SELECT c.value FROM public.rdm_config c WHERE c.key = 'teacher_profile_welcome_rdm'),
     500
@@ -97,6 +121,6 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.stamp_teacher_profile_welcome_rdm() IS
-  'Stamps teacher_welcome_rdm_claimed_at once per profile. Never clears the stamp.';
+  'Stamps teacher_welcome_rdm_claimed_at once per profile. Never clears the stamp. INSERT appends newly stamped ids to app.teacher_welcome_rdm_just_stamped.';
 COMMENT ON FUNCTION public.credit_teacher_profile_welcome_rdm() IS
-  'Credits teacher_profile_welcome_rdm once per row when claimed_at goes from null to set. Multi-row statements each get their own OLD/NEW check; flipping onboarding_complete does not pay again.';
+  'Credits teacher_profile_welcome_rdm once per row when claimed_at goes from null to set. UPDATE uses per-row OLD/NEW; INSERT uses the just-stamped id list so restore/reinsert of a claimed row does not pay again.';

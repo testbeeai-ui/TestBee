@@ -50,4 +50,16 @@ describe("shouldCreditTeacherWelcomeRdm", () => {
       })
     ).toBe(true);
   });
+
+  it("does not credit a restore insert that already has a claim stamp", () => {
+    expect(
+      shouldCreditTeacherWelcomeRdm({
+        op: "INSERT",
+        qualifying: true,
+        wasQualifying: false,
+        oldClaimedAt: "2026-10-11T00:00:00.000Z",
+        newClaimedAt: "2026-10-11T00:00:00.000Z",
+      })
+    ).toBe(false);
+  });
 });
