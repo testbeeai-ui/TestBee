@@ -398,7 +398,13 @@ export function TeacherWizardPopup(props: {
             description:
               r.reason === "no_refresh_token"
                 ? "Try again and accept all requested permissions, or choose the Google account that owns your Calendar."
-                : r.reason,
+                : r.reason === "timeout"
+                  ? "The Google window did not finish. Try Connect Calendar again and keep the popup open until it closes."
+                  : r.reason === "token_exchange_failed" || r.reason === "redirect_uri_mismatch"
+                    ? "Google rejected the Calendar connection. Check that this site is listed as an authorized redirect URI."
+                    : r.reason === "schema_mismatch"
+                      ? "Calendar connected, but a profile field is missing. Refresh and try again."
+                      : r.reason,
             variant: "destructive",
           });
         }

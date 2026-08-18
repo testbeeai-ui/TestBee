@@ -446,7 +446,8 @@ function OnboardingContent() {
                     Teacher Profile
                   </h2>
                   <p className="truncate text-[11px] leading-tight text-zinc-400 sm:text-xs sm:whitespace-normal sm:leading-snug">
-                    EduBlast · one screen — who you teach, what you teach, how students find you
+                    EduBlast · one screen — who you teach, what you teach, how students find you.
+                    New teacher profiles receive 500 RDM once when you finish this step.
                   </p>
                 </div>
               </div>

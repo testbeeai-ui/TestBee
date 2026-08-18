@@ -1,3 +1,5 @@
+import { PROF_PI_USER_ID } from "@/lib/gyanBotPersonas";
+
 /** Shared types for the Gyan++ doubts system */
 
 export type SortOption =
@@ -39,14 +41,16 @@ export type ExpandedAnswer = {
 };
 
 /** Prof-Pi / legacy Gyan AI tutor rows (same logic as feed AI block) */
-export function isAiTutorAnswer(a: ExpandedAnswer): boolean {
-  return isAiTutorDoubtAuthor(a.profiles);
+export function isAiTutorAnswer(a: Pick<ExpandedAnswer, "user_id" | "profiles">): boolean {
+  return isAiTutorDoubtAuthor(a.profiles, a.user_id);
 }
 
-/** True when the doubt author profile is the Gyan++ / Prof-Pi AI tutor (not a student). */
+/** True when the author is the Gyan++ / Prof-Pi AI tutor (not a student). */
 export function isAiTutorDoubtAuthor(
-  p: { name?: string | null; role?: string | null } | null | undefined
+  p: { name?: string | null; role?: string | null } | null | undefined,
+  userId?: string | null
 ): boolean {
+  if (userId === PROF_PI_USER_ID) return true;
   const role = p?.role ?? "";
   const name = (p?.name ?? "").toLowerCase();
   return (

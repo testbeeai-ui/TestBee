@@ -147,6 +147,8 @@ const AppLayout = ({
   const isMagicWall = pathname === "/magic-wall";
   const isCommunityWall = pathname.startsWith("/explore/community");
   const isDivePage = pathname === "/dive" || pathname.startsWith("/dive/");
+  const isAboutUsPage = pathname === "/about-us" || pathname.startsWith("/about-us/");
+  const isDarkChromePage = isDivePage || isAboutUsPage;
   const { profile, user: authUser } = useAuth();
   const presenceUserId = profile?.id ?? authUser?.id ?? null;
   const user = useUserStore((s) => s.user);
@@ -225,7 +227,7 @@ const AppLayout = ({
         style={{
           backgroundColor: isRedesignedLayout
             ? "#0A0F1E"
-            : isDivePage
+            : isDarkChromePage
               ? "#0E1117"
               : "var(--background)",
         }}
@@ -355,7 +357,7 @@ const AppLayout = ({
               style={
                 isRedesignedLayout
                   ? undefined
-                  : isDivePage
+                  : isDarkChromePage
                     ? ({
                         "--nav-bg": "#0E1117",
                         "--nav-border": "1px solid rgba(38, 46, 58, 0.75)",
@@ -420,12 +422,12 @@ const AppLayout = ({
                 >
                   Feed
                 </Link>
-                <span
-                  className={styles.nl}
-                  style={{ cursor: "default" }}
+                <Link
+                  href="/about-us"
+                  className={`${styles.nl} ${isAboutUsPage ? styles.on : ""}`}
                 >
                   About
-                </span>
+                </Link>
               </div>
               <div className={styles.navRight}>
                 {/* Site Tour with Star icon + conditional +100 RDM */}
@@ -804,7 +806,7 @@ const AppLayout = ({
         {/* Content */}
         <main
           className={cn(
-            isDivePage
+            isDarkChromePage
               ? "w-full flex-1 min-w-0"
               : isRedesignedLayout
               ? "w-full flex-1"
@@ -821,20 +823,20 @@ const AppLayout = ({
                       )
                     : "max-w-7xl px-4 lg:px-5 2xl:px-6"
                 ),
-            hasStudentDashboardSidebar && !fullBleed && !isDivePage && "lg:ml-[52px]",
-            !isDivePage &&
+            hasStudentDashboardSidebar && !fullBleed && !isDarkChromePage && "lg:ml-[52px]",
+            !isDarkChromePage &&
               !isRedesignedLayout &&
               !hideTopNav &&
               !wideMain &&
               !fullBleed &&
               (isMagicWall ? "flex min-h-0 flex-col pt-2 pb-0 sm:pt-3" : "py-4 lg:py-5 2xl:py-7"),
-            !isDivePage &&
+            !isDarkChromePage &&
               !isRedesignedLayout &&
               !hideTopNav &&
               wideMain &&
               !fullBleed &&
               (isMagicWall ? "flex min-h-0 flex-col pt-2 pb-0 sm:pt-3" : ""),
-            !isDivePage &&
+            !isDarkChromePage &&
               !isRedesignedLayout &&
               hideTopNav &&
               !fullBleed &&
@@ -874,13 +876,20 @@ const AppLayout = ({
           <footer
             className={cn(
               "border-t py-3 lg:py-4 2xl:py-5",
-              isDivePage
+              isDarkChromePage
                 ? "border-[rgba(38,46,58,0.75)] bg-[#0E1117] text-[#8B96A5]"
                 : "border-border/60 bg-card/40",
-              hasStudentDashboardSidebar && !isDivePage && "lg:ml-[52px]"
+              hasStudentDashboardSidebar && !isDarkChromePage && "lg:ml-[52px]"
             )}
           >
-            <div className="max-w-7xl mx-auto px-4 lg:px-5 2xl:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 text-xs text-muted-foreground">
+            <div
+              className={cn(
+                "mx-auto flex w-full flex-col items-center justify-between gap-2 text-xs sm:flex-row sm:gap-3",
+                isAboutUsPage
+                  ? "max-w-[1080px] px-4 text-[#8B96A5] sm:px-6 lg:px-8"
+                  : "max-w-7xl px-4 text-muted-foreground lg:px-5 2xl:px-6"
+              )}
+            >
               <span className="font-bold">(c) 2026 EduBlast - Learn thru Questions</span>
               <div className="flex gap-6">
                 <Link href="/pricing" className="hover:text-foreground transition-colors font-bold">

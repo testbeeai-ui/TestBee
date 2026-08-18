@@ -36,6 +36,7 @@ const GATE_BYPASS_PREFIXES = [
   "/admin",
   "/teacher-portal",
   "/select-role",
+  "/onboarding",
   "/auth-choice",
   "/waitlist",
   "/integrations",

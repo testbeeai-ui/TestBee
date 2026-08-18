@@ -19,8 +19,10 @@ import {
   type ActivityView,
   type TabFilter,
   doubtHasAiTutorAnswer,
+  isAiTutorDoubtAuthor,
 } from "@/components/doubts/doubtTypes";
 import { canonicalDoubtSubject } from "@/lib/doubtSubject";
+import { attachGyanFeedAuthors } from "@/lib/profile/attachAuthorProfiles";
 
 import AskDoubtDialog from "@/components/doubts/AskDoubtDialog";
 import GyanBotAdminPanel from "@/components/doubts/GyanBotAdminPanel";
@@ -272,7 +274,9 @@ function DoubtsPageContent() {
           }
           setDoubts([]);
         } else {
-          setDoubts((data as ExpandedDoubtRow[]) || []);
+          setDoubts(
+            await attachGyanFeedAuthors(supabase, (data as ExpandedDoubtRow[]) || [])
+          );
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Network or connection error.";
@@ -595,9 +599,7 @@ function DoubtsPageContent() {
     else if (activeTab === "revision") list = list.filter((d) => savedDoubtIds.has(d.id));
     else if (activeTab === "ai") {
       list = list.filter(
-        (d) =>
-          d.profiles?.role === "ai" ||
-          (d.doubt_answers ?? []).some((a) => a.profiles?.role === "ai")
+        (d) => isAiTutorDoubtAuthor(d.profiles, d.user_id) || doubtHasAiTutorAnswer(d)
       );
     }
 
@@ -689,7 +691,7 @@ function DoubtsPageContent() {
   }, [doubts]);
 
   const aiAuthoredDoubtCount = useMemo(
-    () => doubts.filter((d) => d.profiles?.role === "ai").length,
+    () => doubts.filter((d) => isAiTutorDoubtAuthor(d.profiles, d.user_id)).length,
     [doubts]
   );
 

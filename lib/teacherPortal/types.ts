@@ -325,6 +325,8 @@ export interface TeacherPortalReferStats {
   /** RDM when a referred teacher or student goes paid within the window. */
   teacherPaidBonusRdm: number;
   teacherPaidWindowDays: number;
+  /** One-time RDM when a new teacher completes Teacher Profile onboarding. */
+  teacherProfileWelcomeRdm: number;
 }
 
 /** Submitted mock attempt under 60% for nudge wizard ( keyed by assignment post id ). */

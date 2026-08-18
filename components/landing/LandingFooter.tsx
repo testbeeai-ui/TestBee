@@ -45,6 +45,7 @@ export default function LandingFooter({ variant = "light" }: { variant?: "light"
             <a
               key={l.label}
               href={l.href}
+              {...(l.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
               className={
                 isDark
                   ? "text-sm text-zinc-500 hover:text-zinc-200 transition-colors"

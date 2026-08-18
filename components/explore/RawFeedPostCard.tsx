@@ -10,7 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import DoubtVotePill from "@/components/doubts/DoubtVotePill";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserHoverCard } from "@/components/UserHoverCard";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -179,16 +180,19 @@ export default function RawFeedPostCard({
       className={cn(compact && "text-[12px] sm:text-[13px] xl:text-sm")}
     >
       <div className={cn("flex items-start gap-2 px-3 pt-2.5", compact && "px-3 pt-2")}>
-        <Avatar className="h-8 w-8 shrink-0">
-          <AvatarFallback className="bg-violet-600/80 text-[10px] font-bold text-white">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
+        <UserHoverCard userId={post.user_id} displayName={name}>
+          <div className="flex min-w-0 items-start gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+            <Avatar className="h-8 w-8 shrink-0">
+              <AvatarImage src={post.profiles?.avatar_url ?? undefined} />
+              <AvatarFallback className="bg-violet-600/80 text-[10px] font-bold text-white">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="truncate text-[11px] font-semibold text-foreground sm:text-[12px] xl:text-[13px]">{name}</span>
+                <span className="truncate text-[11px] font-semibold text-foreground sm:text-[12px] xl:text-[13px]">
+                  {name}
+                </span>
                 {post.upvote_count >= 3 ? (
                   <span
                     className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-500"
@@ -197,45 +201,45 @@ export default function RawFeedPostCard({
                     <Check className="h-2.5 w-2.5 text-white" aria-hidden />
                   </span>
                 ) : null}
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
-                    subjKey === "math" && "border-amber-500/30 bg-amber-500/10 text-amber-300",
-                    subjKey === "physics" && "border-blue-500/30 bg-blue-500/10 text-blue-300",
-                    subjKey === "chemistry" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                  )}
-                >
-                  <SubjectGlyph className="h-3 w-3" aria-hidden />
-                  {subjName}
-                </span>
               </div>
               <p className="mt-0.5 text-[11px] text-muted-foreground">
                 {formatTimeAgo(post.created_at)}
               </p>
             </div>
-            {isOwnPost && onDelete ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <span
-                    className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label="Post options"
-                  >
-                    <MoreVertical className="h-3.5 w-3.5" />
-                  </span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={onDelete}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
           </div>
-        </div>
+        </UserHoverCard>
+        <span
+          className={cn(
+            "mt-0.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+            subjKey === "math" && "border-amber-500/30 bg-amber-500/10 text-amber-300",
+            subjKey === "physics" && "border-blue-500/30 bg-blue-500/10 text-blue-300",
+            subjKey === "chemistry" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+          )}
+        >
+          <SubjectGlyph className="h-3 w-3" aria-hidden />
+          {subjName}
+        </span>
+        {isOwnPost && onDelete ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <span
+                className="ml-auto inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Post options"
+              >
+                <MoreVertical className="h-3.5 w-3.5" />
+              </span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={onDelete}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
 
       {post.tags && post.tags.length > 0 ? (
@@ -402,7 +406,11 @@ export default function RawFeedPostCard({
                     return (
                       <li key={c.id} className={depth}>
                         <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-xs font-bold text-foreground">{cn_}</span>
+                          <UserHoverCard userId={c.user_id} displayName={cn_}>
+                            <span className="text-xs font-bold text-foreground hover:opacity-80">
+                              {cn_}
+                            </span>
+                          </UserHoverCard>
                           <span className="shrink-0 text-[10px] text-muted-foreground">
                             {formatTimeAgo(c.created_at)}
                           </span>
