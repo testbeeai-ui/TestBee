@@ -12,7 +12,7 @@ describe("shouldCreditTeacherWelcomeRdm", () => {
         qualifying: true,
         wasQualifying: false,
         oldClaimedAt: null,
-        justStampedUserId: userId,
+        justStampedUserIds: userId,
       })
     ).toBe(true);
   });
@@ -25,7 +25,7 @@ describe("shouldCreditTeacherWelcomeRdm", () => {
         qualifying: true,
         wasQualifying: false,
         oldClaimedAt: "2026-10-11T00:00:00.000Z",
-        justStampedUserId: "",
+        justStampedUserIds: "",
       })
     ).toBe(false);
   });
@@ -38,8 +38,42 @@ describe("shouldCreditTeacherWelcomeRdm", () => {
         qualifying: true,
         wasQualifying: false,
         oldClaimedAt: null,
-        justStampedUserId: "",
+        justStampedUserIds: "",
       })
     ).toBe(false);
+  });
+
+  it("credits every id stamped in a multi-row statement, not only the last", () => {
+    const justStampedUserIds = "teacher-1,teacher-2,teacher-3";
+    expect(
+      shouldCreditTeacherWelcomeRdm({
+        op: "INSERT",
+        userId: "teacher-1",
+        qualifying: true,
+        wasQualifying: false,
+        oldClaimedAt: null,
+        justStampedUserIds,
+      })
+    ).toBe(true);
+    expect(
+      shouldCreditTeacherWelcomeRdm({
+        op: "INSERT",
+        userId: "teacher-2",
+        qualifying: true,
+        wasQualifying: false,
+        oldClaimedAt: null,
+        justStampedUserIds,
+      })
+    ).toBe(true);
+    expect(
+      shouldCreditTeacherWelcomeRdm({
+        op: "INSERT",
+        userId: "teacher-3",
+        qualifying: true,
+        wasQualifying: false,
+        oldClaimedAt: null,
+        justStampedUserIds,
+      })
+    ).toBe(true);
   });
 });

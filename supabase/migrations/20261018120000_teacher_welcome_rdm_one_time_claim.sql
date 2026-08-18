@@ -2,6 +2,10 @@
 -- The BEFORE trigger preserves teacher_welcome_rdm_claimed_at and never clears it,
 -- so the AFTER trigger cannot treat a non-null stamp as "this statement just claimed".
 -- Credit only when THIS statement's BEFORE trigger stamped a previously-null claim.
+--
+-- app.teacher_welcome_rdm_just_stamped is a comma-separated id list (not a single
+-- id). PostgreSQL runs every BEFORE ROW stamp before any AFTER ROW credit, so a
+-- single-id GUC would keep only the last stamped row.
 
 CREATE OR REPLACE FUNCTION public.stamp_teacher_profile_welcome_rdm()
 RETURNS trigger
@@ -12,9 +16,8 @@ AS $$
 DECLARE
   qualifying boolean;
   was_qualifying boolean;
+  stamped text;
 BEGIN
-  PERFORM set_config('app.teacher_welcome_rdm_just_stamped', '', true);
-
   IF TG_OP = 'UPDATE'
      AND OLD.teacher_welcome_rdm_claimed_at IS NOT NULL THEN
     NEW.teacher_welcome_rdm_claimed_at := OLD.teacher_welcome_rdm_claimed_at;
@@ -39,7 +42,16 @@ BEGIN
 
   IF NEW.teacher_welcome_rdm_claimed_at IS NULL THEN
     NEW.teacher_welcome_rdm_claimed_at := now();
-    PERFORM set_config('app.teacher_welcome_rdm_just_stamped', NEW.id::text, true);
+    stamped := nullif(current_setting('app.teacher_welcome_rdm_just_stamped', true), '');
+    IF stamped IS NULL THEN
+      PERFORM set_config('app.teacher_welcome_rdm_just_stamped', NEW.id::text, true);
+    ELSIF NEW.id::text <> ALL (string_to_array(stamped, ',')) THEN
+      PERFORM set_config(
+        'app.teacher_welcome_rdm_just_stamped',
+        stamped || ',' || NEW.id::text,
+        true
+      );
+    END IF;
   END IF;
 
   RETURN NEW;
@@ -56,6 +68,7 @@ DECLARE
   qualifying boolean;
   was_qualifying boolean;
   v_amount integer;
+  stamped text;
 BEGIN
   qualifying :=
     NEW.role = 'teacher'
@@ -80,7 +93,8 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  IF current_setting('app.teacher_welcome_rdm_just_stamped', true) IS DISTINCT FROM NEW.id::text THEN
+  stamped := nullif(current_setting('app.teacher_welcome_rdm_just_stamped', true), '');
+  IF stamped IS NULL OR NOT (NEW.id::text = ANY (string_to_array(stamped, ','))) THEN
     RETURN NEW;
   END IF;
 
@@ -95,13 +109,11 @@ BEGIN
     PERFORM public.add_rdm(NEW.id, v_amount);
   END IF;
 
-  PERFORM set_config('app.teacher_welcome_rdm_just_stamped', '', true);
-
   RETURN NEW;
 END;
 $$;
 
 COMMENT ON FUNCTION public.stamp_teacher_profile_welcome_rdm() IS
-  'Stamps teacher_welcome_rdm_claimed_at once. Never clears the stamp. Sets app.teacher_welcome_rdm_just_stamped only when it first stamps.';
+  'Stamps teacher_welcome_rdm_claimed_at once. Never clears the stamp. Appends each newly stamped id to app.teacher_welcome_rdm_just_stamped.';
 COMMENT ON FUNCTION public.credit_teacher_profile_welcome_rdm() IS
   'Credits teacher_profile_welcome_rdm only on the first claim. Flipping onboarding_complete after the stamp exists does not pay again.';
