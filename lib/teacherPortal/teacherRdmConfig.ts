@@ -210,7 +210,7 @@ export const TEACHER_RDM_ADMIN_META: Record<
     title: "New teacher profile · one-time welcome",
     kind: "reward",
     summary:
-      "Credits 500 RDM (default) once when a new teacher completes Teacher Profile onboarding. Never paid again on later logins or profile edits.",
+      "Credits 500 RDM (default) once when a new teacher completes Teacher Profile onboarding. The claim stamp is never cleared, so later logins, profile edits, or flipping onboarding_complete cannot pay again.",
     teacherSurface: "Onboarding · Teacher Profile (first completion)",
     serverPath:
       "credit_teacher_profile_welcome_rdm (profiles trigger; teacher_welcome_rdm_claimed_at)",

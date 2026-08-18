@@ -353,8 +353,9 @@ function TeacherRdmGroupBlock({
           <p className="text-[11px] leading-snug text-muted-foreground">
             Paid once when a whitelist teacher finishes Teacher Profile onboarding. Tracked on{" "}
             <span className="font-mono text-foreground/80">profiles.teacher_welcome_rdm_claimed_at</span>
-            — later logins and profile edits do not pay again. Existing teachers already onboarded
-            are not backfilled.
+            — the stamp is never cleared, so later logins, profile edits, or flipping{" "}
+            <span className="font-mono">onboarding_complete</span> do not pay again. Existing
+            teachers already onboarded are not backfilled.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             {TEACHER_RDM_ADMIN_WELCOME_KEYS.map((k) => renderCard(k))}
