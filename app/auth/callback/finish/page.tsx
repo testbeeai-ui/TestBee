@@ -12,6 +12,7 @@ import {
   destinationFromOAuthStored,
 } from "@/lib/auth/safeNextPath";
 import { oauthSignInFailedMessage, oauthTryAgainPath } from "@/lib/auth/oauthSignInHelp";
+import { authFinishWaitPhase } from "@/lib/auth/authFinishWait";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { triggerLoginNotificationEmail } from "@/lib/email/triggerLoginNotificationClient";
 
@@ -133,27 +134,38 @@ function AuthCallbackFinishContent() {
       return;
     }
 
-    // Wait for profile so we don't mis-route teachers as students.
-    if (user) return;
+    const waitPhase = authFinishWaitPhase({ user, profile });
+    switch (waitPhase) {
+      case "redirect":
+        return;
+      case "wait-profile":
+      case "wait-session": {
+        // Wait for session or profile, but always arm the fail timer so a stuck-null
+        // profile cannot leave the user on “Signing you in…” indefinitely.
+        const host = typeof window !== "undefined" ? window.location.hostname : undefined;
+        const failTimer = window.setTimeout(() => {
+          if (redirected.current) return;
+          setAuthError(oauthSignInFailedMessage(host));
+        }, 8000);
 
-    const host = typeof window !== "undefined" ? window.location.hostname : undefined;
-    const failTimer = window.setTimeout(() => {
-      if (redirected.current) return;
-      setAuthError(oauthSignInFailedMessage(host));
-    }, 8000);
+        if (waitPhase === "wait-session" && !loading) {
+          const pollUntil = Date.now() + 8000;
+          const poll = async () => {
+            if (redirected.current) return;
+            const session = await readClientSession();
+            if (session?.user) return;
+            if (Date.now() < pollUntil) window.setTimeout(poll, 400);
+          };
+          window.setTimeout(poll, 400);
+        }
 
-    if (!user && !loading) {
-      const pollUntil = Date.now() + 8000;
-      const poll = async () => {
-        if (redirected.current) return;
-        const session = await readClientSession();
-        if (session?.user) return;
-        if (Date.now() < pollUntil) window.setTimeout(poll, 400);
-      };
-      window.setTimeout(poll, 400);
+        return () => window.clearTimeout(failTimer);
+      }
+      default: {
+        const _exhaustive: never = waitPhase;
+        return _exhaustive;
+      }
     }
-
-    return () => window.clearTimeout(failTimer);
   }, [
     user,
     profile,
