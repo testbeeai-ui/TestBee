@@ -10,6 +10,7 @@ describe("shouldCreditTeacherWelcomeRdm", () => {
         wasQualifying: false,
         oldClaimedAt: null,
         newClaimedAt: "2026-10-18T00:00:00.000Z",
+        justStamped: true,
       })
     ).toBe(true);
   });
@@ -22,6 +23,7 @@ describe("shouldCreditTeacherWelcomeRdm", () => {
         wasQualifying: false,
         oldClaimedAt: null,
         newClaimedAt,
+        justStamped: true,
       })
     );
     expect(rows).toEqual([true, true]);
@@ -35,6 +37,7 @@ describe("shouldCreditTeacherWelcomeRdm", () => {
         wasQualifying: false,
         oldClaimedAt: "2026-10-11T00:00:00.000Z",
         newClaimedAt: "2026-10-11T00:00:00.000Z",
+        justStamped: false,
       })
     ).toBe(false);
   });
@@ -47,11 +50,12 @@ describe("shouldCreditTeacherWelcomeRdm", () => {
         wasQualifying: false,
         oldClaimedAt: null,
         newClaimedAt: "2026-10-18T00:00:00.000Z",
+        justStamped: true,
       })
     ).toBe(true);
   });
 
-  it("does not credit a restore insert that already has a claim stamp", () => {
+  it("does not credit a restore insert of an already-stamped onboarded teacher", () => {
     expect(
       shouldCreditTeacherWelcomeRdm({
         op: "INSERT",
@@ -59,6 +63,7 @@ describe("shouldCreditTeacherWelcomeRdm", () => {
         wasQualifying: false,
         oldClaimedAt: "2026-10-11T00:00:00.000Z",
         newClaimedAt: "2026-10-11T00:00:00.000Z",
+        justStamped: false,
       })
     ).toBe(false);
   });
