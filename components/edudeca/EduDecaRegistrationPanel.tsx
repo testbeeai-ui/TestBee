@@ -12,40 +12,7 @@ import {
   isSignupProfileReady,
   type SignupClassLevel,
 } from "@/lib/edudeca/signup-profile";
-import {
-  EDUDECA_SIGN_IN_STEP,
-  EDUDECA_WALKTHROUGH_STEPS,
-  type EduDecaWalkthroughAccent,
-} from "@/lib/edudeca/walkthrough-steps";
 import { cn } from "@/lib/utils";
-
-const ACCENT_CLASSES: Record<EduDecaWalkthroughAccent, string> = {
-  teal: "border-[#1D9E75]/30 bg-[#1D9E75]/10 text-[#9FE1CB]",
-  blue: "border-cyan-500/30 bg-cyan-500/10 text-cyan-300",
-  violet: "border-violet-500/30 bg-violet-500/10 text-violet-300",
-  amber: "border-amber-500/30 bg-amber-500/10 text-amber-300",
-};
-
-function StepPill({
-  label,
-  accent,
-  active,
-}: {
-  label: string;
-  accent: EduDecaWalkthroughAccent;
-  active: boolean;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap",
-        active ? ACCENT_CLASSES[accent] : "border-[#262E3A] bg-[#0E1117]/50 text-[#8B96A5]",
-      )}
-    >
-      {label}
-    </span>
-  );
-}
 
 function RegistrationSuccess() {
   return (
@@ -64,7 +31,6 @@ function RegistrationSuccess() {
 }
 
 export function EduDecaRegistrationPanel() {
-  const signInStep = EDUDECA_WALKTHROUGH_STEPS[EDUDECA_SIGN_IN_STEP - 1];
   const [classLevel, setClassLevel] = useState<SignupClassLevel | null>(null);
   const [college, setCollege] = useState("");
   const [institutionAck, setInstitutionAck] = useState(false);
@@ -118,25 +84,6 @@ export function EduDecaRegistrationPanel() {
 
   return (
     <div className="mx-auto flex w-full flex-col gap-6 sm:gap-7">
-      <div className="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="mx-auto flex w-max max-w-full flex-nowrap items-center justify-center gap-2 px-1">
-          {EDUDECA_WALKTHROUGH_STEPS.map((step) => (
-            <StepPill
-              key={step.id}
-              label={step.pillLabel}
-              accent={step.accent}
-              active={step.id <= EDUDECA_SIGN_IN_STEP}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="flex justify-center">
-        <span className="inline-flex items-center rounded-full border border-[#1D9E75]/30 bg-[#1D9E75]/10 px-3 py-1 text-xs font-semibold tracking-wide text-[#9FE1CB]">
-          {signInStep.stepLabel}
-        </span>
-      </div>
-
       <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-2 text-center text-sm sm:text-base">
         <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-amber-400/80 bg-amber-500/10">
           <Trophy className="size-3.5 text-amber-400" strokeWidth={2} aria-hidden />
