@@ -16,13 +16,23 @@ import { cn } from "@/lib/utils";
 
 function RegistrationSuccess() {
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center gap-5 py-8 text-center">
-      <div className="flex size-14 items-center justify-center rounded-full bg-[#1D9E75]/15">
-        <CheckCircle2 className="size-7 text-[#1D9E75]" aria-hidden />
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex max-w-md flex-col items-center gap-7 text-center"
+    >
+      <div className="flex size-[7.5rem] items-center justify-center rounded-full border border-[#1D9E75]/20 motion-safe:animate-[pulse_3s_ease-in-out_infinite]">
+        <div className="flex size-[5.75rem] items-center justify-center rounded-full border border-[#1D9E75]/35">
+          <div className="flex size-16 items-center justify-center rounded-full bg-[#1D9E75]/15 shadow-[0_0_32px_rgba(29,158,117,0.35)]">
+            <CheckCircle2 className="size-9 text-[#1D9E75]" strokeWidth={2} aria-hidden />
+          </div>
+        </div>
       </div>
       <div className="space-y-3">
-        <h2 className="text-2xl font-bold text-[#EAEFF5]">{EDUDECA_REGISTRATION_SUCCESS_TITLE}</h2>
-        <p className="text-sm leading-relaxed text-[#8B96A5] sm:text-base">
+        <h1 className="text-[1.75rem] font-bold leading-tight tracking-tight text-[#EAEFF5] sm:text-3xl">
+          {EDUDECA_REGISTRATION_SUCCESS_TITLE}
+        </h1>
+        <p className="mx-auto max-w-[22rem] text-sm leading-[1.65] text-[#8B96A5] sm:text-base">
           {EDUDECA_REGISTRATION_SUCCESS_MESSAGE}
         </p>
       </div>
@@ -30,7 +40,7 @@ function RegistrationSuccess() {
   );
 }
 
-export function EduDecaRegistrationPanel() {
+export function EduDecaRegistrationPanel({ onSubmitted }: { onSubmitted?: () => void }) {
   const [classLevel, setClassLevel] = useState<SignupClassLevel | null>(null);
   const [college, setCollege] = useState("");
   const [institutionAck, setInstitutionAck] = useState(false);
@@ -76,6 +86,7 @@ export function EduDecaRegistrationPanel() {
 
     setSubmitting(false);
     setSubmitted(true);
+    onSubmitted?.();
   };
 
   if (submitted) {
