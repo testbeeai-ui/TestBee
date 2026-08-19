@@ -49,7 +49,7 @@ function StepPill({
 
 function RegistrationSuccess() {
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center gap-5 px-2 py-4 text-center">
+    <div className="mx-auto flex max-w-md flex-col items-center gap-5 py-8 text-center">
       <div className="flex size-14 items-center justify-center rounded-full bg-[#1D9E75]/15">
         <CheckCircle2 className="size-7 text-[#1D9E75]" aria-hidden />
       </div>
@@ -117,7 +117,7 @@ export function EduDecaRegistrationPanel() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10 sm:px-10 sm:py-12 lg:px-14">
+    <div className="mx-auto flex w-full flex-col gap-6 sm:gap-7">
       <div className="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="mx-auto flex w-max max-w-full flex-nowrap items-center justify-center gap-2 px-1">
           {EDUDECA_WALKTHROUGH_STEPS.map((step) => (
@@ -149,9 +149,9 @@ export function EduDecaRegistrationPanel() {
 
       <div className="mx-auto w-full max-w-md space-y-6">
         <div className="space-y-2 text-center">
-          <h2 className="text-2xl font-bold text-[#EAEFF5] md:text-3xl">Start Today …</h2>
+          <h1 className="text-2xl font-bold text-[#EAEFF5] md:text-3xl">Start Today …</h1>
           <p className="text-sm text-[#8B96A5] sm:text-base">
-            Register your interest for Class 11 and Class 12 EduDeca on EduBlast.
+            Register your interest to join the EduDeca competition on EduBlast.
           </p>
         </div>
 
