@@ -692,8 +692,8 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
       {/* —— Hero: investor shell (ref. marketing mockups) —— */}
       <section className="border-b border-white/10 bg-[#050505] px-4 pb-10 pt-4 sm:px-6 sm:pb-11 lg:px-6 lg:pb-12 xl:px-8 2xl:px-10">
         <div className="mx-auto max-w-5xl">
-          <div className="mb-6 flex flex-col items-center gap-3 pt-12 sm:mb-7 sm:pt-14 lg:mb-8">
-            <div className="fixed left-1/2 top-[68px] z-40 inline-flex w-fit max-w-[calc(100%-1rem)] -translate-x-1/2 flex-col rounded-full border border-white/12 bg-zinc-950/90 p-1 text-[11px] font-bold shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_24px_-12px_rgba(0,0,0,0.65)] backdrop-blur sm:max-w-full sm:flex-row sm:text-xs">
+          <div className="mb-5 flex flex-col items-center gap-3 pt-10 sm:mb-6 sm:pt-11">
+            <div className="fixed left-1/2 top-[calc(3.5rem+8px)] z-40 inline-flex w-fit max-w-[calc(100%-1rem)] -translate-x-1/2 flex-col rounded-full border border-white/12 bg-zinc-950/90 p-1 text-[11px] font-bold shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_24px_-12px_rgba(0,0,0,0.65)] backdrop-blur sm:max-w-full sm:flex-row sm:text-xs">
               <button
                 type="button"
                 onClick={() => setPersona("student")}
@@ -741,7 +741,7 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
               <span className="text-balance">
                 {persona === "teacher"
                   ? "For PCM teachers · PUC 1 & 2"
-                  : "India&apos;s first AI-powered learning social network"}
+                  : "India's first AI-powered learning social network"}
               </span>
             </span>
           </div>
