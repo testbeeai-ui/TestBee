@@ -1,13 +1,86 @@
 import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@/integrations/supabase/server";
-import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
-
-const GMAIL_RE = /^[^\s@]+@gmail\.com$/i;
+import {
+  EDUDECA_GMAIL_RE,
+  buildEduDecaProfileUpsert,
+  resolveProfileUserId,
+} from "@/lib/edudeca/register-interest";
 
 function trim(v: unknown, max = 300): string {
   if (typeof v !== "string") return "";
   return v.trim().slice(0, max);
+}
+
+type AuthAdmin = {
+  getUserByEmail?: (email: string) => Promise<{
+    data: { user: { id: string } | null };
+    error: { message: string; status?: number } | null;
+  }>;
+  createUser: (attrs: {
+    email: string;
+    email_confirm: boolean;
+    user_metadata: Record<string, string>;
+  }) => Promise<{
+    data: { user: { id: string } | null };
+    error: { message: string } | null;
+  }>;
+};
+
+type AdminClient = NonNullable<ReturnType<typeof createAdminClient>>;
+
+type EduDecaAdmin = {
+  rpc: (
+    fn: "edudeca_auth_user_id_by_email",
+    args: { p_email: string },
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+  from: (table: "edudeca_profiles") => {
+    upsert: (
+      row: ReturnType<typeof buildEduDecaProfileUpsert>,
+      opts: { onConflict: "id"; ignoreDuplicates: boolean },
+    ) => Promise<{ error: { message: string } | null }>;
+  };
+};
+
+function asEduDecaAdmin(admin: AdminClient): EduDecaAdmin {
+  return admin as unknown as EduDecaAdmin;
+}
+
+async function findIdByEmail(
+  admin: AdminClient,
+  adminAuth: AuthAdmin,
+  email: string,
+): Promise<string | null> {
+  const { data: rpcId, error: rpcError } = await asEduDecaAdmin(admin).rpc(
+    "edudeca_auth_user_id_by_email",
+    { p_email: email },
+  );
+  if (!rpcError && typeof rpcId === "string" && rpcId.length > 0) return rpcId;
+
+  if (typeof adminAuth.getUserByEmail === "function") {
+    const { data, error } = await adminAuth.getUserByEmail(email);
+    if (!error && data.user?.id) return data.user.id;
+  }
+
+  return null;
+}
+
+async function createIdForEmail(
+  admin: AdminClient,
+  adminAuth: AuthAdmin,
+  email: string,
+): Promise<string> {
+  const { data, error } = await adminAuth.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: { source: "edudeca_interest" },
+  });
+  if (data.user?.id) return data.user.id;
+
+  const existing = await findIdByEmail(admin, adminAuth, email);
+  if (existing) return existing;
+
+  throw new Error(error?.message ?? "Could not create auth user for this email.");
 }
 
 export async function POST(request: Request) {
@@ -36,7 +109,7 @@ export async function POST(request: Request) {
   const state = trim(rawState);
   const city = trim(rawCity);
 
-  if (!GMAIL_RE.test(email)) {
+  if (!EDUDECA_GMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Only @gmail.com addresses are accepted." }, { status: 422 });
   }
   if (classLevel !== 11 && classLevel !== 12) {
@@ -55,50 +128,46 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Service unavailable." }, { status: 503 });
   }
 
-  // UPSERT: same Gmail can re-submit to update their details. No duplicates.
-  const { error: dbError } = await admin
-    .from("edudeca_interest_registrations")
-    .upsert(
-      { email, class_level: classLevel, institution, state, city },
-      { onConflict: "email", ignoreDuplicates: false },
-    );
+  const payload = {
+    email,
+    classLevel: classLevel as 11 | 12,
+    institution,
+    state,
+    city,
+  };
 
-  if (dbError) {
-    console.error("[edudeca/register-interest] DB error:", dbError);
+  const adminAuth = admin.auth.admin as unknown as AuthAdmin;
+
+  let userId: string;
+  try {
+    userId = await resolveProfileUserId(email, {
+      findIdByEmail: (value) => findIdByEmail(admin, adminAuth, value),
+      createIdForEmail: (value) => createIdForEmail(admin, adminAuth, value),
+    });
+  } catch (err) {
+    console.error("[edudeca/register-interest] auth user resolve failed:", err);
     return NextResponse.json({ error: "Could not save registration. Please try again." }, { status: 500 });
   }
 
-  // If the caller is authenticated, also upsert into `edudeca_profiles`.
-  // Reason: `public.edudeca_profiles` uses RLS with `auth.uid() = id`, so anonymous users cannot see
-  // their submissions there.
-  const authed = await getSupabaseAndUser(request);
-  if (authed) {
-    const { user } = authed;
-    const {
-      id,
-      email: authedEmail,
-    } = user;
+  const row = buildEduDecaProfileUpsert(userId, payload);
 
-    // `edudeca_profiles` may not be present in generated Web Supabase types yet.
-    // Cast to `any` to avoid blocking the build; runtime will still hit the correct table.
-    const adminAny = admin as any;
-    const { error: profileError } = await adminAny.from("edudeca_profiles").upsert(
-      {
-        id,
-        class_level: classLevel,
-        institution_name: institution,
-        state,
-        city,
-        email: authedEmail ?? email,
-      },
-      { onConflict: "id", ignoreDuplicates: false }
-    );
+  // Service role bypasses RLS. Same id+email overwrites class/institution/location.
+  const { error: profileError } = await asEduDecaAdmin(admin).from("edudeca_profiles").upsert(row, {
+    onConflict: "id",
+    ignoreDuplicates: false,
+  });
 
-    if (profileError) {
-      // Don't fail the whole request if profiles upsert fails — interest table is the source of truth
-      // for unauth submissions.
-      console.error("[edudeca/register-interest] profiles upsert error:", profileError);
-    }
+  if (profileError) {
+    console.error("[edudeca/register-interest] edudeca_profiles upsert error:", profileError);
+    return NextResponse.json({ error: "Could not save registration. Please try again." }, { status: 500 });
+  }
+
+  const { error: waitlistError } = await admin.from("edudeca_interest_registrations").upsert(
+    { email, class_level: classLevel, institution, state, city },
+    { onConflict: "email", ignoreDuplicates: false },
+  );
+  if (waitlistError) {
+    console.error("[edudeca/register-interest] waitlist upsert error:", waitlistError);
   }
 
   return NextResponse.json({ ok: true });

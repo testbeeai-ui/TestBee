@@ -30,6 +30,7 @@ type FooterLink = {
 
 export const FOOTER_LINKS: FooterLink[] = [
   { label: "About Us", href: "/about-us" },
+  { label: "EduDeca", href: "/edudeca" },
   { label: "Features", href: "#features" },
   { label: "Edufundz", href: "#" },
   { label: "For schools", href: "#" },

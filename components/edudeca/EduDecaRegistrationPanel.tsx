@@ -124,7 +124,6 @@ export function EduDecaRegistrationPanel({
       return;
     }
 
-    setSubmitting(false);
     onSubmitted?.();
   };
 
