@@ -47,7 +47,10 @@ function EduDecaPageBody({ isInAppShell }: { isInAppShell: boolean }) {
           </nav>
         )}
 
-        <EduDecaRegistrationPanel onSubmitted={() => setSubmitted(true)} />
+        <EduDecaRegistrationPanel
+          submitted={submitted}
+          onSubmitted={() => setSubmitted(true)}
+        />
       </div>
     </div>
   );

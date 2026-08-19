@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -2128,6 +2128,36 @@ export type Database = {
           created_at?: string
           rdm_awarded?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      edudeca_interest_registrations: {
+        Row: {
+          city: string
+          class_level: number
+          email: string
+          institution: string
+          registered_at: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          class_level: number
+          email: string
+          institution: string
+          registered_at?: string
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          class_level?: number
+          email?: string
+          institution?: string
+          registered_at?: string
+          state?: string
+          updated_at?: string
         }
         Relationships: []
       }

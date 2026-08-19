@@ -40,15 +40,22 @@ function RegistrationSuccess() {
   );
 }
 
-export function EduDecaRegistrationPanel({ onSubmitted }: { onSubmitted?: () => void }) {
+export function EduDecaRegistrationPanel({
+  onSubmitted,
+  submitted,
+}: {
+  onSubmitted?: () => void;
+  submitted?: boolean;
+}) {
   const [classLevel, setClassLevel] = useState<SignupClassLevel | null>(null);
+  const [email, setEmail] = useState("");
   const [college, setCollege] = useState("");
   const [institutionAck, setInstitutionAck] = useState(false);
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isSubmitted = Boolean(submitted);
 
   const cities = getCitiesForState(state);
   const profileReady = isSignupProfileReady({
@@ -59,12 +66,22 @@ export function EduDecaRegistrationPanel({ onSubmitted }: { onSubmitted?: () => 
     city,
   });
 
+  const trimmedEmail = email.trim();
+  const gmailEmailValid = /^[^\s@]+@gmail\.com$/i.test(trimmedEmail);
+  const showEmailError = trimmedEmail.length > 0 && !gmailEmailValid;
+  const canRegister = profileReady && gmailEmailValid;
+
   const selectClass = (level: SignupClassLevel) => {
     setClassLevel(level);
     setError(null);
   };
 
   const handleSubmit = async () => {
+    if (!gmailEmailValid) {
+      setError("Please enter a valid @gmail.com email");
+      return;
+    }
+
     if (
       !isSignupProfileReady({
         classLevel,
@@ -81,15 +98,37 @@ export function EduDecaRegistrationPanel({ onSubmitted }: { onSubmitted?: () => 
     setSubmitting(true);
     setError(null);
 
-    // UI-only for now — DB wiring comes in a follow-up.
-    await new Promise((resolve) => window.setTimeout(resolve, 450));
+    try {
+      const res = await fetch("/api/edudeca/register-interest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          class_level: classLevel,
+          institution: college,
+          state,
+          city,
+        }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(data.error ?? "Could not save registration. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+      setSubmitting(false);
+      return;
+    }
 
     setSubmitting(false);
-    setSubmitted(true);
     onSubmitted?.();
   };
 
-  if (submitted) {
+  if (isSubmitted) {
     return <RegistrationSuccess />;
   }
 
@@ -137,6 +176,28 @@ export function EduDecaRegistrationPanel({ onSubmitted }: { onSubmitted?: () => 
                 );
               })}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="edudeca-email" className="text-sm font-medium text-[#EAEFF5]">
+              Email
+            </label>
+            <Input
+              id="edudeca-email"
+              type="email"
+              autoComplete="email"
+              placeholder="example@gmail.com"
+              value={email}
+              aria-invalid={showEmailError}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError(null);
+              }}
+              className="h-12 rounded-2xl border-[#262E3A] bg-[#0E1117]/80 px-4 text-base text-[#EAEFF5] placeholder:text-[#8B96A5] focus-visible:border-[#1D9E75] focus-visible:ring-[#1D9E75]/20"
+            />
+            {showEmailError ? (
+              <p className="mt-1 text-xs text-red-300">Please enter a valid @gmail.com email</p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -205,16 +266,14 @@ export function EduDecaRegistrationPanel({ onSubmitted }: { onSubmitted?: () => 
         <button
           type="button"
           onClick={() => void handleSubmit()}
-          disabled={!profileReady || submitting}
+          disabled={!canRegister || submitting}
           className="h-14 w-full rounded-2xl bg-[#1D9E75] text-base font-semibold text-white shadow-[0_4px_14px_rgba(29,158,117,0.35)] transition-colors hover:bg-[#178d68] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? "Submitting…" : "Register interest"}
         </button>
 
-        {!profileReady && !submitting ? (
-          <p className="text-center text-xs text-[#8B96A5]">
-            Tick the Level-4 note and select state and city to continue.
-          </p>
+        {!canRegister && !submitting ? (
+          <p className="text-center text-xs text-[#8B96A5]">Enter your Gmail and complete the remaining profile fields.</p>
         ) : null}
 
         {error ? (
