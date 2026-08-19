@@ -11,6 +11,8 @@ export function isPublicPath(pathname: string): boolean {
     "/auth",
     "/auth-choice",
     "/contact",
+    "/about-us",
+    "/edudeca",
     "/pricing",
     "/razorpay-demo",
     "/select-role",

@@ -73,9 +73,11 @@ export default function LandingNavbar({
       }
     >
       <div
-        className={`relative mx-auto flex h-14 w-full max-w-[min(100%,1200px)] items-center px-4 sm:px-5 ${
-          !isDark ? "justify-between" : ""
-        }`}
+        className={
+          isDark
+            ? "mx-auto grid h-14 w-full max-w-[min(100%,1200px)] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 sm:gap-4 sm:px-5 lg:gap-5"
+            : "relative mx-auto flex h-14 w-full max-w-[min(100%,1200px)] items-center justify-between px-4 sm:px-5"
+        }
       >
         {/* Logo — logo-2.png (resized), matches AppLayout */}
         <Link
@@ -90,11 +92,11 @@ export default function LandingNavbar({
           />
         </Link>
 
-        {/* Desktop links — centered in bar (investor shell) */}
+        {/* Desktop links — middle column (investor) or flow (light) */}
         <div
           className={
             isDark
-              ? "pointer-events-none absolute left-1/2 top-1/2 hidden max-w-[min(52vw,420px)] -translate-x-1/2 -translate-y-1/2 md:flex md:items-center md:justify-center md:gap-4 lg:max-w-none lg:gap-7 xl:gap-9"
+              ? "hidden min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:flex md:items-center md:justify-center md:gap-2.5 lg:gap-4 xl:gap-5"
               : "hidden md:flex items-center gap-5"
           }
         >
@@ -107,7 +109,7 @@ export default function LandingNavbar({
                 className={
                   isDark
                     ? cn(
-                        "pointer-events-auto shrink-0 text-[11px] tracking-wide transition-all duration-200 md:text-[12px] xl:text-[13px] font-bold pb-0.5 border-b-2",
+                        "shrink-0 whitespace-nowrap text-[11px] tracking-wide transition-all duration-200 md:text-[12px] xl:text-[13px] font-bold pb-0.5 border-b-2",
                         active
                           ? "text-zinc-100 border-[#34f5a4]"
                           : "text-zinc-300 hover:text-white border-transparent"
@@ -126,78 +128,80 @@ export default function LandingNavbar({
           })}
         </div>
 
-        {/* Desktop CTAs */}
-        <div
-          className={
-            isDark
-              ? "relative z-10 ml-auto hidden shrink-0 items-center gap-2 md:flex lg:gap-2.5"
-              : "hidden shrink-0 items-center gap-2 md:flex"
-          }
-        >
-          {authLoading ? (
-            <span
-              className={
-                isDark
-                  ? "h-9 w-24 rounded-full bg-white/10 animate-pulse"
-                  : "h-9 w-24 rounded-lg bg-gray-200 animate-pulse"
-              }
-              aria-hidden
-            />
-          ) : isSignedIn ? (
-            <Link
-              href={profile?.role === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home"}
-              className={
-                isDark
-                  ? "inline-flex items-center gap-1.5 rounded-full bg-[#34f5a4] px-3.5 py-2 text-[11px] font-bold text-neutral-950 shadow-[0_0_24px_rgba(52,245,164,0.22)] transition-colors hover:bg-[#2ee89a] md:px-5 md:py-2.5 md:text-[12px] xl:text-[13px]"
-                  : "bg-[#1D9E75] text-white rounded-lg px-[18px] py-2 text-sm font-medium hover:bg-[#178d68] transition-colors"
-              }
-            >
-              Open app <span aria-hidden>↗</span>
-            </Link>
-          ) : (
-            <>
-              <button
-                onClick={() => {
-                  if (onOpenSignInNotice) {
-                    onOpenSignInNotice();
-                  } else {
-                    handleWaitlist();
+        <div className="relative z-10 flex shrink-0 items-center justify-end gap-2 sm:gap-3">
+          {/* Desktop CTAs */}
+          <div
+            className={
+              isDark
+                ? "hidden items-center gap-3 md:flex"
+                : "hidden shrink-0 items-center gap-2 md:flex"
+            }
+          >
+            {authLoading ? (
+              <span
+                className={
+                  isDark
+                    ? "h-9 w-24 rounded-full bg-white/10 animate-pulse"
+                    : "h-9 w-24 rounded-lg bg-gray-200 animate-pulse"
+                }
+                aria-hidden
+              />
+            ) : isSignedIn ? (
+              <Link
+                href={profile?.role === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home"}
+                className={
+                  isDark
+                    ? "inline-flex h-9 items-center gap-1.5 rounded-full bg-[#34f5a4] px-5 text-[12px] font-bold text-neutral-950 shadow-[0_0_24px_rgba(52,245,164,0.22)] transition-colors hover:bg-[#2ee89a] xl:text-[13px]"
+                    : "bg-[#1D9E75] text-white rounded-lg px-[18px] py-2 text-sm font-medium hover:bg-[#178d68] transition-colors"
+                }
+              >
+                Open app <span aria-hidden>↗</span>
+              </Link>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    if (onOpenSignInNotice) {
+                      onOpenSignInNotice();
+                    } else {
+                      handleWaitlist();
+                    }
+                  }}
+                  className={
+                    isDark
+                      ? "inline-flex h-9 cursor-pointer items-center justify-center rounded-full border border-white/25 bg-transparent px-4 text-[12px] font-medium text-zinc-200 transition-colors hover:border-white/45 hover:text-white xl:text-[13px]"
+                      : "border border-gray-300 rounded-lg px-4 py-[7px] text-sm text-gray-500 hover:text-gray-900 hover:border-gray-400 transition-colors cursor-pointer"
                   }
-                }}
-                className={
-                  isDark
-                    ? "rounded-full border border-white/25 bg-transparent px-3 py-2 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/45 hover:text-white md:px-4 md:text-[12px] xl:text-[13px] cursor-pointer"
-                    : "border border-gray-300 rounded-lg px-4 py-[7px] text-sm text-gray-500 hover:text-gray-900 hover:border-gray-400 transition-colors cursor-pointer"
-                }
-              >
-                Sign in
-              </button>
-              <button
-                onClick={() => handleWaitlist()}
-                className={
-                  isDark
-                    ? "inline-flex items-center gap-1.5 rounded-full bg-[#34f5a4] px-3.5 py-2 text-[11px] font-bold text-neutral-950 shadow-[0_0_24px_rgba(52,245,164,0.22)] transition-colors hover:bg-[#2ee89a] md:px-5 md:py-2.5 md:text-[12px] xl:text-[13px] cursor-pointer"
-                    : "bg-[#1D9E75] text-white rounded-lg px-[18px] py-2 text-sm font-medium hover:bg-[#178d68] transition-colors cursor-pointer"
-                }
-              >
-                Join Now <span aria-hidden>↗</span>
-              </button>
-            </>
-          )}
-        </div>
+                >
+                  Sign in
+                </button>
+                <button
+                  onClick={() => handleWaitlist()}
+                  className={
+                    isDark
+                      ? "inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-full bg-[#34f5a4] px-5 text-[12px] font-bold text-neutral-950 shadow-[0_0_24px_rgba(52,245,164,0.22)] transition-colors hover:bg-[#2ee89a] xl:text-[13px]"
+                      : "bg-[#1D9E75] text-white rounded-lg px-[18px] py-2 text-sm font-medium hover:bg-[#178d68] transition-colors cursor-pointer"
+                  }
+                >
+                  Join Now <span aria-hidden>↗</span>
+                </button>
+              </>
+            )}
+          </div>
 
-        {/* Mobile hamburger */}
-        <button
-          className={
-            isDark
-              ? "relative z-10 ml-auto p-2 text-zinc-300 md:hidden"
-              : "md:hidden p-2 text-gray-600"
-          }
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Toggle menu"
-        >
-          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+          {/* Mobile hamburger */}
+          <button
+            className={
+              isDark
+                ? "p-2 text-zinc-300 md:hidden"
+                : "md:hidden p-2 text-gray-600"
+            }
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Toggle menu"
+          >
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile panel */}
