@@ -7,8 +7,12 @@ import { LocationSelect } from "@/components/edudeca/LocationSelect";
 import { Input } from "@/components/ui/input";
 import { getCitiesForState, INDIAN_STATES_AND_UTS } from "@/lib/edudeca/india-geo";
 import {
+  EDUDECA_EDUBITE_PRACTICE_APP_URL,
+  EDUDECA_EDUBITE_PRACTICE_LINK_LABEL,
   EDUDECA_REGISTRATION_SUCCESS_MESSAGE,
   EDUDECA_REGISTRATION_SUCCESS_TITLE,
+  EDUDECA_REGISTRATION_SUCCESS_WAIT_AFTER,
+  EDUDECA_REGISTRATION_SUCCESS_WAIT_BEFORE,
   isSignupProfileReady,
   type SignupClassLevel,
 } from "@/lib/edudeca/signup-profile";
@@ -32,9 +36,21 @@ function RegistrationSuccess() {
         <h1 className="text-[1.75rem] font-bold leading-tight tracking-tight text-[#EAEFF5] sm:text-3xl">
           {EDUDECA_REGISTRATION_SUCCESS_TITLE}
         </h1>
-        <p className="mx-auto max-w-[22rem] text-sm leading-[1.65] text-[#8B96A5] sm:text-base">
-          {EDUDECA_REGISTRATION_SUCCESS_MESSAGE}
-        </p>
+        <div className="mx-auto max-w-[22rem] space-y-4 text-sm leading-[1.65] text-[#8B96A5] sm:text-base">
+          <p>{EDUDECA_REGISTRATION_SUCCESS_MESSAGE}</p>
+          <p>
+            {EDUDECA_REGISTRATION_SUCCESS_WAIT_BEFORE}
+            <a
+              href={EDUDECA_EDUBITE_PRACTICE_APP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-[#1D9E75] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75]/50"
+            >
+              {EDUDECA_EDUBITE_PRACTICE_LINK_LABEL}
+            </a>
+            {EDUDECA_REGISTRATION_SUCCESS_WAIT_AFTER}
+          </p>
+        </div>
       </div>
     </div>
   );
