@@ -9,6 +9,7 @@ import { getCitiesForState, INDIAN_STATES_AND_UTS } from "@/lib/edudeca/india-ge
 import {
   EDUDECA_EDUBITE_PRACTICE_APP_URL,
   EDUDECA_EDUBITE_PRACTICE_LINK_LABEL,
+  EDUDECA_REGISTRATION_SUCCESS_FUTURE_MESSAGE,
   EDUDECA_REGISTRATION_SUCCESS_MESSAGE,
   EDUDECA_REGISTRATION_SUCCESS_TITLE,
   EDUDECA_REGISTRATION_SUCCESS_WAIT_AFTER,
@@ -36,20 +37,23 @@ function RegistrationSuccess() {
         <h1 className="text-[1.75rem] font-bold leading-tight tracking-tight text-[#EAEFF5] sm:text-3xl">
           {EDUDECA_REGISTRATION_SUCCESS_TITLE}
         </h1>
-        <div className="mx-auto max-w-[22rem] space-y-4 text-sm leading-[1.65] text-[#8B96A5] sm:text-base">
-          <p>{EDUDECA_REGISTRATION_SUCCESS_MESSAGE}</p>
-          <p>
-            {EDUDECA_REGISTRATION_SUCCESS_WAIT_BEFORE}
-            <a
-              href={EDUDECA_EDUBITE_PRACTICE_APP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-[#1D9E75] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75]/50"
-            >
-              {EDUDECA_EDUBITE_PRACTICE_LINK_LABEL}
-            </a>
-            {EDUDECA_REGISTRATION_SUCCESS_WAIT_AFTER}
-          </p>
+        <div className="mx-auto max-w-[18.5rem] space-y-4 text-center text-sm leading-relaxed text-[#8B96A5] sm:max-w-[20rem] sm:text-base sm:leading-[1.6]">
+          <p className="text-pretty">{EDUDECA_REGISTRATION_SUCCESS_MESSAGE}</p>
+          <div className="space-y-3">
+            <p className="text-pretty">
+              {EDUDECA_REGISTRATION_SUCCESS_WAIT_BEFORE}
+              <a
+                href={EDUDECA_EDUBITE_PRACTICE_APP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="whitespace-nowrap font-medium text-[#1D9E75] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75]/50"
+              >
+                {EDUDECA_EDUBITE_PRACTICE_LINK_LABEL}
+              </a>
+              {EDUDECA_REGISTRATION_SUCCESS_WAIT_AFTER}
+            </p>
+            <p className="text-balance">{EDUDECA_REGISTRATION_SUCCESS_FUTURE_MESSAGE}</p>
+          </div>
         </div>
       </div>
     </div>

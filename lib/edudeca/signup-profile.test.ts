@@ -44,7 +44,7 @@ describe("EDUDECA_REGISTRATION_SUCCESS_MESSAGE", () => {
 describe("EDUDECA_REGISTRATION_SUCCESS_WAIT_MESSAGE", () => {
   it("points people to Edubite practice while waiting", () => {
     expect(EDUDECA_REGISTRATION_SUCCESS_WAIT_MESSAGE).toBe(
-      "While you wait, download the Edubite app to practice for now. A Play Store QR will be shared later.",
+      "While waiting, please download the Edubite app for practice for now. In the future we will share a Play Store QR.",
     );
   });
 });
