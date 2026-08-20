@@ -32,7 +32,7 @@ const TrialExpirationOverlay = dynamic(
   { ssr: false }
 );
 
-const GATE_BYPASS_PREFIXES = ["/auth", "/admin", "/teacher-portal"];
+const GATE_BYPASS_PREFIXES = ["/auth", "/admin", "/teacher-portal", "/edudeca"];
 
 function isGateBypassRoute(pathname: string | null): boolean {
   if (!pathname) return false;

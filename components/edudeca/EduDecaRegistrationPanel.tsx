@@ -145,7 +145,18 @@ export function EduDecaRegistrationPanel({
 
       <div className="mx-auto w-full max-w-md space-y-6">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold text-[#EAEFF5] md:text-3xl">Start Today …</h1>
+          <div className="relative mx-auto w-fit">
+            <h1 className="text-2xl font-bold text-[#EAEFF5] md:text-3xl">Start Today …</h1>
+            <a
+              href="https://drive.google.com/file/d/1SsfvvrY-o5LhSp627YJ5Uz6x1NTrNntg/view?usp=sharing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute left-full top-1/2 ml-3 inline-flex -translate-y-1/2 items-center gap-1 whitespace-nowrap text-sm font-semibold text-amber-400 underline-offset-4 transition-colors hover:text-amber-300 hover:underline sm:ml-4 sm:text-base"
+            >
+              <span aria-hidden="true">📄</span>
+              More
+            </a>
+          </div>
           <p className="text-sm text-[#8B96A5] sm:text-base">
             Register your interest to join the EduDeca competition on EduBlast.
           </p>

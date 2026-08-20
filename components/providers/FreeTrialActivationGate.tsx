@@ -40,6 +40,7 @@ const GATE_BYPASS_PREFIXES = [
   "/auth-choice",
   "/waitlist",
   "/integrations",
+  "/edudeca",
 ];
 
 /**
