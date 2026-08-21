@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import { createAdminClient } from "@/integrations/supabase/server";
 import {
-  EDUDECA_GMAIL_RE,
+  EDUDECA_EMAIL_RE,
   buildEduDecaProfileUpsert,
   buildWaitlistUpsert,
-  resolveProfileUserId,
+  findExistingProfileUserId,
 } from "@/lib/edudeca/register-interest";
+import { sendEduDecaStudentWelcomeEmail } from "@/lib/email/sendEduDecaWelcomeEmail";
 
 function trim(v: unknown, max = 300): string {
   if (typeof v !== "string") return "";
@@ -17,14 +18,6 @@ type AuthAdmin = {
   getUserByEmail?: (email: string) => Promise<{
     data: { user: { id: string } | null };
     error: { message: string; status?: number } | null;
-  }>;
-  createUser: (attrs: {
-    email: string;
-    email_confirm: boolean;
-    user_metadata: Record<string, string>;
-  }) => Promise<{
-    data: { user: { id: string } | null };
-    error: { message: string } | null;
   }>;
 };
 
@@ -75,24 +68,6 @@ async function findIdByEmail(
   return null;
 }
 
-async function createIdForEmail(
-  admin: AdminClient,
-  adminAuth: AuthAdmin,
-  email: string,
-): Promise<string> {
-  const { data, error } = await adminAuth.createUser({
-    email,
-    email_confirm: true,
-    user_metadata: { source: "edudeca_interest" },
-  });
-  if (data.user?.id) return data.user.id;
-
-  const existing = await findIdByEmail(admin, adminAuth, email);
-  if (existing) return existing;
-
-  throw new Error(error?.message ?? "Could not create auth user for this email.");
-}
-
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -119,8 +94,8 @@ export async function POST(request: Request) {
   const state = trim(rawState);
   const city = trim(rawCity);
 
-  if (!EDUDECA_GMAIL_RE.test(email)) {
-    return NextResponse.json({ error: "Only @gmail.com addresses are accepted." }, { status: 422 });
+  if (!EDUDECA_EMAIL_RE.test(email)) {
+    return NextResponse.json({ error: "Please enter a valid email address." }, { status: 422 });
   }
   if (classLevel !== 11 && classLevel !== 12) {
     return NextResponse.json({ error: "class_level must be 11 or 12." }, { status: 422 });
@@ -148,7 +123,15 @@ export async function POST(request: Request) {
     city,
   };
 
-  // Waitlist first so a production submit is never lost if auth user creation fails.
+  // Interest row is plain text — never create Auth users from this form.
+  const { data: existingInterest, error: existingInterestError } = await admin
+    .from("edudeca_interest_registrations")
+    .select("email")
+    .eq("email", email)
+    .maybeSingle();
+  // Only treat as first registration when the lookup succeeded and found no row.
+  const isFirstRegistration = !existingInterestError && !existingInterest?.email;
+
   const { error: waitlistError } = await admin.from("edudeca_interest_registrations").upsert(
     buildWaitlistUpsert(payload),
     { onConflict: "email" },
@@ -159,29 +142,31 @@ export async function POST(request: Request) {
   }
 
   const adminAuth = admin.auth.admin as unknown as AuthAdmin;
+  const userId = await findExistingProfileUserId(email, {
+    findIdByEmail: (value) => findIdByEmail(admin, adminAuth, value),
+  });
 
-  let userId: string;
-  try {
-    userId = await resolveProfileUserId(email, {
-      findIdByEmail: (value) => findIdByEmail(admin, adminAuth, value),
-      createIdForEmail: (value) => createIdForEmail(admin, adminAuth, value),
-    });
-  } catch (err) {
-    console.error("[edudeca/register-interest] auth user resolve failed:", err);
-    return NextResponse.json({ error: "Could not save registration. Please try again." }, { status: 500 });
+  // Only update edudeca_profiles when this email already belongs to a Google Auth user.
+  if (userId) {
+    const row = buildEduDecaProfileUpsert(userId, payload);
+    const { error: profileError } = await asEduDecaAdmin(admin)
+      .from("edudeca_profiles")
+      .upsert(row, { onConflict: "id" })
+      .select("id, email")
+      .maybeSingle();
+
+    if (profileError) {
+      console.error("[edudeca/register-interest] edudeca_profiles upsert error:", profileError);
+      return NextResponse.json({ error: "Could not save registration. Please try again." }, { status: 500 });
+    }
   }
 
-  const row = buildEduDecaProfileUpsert(userId, payload);
-
-  const { data: savedProfile, error: profileError } = await asEduDecaAdmin(admin)
-    .from("edudeca_profiles")
-    .upsert(row, { onConflict: "id" })
-    .select("id, email")
-    .maybeSingle();
-
-  if (profileError || !savedProfile?.id) {
-    console.error("[edudeca/register-interest] edudeca_profiles upsert error:", profileError);
-    return NextResponse.json({ error: "Could not save registration. Please try again." }, { status: 500 });
+  if (isFirstRegistration) {
+    after(() => {
+      void sendEduDecaStudentWelcomeEmail({ email, userId }).catch((err) => {
+        console.error("[edudeca/register-interest] welcome email error:", err);
+      });
+    });
   }
 
   return NextResponse.json({ ok: true });

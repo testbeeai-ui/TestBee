@@ -87,9 +87,9 @@ export function EduDecaRegistrationPanel({
   });
 
   const trimmedEmail = email.trim();
-  const gmailEmailValid = /^[^\s@]+@gmail\.com$/i.test(trimmedEmail);
-  const showEmailError = trimmedEmail.length > 0 && !gmailEmailValid;
-  const canRegister = profileReady && gmailEmailValid;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(trimmedEmail);
+  const showEmailError = trimmedEmail.length > 0 && !emailValid;
+  const canRegister = profileReady && emailValid;
 
   const selectClass = (level: SignupClassLevel) => {
     setClassLevel(level);
@@ -97,8 +97,8 @@ export function EduDecaRegistrationPanel({
   };
 
   const handleSubmit = async () => {
-    if (!gmailEmailValid) {
-      setError("Please enter a valid @gmail.com email");
+    if (!emailValid) {
+      setError("Please enter a valid email address");
       return;
     }
 
@@ -218,7 +218,7 @@ export function EduDecaRegistrationPanel({
               id="edudeca-email"
               type="email"
               autoComplete="email"
-              placeholder="example@gmail.com"
+              placeholder="you@college.edu"
               value={email}
               aria-invalid={showEmailError}
               onChange={(e) => {
@@ -228,7 +228,7 @@ export function EduDecaRegistrationPanel({
               className="h-12 rounded-2xl border-[#262E3A] bg-[#0E1117]/80 px-4 text-base text-[#EAEFF5] placeholder:text-[#8B96A5] focus-visible:border-[#1D9E75] focus-visible:ring-[#1D9E75]/20"
             />
             {showEmailError ? (
-              <p className="mt-1 text-xs text-red-300">Please enter a valid @gmail.com email</p>
+              <p className="mt-1 text-xs text-red-300">Please enter a valid email address</p>
             ) : null}
           </div>
 
@@ -305,7 +305,7 @@ export function EduDecaRegistrationPanel({
         </button>
 
         {!canRegister && !submitting ? (
-          <p className="text-xs text-[#8B96A5]">Enter your Gmail and complete the remaining profile fields.</p>
+          <p className="text-xs text-[#8B96A5]">Enter your email and complete the remaining profile fields.</p>
         ) : null}
 
         {error ? (

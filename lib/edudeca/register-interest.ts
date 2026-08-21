@@ -1,4 +1,8 @@
-export const EDUDECA_GMAIL_RE = /^[^\s@]+@gmail\.com$/i;
+/** Any normal email (college domains included). Not Gmail-only. */
+export const EDUDECA_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+
+/** @deprecated Use EDUDECA_EMAIL_RE — kept as alias so old imports keep working briefly. */
+export const EDUDECA_GMAIL_RE = EDUDECA_EMAIL_RE;
 
 export type EduDecaInterestPayload = {
   email: string;
@@ -10,7 +14,6 @@ export type EduDecaInterestPayload = {
 
 export type AuthUserLookup = {
   findIdByEmail: (email: string) => Promise<string | null>;
-  createIdForEmail: (email: string) => Promise<string>;
 };
 
 export function buildEduDecaProfileUpsert(id: string, payload: EduDecaInterestPayload) {
@@ -34,9 +37,13 @@ export function buildWaitlistUpsert(payload: EduDecaInterestPayload) {
   };
 }
 
-/** Same Gmail always maps to the same auth user id so edudeca_profiles stays one row. */
-export async function resolveProfileUserId(email: string, auth: AuthUserLookup): Promise<string> {
-  const existing = await auth.findIdByEmail(email);
-  if (existing) return existing;
-  return auth.createIdForEmail(email);
+/**
+ * Link interest to an existing Google Auth user if that email already signed in.
+ * Do not create Auth users from typed form emails.
+ */
+export async function findExistingProfileUserId(
+  email: string,
+  auth: AuthUserLookup,
+): Promise<string | null> {
+  return auth.findIdByEmail(email);
 }
