@@ -7,7 +7,7 @@ describe("buildEduDecaStudentWelcomeEmail", () => {
     const { subject, html, text } = buildEduDecaStudentWelcomeEmail({
       email: "adwait.kamble23@pccoepune.org",
       displayName: "Adwait",
-      ctaUrl: "https://www.edublast.in/edudeca",
+      ctaUrl: "https://edu-deca.vercel.app",
       logoBaseUrl: "https://www.edublast.in",
     });
 
@@ -16,10 +16,11 @@ describe("buildEduDecaStudentWelcomeEmail", () => {
     expect(html).toContain("https://www.edublast.in/images/logo-2.png");
     expect(html).toContain('alt="EduBlast"');
     expect(html).toContain("Continue to EduDeca");
-    expect(html).toContain("https://www.edublast.in/edudeca");
+    expect(html).toContain("https://edu-deca.vercel.app");
     expect(html).toContain("You're registered for EduDeca");
     expect(text).toContain("Welcome aboard, Adwait");
-    expect(text).toContain("https://www.edublast.in/edudeca");
+    expect(text).toContain("https://edu-deca.vercel.app");
+    expect(text).toContain("edu-deca.vercel.app");
   });
 
   it("escapes html in the display name", () => {

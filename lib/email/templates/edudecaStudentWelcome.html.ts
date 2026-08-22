@@ -21,7 +21,7 @@ export const EDUDECA_STUDENT_WELCOME_HTML_TEMPLATE = `<!DOCTYPE html>
         <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;background-color:#161B25;border-radius:16px;border:1px solid #2A3347;overflow:hidden;">
           <tr>
             <td align="center" style="background-color:#161b27;padding:28px 24px 20px;text-align:center;">
-              <a href="https://www.edublast.in" target="_blank" style="text-decoration:none;">
+              <a href="https://edu-deca.vercel.app" target="_blank" style="text-decoration:none;">
                 <img src="{{logoUrl}}" alt="EduBlast" width="140" height="36" style="height:36px;width:auto;max-width:160px;border:0;display:block;margin:0 auto;" />
               </a>
               <p style="margin:12px 0 0;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#5C6480;">
@@ -90,7 +90,7 @@ export const EDUDECA_STUDENT_WELCOME_HTML_TEMPLATE = `<!DOCTYPE html>
                 Questions? <a href="mailto:join@edublast.in" style="color:#1D9E75;text-decoration:none;">join@edublast.in</a>
               </p>
               <p style="margin:10px 0 0;font-size:11px;color:#5C6480;text-align:center;">
-                &copy; {{year}} EduBlast · <a href="https://www.edublast.in" style="color:#5C6480;text-decoration:none;">edublast.in</a>
+                &copy; {{year}} EduBlast · <a href="https://edu-deca.vercel.app" style="color:#5C6480;text-decoration:none;">edu-deca.vercel.app</a>
               </p>
               <p style="margin:12px 0 0;font-size:10px;line-height:1.4;color:#4B526D;text-align:center;">
                 You received this because you registered interest in EduDeca. If that wasn't you, you can ignore this email.

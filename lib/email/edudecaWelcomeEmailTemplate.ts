@@ -51,7 +51,7 @@ export function buildEduDecaStudentWelcomeEmail(params: EduDecaStudentWelcomePar
     "Questions? join@edublast.in",
     "",
     "— EduBlast",
-    `© ${year} · edublast.in`,
+    `© ${year} · edu-deca.vercel.app`,
   ].join("\n");
 
   return {
