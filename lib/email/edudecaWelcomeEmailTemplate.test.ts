@@ -18,9 +18,20 @@ describe("buildEduDecaStudentWelcomeEmail", () => {
     expect(html).toContain("Continue to EduDeca");
     expect(html).toContain("https://edu-deca.vercel.app");
     expect(html).toContain("You're registered for EduDeca");
+    expect(html).toContain("EduDeca Academic Decathlon Challenge");
+    expect(html).toContain("Levels 1–2");
+    expect(html).toContain("WHAT'S NEXT");
+    expect(html).toContain("www.edubite.com");
+    expect(html).toContain("Open EduBite");
+    expect(html).not.toContain("QR");
+    expect(html).not.toContain("Google Play");
+    expect(html).not.toContain("TestFlight");
+    expect(html).not.toContain("edudeca.com");
+    expect(html).not.toContain("data:image");
     expect(text).toContain("Welcome aboard, Adwait");
     expect(text).toContain("https://edu-deca.vercel.app");
     expect(text).toContain("edu-deca.vercel.app");
+    expect(text).toContain("Levels 1–2");
   });
 
   it("escapes html in the display name", () => {

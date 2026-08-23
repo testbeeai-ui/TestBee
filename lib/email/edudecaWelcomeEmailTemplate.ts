@@ -10,7 +10,11 @@ export type EduDecaStudentWelcomeParams = {
   ctaUrl: string;
   /** Origin hosting `/images/logo-2.png` (defaults to EduBlast public site). */
   logoBaseUrl?: string;
+  /** EduBite practice site (defaults to www.edubite.com). */
+  edubiteUrl?: string;
 };
+
+const DEFAULT_EDUBITE_URL = "https://www.edubite.com";
 
 /** First token of the email local part, title-cased (e.g. priya.sharma → Priya). */
 export function displayNameFromEmail(email: string): string {
@@ -30,20 +34,29 @@ export function buildEduDecaStudentWelcomeEmail(params: EduDecaStudentWelcomePar
   const logoUrl = `${logoBase}${EDUBLAST_EMAIL_LOGO_PATH}`;
   const year = String(new Date().getFullYear());
   const ctaUrl = params.ctaUrl.trim();
+  const edubiteUrl = (params.edubiteUrl?.trim() || DEFAULT_EDUBITE_URL).replace(/\/$/, "");
 
   const html = applyEmailTemplate(EDUDECA_STUDENT_WELCOME_HTML_TEMPLATE, {
     name: escapeHtml(name),
     ctaUrl: escapeHtml(ctaUrl),
     logoUrl: escapeHtml(logoUrl),
     year: escapeHtml(year),
+    edubiteUrl: escapeHtml(edubiteUrl),
   });
 
   const text = [
     `Welcome aboard, ${name}`,
     "",
-    "You're registered for EduDeca — Edublast's student competition and prep track.",
+    "You're registered for EduDeca.",
     "",
-    "Thanks for signing up. Practice when you're ready, or hang tight — we'll email you when the next launch window arrives. No spam, just the useful stuff.",
+    "Welcome to the EduDeca Academic Decathlon Challenge. We shall send you an email as soon as the competition window for Levels 1–2 gets open.",
+    "",
+    `Proceed to EduDeca (${ctaUrl}) or contact join@edublast.in should you have any queries.`,
+    "",
+    "WHAT'S NEXT",
+    "Keep an eye on your inbox regularly — we'll let you know the moment Levels 1–2 go live. Also, keep checking your spam folder just in case.",
+    "",
+    `Meanwhile, you may like to use our EduBite site (${edubiteUrl}) for building everyday consistency, along with quick daily brain workouts.`,
     "",
     "Continue to EduDeca:",
     ctaUrl,
