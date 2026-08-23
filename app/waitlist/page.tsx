@@ -723,7 +723,7 @@ function WaitlistContent() {
                         <div className="grid grid-cols-2 gap-2.5">
                           <div className="flex flex-col gap-1">
                             <span className="text-xs text-[#9BA3B8]">
-                              Child's class<span className="text-[#1D9E75]">*</span>
+                              Child&apos;s class<span className="text-[#1D9E75]">*</span>
                             </span>
                             <div className="relative">
                               <select
@@ -741,7 +741,7 @@ function WaitlistContent() {
                             </div>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <span className="text-xs text-[#9BA3B8]">Child's target exam</span>
+                            <span className="text-xs text-[#9BA3B8]">Child&apos;s target exam</span>
                             <div className="relative">
                               <select
                                 value={childExam}

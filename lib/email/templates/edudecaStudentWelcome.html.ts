@@ -63,7 +63,7 @@ export const EDUDECA_STUDENT_WELCOME_HTML_TEMPLATE = `<!DOCTYPE html>
                 Welcome to the <b style="color:#fff;">EduDeca Academic Decathlon Challenge</b>. We shall send you an email as soon as the competition window for <b style="color:#fff;">Levels 1–2</b> gets open.
               </div>
               <div style="font-family:'Segoe UI',Arial,sans-serif;font-size:15px;line-height:25px;color:#C4CDD8;margin-top:16px;">
-                Proceed to EduDeca (<a href="{{ctaUrl}}" target="_blank" style="color:#22D3A6;font-weight:700;text-decoration:none;">edu-deca.vercel.app</a>) or contact <a href="mailto:join@edublast.in" style="color:#22D3A6;font-weight:700;text-decoration:none;">join@edublast.in</a> should you have any queries.
+                Proceed to EduDeca (<a href="{{ctaUrl}}" target="_blank" style="color:#22D3A6;font-weight:700;text-decoration:none;">www.edudeca.com</a>) or contact <a href="mailto:admin@edudeca.com" style="color:#22D3A6;font-weight:700;text-decoration:none;">admin@edudeca.com</a> should you have any queries.
               </div>
             </td>
           </tr>
@@ -131,8 +131,8 @@ export const EDUDECA_STUDENT_WELCOME_HTML_TEMPLATE = `<!DOCTYPE html>
             <td class="pad" style="background:#0A0D12;padding:26px 40px;border-top:1px solid #232B36;">
               <div style="text-align:center;font-family:'Segoe UI',Arial,sans-serif;font-size:12.5px;color:#7A8697;line-height:22px;">
                 EduDeca is part of <b style="color:#C4CDD8;">EduBlast</b><br />
-                Questions? <a href="mailto:join@edublast.in" style="color:#22D3A6;text-decoration:none;">join@edublast.in</a><br />
-                &copy; {{year}} EduBlast · <a href="{{ctaUrl}}" target="_blank" style="color:#7A8697;text-decoration:none;">edu-deca.vercel.app</a>
+                Questions? <a href="mailto:admin@edudeca.com" style="color:#22D3A6;text-decoration:none;">admin@edudeca.com</a><br />
+                &copy; {{year}} EduBlast · edudeca.com
               </div>
               <div style="text-align:center;font-family:'Segoe UI',Arial,sans-serif;font-size:10px;color:#5A6573;line-height:16px;margin-top:12px;">
                 You received this because you registered for EduDeca. If that wasn't you, you can ignore this email.

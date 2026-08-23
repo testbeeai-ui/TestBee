@@ -259,7 +259,7 @@ export async function GET(
     }
   }
 
-  let gyanDoubtsByTaskId: Record<
+  const gyanDoubtsByTaskId: Record<
     string,
     { doubtId: string; title: string; body: string; subject: string | null; createdAt: string }
   > = {};

@@ -601,11 +601,11 @@ export function WaitlistTab({ initialId, tier }: WaitlistTabProps) {
                 {selected.role === "parent" && (
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <span className="text-muted-foreground block">Child's Class:</span>
+                      <span className="text-muted-foreground block">Child&apos;s Class:</span>
                       <span className="font-semibold text-foreground">{selected.child_class || "—"}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block">Child's Target Exam:</span>
+                      <span className="text-muted-foreground block">Child&apos;s Target Exam:</span>
                       <span className="font-semibold text-foreground">{selected.child_exam || "—"}</span>
                     </div>
                   </div>

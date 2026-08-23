@@ -30,6 +30,9 @@ const eslintConfig = defineConfig([
     // Local Claude worktree / copies — not the app under active development; avoids duplicate lint noise.
     ".claude/**",
     "scripts/legacy/**",
+    // Node tooling scripts use CommonJS require(); not app runtime.
+    "scripts/**/*.js",
+    "scripts/**/*.cjs",
   ]),
 ]);
 

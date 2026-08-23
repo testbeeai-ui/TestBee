@@ -251,7 +251,7 @@ export async function GET(request: Request) {
       ? types.map((key) => TYPE_MAP[key])
       : (Object.values(TYPE_MAP) as ItemType[]);
 
-    let query = supabase
+    const query = supabase
       .from("user_saved_items")
       .select("item_type, data, status, saved_at, review_at")
       .eq("user_id", user.id)

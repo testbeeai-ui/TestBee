@@ -158,7 +158,7 @@ export function AmbassadorSidePanel({
             </div>
             <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
               <Mail className="h-[16px] w-[16px] text-[#1D9E75] shrink-0 mt-0.5" />
-              <span>A confirmation email is on its way. Check your spam folder if it doesn't arrive shortly.</span>
+              <span>A confirmation email is on its way. Check your spam folder if it doesn&apos;t arrive shortly.</span>
             </div>
             <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
               <Users className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
