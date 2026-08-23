@@ -4,13 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Particle Collision Sandbox</title>
-    <!-- Google tag (gtag.js) — static HTML does not inherit Next root layout -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YDE1GM358F"></script>
+    <!-- Google tag (gtag.js) — standalone only; iframe embeds inherit site-wide GA -->
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-YDE1GM358F');
+      (function () {
+        try {
+          if (window.self !== window.top) return;
+        } catch (e) {
+          return;
+        }
+        var s = document.createElement("script");
+        s.async = true;
+        s.src = "https://www.googletagmanager.com/gtag/js?id=G-YDE1GM358F";
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        function gtag() {
+          dataLayer.push(arguments);
+        }
+        gtag("js", new Date());
+        gtag("config", "G-YDE1GM358F");
+      })();
     </script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap");
