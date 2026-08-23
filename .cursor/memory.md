@@ -148,6 +148,7 @@ Anything that is not Next.js / tooling config now lives under:
 | Setup | `mobileapp/README.md`, `mobileapp/.env.example` |
 
 ## Decisions Log
+- 2026-08-23: **EduDeca welcome trigger** — `after(async () => await …)` so serverless keeps the fetch alive; first-registration is insert-then-23505-update (not select-then-upsert).
 - 2026-08-19: **EduDeca public register-interest** — waitlist-only (`edudeca_interest_registrations`); no auth user create / `edudeca_profiles` upsert; waitlist errors return 500.
 - 2026-08-18: **Teacher welcome RDM restore INSERT** — credit only if this statement just stamped the row (`pg_temp.teacher_welcome_rdm_just_stamped`). Restore of an already-stamped onboarded teacher does not pay. See `.cursor/docs/teacher-welcome-rdm-first-claim.md`.
 - 2026-08-13: **Teacher OAuth finish bugs** — wait for PKCE session before re-exchanging `code`; don't timeout-redirect to student onboarding before profile loads; bypass `/onboarding` in `FreeTrialActivationGate`.

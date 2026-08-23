@@ -56,21 +56,40 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Service unavailable." }, { status: 503 });
   }
 
-  const { data: existingInterest, error: existingInterestError } = await admin
-    .from("edudeca_interest_registrations")
-    .select("email")
-    .eq("email", email)
-    .maybeSingle();
-  const isFirstRegistration = !existingInterestError && !existingInterest?.email;
+  const interestRow = {
+    email,
+    class_level: classLevel,
+    institution,
+    state,
+    city,
+  };
 
-  const { error: waitlistError } = await admin
+  const { error: insertError } = await admin
     .from("edudeca_interest_registrations")
-    .upsert(
-      { email, class_level: classLevel, institution, state, city },
-      { onConflict: "email", ignoreDuplicates: false }
-    );
-  if (waitlistError) {
-    console.error("[edudeca/register-interest] waitlist upsert error:", waitlistError);
+    .insert(interestRow);
+
+  let isFirstRegistration = false;
+  if (!insertError) {
+    isFirstRegistration = true;
+  } else if (insertError.code === "23505") {
+    const { error: updateError } = await admin
+      .from("edudeca_interest_registrations")
+      .update({
+        class_level: classLevel,
+        institution,
+        state,
+        city,
+      })
+      .eq("email", email);
+    if (updateError) {
+      console.error("[edudeca/register-interest] waitlist update error:", updateError);
+      return NextResponse.json(
+        { error: "Could not save registration. Please try again." },
+        { status: 500 }
+      );
+    }
+  } else {
+    console.error("[edudeca/register-interest] waitlist insert error:", insertError);
     return NextResponse.json(
       { error: "Could not save registration. Please try again." },
       { status: 500 }
@@ -78,10 +97,12 @@ export async function POST(request: Request) {
   }
 
   if (isFirstRegistration) {
-    after(() => {
-      void requestEduDecaWelcomeEmail({ email }).catch((err) => {
+    after(async () => {
+      try {
+        await requestEduDecaWelcomeEmail({ email });
+      } catch (err) {
         console.error("[edudeca/register-interest] welcome email error:", err);
-      });
+      }
     });
   }
 
