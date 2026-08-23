@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -51,6 +52,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className={`${GeistSans.className} antialiased`} suppressHydrationWarning>
+        <GoogleAnalytics />
         <Providers>{children}</Providers>
       </body>
     </html>
