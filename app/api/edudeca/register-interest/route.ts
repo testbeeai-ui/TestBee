@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+﻿import { after, NextResponse } from "next/server";
 
 import { createAdminClient } from "@/integrations/supabase/server";
 import { EDUDECA_GMAIL_RE } from "@/lib/edudeca/register-interest";
+import { requestEduDecaWelcomeEmail } from "@/lib/edudeca/requestEduDecaWelcomeEmail";
 
 function trim(v: unknown, max = 300): string {
   if (typeof v !== "string") return "";
@@ -55,6 +56,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Service unavailable." }, { status: 503 });
   }
 
+  const { data: existingInterest, error: existingInterestError } = await admin
+    .from("edudeca_interest_registrations")
+    .select("email")
+    .eq("email", email)
+    .maybeSingle();
+  const isFirstRegistration = !existingInterestError && !existingInterest?.email;
+
   const { error: waitlistError } = await admin
     .from("edudeca_interest_registrations")
     .upsert(
@@ -67,6 +75,14 @@ export async function POST(request: Request) {
       { error: "Could not save registration. Please try again." },
       { status: 500 }
     );
+  }
+
+  if (isFirstRegistration) {
+    after(() => {
+      void requestEduDecaWelcomeEmail({ email }).catch((err) => {
+        console.error("[edudeca/register-interest] welcome email error:", err);
+      });
+    });
   }
 
   return NextResponse.json({ ok: true });
