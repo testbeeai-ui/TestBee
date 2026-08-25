@@ -148,7 +148,7 @@ Anything that is not Next.js / tooling config now lives under:
 | Setup | `mobileapp/README.md`, `mobileapp/.env.example` |
 
 ## Decisions Log
-- 2026-08-19: **EduDeca public register-interest** — waitlist-only (`edudeca_interest_registrations`); no auth user create / `edudeca_profiles` upsert; waitlist errors return 500.
+- 2026-08-25: **Play Funbrain Forge layout** — matched Academic Arena card rhythm (`md:items-stretch`, `mt-auto` actions); Global rating moved below buttons; always show composite Elo (no `—` while loading); fixed `fetchUserStats` when user id absent. Homepage nav/footer link alignment (`AppLayout.module.css`, `RedesignedHomeDashboard`). — waitlist-only (`edudeca_interest_registrations`); no auth user create / `edudeca_profiles` upsert; waitlist errors return 500.
 - 2026-08-18: **Teacher welcome RDM restore INSERT** — credit only if this statement just stamped the row (`pg_temp.teacher_welcome_rdm_just_stamped`). Restore of an already-stamped onboarded teacher does not pay. See `.cursor/docs/teacher-welcome-rdm-first-claim.md`.
 - 2026-08-13: **Teacher OAuth finish bugs** — wait for PKCE session before re-exchanging `code`; don't timeout-redirect to student onboarding before profile loads; bypass `/onboarding` in `FreeTrialActivationGate`.
 - 2026-08-11: **rdm_config_pkey idempotent in baseline** — `20260915120000` skips adding `rdm_config_pkey` if `20260618110000_ensure_rdm_config_table` already created it (fresh/preview migrate).

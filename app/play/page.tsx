@@ -347,7 +347,11 @@ function PlayPageContent() {
   }, [gauntletQuestions, gauntletIndex]);
 
   const fetchUserStats = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setUserStats([]);
+      setLoadingStats(false);
+      return;
+    }
     setLoadingStats(true);
     const { data } = await supabase
       .from("user_play_stats")
@@ -355,7 +359,7 @@ function PlayPageContent() {
       .eq("user_id", user.id);
     setUserStats((data as { category: string; current_rating: number }[]) || []);
     setLoadingStats(false);
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -1174,11 +1178,11 @@ function PlayPageContent() {
             ) : null}
 
             <div className="relative p-3 sm:p-[14px] pt-0 sm:pt-0">
-              <div className="relative z-0 grid md:grid-cols-2 gap-3">
+              <div className="relative z-0 grid md:grid-cols-2 md:items-stretch gap-3">
                 {/* Academic Arena */}
                 <div
                   className={cn(
-                    "rounded-[17px] border p-[18px]",
+                    "flex h-full flex-col rounded-[17px] border p-[18px]",
                     "bg-white border-zinc-200/90 shadow-sm",
                     "dark:bg-[#1e1e28] dark:border-white/[0.055] dark:shadow-none"
                   )}
@@ -1283,6 +1287,7 @@ function PlayPageContent() {
                     </div>
                   </div>
 
+                  <div className="mt-auto">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span className="mb-2 block w-full">
@@ -1364,15 +1369,15 @@ function PlayPageContent() {
                     </button>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5 text-[10px] text-zinc-400 dark:text-[#f0f0ff]/30">
-                    <span>
+                  <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1 mt-1.5 text-[10px] text-zinc-400 dark:text-[#f0f0ff]/30">
+                    <span className="min-w-0 flex-1">
                       {isPlayAdmin
                         ? `DailyDose ${dailyDoseQuestionCount} Q · 30s/Q (20+10) · Streak 10 Q/5 min · auto next · unlimited (admin)`
                         : `DailyDose ${dailyDoseQuestionCount} Q (+${rdmConfig.play_dailydose_academic_rdm} RDM full run) · 30s/Q (20+10) · 1/day · Streak 10 Q/5 min · auto next · 1/day`}
                     </span>
                     <button
                       type="button"
-                      className="text-[11px] font-semibold text-sky-600 dark:text-sky-400 inline-flex items-center gap-0.5 hover:underline"
+                      className="shrink-0 text-[11px] font-semibold text-sky-600 dark:text-sky-400 inline-flex items-center gap-0.5 hover:underline"
                       onClick={async () => {
                         setSelectedDomain("academic");
                         setGauntletAlreadyPlayed(academicDoseLocked);
@@ -1404,12 +1409,13 @@ function PlayPageContent() {
                       Leaderboard <ChevronRight className="h-3 w-3" />
                     </button>
                   </div>
+                  </div>
                 </div>
 
                 {/* Funbrain Forge */}
                 <div
                   className={cn(
-                    "rounded-[17px] border p-[18px]",
+                    "flex h-full flex-col rounded-[17px] border p-[18px]",
                     "bg-white border-zinc-200/90 shadow-sm",
                     "dark:bg-[#1e1e28] dark:border-white/[0.055] dark:shadow-none"
                   )}
@@ -1449,56 +1455,6 @@ function PlayPageContent() {
                         ? "Harder puzzles | GK · 5 min total · 30s/Q (20s + 10s) · Unlimited (admin)"
                         : "Harder puzzles | GK · 5 min total · 30s/Q (20s + 10s) · 1 DailyDose/day"}
                     </span>
-                  </div>
-
-                  <div
-                    className={cn(
-                      "rounded-[12px] border px-3 py-3 mb-3",
-                      "border-orange-200/70 bg-orange-50/25",
-                      "dark:border-orange-500/22 dark:bg-[#191922]"
-                    )}
-                  >
-                    <div className="flex flex-wrap items-end justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-[#f0f0ff]/38 mb-1">
-                          Global rating
-                        </div>
-                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-                          <span className="text-[28px] font-extrabold tabular-nums text-orange-600 dark:text-orange-400 leading-none tracking-tight">
-                            {loadingStats ? "—" : funbrainCompositeRounded}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right min-w-[118px]">
-                        <div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-[#f0f0ff]/32 mb-1">
-                          ELO
-                        </div>
-                        <div
-                          className={cn(
-                            "text-[12px] font-bold tabular-nums",
-                            funbrainCompositeDeltaToday > 0
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : funbrainCompositeDeltaToday < 0
-                                ? "text-rose-600 dark:text-rose-400"
-                                : "text-zinc-500 dark:text-[#f0f0ff]/45"
-                          )}
-                        >
-                          {funbrainCompositeDeltaToday > 0
-                            ? `+${funbrainCompositeDeltaToday}`
-                            : funbrainCompositeDeltaToday < 0
-                              ? `${funbrainCompositeDeltaToday}`
-                              : "+0"}{" "}
-                          <span className="text-[11px] font-semibold text-zinc-500 dark:text-[#f0f0ff]/40">
-                            today
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-zinc-500 dark:text-[#f0f0ff]/48 mt-1.5 leading-snug tabular-nums">
-                          {funbrainDailyGauntletRank != null
-                            ? `Rank #${funbrainDailyGauntletRank}`
-                            : "Rank —"}
-                        </div>
-                      </div>
-                    </div>
                   </div>
 
                   <div
@@ -1570,32 +1526,7 @@ function PlayPageContent() {
                     </div>
                   </div>
 
-                  <div
-                    className={cn(
-                      "flex items-center gap-2 rounded-[10px] border px-3 py-2.5 mb-3",
-                      "border-zinc-200 bg-zinc-100/60",
-                      "dark:border-white/[0.08] dark:bg-[#191922]"
-                    )}
-                  >
-                    <Clock className="h-3.5 w-3.5 text-zinc-600 dark:text-[#f0f0ff]/45 shrink-0" />
-                    <span className="text-[11px] font-medium text-zinc-700 dark:text-[#f0f0ff]/55 flex-1 leading-snug">
-                      {isPlayAdmin
-                        ? "Unlimited DailyDose & streak survival (admin)"
-                        : funbrainDoseLocked
-                          ? "No DailyDose left today — back tomorrow"
-                          : "1 DailyDose remaining today"}
-                    </span>
-                    <span
-                      className={cn(
-                        "rounded-md border px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide",
-                        "border-amber-400/60 bg-amber-300 text-amber-950 shadow-sm",
-                        "dark:border-amber-400/40 dark:bg-amber-400/25 dark:text-amber-200 dark:shadow-[0_0_14px_rgba(251,191,36,0.2)]"
-                      )}
-                    >
-                      {isPlayAdmin ? "∞" : funbrainDoseLocked ? "Used" : "Free"}
-                    </span>
-                  </div>
-
+                  <div className="mt-auto">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span className="mb-2 block w-full">
@@ -1677,15 +1608,15 @@ function PlayPageContent() {
                     </button>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5 text-[10px] text-zinc-400 dark:text-[#f0f0ff]/30">
-                    <span>
+                  <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1 mt-1.5 text-[10px] text-zinc-400 dark:text-[#f0f0ff]/30">
+                    <span className="min-w-0 flex-1">
                       {isPlayAdmin
                         ? `DailyDose ${dailyDoseQuestionCount} Q · 30s/Q (20+10) · ranked · Streak 10 Q/5 min · auto next · unlimited (admin)`
                         : `DailyDose ${dailyDoseQuestionCount} Q (+${rdmConfig.play_dailydose_funbrain_rdm} RDM full run) · ranked · 30s/Q (20+10) · Streak 10 Q/5 min · auto next · 1/day each`}
                     </span>
                     <button
                       type="button"
-                      className="text-[11px] font-semibold text-sky-600 dark:text-sky-400 inline-flex items-center gap-0.5 hover:underline"
+                      className="shrink-0 text-[11px] font-semibold text-sky-600 dark:text-sky-400 inline-flex items-center gap-0.5 hover:underline"
                       onClick={async () => {
                         setSelectedDomain("funbrain");
                         setGauntletAlreadyPlayed(funbrainDoseLocked);
@@ -1716,6 +1647,58 @@ function PlayPageContent() {
                     >
                       Leaderboard <ChevronRight className="h-3 w-3" />
                     </button>
+                  </div>
+                  </div>
+
+                  <div
+                    className={cn(
+                      "mt-3 rounded-[12px] border px-3 py-2.5",
+                      "border-orange-200/70 bg-orange-50/25",
+                      "dark:border-orange-500/22 dark:bg-[#191922]"
+                    )}
+                    aria-live="polite"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                      <div className="min-w-0">
+                        <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-[#f0f0ff]/38 mb-0.5">
+                          Global rating
+                        </div>
+                        <span
+                          className={cn(
+                            "text-[24px] font-extrabold tabular-nums text-orange-600 dark:text-orange-400 leading-none tracking-tight",
+                            loadingStats && "opacity-70 animate-pulse"
+                          )}
+                        >
+                          {funbrainCompositeRounded}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tabular-nums">
+                        <div
+                          className={cn(
+                            "font-bold",
+                            funbrainCompositeDeltaToday > 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : funbrainCompositeDeltaToday < 0
+                                ? "text-rose-600 dark:text-rose-400"
+                                : "text-zinc-500 dark:text-[#f0f0ff]/45"
+                          )}
+                        >
+                          {funbrainCompositeDeltaToday > 0
+                            ? `+${funbrainCompositeDeltaToday}`
+                            : funbrainCompositeDeltaToday < 0
+                              ? `${funbrainCompositeDeltaToday}`
+                              : "+0"}{" "}
+                          <span className="font-semibold text-zinc-500 dark:text-[#f0f0ff]/40">
+                            today
+                          </span>
+                        </div>
+                        <div className="text-zinc-500 dark:text-[#f0f0ff]/48 font-semibold">
+                          {funbrainDailyGauntletRank != null
+                            ? `Rank #${funbrainDailyGauntletRank}`
+                            : "Rank —"}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
