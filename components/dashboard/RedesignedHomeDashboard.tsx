@@ -376,9 +376,6 @@ export default function RedesignedHomeDashboard() {
     });
   }, [profile?.onboarding_reward_claimed_at, profile?.id, nowMs, serverStreak]);
 
-  const handleDummyClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-  };
 
   return (
     <div className={styles.container}>
@@ -697,7 +694,7 @@ export default function RedesignedHomeDashboard() {
                     <i className="ti ti-chart-bar" aria-hidden="true"></i>My Progress
                   </div>
                 </div>
-                <div className={styles.featCta} onClick={handleDummyClick}>
+                <div className={styles.featCta}>
                   Explore Info <i className="ti ti-arrow-right" aria-hidden="true"></i>
                 </div>
               </div>
@@ -725,7 +722,7 @@ export default function RedesignedHomeDashboard() {
                     <i className="ti ti-calendar" aria-hidden="true"></i>AI Study Planner
                   </div>
                 </div>
-                <div className={styles.featCta} onClick={handleDummyClick}>
+                <div className={styles.featCta}>
                   Explore Prep <i className="ti ti-arrow-right" aria-hidden="true"></i>
                 </div>
               </div>
@@ -753,7 +750,7 @@ export default function RedesignedHomeDashboard() {
                     <i className="ti ti-wand" aria-hidden="true"></i>Magic Wall
                   </div>
                 </div>
-                <div className={styles.featCta} onClick={handleDummyClick}>
+                <div className={styles.featCta}>
                   Explore Fun <i className="ti ti-arrow-right" aria-hidden="true"></i>
                 </div>
               </div>
@@ -781,7 +778,7 @@ export default function RedesignedHomeDashboard() {
                     <i className="ti ti-gift" aria-hidden="true"></i>RDM Rewards
                   </div>
                 </div>
-                <div className={styles.featCta} onClick={handleDummyClick}>
+                <div className={styles.featCta}>
                   Explore Earn <i className="ti ti-arrow-right" aria-hidden="true"></i>
                 </div>
               </div>
@@ -889,7 +886,7 @@ export default function RedesignedHomeDashboard() {
                   <i className="ti ti-player-play" aria-hidden="true"></i>Take a tour
                 </button>
               </div>
-              <div className={styles.ctaCard} onClick={handleDummyClick}>
+              <div className={styles.ctaCard} onClick={() => router.push("/explore/community")}>
                 <div className={styles.ctaCardLeft}>
                   <h3>Join the EduBlast community</h3>
                   <p>Connect with students, share wins and setbacks, learn and grow together.</p>
@@ -909,7 +906,14 @@ export default function RedesignedHomeDashboard() {
                     <span className={styles.avCount}>+2.4K students</span>
                   </div>
                 </div>
-                <button className={styles.ctaBtnJoin} onClick={handleDummyClick}>
+                <button
+                  type="button"
+                  className={styles.ctaBtnJoin}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push("/explore/community");
+                  }}
+                >
                   <i className="ti ti-users" aria-hidden="true"></i>Join now
                 </button>
               </div>
