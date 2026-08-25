@@ -1409,6 +1409,8 @@ function PlayPageContent() {
                       Leaderboard <ChevronRight className="h-3 w-3" />
                     </button>
                   </div>
+                  {/* Reserve Funbrain Global rating height so action rows share a baseline. */}
+                  <div className="mt-3 min-h-[4rem]" aria-hidden />
                   </div>
                 </div>
 
@@ -1648,11 +1650,10 @@ function PlayPageContent() {
                       Leaderboard <ChevronRight className="h-3 w-3" />
                     </button>
                   </div>
-                  </div>
 
                   <div
                     className={cn(
-                      "mt-3 rounded-[12px] border px-3 py-2.5",
+                      "mt-3 min-h-[4rem] rounded-[12px] border px-3 py-2.5",
                       "border-orange-200/70 bg-orange-50/25",
                       "dark:border-orange-500/22 dark:bg-[#191922]"
                     )}
@@ -1699,6 +1700,7 @@ function PlayPageContent() {
                         </div>
                       </div>
                     </div>
+                  </div>
                   </div>
                 </div>
               </div>
