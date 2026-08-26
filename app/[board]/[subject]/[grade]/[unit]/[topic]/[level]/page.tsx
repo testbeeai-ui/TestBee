@@ -23,6 +23,7 @@ import {
   getSiblingTopics,
   appendQueryParams,
 } from "@/lib/curriculum/topicRoutes";
+import { chapterRefDistinctFromTopic } from "@/lib/explore/feedCurriculumChips";
 import {
   LESSONS_ONBOARDING_QUERY,
   clearLessonsOnboardingFlow,
@@ -1951,7 +1952,7 @@ function TopicPageInner() {
         content: cleanDetails,
         tags,
         subject: sourceSubject,
-        chapter_ref: topicNode?.topic ?? null,
+        chapter_ref: chapterRefDistinctFromTopic(topicNode?.chapterTitle, topicNode?.topic),
         board_ref: board,
         grade_ref: grade,
         unit_ref: unitSlug,
@@ -2177,7 +2178,7 @@ function TopicPageInner() {
         content: cleanDetails,
         tags,
         subject: sourceSubject,
-        chapter_ref: topicNode?.topic ?? null,
+        chapter_ref: chapterRefDistinctFromTopic(topicNode?.chapterTitle, topicNode?.topic),
         board_ref: board,
         grade_ref: grade,
         unit_ref: unitSlug,

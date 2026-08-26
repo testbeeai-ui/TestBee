@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { isAdminUser } from "@/lib/admin/admin";
+import { fetchLearningOutcomesQuestions } from "@/lib/curriculum/learningOutcomesLookup";
 import {
   normalizeSubjectKey,
   normalizeSubtopicContentKey,
@@ -109,7 +110,7 @@ export async function GET(request: Request) {
     };
 
     // Content + Learning Outcomes packs share one RTT (separate dedicated table).
-    const [primary, legacy, loPrimary] = await Promise.all([
+    const [primary, legacy, loQuestions] = await Promise.all([
       supabase
         .from("subtopic_content")
         .select(contentSelect)
@@ -132,16 +133,7 @@ export async function GET(request: Request) {
             .eq("level", params.level)
             .maybeSingle()
         : Promise.resolve(null),
-      supabase
-        .from("learning_outcomes_questions")
-        .select("questions")
-        .eq("board", loLookup.board)
-        .eq("subject", loLookup.subject)
-        .eq("class_level", loLookup.class_level)
-        .eq("topic", loLookup.topic)
-        .eq("subtopic_name", loLookup.subtopic_name)
-        .eq("level", loLookup.level)
-        .maybeSingle(),
+      fetchLearningOutcomesQuestions(supabase, loLookup),
     ]);
 
     let data = primary.data;
@@ -244,26 +236,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    let learningOutcomesQuestions: unknown[] = Array.isArray(loPrimary.data?.questions)
-      ? loPrimary.data.questions
-      : [];
-
-    // Legacy-key fallback for LO packs if canonical key missed.
-    if (learningOutcomesQuestions.length === 0 && needsLegacyLookup) {
-      const { data: loLegacy } = await supabase
-        .from("learning_outcomes_questions")
-        .select("questions")
-        .eq("board", params.board)
-        .eq("subject", params.subject)
-        .eq("class_level", params.classLevel)
-        .eq("topic", legacyTopic)
-        .eq("subtopic_name", legacySubtopic)
-        .eq("level", params.level)
-        .maybeSingle();
-      if (Array.isArray(loLegacy?.questions)) {
-        learningOutcomesQuestions = loLegacy.questions;
-      }
-    }
+    const learningOutcomesQuestions = loQuestions;
 
     const canEdit = await canEditPromise;
     const refs = normalizeReferences(data?.reading_references);

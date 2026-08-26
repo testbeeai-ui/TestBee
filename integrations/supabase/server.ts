@@ -80,6 +80,25 @@ export function getSupabaseAdminEnvDiagnostics(): SupabaseAdminEnvDiagnostics {
   return { urlHost, urlProjectRef, jwtProjectRef, jwtWellFormed, refsMatch, note };
 }
 
+/** User-facing reason the service role key cannot talk to Supabase. Null when it looks usable. */
+export function getServiceRoleKeyError(): string | null {
+  const key = normalizeServiceRoleKey(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  if (!key) {
+    return "SUPABASE_SERVICE_ROLE_KEY is not set. Add the service_role secret from Supabase → Project Settings → API to Web/.env, then restart the dev server.";
+  }
+  const jwtOk = key.split(".").length === 3 && key.startsWith("eyJ");
+  const sbSecret = key.startsWith("sb_secret_");
+  const placeholder = /^(your_|changeme|placeholder|xxx)/i.test(key);
+  if (placeholder || (!jwtOk && !sbSecret)) {
+    return "SUPABASE_SERVICE_ROLE_KEY in Web/.env is a placeholder, not a real service_role JWT. Copy service_role from Supabase Dashboard → Project Settings → API (same project as NEXT_PUBLIC_SUPABASE_URL), paste it with no quotes, and restart npm run dev.";
+  }
+  const diag = getSupabaseAdminEnvDiagnostics();
+  if (diag.refsMatch === false) {
+    return `SUPABASE_SERVICE_ROLE_KEY is for project ${diag.jwtProjectRef} but NEXT_PUBLIC_SUPABASE_URL is ${diag.urlProjectRef}. Copy both from the same Supabase project.`;
+  }
+  return null;
+}
+
 export async function createClient() {
   const cookieStore = await cookies();
 

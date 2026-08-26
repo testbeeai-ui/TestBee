@@ -12,9 +12,9 @@ function profileOlderThanMs(created_at: string | null | undefined, ms: number): 
  * Detect profiles that clearly finished onboarding but `onboarding_complete` stayed false
  * (failed saves, older rows, or RLS edge cases). Used to route returning users to the app.
  *
- * `isSignIn`: user chose "Welcome back" / sign-in flow — Google teachers with only a name still
- * count as returning. Without it, a long-lived Google teacher row (name only, empty arrays) still
- * repairs after hard refresh using `created_at`.
+ * Empty teacher rows are not auto-completed on Welcome back — that skipped
+ * the role picker after a wiped Auth user. Stale Google teacher rows with
+ * only a name still repair after 24h via `created_at`.
  */
 export function profileShouldForceOnboardingComplete(
   p: {
@@ -30,7 +30,7 @@ export function profileShouldForceOnboardingComplete(
     signup_google?: boolean | null;
     created_at?: string | null;
   },
-  opts?: { isSignIn?: boolean }
+  _opts?: { isSignIn?: boolean }
 ): boolean {
   if (p.onboarding_complete) return false;
   const nameOk = (p.name?.trim()?.length ?? 0) >= 2;
@@ -41,8 +41,6 @@ export function profileShouldForceOnboardingComplete(
       (Array.isArray(p.teaching_levels) && p.teaching_levels.length > 0) ||
       (Array.isArray(p.exam_tags) && p.exam_tags.length > 0);
     if (hasTeaching) return true;
-    // "Welcome back" / ?mode=signin — do not keep them on this screen with an empty teaching JSON row.
-    if (opts?.isSignIn === true) return true;
     // Hard refresh: no sessionStorage, but Google sign-up row is old and flag never flipped.
     if (p.signup_google === true && profileOlderThanMs(p.created_at ?? null, STALE_PROFILE_MS))
       return true;

@@ -431,18 +431,20 @@ If you enter your payment details within next 24 hours, we have a special surpri
                   </button>
                 </div>
 
-                {/* Secondary exit: low salience (ethical nudge — still visible & tappable) */}
-                <div className="mt-1 pt-2 sm:pt-2.5 border-t border-white/[0.06]">
-                  <p className="text-[8px] sm:text-[9px] text-center text-slate-600/90 leading-snug">
-                    Standard Free: lessons &amp; Daily Dose only — no past papers or full-length mocks.
+                {/* After trial: keep Free as a clear, highlighted exit */}
+                <div className="mt-1 pt-2 sm:pt-2.5 border-t border-white/[0.06] text-center space-y-1.5">
+                  <p className="text-[11px] sm:text-xs text-slate-400 leading-snug">
+                    Trial complete — lessons and Daily Dose stay on Free.
                   </p>
                   <button
                     type="button"
                     onClick={() => setShowDowngradeWarning(true)}
-                    className="mt-1.5 mx-auto block max-w-[16rem] text-center text-[9px] sm:text-[10px] font-normal text-slate-600/75 hover:text-slate-500 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 focus-visible:rounded px-1 py-0.5 transition-colors"
-                    aria-label="Continue on standard Free plan without adding a card"
+                    className="mx-auto inline-flex max-w-full items-center justify-center rounded-md px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
+                    aria-label="Continue with Free Plan"
                   >
-                    Continue without card — use Free plan
+                    <span className="inline-block max-w-full -rotate-[1deg] bg-[#f5e325] px-2.5 py-1 text-base sm:text-lg font-extrabold leading-tight tracking-tight text-slate-950 shadow-[inset_0_-0.28em_0_0_rgba(0,0,0,0.08)] [box-decoration-break:clone]">
+                      Continue with Free Plan
+                    </span>
                   </button>
                 </div>
               </div>

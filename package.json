@@ -25,7 +25,8 @@
     "hivemind:install": "hivemind install",
     "hivemind:status": "hivemind status",
     "hivemind:graph": "hivemind graph build --cwd .",
-    "hivemind:graph:init": "hivemind graph init --cwd ."
+    "hivemind:graph:init": "hivemind graph init --cwd .",
+    "sync:sibling-env": "node scripts/sync-env-to-edubite-edudeca.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
@@ -90,7 +91,9 @@
     "react-day-picker": "^9.13.2",
     "react-dom": "19.2.3",
     "react-easy-crop": "^5.5.7",
+    "react-hook-form": "^7.71.2",
     "react-markdown": "^10.1.0",
+    "react-resizable-panels": "^4.6.4",
     "recharts": "^3.7.0",
     "rehype-katex": "^7.0.1",
     "remark-math": "^6.0.0",
@@ -114,9 +117,8 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "prettier": "^3.8.3",
-    "react-hook-form": "^7.71.2",
-    "react-resizable-panels": "^4.6.4",
     "sharp": "^0.34.5",
     "supabase": "^2.100.1",
     "tailwindcss": "^4",

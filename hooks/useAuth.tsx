@@ -10,6 +10,7 @@ import { targetExamToExamType } from "@/lib/profile/targetExam";
 import { mergeAllSavedContent } from "@/lib/saved/mergeSavedContent";
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { safeGetSession } from "@/lib/auth/safeSession";
+import { shouldApplyWhitelistRoleToProfile } from "@/lib/auth/whitelistRoleSync";
 import { profileShouldForceOnboardingComplete } from "@/lib/profile/profileOnboardingRepair";
 import { readPendingDeepLink } from "@/lib/auth/safeNextPath";
 import { AuthContext, type Profile } from "@/hooks/auth-context";
@@ -50,6 +51,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const isComplete = data?.onboarding_complete === true;
     const email = userMeta?.email;
     let approvedRole: "student" | "teacher" | null = null;
+    let isSignInFlow = false;
+    try {
+      isSignInFlow = sessionStorage.getItem("auth_mode") === "signin";
+    } catch (_) {}
+    const applyWhitelistRole = shouldApplyWhitelistRoleToProfile(isSignInFlow);
 
     if (!isComplete && email) {
       // Check if user is admin via profile role or user_roles table
@@ -101,9 +107,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (gate.approvedRole) {
           approvedRole = gate.approvedRole;
-          try {
-            sessionStorage.setItem("auth_intended_role", gate.approvedRole);
-          } catch (_) {}
+          if (applyWhitelistRole) {
+            try {
+              sessionStorage.setItem("auth_intended_role", gate.approvedRole);
+            } catch (_) {}
+          }
         }
       }
     }
@@ -121,10 +129,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           row = { ...row, student_code: minted };
         }
       }
-      let isSignInFlow = false;
-      try {
-        isSignInFlow = sessionStorage.getItem("auth_mode") === "signin";
-      } catch (_) {}
       if (profileShouldForceOnboardingComplete(row, { isSignIn: isSignInFlow })) {
         const { data: repaired, error: repairErr } = await supabase
           .from("profiles")
@@ -139,9 +143,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // from stale sessionStorage (e.g. a prior "join as student" visit).
       // Check if role needs correction based on explicit signup role choice only
       let intendedRole: "student" | "teacher" | null = null;
-      if (approvedRole) {
+      if (applyWhitelistRole && approvedRole) {
         intendedRole = approvedRole;
-      } else if (!isSignInFlow) {
+      } else if (applyWhitelistRole) {
         try {
           const stored = sessionStorage.getItem("auth_intended_role");
           if (stored === "teacher" || stored === "student") intendedRole = stored;
@@ -184,14 +188,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // and retry will happen on next auth state change or refresh.
     if (error?.code === "PGRST116" || !data) {
       const name = userMeta?.name || "User";
-      let isSignInFlow = false;
-      try {
-        isSignInFlow = sessionStorage.getItem("auth_mode") === "signin";
-      } catch (_) {}
       let intendedRole: "student" | "teacher" = "student";
-      if (approvedRole) {
+      if (applyWhitelistRole && approvedRole) {
         intendedRole = approvedRole;
-      } else if (!isSignInFlow) {
+      } else if (applyWhitelistRole) {
         try {
           const stored = sessionStorage.getItem("auth_intended_role");
           if (stored === "teacher" || stored === "student") intendedRole = stored;
@@ -217,7 +217,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle();
       if (inserted) {
         let p = inserted as unknown as Profile;
-        if (intendedRole === "teacher") {
+        if (applyWhitelistRole && intendedRole === "teacher") {
           const { data: syncedRole } = await (supabase as any).rpc(
             "sync_my_profile_role_from_whitelist",
           );
@@ -254,6 +254,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (repaired) row = repaired as unknown as Profile;
           }
           if (
+            applyWhitelistRole &&
             intendedRole &&
             row.role !== intendedRole &&
             !row.onboarding_complete

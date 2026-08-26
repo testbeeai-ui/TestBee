@@ -610,16 +610,16 @@ export default function RedesignedHomeDashboard() {
                 <button className={styles.btnSecondary} onClick={() => router.push("/home?page=prep")}>
                   <i className="ti ti-books" aria-hidden="true"></i>Explore Prep
                 </button>
-                <button className={styles.btnGhost} onClick={() => scrollTo("why")}>
+                <button className={styles.btnGhost} onClick={() => router.push("/home?page=fun")}>
                   <i className="ti ti-coffee" aria-hidden="true"></i>Take a Break
                 </button>
-                <button className={styles.btnPurple} onClick={() => router.push("/home?page=fun")}>
+                <button className={styles.btnPurple} onClick={() => router.push("/explore/community")}>
                   <i className="ti ti-social" aria-hidden="true"></i>Explore Community
                 </button>
-                <button className={styles.btnAmber} onClick={() => router.push("/home?page=earn")}>
+                <button className={styles.btnAmber} onClick={() => router.push("/refer-earn")}>
                   <i className="ti ti-coin" aria-hidden="true"></i>Earn Rewards
                 </button>
-                <button className={styles.btnPink} onClick={() => router.push("/home?page=earn&section=earn&detail=edufund")}>
+                <button className={styles.btnPink} onClick={() => router.push("/edufund")}>
                   <i className="ti ti-heart" aria-hidden="true"></i>Unlock Funds
                 </button>
               </div>

@@ -50,7 +50,7 @@
     "ios": "expo start --ios",
     "preweb": "node scripts/sync-env.cjs",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.expo.json",
     "build": "npm run typecheck && npx expo export --platform android",
     "sync-env": "node scripts/sync-env.cjs"
   },

@@ -25,6 +25,7 @@ import {
   hrefForMockPaperCommunityShare,
 } from "@/lib/mock/mockPaperCommunityLink";
 import { getQuizScoreFromPost } from "@/lib/explore/communityPostScore";
+import { feedCurriculumChipValues } from "@/lib/explore/feedCurriculumChips";
 
 const subjectLabel: Record<string, string> = {
   physics: "Physics",
@@ -140,27 +141,32 @@ export default function RawFeedPostCard({
       tone: "bg-blue-500/15 text-blue-300 ring-blue-400/30",
     });
   }
-  if (post.chapter_ref && post.chapter_ref.trim().length > 0) {
+  const curriculumChips = feedCurriculumChipValues({
+    chapterRef: post.chapter_ref,
+    topicRef: post.topic_ref,
+    subtopicRef: post.subtopic_ref,
+  });
+  if (curriculumChips.chapter) {
     contextChips.push({
       key: "chapter",
       label: "CH",
-      value: post.chapter_ref,
+      value: curriculumChips.chapter,
       tone: "bg-cyan-500/15 text-cyan-200 ring-cyan-400/30",
     });
   }
-  if (post.topic_ref && post.topic_ref.trim().length > 0) {
+  if (curriculumChips.topic) {
     contextChips.push({
       key: "topic",
       label: "TP",
-      value: post.topic_ref,
+      value: curriculumChips.topic,
       tone: "bg-violet-500/15 text-violet-200 ring-violet-400/30",
     });
   }
-  if (post.subtopic_ref && post.subtopic_ref.trim().length > 0) {
+  if (curriculumChips.subtopic) {
     contextChips.push({
       key: "subtopic",
       label: "SUB",
-      value: post.subtopic_ref,
+      value: curriculumChips.subtopic,
       tone: "bg-amber-500/15 text-amber-200 ring-amber-400/35",
     });
   }

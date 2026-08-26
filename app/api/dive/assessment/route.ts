@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { fetchLearningOutcomesQuestions } from "@/lib/curriculum/learningOutcomesLookup";
 import { makeSubtopicEngagementStorageKey } from "@/lib/curriculum/subtopicEngagementStorageKey";
 import {
   parseAnswerMap,
@@ -124,19 +125,15 @@ export async function POST(request: Request) {
         questions = parseFormulaBitsQuestions(data?.practice_formulas, formulaIndex);
       }
     } else {
-      const { data, error } = await supabase
-        .from("learning_outcomes_questions")
-        .select("questions")
-        .eq("board", scope.board)
-        .eq("subject", scope.subject)
-        .eq("class_level", scope.classLevel)
-        .eq("topic", scope.topic)
-        .eq("subtopic_name", scope.subtopicName)
-        .eq("level", scope.level)
-        .maybeSingle();
-
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      questions = parseBitsQuestions(data?.questions);
+      const loQuestions = await fetchLearningOutcomesQuestions(supabase, {
+        board: scope.board,
+        subject: scope.subject,
+        class_level: scope.classLevel,
+        topic: scope.topic,
+        subtopic_name: scope.subtopicName,
+        level: scope.level,
+      });
+      questions = parseBitsQuestions(loQuestions);
     }
 
     if (questions.length === 0) {

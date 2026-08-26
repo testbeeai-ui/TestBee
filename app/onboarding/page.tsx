@@ -37,6 +37,11 @@ import { StudentProfileSetupCard } from "@/components/onboarding/StudentProfileS
 import { OnboardingTermsAcceptance } from "@/components/legal/OnboardingTermsAcceptance";
 import { track } from "@/lib/analytics/track";
 import { cn } from "@/lib/utils";
+import {
+  readOnboardingAuthMode,
+  readStoredOnboardingIntent,
+  resolveOnboardingEntry,
+} from "@/lib/onboarding/resolveOnboardingEntry";
 
 const EDUBLAST_LOGO_SRC = "/images/logo-2.png";
 
@@ -154,39 +159,23 @@ function OnboardingContent() {
 
   useEffect(() => {
     const requestedRole = searchParams.get("role");
-    const fromUrl = requestedRole === "student" || requestedRole === "teacher";
-    let fromWhitelist: "student" | "teacher" | null = null;
-    try {
-      const stored = sessionStorage.getItem("auth_intended_role");
-      if (stored === "teacher" || stored === "student") fromWhitelist = stored;
-    } catch (_) {}
-    const fromProfile =
-      profile?.role === "student" || profile?.role === "teacher"
-        ? (profile.role as "student" | "teacher")
-        : null;
+    const fromUrl = requestedRole === "student" || requestedRole === "teacher" ? requestedRole : null;
+    const storage = typeof window === "undefined" ? null : window.sessionStorage;
+    const entry = resolveOnboardingEntry({
+      authMode: readOnboardingAuthMode(storage),
+      urlRole: fromUrl,
+      storedIntent: readStoredOnboardingIntent(storage),
+      profileRole:
+        profile?.role === "student" || profile?.role === "teacher" ? profile.role : null,
+      profileTimedOut: profileTimeout,
+    });
 
-    // Whitelist teacher wins over stale student profile / URL.
-    const resolved: "student" | "teacher" | null =
-      fromWhitelist === "teacher"
-        ? "teacher"
-        : fromUrl
-          ? (requestedRole as "student" | "teacher")
-          : fromWhitelist ?? fromProfile;
-
-    if (resolved) {
-      // Allow student → teacher correction when whitelist/sync arrives after first paint.
-      if (!role || (role === "student" && resolved === "teacher")) {
-        setRole(resolved);
+    if (entry.step === "details" && entry.role) {
+      if (!role || (role === "student" && entry.role === "teacher")) {
+        setRole(entry.role);
         setStep("details");
-        track("onboarding_role_selected", { role: resolved });
+        track("onboarding_role_selected", { role: entry.role });
       }
-      return;
-    }
-
-    if (!role && profileTimeout) {
-      setRole("student");
-      setStep("details");
-      track("onboarding_role_selected", { role: "student" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, profile?.role, role, profileTimeout]);

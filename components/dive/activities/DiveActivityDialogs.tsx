@@ -153,6 +153,8 @@ export default function DiveActivityDialogs({
   const [loading, setLoading] = useState(false);
   /** Avoid refetch loops when numerals stay empty after a forced reload. */
   const numeralsRefetchTriedRef = useRef<string | null>(null);
+  /** Same for Learning Outcomes — packs live in a separate table filled after cache. */
+  const outcomesRefetchTriedRef = useRef<string | null>(null);
   const [refsUpgradeOpen, setRefsUpgradeOpen] = useState(false);
   const [conceptPage, setConceptPage] = useState(0);
   const [quizPlaySet, setQuizPlaySet] = useState<AdvancedQuizSetIndex | null>(null);
@@ -357,6 +359,18 @@ export default function DiveActivityDialogs({
     numeralsRefetchTriedRef.current = contentKey;
     void load({ silent: true, force: true });
   }, [open, formulas.length, contentKey, loading, load]);
+
+  // Stale Dive cache can hide Learning Outcomes packs seeded after the last fetch.
+  useEffect(() => {
+    if (open !== "outcomes" || loading) return;
+    if (outcomesQs.length > 0) {
+      outcomesRefetchTriedRef.current = null;
+      return;
+    }
+    if (outcomesRefetchTriedRef.current === contentKey) return;
+    outcomesRefetchTriedRef.current = contentKey;
+    void load({ silent: true, force: true });
+  }, [open, outcomesQs.length, contentKey, loading, load]);
 
   // Hydrate per-formula done ticks when Numerals opens (same attempt store as RDM claim).
   useEffect(() => {

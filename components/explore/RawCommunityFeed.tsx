@@ -985,7 +985,7 @@ export default function RawCommunityFeed({
                 className={cn(
                   "transition-colors",
                   embedded &&
-                    "overflow-hidden rounded-xl border border-border/70 bg-card hover:border-border/90 dark:border-white/10 dark:bg-slate-950/90",
+                    "overflow-visible rounded-xl border border-border/70 bg-card hover:border-border/90 dark:border-white/10 dark:bg-slate-950/90",
                   focusPostId === post.id && "bg-primary/5 ring-1 ring-primary/30"
                 )}
               >

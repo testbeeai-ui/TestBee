@@ -15,6 +15,7 @@ import { oauthSignInFailedMessage, oauthTryAgainPath } from "@/lib/auth/oauthSig
 import { authFinishWaitPhase } from "@/lib/auth/authFinishWait";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { triggerLoginNotificationEmail } from "@/lib/email/triggerLoginNotificationClient";
+import { readOnboardingAuthMode } from "@/lib/onboarding/resolveOnboardingEntry";
 
 async function readClientSession() {
   try {
@@ -117,7 +118,14 @@ function AuthCallbackFinishContent() {
 
     const isTeacher = profile?.role === "teacher";
     const postOnboardPath = isTeacher ? TEACHER_PORTAL_CLASSROOMS_URL : "/home";
-    const onboardPath = isTeacher ? "/onboarding?role=teacher" : "/onboarding?role=student";
+    const signupMode =
+      readOnboardingAuthMode(typeof window === "undefined" ? null : window.sessionStorage) ===
+      "signup";
+    const onboardPath = signupMode
+      ? isTeacher
+        ? "/onboarding?role=teacher"
+        : "/onboarding?role=student"
+      : "/onboarding";
 
     if (user && profile?.onboarding_complete) {
       void supabase.auth.signOut({ scope: "others" }).catch(() => {});

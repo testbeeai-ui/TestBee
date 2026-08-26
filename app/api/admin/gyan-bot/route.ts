@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { isAdminUser } from "@/lib/admin/admin";
-import { createAdminClient } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  getServiceRoleKeyError,
+} from "@/integrations/supabase/server";
 import { getStudentPersonaByIndex } from "@/lib/gyanBotPersonas";
 import {
   getGyanBotCapabilities,
@@ -26,6 +29,11 @@ export async function GET(request: Request) {
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!(await isAdminUser(ctx.supabase, ctx.user.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const keyError = getServiceRoleKeyError();
+    if (keyError) {
+      return NextResponse.json({ error: keyError, code: "INVALID_SERVICE_ROLE" }, { status: 500 });
     }
 
     const admin = createAdminClient();
@@ -90,6 +98,11 @@ export async function POST(request: Request) {
       /** Admin-only: run one bot cycle immediately (bypasses interval gate; still requires bot active). */
       run_one_cycle?: boolean;
     };
+
+    const keyError = getServiceRoleKeyError();
+    if (keyError) {
+      return NextResponse.json({ error: keyError, code: "INVALID_SERVICE_ROLE" }, { status: 500 });
+    }
 
     const admin = createAdminClient();
     if (!admin) {

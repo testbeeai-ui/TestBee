@@ -6,7 +6,7 @@
 import type { Board, Subject } from "@/types";
 import type { SubtopicContentResponse } from "@/lib/curriculum/subtopicContentService";
 
-const STORAGE_KEY = "edublast:dive-content:v4";
+const STORAGE_KEY = "edublast:dive-content:v5";
 /** Soft budget: skip sessionStorage write if payload is large (keep memory cache). */
 const MAX_STORAGE_CHARS = 200_000; // ~200 KB — quiz banks exceed the old 48KB often
 const MAX_ENTRIES = 4;

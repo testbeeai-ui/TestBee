@@ -97,10 +97,14 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
       <HoverCardTrigger asChild>{trigger}</HoverCardTrigger>
       <HoverCardContent
         align="start"
-        side="bottom"
-        sideOffset={8}
-        collisionPadding={{ top: 64, bottom: 16, left: 8, right: 8 }}
-        className="z-[80] w-[340px] max-h-[min(70vh,26rem)] overflow-y-auto p-0 rounded-xl"
+        side="right"
+        sideOffset={10}
+        alignOffset={-8}
+        avoidCollisions
+        collisionPadding={{ top: 72, bottom: 16, left: 12, right: 12 }}
+        sticky="always"
+        updatePositionStrategy="always"
+        className="z-[100] w-[min(21.25rem,calc(100vw-1.5rem))] max-h-[min(26rem,calc(100dvh-5.5rem))] overflow-x-hidden overflow-y-auto p-0 rounded-xl shadow-xl"
       >
         {loading ? (
           <div className="p-5 space-y-4 animate-pulse">
