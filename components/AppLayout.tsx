@@ -59,6 +59,7 @@ const EDUBLAST_WORDMARK_SRC = "/images/logo-2.png";
 function isPrepMockActive(pathname: string): boolean {
   if (pathname === "/mock" || pathname === "/mock-test-library" || pathname === "/exam-prep")
     return true;
+  if (pathname === "/edudeca-mock" || pathname.startsWith("/edudeca-mock/")) return true;
   if (pathname === "/classrooms" || pathname === "/revision") return true;
   if (pathname.startsWith("/classroom/")) return true;
   return false;
@@ -148,7 +149,8 @@ const AppLayout = ({
   const isCommunityWall = pathname.startsWith("/explore/community");
   const isDivePage = pathname === "/dive" || pathname.startsWith("/dive/");
   const isAboutUsPage = pathname === "/about-us" || pathname.startsWith("/about-us/");
-  const isDarkChromePage = isDivePage || isAboutUsPage;
+  const isEduDecaMockPage = pathname === "/edudeca-mock" || pathname.startsWith("/edudeca-mock/");
+  const isDarkChromePage = isDivePage || isAboutUsPage || isEduDecaMockPage;
   const { profile, user: authUser } = useAuth();
   const presenceUserId = profile?.id ?? authUser?.id ?? null;
   const user = useUserStore((s) => s.user);

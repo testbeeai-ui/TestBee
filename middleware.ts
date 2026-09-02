@@ -20,6 +20,7 @@ const STUDENT_ONLY_PREFIXES = [
   "/play",
   "/mock",
   "/mock-test",
+  "/edudeca-mock",
   "/revision",
   "/explore-1",
   "/explore",
