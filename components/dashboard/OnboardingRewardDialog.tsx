@@ -61,9 +61,9 @@ import {
   isOnboardingRewardClaimed,
 } from "@/lib/subscription/freeTrialClient";
 import {
-  formatFreeTrialElapsedTimer,
-  getFreeTrialElapsedMs,
-  isFreeTrialPeriodEnded,
+  formatFreeTrialElapsedTimerForProfile,
+  getFreeTrialElapsedMsForProfile,
+  isFreeTrialPeriodEndedForProfile,
 } from "@/lib/subscription/freeTrialTimer";
 import { launchOnboardingChecklistTask } from "@/lib/onboarding/launchOnboardingChecklistTask";
 import { cbseMcqOnboardingMockHubHref } from "@/lib/onboarding/cbseMcqOnboardingFlow";
@@ -442,13 +442,13 @@ export function OnboardingRewardDialog({
   );
 
   const trialElapsedMs = useMemo(
-    () => getFreeTrialElapsedMs(trialActivatedAt, trialTimerNow, profile?.trial_second_round_activated),
-    [trialActivatedAt, trialTimerNow, profile?.trial_second_round_activated]
+    () => getFreeTrialElapsedMsForProfile(profile, trialTimerNow),
+    [profile, trialTimerNow]
   );
 
   const trialEnded = useMemo(
-    () => isFreeTrialPeriodEnded(trialActivatedAt, trialTimerNow, profile?.trial_second_round_activated),
-    [trialActivatedAt, trialTimerNow, profile?.trial_second_round_activated]
+    () => isFreeTrialPeriodEndedForProfile(profile, trialTimerNow),
+    [profile, trialTimerNow]
   );
 
   const [claimedLocally, setClaimedLocally] = useState(false);
@@ -2222,7 +2222,7 @@ export function OnboardingRewardDialog({
                           <div className="fr-lbl">Trial timer</div>
                           <div className="fr-timer">
                             {trialActivatedAt
-                              ? formatFreeTrialElapsedTimer(trialElapsedMs, profile?.trial_second_round_activated)
+                              ? formatFreeTrialElapsedTimerForProfile(trialElapsedMs, profile)
                               : "--:--:--"}
                           </div>
                         </div>
@@ -2377,7 +2377,7 @@ export function OnboardingRewardDialog({
                         }
                       >
                         {trialActivatedAt
-                          ? formatFreeTrialElapsedTimer(trialElapsedMs, profile?.trial_second_round_activated)
+                          ? formatFreeTrialElapsedTimerForProfile(trialElapsedMs, profile)
                           : "--:--:--"}
                       </p>
                     </div>

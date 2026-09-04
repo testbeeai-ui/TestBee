@@ -15,6 +15,7 @@ import {
   getFreeTrialActivated,
   hydrateOnboardingProgressFromServer,
   isOnboardingRewardClaimed,
+  setOnboardingRewardDismissedCooldown,
 } from "@/lib/subscription/freeTrialClient";
 import {
   shouldAutoOpenSiteTourCarousel,
@@ -166,6 +167,7 @@ export function SiteTourCarouselHost() {
     if (!open) {
       dismissedRef.current = true;
       manualOpenRef.current = false;
+      setOnboardingRewardDismissedCooldown();
     }
   }, []);
 

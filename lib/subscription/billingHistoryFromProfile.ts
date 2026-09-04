@@ -102,8 +102,8 @@ export function buildBillingHistoryFromProfile(
         title,
         date,
         method: secondRound
-          ? "Card on file · No charge during extension"
-          : "Card on file · Billing starts after bonus month",
+          ? "Plan reserved · No charge during extension"
+          : "No charge · Billing via Razorpay comes later",
         txnId: `BONUS-${idPrefix}`,
         amount: 0,
         status: "bonus",

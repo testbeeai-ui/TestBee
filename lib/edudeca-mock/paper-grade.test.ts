@@ -1,0 +1,94 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  gradeClientSelection,
+  gradeMockAnswers,
+  shuffleQuestionOptions,
+  toPublicPaperQuestion,
+} from "./paper-grade";
+
+describe("shuffleQuestionOptions", () => {
+  it("remaps correct_index to the shuffled option", () => {
+    const original = {
+      id: "q1",
+      options: ["alpha", "bravo", "charlie", "delta"],
+      correct_index: 1,
+    };
+    const shuffled = shuffleQuestionOptions(original, () => 0.9);
+    expect(shuffled.options).toHaveLength(4);
+    expect(new Set(shuffled.options)).toEqual(new Set(original.options));
+    expect(shuffled.options[shuffled.correct_index]).toBe("bravo");
+  });
+});
+
+describe("toPublicPaperQuestion", () => {
+  it("omits the answer key after shuffling options", () => {
+    const publicQuestion = toPublicPaperQuestion(
+      {
+        id: "mock-l1-s01-phy-01",
+        stem: "Which law?",
+        discipline_id: "phy",
+        options: ["alpha", "bravo", "charlie", "delta"],
+        correct_index: 1,
+      },
+      "Physics"
+    );
+    expect("correctIndex" in publicQuestion).toBe(false);
+    expect(publicQuestion.options).toHaveLength(4);
+    expect(new Set(publicQuestion.options)).toEqual(
+      new Set(["alpha", "bravo", "charlie", "delta"])
+    );
+  });
+
+  it("reattaches the remapped key only when the question was already answered", () => {
+    const source = {
+      id: "mock-l1-s01-phy-01",
+      stem: "Which law?",
+      discipline_id: "phy",
+      options: ["alpha", "bravo", "charlie", "delta"],
+      correct_index: 1,
+    };
+    const revealed = toPublicPaperQuestion(source, "Physics", true);
+    expect(typeof revealed.correctIndex).toBe("number");
+    expect(revealed.options[revealed.correctIndex ?? -1]).toBe("bravo");
+  });
+});
+
+describe("gradeClientSelection", () => {
+  const question = {
+    id: "q1",
+    options: ["alpha", "bravo", "charlie", "delta"],
+    correct_index: 1,
+  };
+
+  it("grades by option text and maps the key onto the client option order", () => {
+    const clientOptions = ["bravo", "delta", "alpha", "charlie"];
+    expect(gradeClientSelection(question, "bravo", clientOptions)).toEqual({
+      correct: true,
+      correctIndex: 0,
+    });
+    expect(gradeClientSelection(question, "delta", clientOptions)).toEqual({
+      correct: false,
+      correctIndex: 0,
+    });
+  });
+});
+
+describe("gradeMockAnswers", () => {
+  const questions = [
+    { id: "a", options: ["w", "x", "y", "z"], correct_index: 2 },
+    { id: "b", options: ["p", "q", "r", "s"], correct_index: 0 },
+  ];
+
+  it("re-grades from stored correct_index and option text, ignoring a client percent", () => {
+    const result = gradeMockAnswers(questions, { a: "y", b: "p" });
+    expect(result).toEqual({ correct: 2, total: 2, scorePct: 100 });
+  });
+
+  it("counts a missing or wrong selection as incorrect", () => {
+    const result = gradeMockAnswers(questions, { a: "w" });
+    expect(result.correct).toBe(0);
+    expect(result.total).toBe(2);
+    expect(result.scorePct).toBe(0);
+  });
+});

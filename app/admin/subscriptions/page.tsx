@@ -190,7 +190,7 @@ const FIELD_LABELS: Record<string, { title: string; hint: string; unit: string }
   },
   free_trial_streak_days_required: {
     title: "Streak days required for extension",
-    hint: "Investor rule: consecutive active days the user must complete during the base trial to unlock the streak extension. Default = 14 (full base window).",
+    hint: "Onboarding track days (site tour + daily streak) the student must complete during the base trial to unlock the extra 2 weeks. Code uses 10 track days, not calendar-consecutive days. Default display = 10.",
     unit: "days",
   },
   free_plan_max_months: {

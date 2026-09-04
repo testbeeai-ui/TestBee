@@ -11,5 +11,6 @@ describe("isPublicPath", () => {
   it("still requires login for student app routes", () => {
     expect(isPublicPath("/home")).toBe(false);
     expect(isPublicPath("/dive")).toBe(false);
+    expect(isPublicPath("/edudeca-mock")).toBe(false);
   });
 });

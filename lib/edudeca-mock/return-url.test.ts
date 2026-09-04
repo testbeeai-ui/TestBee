@@ -1,0 +1,61 @@
+import { describe, expect, it } from "vitest";
+
+import { edudecaMockLoginRedirect, edudecaMockPaperPath, edudecaMockFinishReturnUrl, edudecaMockReturnUrl } from "./return-url";
+
+describe("edudecaMockReturnUrl", () => {
+  it("sends completed score back to EduDeca mock-test", () => {
+    expect(
+      edudecaMockReturnUrl(
+        {
+          level: 2,
+          set: 1,
+          status: "completed",
+          scorePct: 80,
+          correct: 16,
+          total: 20,
+        },
+        "http://localhost:3001",
+      ),
+    ).toBe(
+      "http://localhost:3001/mock-test?level=2&set=1&score=80&correct=16&total=20&status=completed",
+    );
+  });
+
+  it("keeps level and set on the EduBlast mock path", () => {
+    expect(edudecaMockPaperPath(1, 1)).toBe("/edudeca-mock?level=1&set=1");
+  });
+
+  it("sends unsigned students back to that path after login", () => {
+    expect(edudecaMockLoginRedirect(1, 1)).toBe(
+      "/?next=%2Fedudeca-mock%3Flevel%3D1%26set%3D1",
+    );
+  });
+
+  it("can return in-progress without a score", () => {
+    expect(
+      edudecaMockReturnUrl(
+        { level: 1, set: 4, status: "inprogress" },
+        "https://edu-deca.vercel.app/",
+      ),
+    ).toBe("https://edu-deca.vercel.app/mock-test?level=1&set=4&status=inprogress");
+  });
+
+  it("only marks the paper completed after the server grades it", () => {
+    expect(
+      edudecaMockFinishReturnUrl({
+        level: 2,
+        set: 6,
+        serverScore: null,
+      }),
+    ).toBe("http://localhost:3001/mock-test?level=2&set=6&status=inprogress");
+    expect(
+      edudecaMockFinishReturnUrl({
+        level: 2,
+        set: 6,
+        serverScore: { correct: 16, total: 20, scorePct: 80 },
+      }),
+    ).toBe(
+      "http://localhost:3001/mock-test?level=2&set=6&score=80&correct=16&total=20&status=completed",
+    );
+  });
+});

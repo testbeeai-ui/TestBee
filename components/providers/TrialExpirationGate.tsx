@@ -21,6 +21,7 @@ import {
   fetchTrialPaymentGateRequired,
   invalidateTrialPaymentGateCache,
 } from "@/lib/subscription/trialPaymentGateApi";
+import { resolveTrialExpirationGateOpen } from "@/lib/subscription/trialLifecycle";
 
 /**
  * This gate runs for every page via `app/providers.tsx`, but the overlay itself only
@@ -95,18 +96,29 @@ function TrialExpirationGateInner() {
     void fetchServerGate();
   }, [user?.id, loading, profile?.id, profile?.time_travel_offset_ms, fetchServerGate]);
 
+  useEffect(() => {
+    if (!user?.id || loading) return;
+    const interval = window.setInterval(() => {
+      void fetchServerGate({ fresh: true });
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [user?.id, loading, fetchServerGate]);
+
   const clientRequired = useMemo(() => {
     if (!profile) return false;
     return shouldShowTrialExpirationOverlay(profile, nowMs);
   }, [profile, nowMs]);
 
+  useEffect(() => {
+    if (!clientRequired) return;
+    void fetchServerGate({ fresh: true });
+  }, [clientRequired, fetchServerGate]);
+
   const gateOpen = useMemo(() => {
     if (loading || !user || !profile) return false;
     if (!isTrialGateAudience(profile.role)) return false;
     if (isGateBypassRoute(pathname)) return false;
-    if (serverRequired === true) return true;
-    if (serverRequired === false) return false;
-    return clientRequired;
+    return resolveTrialExpirationGateOpen(clientRequired, serverRequired);
   }, [loading, user, profile, pathname, serverRequired, clientRequired]);
 
   const trialTrackerDaysCompleted = useMemo(() => {
