@@ -38,6 +38,7 @@ import {
   shouldAutoOpenOnboardingRewardDialog,
   shouldShowTrialExpirationOverlay,
 } from "@/lib/subscription/dashboardTrialPopups";
+import { hasCompletedPaidBonusClaim } from "@/lib/subscription/trialLifecycle";
 
 export { ONBOARDING_REWARD_TASK_IDS };
 
@@ -89,6 +90,9 @@ export function migrateLessonsStep12SemanticSwapV2IfNeeded(): void {
   );
 }
 
+/** After closing the site tour, wait this long before auto-opening it again. */
+export const ONBOARDING_REWARD_DISMISS_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
 export function isOnboardingRewardDismissedCooldownActive(nowMs = Date.now()): boolean {
   if (typeof window === "undefined") return false;
   const raw = window.localStorage.getItem(ONBOARDING_COOLDOWN_KEY);
@@ -98,9 +102,9 @@ export function isOnboardingRewardDismissedCooldownActive(nowMs = Date.now()): b
   return nowMs < until;
 }
 
-export function setOnboardingRewardDismissedCooldown(): void {
+export function setOnboardingRewardDismissedCooldown(nowMs = Date.now()): void {
   if (typeof window === "undefined") return;
-  const until = Date.now() + 60 * 60 * 1000; // 1 hour from now
+  const until = nowMs + ONBOARDING_REWARD_DISMISS_COOLDOWN_MS;
   window.localStorage.setItem(ONBOARDING_COOLDOWN_KEY, until.toString());
 }
 /** When set, app actions must not auto-tick checklist steps (admin manual mode). */
@@ -284,6 +288,7 @@ export function mergeLocalTrialClockIntoProfile(
   profile?: OnboardingProfileFields | null
 ): OnboardingProfileFields | null | undefined {
   if (!profile || !canUseStorage()) return profile;
+  if (profile.free_trial_activated === false) return profile;
   const localAt = getCachedFreeTrialActivatedAt();
   const localOn = window.localStorage.getItem(ACTIVATED_KEY) === "1";
   if (!localAt && !localOn) return profile;
@@ -491,7 +496,7 @@ export function getDashboardPopupPhase(
   const merged = mergeLocalTrialClockIntoProfile(profile);
 
   /** Post-trial decisions — must run before getFreeTrialActivated (paid tier reads as "not on trial"). */
-  if (merged?.trial_end_bonus_activated === true) return "none";
+  if (hasCompletedPaidBonusClaim(merged)) return "none";
   if (hasExitedTrialToFreePlan(merged)) return "none";
 
   const tier = String(merged?.plan_tier ?? "")

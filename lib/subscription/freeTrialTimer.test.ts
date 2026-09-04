@@ -100,13 +100,21 @@ describe("isFreeTrialActiveForProfile", () => {
     expect(isFreeTrialActiveForProfile(p, start + 28 * MS_DAY)).toBe(false);
   });
 
-  it("false when the bonus was already claimed", () => {
+  it("false when the paid bonus was already claimed (no second round)", () => {
     expect(
       isFreeTrialActiveForProfile(
         baseProfile({ trial_end_bonus_activated: true }),
         start + 5 * MS_DAY
       )
     ).toBe(false);
+  });
+
+  it("true during leftover second-round window even if bonus flag was set by mistake", () => {
+    const p = baseProfile({
+      trial_second_round_activated: true,
+      trial_end_bonus_activated: true,
+    });
+    expect(isFreeTrialActiveForProfile(p, start + 20 * MS_DAY)).toBe(true);
   });
 
   it("false for a profile that was never activated", () => {

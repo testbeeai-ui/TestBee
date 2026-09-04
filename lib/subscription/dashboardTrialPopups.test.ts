@@ -69,12 +69,28 @@ describe("popup priority matrix", () => {
     expect(shouldAutoOpenOnboardingRewardDialog(profile, targetNow, "u1")).toBe(false);
   });
 
-  it("D: day 14+ but bonus already claimed → no overlays", () => {
-    const profile = baseProfile({ trial_end_bonus_activated: true });
+  it("D: day 14+ paid bonus already claimed → no overlays", () => {
+    const profile = baseProfile({
+      plan_tier: "starter",
+      free_trial_activated: false,
+      trial_end_bonus_activated: true,
+      subscription_started_at: new Date(nowAtDay(14)).toISOString(),
+    });
     const now = nowAtDay(14) + 60_000;
     expect(getDashboardPopupPhase(profile, "u1")).toBe("none");
     expect(shouldShowTrialExpirationOverlay(profile, now)).toBe(false);
     expect(shouldAutoOpenOnboardingRewardDialog(profile, now, "u1")).toBe(false);
+  });
+
+  it("D2: leftover bonus flag on free_trial at day 28 shows the gate again", () => {
+    const now = nowAtDay(28) + 60_000;
+    const profile = baseProfile({
+      trial_second_round_activated: true,
+      trial_end_bonus_activated: true,
+      time_travel_offset_ms: now - Date.now(),
+    });
+    expect(shouldShowTrialExpirationOverlay(profile, now)).toBe(true);
+    expect(getDashboardPopupPhase(profile, "u1")).toBe("trial_expiration");
   });
 
   it("H: card submitted → Starter plan must not reopen free-trial activation promo", () => {

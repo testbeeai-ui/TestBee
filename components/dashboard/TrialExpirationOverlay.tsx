@@ -3,26 +3,23 @@
 import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Clock, CreditCard, Lock, CheckCircle2, ArrowRight, Flame, Award, AlertTriangle, ChevronRight } from "lucide-react";
+import { Sparkles, Clock, CheckCircle2, ArrowRight, Flame, Award, AlertTriangle, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
 import type { Profile } from "@/hooks/auth-context";
 import { TIME_TRAVEL_OFFSET_CHANGED_EVENT } from "@/lib/dev/timeTravel";
 import {
-  FREE_TRIAL_DURATION_MS,
   resolveFreeTrialStartMs,
+  resolveTrialDurationMsForProfile,
 } from "@/lib/subscription/freeTrialTimer";
+import {
+  isSecondRoundStillClaimable,
+  isWithinTrialEndBonusWindow,
+} from "@/lib/subscription/trialLifecycle";
 import {
   qualifiesForTrialExtensionBonus,
   parseDailyStreakServerState,
 } from "@/lib/onboarding/dailyStreakProgress";
-
-type CardDetails = {
-  cardNumber: string;
-  cardholderName: string;
-  expiryDate: string;
-  cvv: string;
-};
 
 type TrialExpirationOverlayProps = {
   /** Parent gates trial end + no prior bonus claim (dashboard simulated clock). */
@@ -37,16 +34,6 @@ type TrialExpirationOverlayProps = {
 };
 
 const BONUS_WINDOW_MS = 24 * 60 * 60 * 1000;
-
-// Simple card detection utility
-function detectCardBrand(num: string): "visa" | "mastercard" | "rupay" | "amex" | "generic" {
-  const clean = num.replace(/\s/g, "");
-  if (clean.startsWith("4")) return "visa";
-  if (/^5[1-5]/.test(clean)) return "mastercard";
-  if (/^(508|60|65)/.test(clean)) return "rupay";
-  if (clean.startsWith("3")) return "amex";
-  return "generic";
-}
 
 export default function TrialExpirationOverlay({
   open,
@@ -64,16 +51,6 @@ export default function TrialExpirationOverlay({
     scenario: number;
     plan: string;
   } | null>(null);
-
-  // Form states
-  const [cardDetails, setCardDetails] = useState<CardDetails>({
-    cardNumber: "",
-    cardholderName: "",
-    expiryDate: "",
-    cvv: "",
-  });
-
-  const [formErrors, setFormErrors] = useState<Partial<CardDetails>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const serverStreak = useMemo(
@@ -122,11 +99,22 @@ export default function TrialExpirationOverlay({
 
   const trialEndMs = useMemo(() => {
     if (trialStartMs == null) return now;
-    const durationMs = profile?.trial_second_round_activated
-      ? FREE_TRIAL_DURATION_MS * 2
-      : FREE_TRIAL_DURATION_MS;
-    return trialStartMs + durationMs;
-  }, [trialStartMs, now, profile?.trial_second_round_activated]);
+    return trialStartMs + resolveTrialDurationMsForProfile(
+      {
+        free_trial_activated_at: profile?.free_trial_activated_at,
+        free_trial_activated: profile?.free_trial_activated,
+        created_at: profile?.created_at,
+        trial_second_round_activated: profile?.trial_second_round_activated,
+      },
+      null
+    );
+  }, [
+    trialStartMs,
+    profile?.free_trial_activated_at,
+    profile?.free_trial_activated,
+    profile?.created_at,
+    profile?.trial_second_round_activated,
+  ]);
 
   const bonusDeadlineMs = trialEndMs + BONUS_WINDOW_MS;
   const remainingMs = Math.max(0, bonusDeadlineMs - now);
@@ -141,7 +129,49 @@ export default function TrialExpirationOverlay({
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }, [remainingMs]);
 
-  const cardBrand = useMemo(() => detectCardBrand(cardDetails.cardNumber), [cardDetails.cardNumber]);
+  const canClaimSecondRound = useMemo(
+    () =>
+      isScenario1 &&
+      isSecondRoundStillClaimable(
+        {
+          free_trial_activated_at: profile?.free_trial_activated_at,
+          free_trial_activated: profile?.free_trial_activated,
+          created_at: profile?.created_at,
+          trial_second_round_activated: profile?.trial_second_round_activated,
+        },
+        now
+      ),
+    [
+      isScenario1,
+      now,
+      profile?.free_trial_activated_at,
+      profile?.free_trial_activated,
+      profile?.created_at,
+      profile?.trial_second_round_activated,
+    ]
+  );
+
+  const canClaimPaidBonus = useMemo(
+    () =>
+      isWithinTrialEndBonusWindow(
+        {
+          free_trial_activated_at: profile?.free_trial_activated_at,
+          free_trial_activated: profile?.free_trial_activated,
+          created_at: profile?.created_at,
+          trial_second_round_activated: profile?.trial_second_round_activated,
+        },
+        now
+      ),
+    [
+      now,
+      profile?.free_trial_activated_at,
+      profile?.free_trial_activated,
+      profile?.created_at,
+      profile?.trial_second_round_activated,
+    ]
+  );
+
+  const canSubmitUpgrade = canClaimSecondRound || canClaimPaidBonus;
 
   const isVisible = open || successData != null;
 
@@ -160,53 +190,14 @@ export default function TrialExpirationOverlay({
   if (!open && !successData) return null;
   if (!portalReady) return null;
 
-  // Formatting utility for card number formatting
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, "").slice(0, 19);
-    const formatted = val.replace(/(\d{4})(?=\d)/g, "$1 ");
-    setCardDetails((prev) => ({ ...prev, cardNumber: formatted }));
-    setFormErrors((prev) => ({ ...prev, cardNumber: undefined }));
-  };
-
-  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, "").slice(0, 4);
-    if (val.length >= 2) {
-      val = val.slice(0, 2) + "/" + val.slice(2);
-    }
-    setCardDetails((prev) => ({ ...prev, expiryDate: val }));
-    setFormErrors((prev) => ({ ...prev, expiryDate: undefined }));
-  };
-
-  const handleCvvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, "").slice(0, 4);
-    setCardDetails((prev) => ({ ...prev, cvv: val }));
-    setFormErrors((prev) => ({ ...prev, cvv: undefined }));
-  };
-
-  const validateForm = (): boolean => {
-    const errors: Partial<CardDetails> = {};
-    const digits = cardDetails.cardNumber.replace(/\s/g, "");
-    if (digits.length < 15 || digits.length > 16) {
-      errors.cardNumber = "Enter a valid 15–16 digit card number";
-    }
-    if (!cardDetails.cardholderName.trim()) {
-      errors.cardholderName = "Cardholder name is required";
-    }
-    if (!/^\d{2}\/\d{2}$/.test(cardDetails.expiryDate.trim())) {
-      errors.expiryDate = "Use MM/YY format (e.g. 12/28)";
-    }
-    const cvvLen = cardDetails.cvv.replace(/\D/g, "").length;
-    if (cvvLen < 3 || cvvLen > 4) {
-      errors.cvv = "Enter 3 or 4 digit CVV";
-    }
-    setFormErrors(errors);
-    setSubmitError(null);
-    return Object.keys(errors).length === 0;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!canSubmitUpgrade) {
+      setSubmitError(
+        "The 24-hour bonus window has closed. Continue on Free, or upgrade later from Profile → Subscription."
+      );
+      return;
+    }
 
     setLoading(true);
     setSubmitError(null);
@@ -215,14 +206,7 @@ export default function TrialExpirationOverlay({
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: selectedPlan,
-          cardDetails: {
-            ...cardDetails,
-            cardNumber: cardDetails.cardNumber.replace(/\s/g, ""),
-            cvv: cardDetails.cvv.replace(/\D/g, ""),
-          },
-        }),
+        body: JSON.stringify({ plan: selectedPlan }),
       });
 
       const body = (await res.json().catch(() => ({}))) as {
@@ -232,13 +216,13 @@ export default function TrialExpirationOverlay({
         alreadyClaimed?: boolean;
       };
 
-      if (res.status === 409 && body.error?.includes("already claimed")) {
+      if (body.alreadyClaimed) {
         onCompletionHold?.();
         setSuccessData({ scenario: isScenario1 ? 1 : 2, plan: selectedPlan });
         await onSuccess();
         toast({
           title: "Already saved",
-          description: "Your card details are on file. Continue to the app.",
+          description: "Your plan choice is already on file. Continue to the app.",
         });
         return;
       }
@@ -267,9 +251,10 @@ export default function TrialExpirationOverlay({
 
       toast({
         title: "Success! 🎉",
-        description: body.scenario === 1 
-          ? "Activated 2-week FREE trial & 1-month bonus!"
-          : `Upgraded to ${selectedPlan === "pro" ? "Pro" : "Starter"} Plan & 1-month bonus applied!`,
+        description:
+          body.scenario === 1
+            ? "Unlocked 2 more weeks of free trial."
+            : `Upgraded to ${selectedPlan === "pro" ? "Pro" : "Starter"} with a 1-month free bonus.`,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Please try again.";
@@ -333,7 +318,7 @@ export default function TrialExpirationOverlay({
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
-            className="trial-expiration-card relative mx-auto w-full max-w-[min(52rem,calc(100vw-1rem))] h-auto max-h-[calc(100dvh-1rem)] min-h-0 rounded-2xl sm:rounded-3xl border border-white/10 bg-[#121324]/95 shadow-2xl text-slate-100 flex flex-col lg:grid lg:grid-cols-[1.05fr_0.92fr] lg:items-start lg:gap-4 gap-2.5 p-3 sm:p-4 lg:p-5 overflow-hidden"
+            className="trial-expiration-card relative mx-auto w-full max-w-[min(52rem,calc(100vw-1rem))] h-auto max-h-[calc(100dvh-1rem)] min-h-0 rounded-2xl sm:rounded-3xl border border-white/10 bg-[#121324]/95 shadow-2xl text-slate-100 flex flex-col lg:grid lg:grid-cols-[1.05fr_0.92fr] lg:items-stretch lg:gap-4 gap-2.5 p-3 sm:p-4 lg:p-5 overflow-hidden"
           >
             {/* Left: plan info */}
             <div className="flex flex-col gap-2 sm:gap-2.5 min-h-0 overflow-hidden">
@@ -348,8 +333,8 @@ export default function TrialExpirationOverlay({
                   className="text-lg sm:text-2xl lg:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent leading-tight"
                 >
                   {isScenario1
-                    ? "Add card details — unlock 2 more weeks FREE"
-                    : "Add card details to keep learning"}
+                    ? "Unlock 2 more weeks FREE"
+                    : "Choose how you want to keep learning"}
                 </h1>
 
                 <div className="flex items-center gap-2 sm:gap-3 bg-white/5 border border-white/5 p-2 sm:p-3 rounded-xl sm:rounded-2xl">
@@ -367,14 +352,12 @@ export default function TrialExpirationOverlay({
 
                 <p className="text-[10px] sm:text-xs lg:text-sm text-slate-300 leading-snug whitespace-pre-line">
                   {isScenario1
-                    ? `Thank you for undergoing our trial. Based on your activity streak and number of RDM earned, we are offering you one more round of 2-week FREE trial.
+                    ? `Thank you for completing the trial track. You can unlock one more 2-week free trial now.
 
-To avail this, go to Upgrade Plan and provide your payments details. If you enter your payment details within next 24 hours, we have a special surprise Bonus for you!
+Razorpay card checkout comes later — we will not charge you today, and we do not store card numbers.`
+                    : `Thank you for undergoing our FREE trial. Pick Starter or Pro to start a 1-month free bonus (no charge today). After that month, you will move to Free until Razorpay checkout is live.
 
-Note: No charge will be initiated till the additional 2-week FREE trial is over.`
-                    : `Thank you for undergoing our FREE trial. To continue, go to the Upgrade Plan option and provide your payments details.
-
-If you enter your payment details within next 24 hours, we have a special surprise Bonus for you!`}
+If you wait more than 24 hours, the 1-month bonus closes and you can continue on Free.`}
                 </p>
               </div>
 
@@ -431,42 +414,44 @@ If you enter your payment details within next 24 hours, we have a special surpri
                   </button>
                 </div>
 
-                {/* After trial: keep Free as a clear, highlighted exit */}
-                <div className="mt-1 pt-2 sm:pt-2.5 border-t border-white/[0.06] text-center space-y-1.5">
-                  <p className="text-[11px] sm:text-xs text-slate-400 leading-snug">
+                <div className="mt-1 pt-3 border-t border-white/[0.06] space-y-2">
+                  <p className="text-[11px] sm:text-xs text-slate-400 leading-snug text-center">
                     Trial complete — lessons and Daily Dose stay on Free.
                   </p>
                   <button
                     type="button"
                     onClick={() => setShowDowngradeWarning(true)}
-                    className="mx-auto inline-flex max-w-full items-center justify-center rounded-md px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
+                    className="w-full h-11 rounded-xl border border-white/15 bg-white/[0.04] text-sm sm:text-base font-semibold tracking-tight text-slate-100 hover:bg-white/[0.08] hover:border-white/25 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
                     aria-label="Continue with Free Plan"
                   >
-                    <span className="inline-block max-w-full -rotate-[1deg] bg-[#f5e325] px-2.5 py-1 text-base sm:text-lg font-extrabold leading-tight tracking-tight text-slate-950 shadow-[inset_0_-0.28em_0_0_rgba(0,0,0,0.08)] [box-decoration-break:clone]">
-                      Continue with Free Plan
-                    </span>
+                    Continue with Free Plan
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Right: payment — content-height (no vertical stretch) */}
-            <div className="flex flex-col w-full border border-white/5 bg-[#0a0f1d] rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl shrink-0">
-              <div className="bg-[#122543] px-3 py-2 sm:px-3.5 sm:py-2.5 text-left flex items-center justify-between gap-2 border-b border-white/5 shrink-0">
+            <div className="flex flex-col w-full h-full min-h-0 border border-white/5 bg-[#0a0f1d] rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl">
+                  <div className="bg-[#122543] px-4 py-3 sm:px-5 sm:py-3.5 text-left flex items-center justify-between gap-2 border-b border-white/5 shrink-0">
                 <div className="flex flex-col">
-                  <div className="text-[10px] sm:text-xs font-extrabold tracking-widest text-[#2b7ae4] uppercase">Secure Checkout</div>
-                  <div className="text-xs sm:text-sm font-bold text-white mt-0.5">Testbee Autopay Activation</div>
+                  <div className="text-[10px] sm:text-xs font-extrabold tracking-widest text-[#2b7ae4] uppercase">No charge today</div>
+                  <div className="text-xs sm:text-sm font-bold text-white mt-0.5">
+                    {canClaimSecondRound
+                      ? "Unlock extra 2 weeks"
+                      : canClaimPaidBonus
+                        ? "Start 1-month free bonus"
+                        : "Bonus window closed"}
+                  </div>
                 </div>
                 <div className="flex flex-col text-right shrink-0">
-                  <div className="text-[9px] sm:text-[10px] text-[#2b7ae4] font-bold uppercase tracking-wider">AMOUNT TO PAY</div>
+                  <div className="text-[9px] sm:text-[10px] text-[#2b7ae4] font-bold uppercase tracking-wider">After bonus</div>
                   <div className="text-sm sm:text-base font-black text-emerald-400 flex flex-col items-end">
                     <span>{selectedPlan === "pro" ? "₹899" : "₹499"}</span>
-                    <span className="text-[8px] text-slate-400 font-normal uppercase tracking-tight -mt-0.5">Autopay Setup</span>
+                    <span className="text-[8px] text-slate-400 font-normal uppercase tracking-tight -mt-0.5">/mo later via Razorpay</span>
                   </div>
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-3 sm:p-3.5 flex flex-col gap-2.5 sm:gap-3">
+              <form onSubmit={handleSubmit} className="p-4 sm:p-5 flex flex-col gap-4 flex-1 min-h-0">
                 {submitError ? (
                   <div
                     role="alert"
@@ -475,106 +460,31 @@ If you enter your payment details within next 24 hours, we have a special surpri
                     {submitError}
                   </div>
                 ) : null}
-                <div className="space-y-2 text-left">
-                  <div className="flex items-center justify-between gap-2 text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider">
-                    <span>Card Details</span>
-                    <div className="flex items-center gap-1 text-[#2b7ae4]">
-                      <Lock size={11} />
-                      <span className="scale-95">100% SECURE CHECKOUT</span>
-                    </div>
-                  </div>
+                <p className="text-[11px] sm:text-xs text-slate-300 leading-snug">
+                  {canSubmitUpgrade
+                    ? canClaimSecondRound
+                      ? "Confirm your plan to unlock 2 more weeks of trial. You will be asked again when those 2 weeks end."
+                      : "Confirm your plan to start a 30-day free bonus month. After that you move to the Free plan until paid checkout is ready."
+                    : "The 24-hour 1-month bonus has closed. Continue on Free below. Paid checkout with Razorpay will be added later."}
+                </p>
 
-                  {/* Nested Card Input Box Layout (Razorpay Style) */}
-                  <div className="border border-white/10 rounded-2xl bg-[#03060f] overflow-hidden focus-within:border-[#2b7ae4] transition-all duration-300">
-                    
-                    {/* Card Number Container */}
-                    <div className="relative border-b border-white/10">
-                      <input
-                        type="text"
-                        required
-                        placeholder="Card Number"
-                        value={cardDetails.cardNumber}
-                        onChange={handleCardNumberChange}
-                        className="w-full bg-transparent border-0 px-3 py-2.5 sm:px-4 sm:py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-0"
-                      />
-                      
-                      {/* Dynamic Card Network Logo */}
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center h-full">
-                        {cardBrand === "visa" && (
-                          <span className="text-xs font-black italic tracking-wide text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-500/20">Visa</span>
-                        )}
-                        {cardBrand === "mastercard" && (
-                          <span className="text-xs font-black italic tracking-wide text-orange-400 bg-orange-950/20 px-2 py-0.5 rounded border border-orange-500/20">Mastercard</span>
-                        )}
-                        {cardBrand === "rupay" && (
-                          <span className="text-xs font-extrabold tracking-tight text-blue-200 bg-white/5 px-2 py-0.5 rounded border border-white/10">RuPay</span>
-                        )}
-                        {cardBrand === "amex" && (
-                          <span className="text-xs font-extrabold tracking-wide text-emerald-400 bg-emerald-950/20 px-2 py-0.5 rounded border border-emerald-500/20">Amex</span>
-                        )}
-                        {cardBrand === "generic" && (
-                          <CreditCard className="text-slate-500" size={16} />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Expiry and CVV Grid Container */}
-                    <div className="grid grid-cols-2 divide-x divide-white/10 border-b border-white/10">
-                      <input
-                        type="text"
-                        required
-                        placeholder="Expiry (MM/YY)"
-                        value={cardDetails.expiryDate}
-                        onChange={handleExpiryChange}
-                        className="w-full bg-transparent border-0 px-3 py-2.5 sm:px-4 sm:py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-0 text-center"
-                      />
-                      <input
-                        type="password"
-                        required
-                        placeholder="CVV"
-                        value={cardDetails.cvv}
-                        onChange={handleCvvChange}
-                        className="w-full bg-transparent border-0 px-3 py-2.5 sm:px-4 sm:py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-0 text-center"
-                      />
-                    </div>
-
-                    {/* Cardholder Name */}
-                    <div>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Cardholder Name"
-                        value={cardDetails.cardholderName}
-                        onChange={(e) => {
-                          setCardDetails((prev) => ({ ...prev, cardholderName: e.target.value }));
-                          setFormErrors((prev) => ({ ...prev, cardholderName: undefined }));
-                        }}
-                        className="w-full bg-transparent border-0 px-3 py-2.5 sm:px-4 sm:py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-0"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Form validation alert lines */}
-                  {Object.values(formErrors).filter(Boolean).length > 0 && (
-                    <div className="text-[10px] text-rose-500 flex flex-col space-y-0.5 bg-rose-950/10 border border-rose-500/20 rounded-xl p-2">
-                      {Object.entries(formErrors).map(([key, value]) => value && (
-                        <span key={key}>• {value}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2 shrink-0">
+                <div className="mt-auto space-y-3 shrink-0 pt-2">
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="w-full h-9 sm:h-10 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 font-extrabold text-slate-950 rounded-lg text-xs sm:text-sm transition-all duration-300 flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-[0.99] disabled:opacity-50"
+                    disabled={loading || !canSubmitUpgrade}
+                    className="w-full h-11 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 font-extrabold text-slate-950 rounded-xl text-xs sm:text-sm transition-all duration-300 flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 active:scale-[0.99] disabled:opacity-50"
                   >
                     {loading ? (
                       <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <span>{isScenario1 ? "Activate Autopay & Claim Bonus" : "Activate Autopay & Claim Free Month"}</span>
+                        <span>
+                          {canClaimSecondRound
+                            ? "Unlock 2 more weeks"
+                            : canClaimPaidBonus
+                              ? "Start 1-month free bonus"
+                              : "Bonus unavailable"}
+                        </span>
                         <ArrowRight size={15} />
                       </>
                     )}
@@ -582,7 +492,7 @@ If you enter your payment details within next 24 hours, we have a special surpri
 
                   <div className="flex justify-center items-center gap-1.5 text-[9px] sm:text-[10px] text-slate-400 font-semibold tracking-wider uppercase bg-white/5 py-1.5 px-2.5 rounded-full border border-white/5 w-fit mx-auto">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>PCI-DSS Secured Gateway</span>
+                    <span>No card stored · Razorpay later</span>
                   </div>
                 </div>
               </form>
@@ -608,17 +518,17 @@ If you enter your payment details within next 24 hours, we have a special surpri
 
             <h2 className="text-base font-bold text-emerald-400 mt-2 flex items-center justify-center gap-1.5">
               <Sparkles size={16} />
-              <span>Special 1-Month Free Bonus Activated!</span>
+              <span>
+                {successData.scenario === 1
+                  ? "Extra 2 weeks unlocked"
+                  : "1-month free bonus started"}
+              </span>
             </h2>
 
             <p className="text-sm text-slate-300 mt-4 leading-relaxed">
               {successData.scenario === 1
-                ? `You have successfully unlocked your second round of 2-week FREE trial. All onboarding checklists are now bypassed so you can study freely.
-
-Your payment credentials have been successfully registered, and your 1-month free bonus month has been activated automatically! No charge will be made until after the extended trial completes.`
-                : `You have successfully upgraded your account to the ${successData.plan === "pro" ? "Pro" : "Starter"} Plan! 
-
-Because you submitted details within the bonus window, your first month has been completely credited as a FREE bonus month. Billing will start after the bonus period ends.`}
+                ? "You unlocked a second 2-week free trial. When those 2 weeks end, you will choose again: continue on Free, or start a 1-month bonus. No card was stored."
+                : `You are on the ${successData.plan === "pro" ? "Pro" : "Starter"} plan for a 30-day free bonus month. After that you move to Free until Razorpay checkout is live. No card was stored.`}
             </p>
 
             <button

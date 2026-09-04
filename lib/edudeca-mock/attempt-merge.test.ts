@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mergeMockAttempt } from "./attempt-merge";
+import { mergeMockAttempt, snapshotFromAttemptRow } from "./attempt-merge";
 
 describe("mergeMockAttempt", () => {
   it("keeps the higher completed percent", () => {
@@ -50,5 +50,40 @@ describe("mergeMockAttempt", () => {
       status: "inprogress",
     });
     expect(merged.status).toBe("inprogress");
+  });
+
+  it("does not replace saved answers with an empty map", () => {
+    const merged = mergeMockAttempt(
+      {
+        level: 1,
+        setNumber: 4,
+        status: "inprogress",
+        answers: { "mock-l1-s04-phy-01": "Newton" },
+      },
+      { level: 1, setNumber: 4, status: "inprogress", answers: {} },
+    );
+    expect(merged.answers).toEqual({ "mock-l1-s04-phy-01": "Newton" });
+  });
+
+  it("reads a database attempt row into a snapshot", () => {
+    expect(
+      snapshotFromAttemptRow({
+        level: 1,
+        set_number: 4,
+        status: "inprogress",
+        score_pct: null,
+        correct: null,
+        total: null,
+        answers: { "mock-l1-s04-phy-01": "A" },
+      }),
+    ).toEqual({
+      level: 1,
+      setNumber: 4,
+      status: "inprogress",
+      scorePct: undefined,
+      correct: undefined,
+      total: undefined,
+      answers: { "mock-l1-s04-phy-01": "A" },
+    });
   });
 });

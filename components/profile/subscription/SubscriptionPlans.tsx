@@ -124,7 +124,7 @@ export default function SubscriptionPlans({ profile, onNavigate }: Props) {
               Choose a plan
             </h2>
             <p className="mt-1.5 text-sm font-medium text-slate-400">
-              Testing mode is active. Activate Free Trial, Free, Starter, or Pro anytime.
+              Testing mode: Free and Free Trial can be switched here. Starter and Pro go through checkout.
             </p>
           </div>
           <button

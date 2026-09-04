@@ -59,6 +59,23 @@ export function getFreeTrialElapsedMs(
   return Math.min(elapsed, durationMs);
 }
 
+export function getFreeTrialElapsedMsForProfile(
+  profile: FreeTrialClockProfile | null | undefined,
+  now = Date.now(),
+  cfg?: SubscriptionConfig | null
+): number {
+  const start = resolveFreeTrialStartMs({
+    freeTrialActivatedAt: profile?.free_trial_activated_at,
+    freeTrialActivated: profile?.free_trial_activated,
+    createdAt: profile?.created_at,
+  });
+  if (start == null) return 0;
+  const durationMs = resolveTrialDurationMsForProfile(profile, cfg);
+  const elapsed = now - start;
+  if (elapsed < 0) return 0;
+  return Math.min(elapsed, durationMs);
+}
+
 export function isFreeTrialPeriodEnded(
   activatedAtIso: string | null | undefined,
   now = Date.now(),
@@ -128,7 +145,7 @@ export function isFreeTrialActiveForProfile(
     profile.free_trial_activated || profile.trial_second_round_activated
   );
   if (!activated) return false;
-  if (profile.trial_end_bonus_activated) return false;
+  if (profile.trial_end_bonus_activated && !profile.trial_second_round_activated) return false;
   return !isFreeTrialPeriodEndedForProfile(profile, nowMs, cfg);
 }
 
@@ -151,6 +168,18 @@ export function computeOffsetForTrialEndFromProfile(
 export function formatFreeTrialElapsedTimer(elapsedMs: number, secondRound = false): string {
   const durationDays = secondRound ? FREE_TRIAL_SECOND_ROUND_DAYS : FREE_TRIAL_DURATION_DAYS;
   const durationMs = durationDays * 24 * 60 * 60 * 1000;
+  return formatRemainingFromDuration(elapsedMs, durationMs);
+}
+
+export function formatFreeTrialElapsedTimerForProfile(
+  elapsedMs: number,
+  profile: FreeTrialClockProfile | null | undefined,
+  cfg?: SubscriptionConfig | null
+): string {
+  return formatRemainingFromDuration(elapsedMs, resolveTrialDurationMsForProfile(profile, cfg));
+}
+
+function formatRemainingFromDuration(elapsedMs: number, durationMs: number): string {
   const remainingMs = Math.max(0, durationMs - elapsedMs);
   const totalSeconds = Math.floor(remainingMs / 1000);
   const days = Math.floor(totalSeconds / 86400);

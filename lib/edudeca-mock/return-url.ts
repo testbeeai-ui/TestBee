@@ -13,6 +13,14 @@ export function edudecaAppOrigin(raw = process.env.NEXT_PUBLIC_EDUDECA_APP_URL):
   return (raw?.trim() || DEFAULT_EDUDECA_APP_URL).replace(/\/$/, "");
 }
 
+export function edudecaMockPaperPath(level: number, set: number): string {
+  return `/edudeca-mock?level=${level}&set=${set}`;
+}
+
+export function edudecaMockLoginRedirect(level: number, set: number): string {
+  return `/?next=${encodeURIComponent(edudecaMockPaperPath(level, set))}`;
+}
+
 export function edudecaMockReturnUrl(
   payload: EduDecaMockReturnPayload,
   origin = edudecaAppOrigin(),
@@ -36,4 +44,31 @@ export function edudecaMockReturnUrl(
     }
   }
   return url.toString();
+}
+
+export function edudecaMockFinishReturnUrl(
+  input: {
+    level: 1 | 2 | 3;
+    set: number;
+    serverScore: { correct: number; total: number; scorePct: number } | null;
+  },
+  origin = edudecaAppOrigin(),
+): string {
+  if (!input.serverScore) {
+    return edudecaMockReturnUrl(
+      { level: input.level, set: input.set, status: "inprogress" },
+      origin,
+    );
+  }
+  return edudecaMockReturnUrl(
+    {
+      level: input.level,
+      set: input.set,
+      status: "completed",
+      scorePct: input.serverScore.scorePct,
+      correct: input.serverScore.correct,
+      total: input.serverScore.total,
+    },
+    origin,
+  );
 }

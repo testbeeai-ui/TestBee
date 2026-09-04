@@ -1,3 +1,5 @@
+import { isMockPaperLevel } from "./paper-filter";
+
 export type MockAttemptStatus = "inprogress" | "completed";
 
 export type MockAttemptSnapshot = {
@@ -9,6 +11,33 @@ export type MockAttemptSnapshot = {
   total?: number;
   answers?: unknown;
 };
+
+export function snapshotFromAttemptRow(row: Record<string, unknown> | null): MockAttemptSnapshot | null {
+  if (!row) return null;
+  const level = Number(row.level);
+  const setNumber = Number(row.set_number);
+  const status = row.status;
+  if (!isMockPaperLevel(level) || !Number.isInteger(setNumber)) return null;
+  if (status !== "completed" && status !== "inprogress") return null;
+  return {
+    level,
+    setNumber,
+    status,
+    scorePct: typeof row.score_pct === "number" ? row.score_pct : undefined,
+    correct: typeof row.correct === "number" ? row.correct : undefined,
+    total: typeof row.total === "number" ? row.total : undefined,
+    answers: row.answers,
+  };
+}
+
+function answerMap(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "string" && value !== "") out[key] = value;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 
 function betterScore(current: number | undefined, incoming: number | undefined): number | undefined {
   if (current == null) return incoming;
@@ -41,6 +70,8 @@ export function mergeMockAttempt(
     scorePct: betterScore(existing.scorePct, incoming.scorePct),
     correct: keepExistingScore ? existing.correct : (incoming.correct ?? existing.correct),
     total: keepExistingScore ? existing.total : (incoming.total ?? existing.total),
-    answers: keepExistingScore ? existing.answers : (incoming.answers ?? existing.answers),
+    answers: keepExistingScore
+      ? existing.answers
+      : (answerMap(incoming.answers) ?? answerMap(existing.answers) ?? incoming.answers),
   };
 }

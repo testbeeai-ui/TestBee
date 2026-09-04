@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAdminUser } from "@/lib/admin/admin";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import type { SubscriptionPlanKey } from "@/lib/subscription/subscriptionConfig";
@@ -20,8 +21,8 @@ function normalizePlan(raw: unknown): SubscriptionPlanKey | null {
 }
 
 /**
- * Testing-mode plan switcher.
- * No payment gateway check here; user can switch between Free / Free Trial / Starter / Pro.
+ * Students may switch to Free / Free Trial here.
+ * Starter and Pro must go through checkout (Razorpay) — not this testing switcher.
  */
 export async function POST(request: Request) {
   try {
@@ -39,6 +40,19 @@ export async function POST(request: Request) {
         { error: "Invalid plan. Use free_trial, free, starter, or pro." },
         { status: 400 }
       );
+    }
+
+    if (requested === "starter" || requested === "pro") {
+      const admin = await isAdminUser(supabase, user.id);
+      if (!admin) {
+        return NextResponse.json(
+          {
+            error:
+              "Paid plans cannot be switched from this endpoint. Use Profile → Subscription checkout (Razorpay).",
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const nowIso = new Date().toISOString();

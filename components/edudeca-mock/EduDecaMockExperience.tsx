@@ -1,31 +1,54 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
+import MathText from "@/components/MathText";
+import { LevelsBrowserDialog } from "@/components/edudeca-mock/LevelsBrowserDialog";
+import {
+  ExploreOtherMocksButton,
+  OtherMocksDialog,
+} from "@/components/edudeca-mock/OtherMocksDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
+import { persistPendingDeepLink } from "@/lib/auth/safeNextPath";
+import { OTHER_MOCKS_CTA_LABEL } from "@/lib/edudeca-mock/other-mocks";
 import {
   EDUDECA_MOCK_LEVELS,
   type EduDecaMockLevelId,
   type QuizQuestion,
 } from "@/lib/edudeca-mock/question-bank";
-import { edudecaAppOrigin, edudecaMockReturnUrl } from "@/lib/edudeca-mock/return-url";
+import {
+  edudecaAppOrigin,
+  edudecaMockFinishReturnUrl,
+  edudecaMockLoginRedirect,
+  edudecaMockPaperPath,
+  edudecaMockReturnUrl,
+} from "@/lib/edudeca-mock/return-url";
+import { asMockAnswers } from "@/lib/edudeca-mock/pause-attempt";
+import { quizFromPaperAndAnswers } from "@/lib/edudeca-mock/resume-quiz";
 import {
   applyHandoffQuery,
+  collectPapers,
   createEmptySession,
   formatSetNumber,
   isApiPaper,
   loadSession,
+  matchingInProgress,
+  mergeAttemptChipStatuses,
   parseHandoffQuery,
   saveSession,
+  sessionAfterSelectingSet,
   withInProgress,
+  withoutPaper,
+  type AttemptChipStatus,
   type EduDecaMockInProgress,
   type EduDecaMockSession,
 } from "@/lib/edudeca-mock/session-store";
 import { cn } from "@/lib/utils";
 
 type Screen = "landing" | "quiz" | "results";
-type PaperError = "incomplete_lineup" | "missing_discipline" | "auth" | "load";
+type PaperError = "incomplete_lineup" | "missing_discipline" | "load";
 
 function browserStorage(): Storage | null {
   if (typeof window === "undefined") return null;
@@ -50,8 +73,6 @@ function paperErrorCopy(error: PaperError): string {
       return "Pick your 10 disciplines on EduDeca, then come back to start this mock.";
     case "missing_discipline":
       return "This mock set is not available for your 10 disciplines.";
-    case "auth":
-      return "Sign in to take this EduDeca mock paper.";
     case "load":
       return "Could not load this mock paper. Try again.";
     default: {
@@ -61,8 +82,17 @@ function paperErrorCopy(error: PaperError): string {
   }
 }
 
+function redirectToMockLogin(level: EduDecaMockLevelId, set: number): void {
+  const next = edudecaMockPaperPath(level, set);
+  persistPendingDeepLink(next);
+  window.location.assign(edudecaMockLoginRedirect(level, set));
+}
+
 export function EduDecaMockExperience() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, loading: authLoading } = useAuth();
+  const didAutoOpenResume = useRef(false);
   const [session, setSession] = useState<EduDecaMockSession>(createEmptySession);
   const [screen, setScreen] = useState<Screen>("landing");
   const [quiz, setQuiz] = useState<EduDecaMockInProgress | null>(null);
@@ -70,6 +100,11 @@ export function EduDecaMockExperience() {
   const [hydrated, setHydrated] = useState(false);
   const [paperError, setPaperError] = useState<PaperError | null>(null);
   const [loadingPaper, setLoadingPaper] = useState(false);
+  const [otherMocksOpen, setOtherMocksOpen] = useState(false);
+  const [levelsBrowserOpen, setLevelsBrowserOpen] = useState(false);
+  const [remoteAttemptStatuses, setRemoteAttemptStatuses] = useState<
+    Array<{ level: number; set: number; status: AttemptChipStatus }>
+  >([]);
   const [serverScore, setServerScore] = useState<{
     correct: number;
     total: number;
@@ -80,18 +115,13 @@ export function EduDecaMockExperience() {
     const stored = loadSession(browserStorage());
     const query = parseHandoffQuery(new URLSearchParams(searchParams.toString()));
     const next = applyHandoffQuery(stored, query);
-    const resume = next.inProgress;
-    const usableResume = Boolean(
-      resume &&
-        resume.level === next.lastLevel &&
-        resume.set === next.lastSet &&
-        isApiPaper(resume.questions),
-    );
-    persist(usableResume ? next : withInProgress(next, undefined));
+    persist(next);
 
     queueMicrotask(() => {
-      setSession(usableResume ? next : withInProgress(next, undefined));
-      if (usableResume && resume) {
+      setSession(next);
+      const resume = matchingInProgress(next);
+      if (!didAutoOpenResume.current && resume) {
+        didAutoOpenResume.current = true;
         setQuiz(resume);
         setPicked(resume.pickedIndex ?? null);
         setScreen("quiz");
@@ -100,26 +130,107 @@ export function EduDecaMockExperience() {
     });
   }, [searchParams]);
 
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void fetchWithClientAuth("/api/edudeca-mock/attempts", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok || cancelled) return;
+        const body = (await res.json()) as {
+          attempts?: Array<{ level: number; set: number; status: AttemptChipStatus }>;
+        };
+        if (cancelled || !Array.isArray(body.attempts)) return;
+        setRemoteAttemptStatuses(
+          body.attempts.filter(
+            (row) => row.status === "completed" || row.status === "inprogress",
+          ),
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const selected = levelMeta(session.lastLevel);
   const setNo = formatSetNumber(session.lastSet);
-  const matchingResume =
-    session.inProgress &&
-    session.inProgress.level === session.lastLevel &&
-    session.inProgress.set === session.lastSet &&
-    isApiPaper(session.inProgress.questions)
-      ? session.inProgress
-      : null;
+  const matchingResume = matchingInProgress(session);
+  const pausedAttempt =
+    (session.inProgress && isApiPaper(session.inProgress.questions) ? session.inProgress : null) ??
+    matchingResume;
+  const attemptStatuses = mergeAttemptChipStatuses(collectPapers(session), remoteAttemptStatuses);
 
   function updateSession(next: EduDecaMockSession) {
     setSession(next);
     persist(next);
   }
 
-  function selectLevel(id: EduDecaMockLevelId) {
-    updateSession({ ...session, lastLevel: id });
+  function persistPausedAttempt(current: EduDecaMockInProgress): Promise<void> {
+    if (!user) return Promise.resolve();
+    return fetchWithClientAuth("/api/edudeca-mock/pause", {
+      method: "POST",
+      keepalive: true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        level: current.level,
+        set: current.set,
+        answers: current.answers ?? {},
+      }),
+    }).then(() => undefined, () => {
+      // localStorage already holds the pause; still return to EduDeca.
+    });
+  }
+
+  function persistOtherPapers(
+    from: EduDecaMockSession,
+    keepLevel: number,
+    keepSet: number,
+  ): Promise<void> {
+    const jobs = Object.values(collectPapers(from))
+      .filter((paper) => paper.level !== keepLevel || paper.set !== keepSet)
+      .map((paper) => persistPausedAttempt(paper));
+    return Promise.all(jobs).then(() => undefined);
+  }
+
+  async function refreshAttemptStatuses() {
+    if (!user) return;
+    try {
+      const res = await fetchWithClientAuth("/api/edudeca-mock/attempts", { cache: "no-store" });
+      if (!res.ok) return;
+      const body = (await res.json()) as {
+        attempts?: Array<{ level: number; set: number; status: AttemptChipStatus }>;
+      };
+      if (!Array.isArray(body.attempts)) return;
+      setRemoteAttemptStatuses(
+        body.attempts.filter(
+          (row) => row.status === "completed" || row.status === "inprogress",
+        ),
+      );
+    } catch {
+      // Chip colors can still use locally paused papers.
+    }
+  }
+
+  function selectFeaturedSet(level: EduDecaMockLevelId, set: number) {
+    setPaperError(null);
+    const live = screen === "quiz" ? quiz : null;
+    const next = sessionAfterSelectingSet(session, level, set, live);
+    didAutoOpenResume.current = true;
+    updateSession(next);
+    void persistOtherPapers(next, level, set).then(() => {
+      void refreshAttemptStatuses();
+    });
+    if (live && (live.level !== level || live.set !== set)) {
+      setScreen("landing");
+      setPicked(null);
+    }
+    router.replace(edudecaMockPaperPath(level, set), { scroll: false });
+    setLevelsBrowserOpen(false);
   }
 
   async function startQuiz(resume?: EduDecaMockInProgress) {
+    await persistOtherPapers(session, session.lastLevel, session.lastSet);
+
     if (resume && isApiPaper(resume.questions)) {
       setPaperError(null);
       setQuiz(resume);
@@ -132,12 +243,16 @@ export function EduDecaMockExperience() {
     setLoadingPaper(true);
     setPaperError(null);
     try {
-      const res = await fetch(
+      if (!user) {
+        redirectToMockLogin(session.lastLevel, session.lastSet);
+        return;
+      }
+      const res = await fetchWithClientAuth(
         `/api/edudeca-mock/paper?level=${session.lastLevel}&set=${session.lastSet}`,
-        { credentials: "include", cache: "no-store" },
+        { cache: "no-store" },
       );
       if (res.status === 401) {
-        setPaperError("auth");
+        redirectToMockLogin(session.lastLevel, session.lastSet);
         return;
       }
       if (res.status === 409) {
@@ -152,23 +267,32 @@ export function EduDecaMockExperience() {
         setPaperError("load");
         return;
       }
-      const body = (await res.json()) as { questions?: QuizQuestion[] };
+      const body = (await res.json()) as {
+        questions?: QuizQuestion[];
+        attempt?: { status?: string; answers?: unknown };
+      };
       if (!Array.isArray(body.questions) || !isApiPaper(body.questions)) {
         setPaperError("load");
         return;
       }
-      const nextQuiz: EduDecaMockInProgress = {
-        level: session.lastLevel,
-        set: session.lastSet,
-        idx: 0,
-        score: 0,
-        questions: body.questions,
-        answers: {},
-      };
+
+      const savedAnswers = asMockAnswers(body.attempt?.answers);
+      const nextQuiz: EduDecaMockInProgress =
+        body.attempt?.status === "inprogress" && Object.keys(savedAnswers).length > 0
+          ? quizFromPaperAndAnswers(session.lastLevel, session.lastSet, body.questions, savedAnswers)
+          : {
+              level: session.lastLevel,
+              set: session.lastSet,
+              idx: 0,
+              score: 0,
+              questions: body.questions,
+              answers: {},
+            };
       setQuiz(nextQuiz);
-      setPicked(null);
+      setPicked(nextQuiz.pickedIndex ?? null);
       setScreen("quiz");
       updateSession(withInProgress({ ...session, lastLevel: nextQuiz.level, lastSet: nextQuiz.set }, nextQuiz));
+      void refreshAttemptStatuses();
     } catch {
       setPaperError("load");
     } finally {
@@ -208,14 +332,13 @@ export function EduDecaMockExperience() {
   }
 
   async function finishQuiz(current: EduDecaMockInProgress) {
-    const cleared = withInProgress(session, undefined);
-    updateSession(cleared);
+    setServerScore(null);
+    updateSession(withoutPaper(session, current.level, current.set));
     setQuiz(current);
     setScreen("results");
     try {
-      const res = await fetch("/api/edudeca-mock/complete", {
+      const res = await fetchWithClientAuth("/api/edudeca-mock/complete", {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           level: current.level,
@@ -240,6 +363,7 @@ export function EduDecaMockExperience() {
           scorePct: body.scorePct,
         });
       }
+      void refreshAttemptStatuses();
     } catch {
       // Keep the on-screen tally; Back URL still uses whatever score we have.
     }
@@ -253,6 +377,7 @@ export function EduDecaMockExperience() {
     const ok = window.confirm("Leave this test? Your progress will be saved so you can resume later.");
     if (!ok) return;
     updateSession(withInProgress(session, quiz));
+    void persistPausedAttempt(quiz);
     setScreen("landing");
   }
 
@@ -265,23 +390,30 @@ export function EduDecaMockExperience() {
   }, [quiz, screen, serverScore]);
 
   const completedReturnUrl =
-    quiz && results
-      ? edudecaMockReturnUrl({
+    quiz
+      ? edudecaMockFinishReturnUrl({
           level: quiz.level,
           set: quiz.set,
-          status: "completed",
-          scorePct: results.scorePct,
-          correct: results.correct,
-          total: results.total,
+          serverScore,
         })
       : null;
-  const pausedReturnUrl = matchingResume
+  const pausedReturnUrl = pausedAttempt
     ? edudecaMockReturnUrl({
-        level: matchingResume.level,
-        set: matchingResume.set,
+        level: pausedAttempt.level,
+        set: pausedAttempt.set,
         status: "inprogress",
       })
     : `${edudecaAppOrigin()}/mock-test`;
+
+  useEffect(() => {
+    if (screen !== "quiz" || !quiz) return;
+    const onHide = () => {
+      saveSession(browserStorage(), withInProgress(session, quiz));
+      void persistPausedAttempt(quiz);
+    };
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, [quiz, screen, session]);
 
   if (!hydrated) {
     return <div className="min-h-[40vh]" />;
@@ -294,43 +426,33 @@ export function EduDecaMockExperience() {
     <div className="mx-auto w-full max-w-[900px] px-5 pb-20 pt-2 sm:px-10">
       {screen === "landing" ? (
         <section>
-          <div className="px-1 pb-2 pt-8 text-center">
-            <p className="mb-4 inline-flex items-center rounded-full border border-[rgba(34,211,166,0.35)] bg-[rgba(34,211,166,0.1)] px-4 py-1.5 text-[11.5px] font-extrabold tracking-[0.5px] text-[#22D3A6]">
-              Welcome from EduDeca
+          <div className="px-1 pb-2 pt-11 text-center">
+            <p className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[rgba(34,211,166,0.35)] bg-[rgba(34,211,166,0.1)] px-[15px] py-1.5 text-[11.5px] font-extrabold tracking-[0.5px] text-[#22D3A6]">
+              🎉 Welcome from EduDeca
             </p>
             <h1 className="mb-2.5 text-[28px] font-extrabold text-[#EAEFF5]">EduDeca Mock Test</h1>
             <p className="mx-auto max-w-[520px] text-sm leading-[1.6] text-[#8B96A5]">
-              Take a free-play mock paper in the same format as the EduDeca Challenge. Use the
-              EduBlast menu anytime to explore Prep, Learn Hub, Play, and the rest of the site.
-            </p>
-            <p
-              className="mt-6 text-center"
-              aria-label={`Level ${session.lastLevel} · Set ${setNo}`}
-            >
-              <span className="block text-[13px] font-bold text-[#8B96A5]">
-                Level {session.lastLevel}
-              </span>
-              <span className="mt-1 block text-[40px] font-extrabold leading-[1.05] tracking-[-0.6px] text-[#EAEFF5]">
-                Set <span className="text-[#22D3A6]">{setNo}</span>
-              </span>
+              Take a free-play mock paper in the same format as the EduDeca Challenge.
             </p>
           </div>
 
           {matchingResume ? (
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[rgba(239,159,39,0.4)] bg-[rgba(239,159,39,0.1)] px-4 py-3 text-[12.5px] text-[#EAEFF5]">
-              <span>
-                <b className="text-[#EF9F27]">Paused</b> at question {matchingResume.idx + 1}/
-                {matchingResume.questions.length}
+            <div className="mt-[22px] text-center">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(239,159,39,0.4)] bg-[rgba(239,159,39,0.1)] px-4 py-2 text-[12.5px] font-bold text-[#EF9F27]">
+                ⏸ Paused at question&nbsp;{matchingResume.idx + 1}/{matchingResume.questions.length}
               </span>
-              <button
-                type="button"
-                onClick={() => void startQuiz(matchingResume)}
-                className="rounded-lg bg-[#EF9F27] px-3.5 py-1.5 text-xs font-extrabold text-[#2b1c00]"
-              >
-                Resume
-              </button>
             </div>
           ) : null}
+
+          <div
+            className="mt-[30px] text-center"
+            aria-label={`${selected.name} · Set ${setNo}`}
+          >
+            <p className="mb-0.5 text-base font-bold text-[#8B96A5]">{selected.name}</p>
+            <p className="text-[64px] font-extrabold leading-[1.05] tracking-[-1px] text-[#EAEFF5]">
+              Set <span className="text-[#22D3A6]">{setNo}</span>
+            </p>
+          </div>
 
           {paperError ? (
             <div className="mt-6 rounded-xl border border-[rgba(212,83,126,0.4)] bg-[rgba(212,83,126,0.1)] px-4 py-3 text-center text-[12.5px] text-[#EAEFF5]">
@@ -346,53 +468,55 @@ export function EduDecaMockExperience() {
             </div>
           ) : null}
 
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {EDUDECA_MOCK_LEVELS.map((item) => {
-              const active = item.id === session.lastLevel;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => selectLevel(item.id)}
-                  className={cn(
-                    "rounded-2xl border-[1.5px] px-[18px] py-[22px] text-center transition-transform hover:-translate-y-0.5",
-                    active
-                      ? "border-[#1D9E75] bg-[rgba(29,158,117,0.07)] shadow-[0_0_0_1px_rgba(29,158,117,0.3)]"
-                      : "border-[#262E3A] bg-[#151A22]",
-                  )}
-                >
-                  <span
-                    className="mx-auto mb-3 flex size-[46px] items-center justify-center rounded-xl text-[19px] font-extrabold text-[#04140E]"
-                    style={{ background: item.color }}
-                  >
-                    {item.id}
-                  </span>
-                  <span className="block text-[15px] font-extrabold text-[#EAEFF5]">{item.name}</span>
-                  <span className="mt-1 block text-[11.5px] text-[#5C6675]">{item.meta}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-7 flex flex-col items-center gap-3">
+          <div className="mt-8 text-center">
             <button
               type="button"
-              disabled={loadingPaper}
+              disabled={loadingPaper || authLoading}
               onClick={() => void startQuiz(matchingResume ?? undefined)}
-              className="inline-flex items-center justify-center rounded-xl bg-[#1D9E75] px-[26px] py-3.5 text-[14.5px] font-bold text-[#04140E] hover:brightness-110 disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-xl bg-[#1D9E75] px-11 py-4 text-base font-bold text-[#04140E] hover:brightness-110 disabled:opacity-50"
             >
-              {loadingPaper ? "Loading paper…" : matchingResume ? "Resume Test" : "Start Test"}
+              {loadingPaper ? "Loading paper…" : "Start Test →"}
             </button>
-            <Link href="/mock" className="text-sm font-semibold text-[#8B96A5] hover:text-[#EAEFF5]">
-              Explore other EduBlast mocks
-            </Link>
+          </div>
+
+          <div className="mt-[34px] flex flex-wrap items-center justify-center gap-3.5">
+            <a
+              href={pausedReturnUrl}
+              onClick={(event) => {
+                if (!pausedAttempt) return;
+                event.preventDefault();
+                void persistPausedAttempt(pausedAttempt).finally(() => {
+                  window.location.assign(pausedReturnUrl);
+                });
+              }}
+              className="inline-flex items-center justify-center rounded-xl border-[1.5px] border-[#262E3A] bg-transparent px-5 py-3.5 text-[13px] font-bold text-[#EAEFF5] hover:border-[#5C6675]"
+            >
+              Back to EduDeca without finishing
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                void refreshAttemptStatuses();
+                setLevelsBrowserOpen(true);
+              }}
+              className="inline-flex items-center justify-center rounded-xl border-[1.5px] border-[#262E3A] bg-transparent px-5 py-3.5 text-[13px] font-bold text-[#EAEFF5] hover:border-[#5C6675]"
+            >
+              Show me other EduDeca Levels &amp; Sets
+            </button>
+            <button
+              type="button"
+              onClick={() => setOtherMocksOpen(true)}
+              className="inline-flex items-center justify-center rounded-xl border-[1.5px] border-[rgba(127,119,221,0.5)] bg-transparent px-5 py-3.5 text-[13px] font-bold text-[#7F77DD] hover:border-[#7F77DD]"
+            >
+              {OTHER_MOCKS_CTA_LABEL}
+            </button>
           </div>
         </section>
       ) : null}
 
       {screen === "quiz" && quiz && question ? (
         <section>
-          <div className="flex items-center gap-3 pt-[18px]">
+          <div className="flex flex-wrap items-center gap-3 pt-[18px]">
             <button
               type="button"
               onClick={exitQuiz}
@@ -411,12 +535,9 @@ export function EduDecaMockExperience() {
             >
               EduDeca · {selected.name} · Set {formatSetNumber(quiz.set)}
             </span>
-            <div className="min-w-0 flex-1">
-              <div className="mb-1 flex justify-between text-[11px] text-[#5C6675]">
-                <span>
-                  Question {quiz.idx + 1} of {quiz.questions.length}
-                </span>
-                <span>{quiz.score} correct</span>
+            <div className="min-w-[140px] flex-1">
+              <div className="mb-1 text-[11px] text-[#5C6675]">
+                Question {quiz.idx + 1} of {quiz.questions.length}
               </div>
               <div className="h-1.5 overflow-hidden rounded-full border border-[#262E3A] bg-[#1B212B]">
                 <div
@@ -428,6 +549,28 @@ export function EduDecaMockExperience() {
                 />
               </div>
             </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              <span className="whitespace-nowrap text-[11px] text-[#EAEFF5]">{quiz.score} correct</span>
+              <button
+                type="button"
+                onClick={() => {
+                  saveQuiz(quiz);
+                  void persistPausedAttempt(quiz);
+                  void refreshAttemptStatuses();
+                  setLevelsBrowserOpen(true);
+                }}
+                className="whitespace-nowrap rounded-full border border-[#262E3A] bg-[#151A22] px-3 py-1 text-[11px] font-bold text-[#EAEFF5] hover:border-[#5C6675]"
+              >
+                Other Levels &amp; Sets
+              </button>
+              <ExploreOtherMocksButton
+                onClick={() => {
+                  saveQuiz(quiz);
+                  persistPausedAttempt(quiz);
+                  setOtherMocksOpen(true);
+                }}
+              />
+            </div>
           </div>
 
           <span
@@ -436,7 +579,11 @@ export function EduDecaMockExperience() {
           >
             {question.tag}
           </span>
-          <h2 className="mb-[22px] mt-3.5 text-[19px] font-bold leading-[1.4] text-[#EAEFF5]">{question.q}</h2>
+          <h2 className="mb-[22px] mt-3.5 text-[19px] font-bold leading-[1.4] text-[#EAEFF5]">
+            <MathText className="[&_.katex]:!text-[#EAEFF5]" weight="bold">
+              {question.q}
+            </MathText>
+          </h2>
           <div className="mb-6 flex flex-col gap-[11px]">
             {question.options.map((option, index) => {
               const isPicked = picked === index;
@@ -467,7 +614,11 @@ export function EduDecaMockExperience() {
                   >
                     {letters[index]}
                   </span>
-                  <span className="text-sm font-semibold text-[#EAEFF5]">{option}</span>
+                  <span className="min-w-0 text-sm font-semibold text-[#EAEFF5]">
+                    <MathText className="[&_.katex]:!text-[#EAEFF5]" weight="semibold">
+                      {option}
+                    </MathText>
+                  </span>
                 </button>
               );
             })}
@@ -502,27 +653,30 @@ export function EduDecaMockExperience() {
           <div className="flex flex-wrap justify-center gap-3">
             <a
               href={completedReturnUrl ?? pausedReturnUrl}
-              className="inline-flex items-center justify-center rounded-xl bg-[#1D9E75] px-[26px] py-3.5 text-[14.5px] font-bold text-[#04140E]"
+              className="inline-flex items-center justify-center rounded-xl border-[1.5px] border-[#EAEFF5]/80 px-[22px] py-3.5 text-[14.5px] font-bold text-[#EAEFF5]"
             >
-              Back to EduDeca
+              Back to EduDeca Mock Test
             </a>
-            <Link
-              href="/mock"
-              className="inline-flex items-center justify-center rounded-xl border-[1.5px] border-[#262E3A] px-[26px] py-3.5 text-[14.5px] font-bold text-[#EAEFF5]"
+            <button
+              type="button"
+              onClick={() => setOtherMocksOpen(true)}
+              className="inline-flex items-center justify-center rounded-xl bg-[#1D9E75] px-[22px] py-3.5 text-[14.5px] font-bold text-[#04140E] hover:brightness-110"
             >
-              Explore EduBlast mocks
-            </Link>
+              {OTHER_MOCKS_CTA_LABEL} →
+            </button>
           </div>
         </section>
       ) : null}
 
-      {screen === "landing" ? (
-        <div className="mt-10 text-center">
-          <a href={pausedReturnUrl} className="text-sm font-semibold text-[#5C6675] hover:text-[#8B96A5]">
-            Back to EduDeca without finishing
-          </a>
-        </div>
-      ) : null}
+      <LevelsBrowserDialog
+        open={levelsBrowserOpen}
+        onClose={() => setLevelsBrowserOpen(false)}
+        activeLevel={session.lastLevel}
+        activeSet={session.lastSet}
+        statuses={attemptStatuses}
+        onSelect={selectFeaturedSet}
+      />
+      <OtherMocksDialog open={otherMocksOpen} onClose={() => setOtherMocksOpen(false)} />
     </div>
   );
 }

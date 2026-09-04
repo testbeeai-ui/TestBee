@@ -1,43 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
-import { mergeMockAttempt, type MockAttemptSnapshot } from "@/lib/edudeca-mock/attempt-merge";
+import { mergeMockAttempt, snapshotFromAttemptRow } from "@/lib/edudeca-mock/attempt-merge";
 import {
   filterMockPaper,
   isMockPaperLevel,
   type MockQuestionRow,
 } from "@/lib/edudeca-mock/paper-filter";
 import { gradeMockAnswers } from "@/lib/edudeca-mock/paper-grade";
+import { asMockAnswers } from "@/lib/edudeca-mock/pause-attempt";
 import { fromPublicTable, parseJsonOptions } from "@/lib/edudeca-mock/tables";
+import { enforceStudentMockAccess } from "@/lib/subscription/enforceStudentMockAccess";
 
 const SET_MAX = 20;
-
-function asAnswers(raw: unknown): Record<string, string> {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof value === "string") out[key] = value;
-  }
-  return out;
-}
-
-function snapshotFromRow(row: Record<string, unknown> | null): MockAttemptSnapshot | null {
-  if (!row) return null;
-  const level = Number(row.level);
-  const setNumber = Number(row.set_number);
-  const status = row.status;
-  if (!isMockPaperLevel(level) || !Number.isInteger(setNumber)) return null;
-  if (status !== "completed" && status !== "inprogress") return null;
-  return {
-    level,
-    setNumber,
-    status,
-    scorePct: typeof row.score_pct === "number" ? row.score_pct : undefined,
-    correct: typeof row.correct === "number" ? row.correct : undefined,
-    total: typeof row.total === "number" ? row.total : undefined,
-    answers: row.answers,
-  };
-}
 
 export async function POST(request: NextRequest) {
   let body: { level?: unknown; set?: unknown; answers?: unknown };
@@ -61,6 +36,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { supabase, user } = auth;
+
+  const blocked = await enforceStudentMockAccess(supabase, user.id);
+  if (blocked) return blocked;
 
   const progressRes = await fromPublicTable(supabase, "edudeca_user_progress")
     .select("disciplines")
@@ -126,7 +104,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const answers = asAnswers(body.answers);
+  const answers = asMockAnswers(body.answers);
   const graded = gradeMockAnswers(filtered.questions, answers);
 
   const existingRes = await fromPublicTable(supabase, "edudeca_mock_attempts")
@@ -140,7 +118,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to load attempt" }, { status: 500 });
   }
 
-  const merged = mergeMockAttempt(snapshotFromRow(existingRes.data as Record<string, unknown> | null), {
+  const merged = mergeMockAttempt(snapshotFromAttemptRow(existingRes.data as Record<string, unknown> | null), {
     level,
     setNumber,
     status: "completed",

@@ -17,6 +17,8 @@ import { AuthContext, type Profile } from "@/hooks/auth-context";
 import { triggerLoginNotificationEmail } from "@/lib/email/triggerLoginNotificationClient";
 import {
   evaluateWhitelistGate,
+  isEduDecaMockWaitlistExempt,
+  shouldEvaluateWaitlistGate,
   waitlistBlockedAuthUrl,
 } from "@/lib/waitlist/whitelistGate";
 
@@ -56,8 +58,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isSignInFlow = sessionStorage.getItem("auth_mode") === "signin";
     } catch (_) {}
     const applyWhitelistRole = shouldApplyWhitelistRoleToProfile(isSignInFlow);
+    let mockHandoff = isEduDecaMockWaitlistExempt(
+      readPendingDeepLink(),
+      typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : null,
+    );
+    if (!mockHandoff) {
+      try {
+        mockHandoff = isEduDecaMockWaitlistExempt(sessionStorage.getItem("auth_redirect_after_login"));
+      } catch (_) {}
+    }
 
-    if (!isComplete && email) {
+    if (
+      !mockHandoff &&
+      shouldEvaluateWaitlistGate({ onboardingComplete: isComplete, profileQueryFailed: Boolean(error) }) &&
+      email
+    ) {
       // Check if user is admin via profile role or user_roles table
       let isAdmin = false;
       if (data?.role === "admin") {
@@ -76,7 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const gate = await evaluateWhitelistGate(supabase, {
           userId,
           email,
-          onboardingComplete: false,
+          onboardingComplete: isComplete,
         });
 
         if (!gate.allowed) {
