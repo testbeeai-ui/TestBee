@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { gradeMockAnswers, shuffleQuestionOptions } from "./paper-grade";
+import {
+  gradeClientSelection,
+  gradeMockAnswers,
+  shuffleQuestionOptions,
+  toPublicPaperQuestion,
+} from "./paper-grade";
 
 describe("shuffleQuestionOptions", () => {
   it("remaps correct_index to the shuffled option", () => {
@@ -13,6 +18,46 @@ describe("shuffleQuestionOptions", () => {
     expect(shuffled.options).toHaveLength(4);
     expect(new Set(shuffled.options)).toEqual(new Set(original.options));
     expect(shuffled.options[shuffled.correct_index]).toBe("bravo");
+  });
+});
+
+describe("toPublicPaperQuestion", () => {
+  it("omits the answer key after shuffling options", () => {
+    const publicQuestion = toPublicPaperQuestion(
+      {
+        id: "mock-l1-s01-phy-01",
+        stem: "Which law?",
+        discipline_id: "phy",
+        options: ["alpha", "bravo", "charlie", "delta"],
+        correct_index: 1,
+      },
+      "Physics"
+    );
+    expect("correctIndex" in publicQuestion).toBe(false);
+    expect(publicQuestion.options).toHaveLength(4);
+    expect(new Set(publicQuestion.options)).toEqual(
+      new Set(["alpha", "bravo", "charlie", "delta"])
+    );
+  });
+});
+
+describe("gradeClientSelection", () => {
+  const question = {
+    id: "q1",
+    options: ["alpha", "bravo", "charlie", "delta"],
+    correct_index: 1,
+  };
+
+  it("grades by option text and maps the key onto the client option order", () => {
+    const clientOptions = ["bravo", "delta", "alpha", "charlie"];
+    expect(gradeClientSelection(question, "bravo", clientOptions)).toEqual({
+      correct: true,
+      correctIndex: 0,
+    });
+    expect(gradeClientSelection(question, "delta", clientOptions)).toEqual({
+      correct: false,
+      correctIndex: 0,
+    });
   });
 });
 

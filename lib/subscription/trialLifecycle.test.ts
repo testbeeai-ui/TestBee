@@ -30,17 +30,22 @@ function trialProfile(overrides: Partial<TrialAccessProfile> = {}): TrialAccessP
 }
 
 describe("resolveTrialExpirationGateOpen", () => {
-  it("shows the overlay when the client clock says trial ended, even if a stale server cache says no", () => {
-    expect(resolveTrialExpirationGateOpen(true, false)).toBe(true);
+  it("hides the overlay when the server says it is not required", () => {
+    expect(resolveTrialExpirationGateOpen(true, false)).toBe(false);
   });
 
   it("shows the overlay when the server says required", () => {
     expect(resolveTrialExpirationGateOpen(false, true)).toBe(true);
+    expect(resolveTrialExpirationGateOpen(true, true)).toBe(true);
+  });
+
+  it("falls back to the client clock when the server result is unknown", () => {
+    expect(resolveTrialExpirationGateOpen(true, null)).toBe(true);
+    expect(resolveTrialExpirationGateOpen(false, null)).toBe(false);
   });
 
   it("hides the overlay when neither clock requires it", () => {
     expect(resolveTrialExpirationGateOpen(false, false)).toBe(false);
-    expect(resolveTrialExpirationGateOpen(false, null)).toBe(false);
   });
 });
 

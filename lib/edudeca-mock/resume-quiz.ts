@@ -6,7 +6,7 @@ export function quizFromPaperAndAnswers(
   level: EduDecaMockLevelId,
   set: number,
   questions: QuizQuestion[],
-  rawAnswers: unknown,
+  rawAnswers: unknown
 ): EduDecaMockInProgress {
   const answers = asMockAnswers(rawAnswers);
   let score = 0;
@@ -19,7 +19,12 @@ export function quizFromPaperAndAnswers(
       if (firstUnanswered === questions.length) firstUnanswered = index;
       continue;
     }
-    if (question.options[question.correctIndex] === selected) score += 1;
+    if (
+      typeof question.correctIndex === "number" &&
+      question.options[question.correctIndex] === selected
+    ) {
+      score += 1;
+    }
   }
 
   const idx = questions.length === 0 ? 0 : Math.min(firstUnanswered, questions.length - 1);

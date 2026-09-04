@@ -3,7 +3,8 @@ export type QuizQuestion = {
   tag: string;
   q: string;
   options: string[];
-  correctIndex: number;
+  /** Present only after this question has been answered (never in a fresh paper). */
+  correctIndex?: number;
 };
 
 export type EduDecaMockLevelId = 1 | 2 | 3;

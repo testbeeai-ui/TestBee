@@ -35,6 +35,36 @@ export function shuffleQuestionOptions<T extends GradeableQuestion>(
   };
 }
 
+export function toPublicPaperQuestion(
+  question: GradeableQuestion & { stem: string; discipline_id: string },
+  tag: string,
+): {
+  id: string;
+  tag: string;
+  q: string;
+  options: string[];
+} {
+  const shuffled = shuffleQuestionOptions(question);
+  return {
+    id: shuffled.id,
+    tag,
+    q: shuffled.stem,
+    options: shuffled.options,
+  };
+}
+
+export function gradeClientSelection(
+  question: GradeableQuestion,
+  selected: string,
+  clientOptions: string[],
+): { correct: boolean; correctIndex?: number } {
+  const expected = question.options[question.correct_index];
+  const correct = expected != null && selected === expected;
+  if (expected == null) return { correct: false };
+  const correctIndex = clientOptions.indexOf(expected);
+  return correctIndex >= 0 ? { correct, correctIndex } : { correct };
+}
+
 export function gradeMockAnswers(
   questions: GradeableQuestion[],
   answers: Record<string, string>,

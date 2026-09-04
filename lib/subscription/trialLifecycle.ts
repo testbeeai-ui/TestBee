@@ -65,7 +65,10 @@ export function resolveTrialExpirationGateOpen(
   clientRequired: boolean,
   serverRequired: boolean | null
 ): boolean {
-  return clientRequired || serverRequired === true;
+  // Server loads subscription config; a definitive `false` must win so an
+  // admin-lengthened trial is not blocked by the client's 14-day default.
+  // Fall back to the client clock only when the server result is unknown.
+  return serverRequired === true || (serverRequired == null && clientRequired);
 }
 
 export function profileNowMs(

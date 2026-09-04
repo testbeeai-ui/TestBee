@@ -38,6 +38,21 @@ describe("quizFromPaperAndAnswers", () => {
     expect(quiz.answered).toBe(false);
   });
 
+  it("resumes without a key when the paper omitted unanswered correctIndex", () => {
+    const questions = QUESTIONS.map((item) => ({
+      id: item.id,
+      tag: item.tag,
+      q: item.q,
+      options: item.options,
+    }));
+    const quiz = quizFromPaperAndAnswers(1, 1, questions, {
+      "mock-l1-s01-phy-01": "alpha",
+    });
+    expect(quiz.idx).toBe(1);
+    expect(quiz.score).toBe(0);
+    expect(quiz.pickedIndex).toBeNull();
+  });
+
   it("lands on the last question when every item is answered", () => {
     const quiz = quizFromPaperAndAnswers(1, 1, QUESTIONS, {
       "mock-l1-s01-phy-01": "alpha",

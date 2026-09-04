@@ -305,19 +305,51 @@ export function EduDecaMockExperience() {
     updateSession(withInProgress(session, nextQuiz));
   }
 
-  function pickOption(index: number) {
+  async function pickOption(index: number) {
     if (!quiz || picked != null) return;
     const question = quiz.questions[quiz.idx];
     if (!question) return;
-    const nextQuiz = {
+    const selected = question.options[index] ?? "";
+    const pendingQuiz = {
       ...quiz,
-      score: index === question.correctIndex ? quiz.score + 1 : quiz.score,
       answered: true,
       pickedIndex: index,
-      answers: { ...quiz.answers, [question.id]: question.options[index] ?? "" },
+      answers: { ...quiz.answers, [question.id]: selected },
     };
     setPicked(index);
-    saveQuiz(nextQuiz);
+    saveQuiz(pendingQuiz);
+
+    let correctIndex = question.correctIndex;
+    if (correctIndex == null && user) {
+      try {
+        const res = await fetchWithClientAuth("/api/edudeca-mock/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            level: quiz.level,
+            set: quiz.set,
+            questionId: question.id,
+            selected,
+            options: question.options,
+          }),
+        });
+        if (res.ok) {
+          const body = (await res.json()) as { correctIndex?: number };
+          if (typeof body.correctIndex === "number") correctIndex = body.correctIndex;
+        }
+      } catch {
+        // Complete still re-grades by option text; skip per-question colors if this fails.
+      }
+    }
+
+    if (correctIndex == null) return;
+    saveQuiz({
+      ...pendingQuiz,
+      score: index === correctIndex ? pendingQuiz.score + 1 : pendingQuiz.score,
+      questions: pendingQuiz.questions.map((item) =>
+        item.id === question.id ? { ...item, correctIndex } : item,
+      ),
+    });
   }
 
   function nextQuestion() {
@@ -587,15 +619,16 @@ export function EduDecaMockExperience() {
           <div className="mb-6 flex flex-col gap-[11px]">
             {question.options.map((option, index) => {
               const isPicked = picked === index;
-              const isCorrect = index === question.correctIndex;
-              const showCorrect = picked != null && isCorrect;
-              const showWrong = picked != null && isPicked && !isCorrect;
+              const revealed = question.correctIndex != null;
+              const isCorrect = revealed && index === question.correctIndex;
+              const showCorrect = revealed && isCorrect;
+              const showWrong = revealed && isPicked && !isCorrect;
               return (
                 <button
                   key={`${question.id}-${option}-${index}`}
                   type="button"
                   disabled={picked != null}
-                  onClick={() => pickOption(index)}
+                  onClick={() => void pickOption(index)}
                   className={cn(
                     "flex items-center gap-[13px] rounded-[13px] border-[1.5px] px-4 py-3.5 text-left",
                     showCorrect && "border-[#1D9E75] bg-[rgba(29,158,117,0.12)]",
