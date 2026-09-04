@@ -13,6 +13,7 @@ import {
   paperToPauseOnSwitch,
   parseHandoffQuery,
   saveSession,
+  scheduleSessionPersist,
   sessionAfterSelectingSet,
   withInProgress,
   withoutPaper,
@@ -154,6 +155,23 @@ describe("switching EduDeca sets", () => {
     saveSession(storage, switched);
     const loaded = loadSession(storage);
     expect(matchingInProgress({ ...loaded, lastLevel: 1, lastSet: 4 })).toEqual(paperA);
+  });
+
+  it("does not write localStorage until after the scheduled turn", () => {
+    const data: Record<string, string> = {};
+    const storage: StorageLike = {
+      getItem: (key) => data[key] ?? null,
+      setItem: (key, value) => {
+        data[key] = value;
+      },
+    };
+    const queued: Array<() => void> = [];
+    const started = withInProgress({ lastLevel: 1, lastSet: 4 }, paperA);
+    scheduleSessionPersist(storage, started, (write) => queued.push(write));
+    expect(Object.keys(data)).toHaveLength(0);
+    expect(queued).toHaveLength(1);
+    queued[0]!();
+    expect(matchingInProgress(loadSession(storage))).toEqual(paperA);
   });
 
   it("marks local papers in progress and lets completed remote rows win", () => {

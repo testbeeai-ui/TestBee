@@ -26,7 +26,11 @@ import {
   edudecaMockReturnUrl,
 } from "@/lib/edudeca-mock/return-url";
 import { asMockAnswers } from "@/lib/edudeca-mock/pause-attempt";
-import { applyQuestionCheck, quizFromPaperAndAnswers } from "@/lib/edudeca-mock/resume-quiz";
+import {
+  applyQuestionCheck,
+  optionRevealState,
+  quizFromPaperAndAnswers,
+} from "@/lib/edudeca-mock/resume-quiz";
 import {
   applyHandoffQuery,
   collectPapers,
@@ -39,6 +43,7 @@ import {
   paperStorageKey,
   parseHandoffQuery,
   saveSession,
+  scheduleSessionPersist,
   sessionAfterSelectingSet,
   withInProgress,
   withoutPaper,
@@ -318,7 +323,10 @@ export function EduDecaMockExperience() {
       answers: { ...quiz.answers, [question.id]: selected },
     };
     setPicked(index);
-    saveQuiz(pendingQuiz);
+    setQuiz(pendingQuiz);
+    const nextSession = withInProgress(session, pendingQuiz);
+    setSession(nextSession);
+    scheduleSessionPersist(browserStorage(), nextSession);
 
     let correctIndex = question.correctIndex;
     if (correctIndex == null && user) {
@@ -644,11 +652,10 @@ export function EduDecaMockExperience() {
           </h2>
           <div className="mb-6 flex flex-col gap-[11px]">
             {question.options.map((option, index) => {
-              const isPicked = picked === index;
-              const revealed = question.correctIndex != null;
-              const isCorrect = revealed && index === question.correctIndex;
-              const showCorrect = revealed && isCorrect;
-              const showWrong = revealed && isPicked && !isCorrect;
+              const reveal = optionRevealState(picked, index, question.correctIndex);
+              const showCorrect = reveal === "correct";
+              const showWrong = reveal === "wrong";
+              const showSelected = reveal === "selected";
               return (
                 <button
                   key={`${question.id}-${option}-${index}`}
@@ -659,8 +666,9 @@ export function EduDecaMockExperience() {
                     "flex items-center gap-[13px] rounded-[13px] border-[1.5px] px-4 py-3.5 text-left",
                     showCorrect && "border-[#1D9E75] bg-[rgba(29,158,117,0.12)]",
                     showWrong && "border-[#D4537E] bg-[rgba(212,83,126,0.1)]",
-                    picked == null && "border-[#262E3A] bg-[#151A22] hover:border-[#5C6675]",
-                    picked != null && !showCorrect && !showWrong && "border-[#262E3A] bg-[#151A22]",
+                    showSelected && "border-[#EAEFF5] bg-[rgba(234,239,245,0.08)]",
+                    reveal === "idle" && "border-[#262E3A] bg-[#151A22] hover:border-[#5C6675]",
+                    reveal === "muted" && "border-[#262E3A] bg-[#151A22]",
                   )}
                 >
                   <span
@@ -668,7 +676,9 @@ export function EduDecaMockExperience() {
                       "flex size-7 shrink-0 items-center justify-center rounded-lg border-[1.5px] text-[12.5px] font-extrabold",
                       showCorrect && "border-[#1D9E75] bg-[#1D9E75] text-[#04140E]",
                       showWrong && "border-[#D4537E] bg-[#D4537E] text-white",
-                      !showCorrect && !showWrong && "border-[#262E3A] bg-[#1B212B] text-[#EAEFF5]",
+                      showSelected && "border-[#EAEFF5] bg-[#EAEFF5] text-[#04140E]",
+                      (reveal === "idle" || reveal === "muted") &&
+                        "border-[#262E3A] bg-[#1B212B] text-[#EAEFF5]",
                     )}
                   >
                     {letters[index]}

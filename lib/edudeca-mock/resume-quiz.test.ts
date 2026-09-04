@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { QuizQuestion } from "./question-bank";
-import { applyQuestionCheck, quizFromPaperAndAnswers } from "./resume-quiz";
+import { applyQuestionCheck, optionRevealState, quizFromPaperAndAnswers } from "./resume-quiz";
 
 const QUESTIONS: QuizQuestion[] = [
   {
@@ -98,5 +98,19 @@ describe("applyQuestionCheck", () => {
       "mock-l1-s01-phy-01": "alpha",
     });
     expect(applyQuestionCheck(quiz, "mock-l1-s01-phy-01", 0, 0)).toBeNull();
+  });
+});
+
+describe("optionRevealState", () => {
+  it("marks the pick as selected before the server key arrives", () => {
+    expect(optionRevealState(0, 0, undefined)).toBe("selected");
+    expect(optionRevealState(0, 1, undefined)).toBe("muted");
+    expect(optionRevealState(null, 0, undefined)).toBe("idle");
+  });
+
+  it("reveals correct and wrong after the check returns", () => {
+    expect(optionRevealState(1, 0, 0)).toBe("correct");
+    expect(optionRevealState(1, 1, 0)).toBe("wrong");
+    expect(optionRevealState(1, 2, 0)).toBe("muted");
   });
 });

@@ -110,6 +110,18 @@ describe("EduDeca levels browser", () => {
     expect(src).toContain("persistOtherPapers");
     expect(src).toContain("statuses={attemptStatuses}");
   });
+
+  it("paints the pick before the check and before localStorage", () => {
+    const src = readFileSync(
+      path.resolve(__dirname, "../../components/edudeca-mock/EduDecaMockExperience.tsx"),
+      "utf8",
+    );
+    const pick = src.slice(src.indexOf("async function pickOption"), src.indexOf("function applyLiveCheck"));
+    expect(pick).toContain("setPicked(index)");
+    expect(pick).toContain("scheduleSessionPersist");
+    expect(pick).not.toMatch(/\bsaveQuiz\(/);
+    expect(src).toContain("optionRevealState");
+  });
 });
 
 describe("EduDeca mock page prerender", () => {

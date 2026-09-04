@@ -131,6 +131,16 @@ export function saveSession(storage: StorageLike | null | undefined, session: Ed
   storage.setItem(EDUDECA_MOCK_STORAGE_KEY, JSON.stringify(session));
 }
 
+export function scheduleSessionPersist(
+  storage: StorageLike | null | undefined,
+  session: EduDecaMockSession,
+  schedule: (write: () => void) => void = (write) => {
+    setTimeout(write, 0);
+  },
+): void {
+  schedule(() => saveSession(storage, session));
+}
+
 export function withInProgress(
   session: EduDecaMockSession,
   inProgress: EduDecaMockInProgress | undefined,
