@@ -39,6 +39,19 @@ describe("toPublicPaperQuestion", () => {
       new Set(["alpha", "bravo", "charlie", "delta"])
     );
   });
+
+  it("reattaches the remapped key only when the question was already answered", () => {
+    const source = {
+      id: "mock-l1-s01-phy-01",
+      stem: "Which law?",
+      discipline_id: "phy",
+      options: ["alpha", "bravo", "charlie", "delta"],
+      correct_index: 1,
+    };
+    const revealed = toPublicPaperQuestion(source, "Physics", true);
+    expect(typeof revealed.correctIndex).toBe("number");
+    expect(revealed.options[revealed.correctIndex ?? -1]).toBe("bravo");
+  });
 });
 
 describe("gradeClientSelection", () => {

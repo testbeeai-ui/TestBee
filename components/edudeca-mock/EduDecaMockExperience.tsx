@@ -26,7 +26,7 @@ import {
   edudecaMockReturnUrl,
 } from "@/lib/edudeca-mock/return-url";
 import { asMockAnswers } from "@/lib/edudeca-mock/pause-attempt";
-import { quizFromPaperAndAnswers } from "@/lib/edudeca-mock/resume-quiz";
+import { applyQuestionCheck, quizFromPaperAndAnswers } from "@/lib/edudeca-mock/resume-quiz";
 import {
   applyHandoffQuery,
   collectPapers,
@@ -36,6 +36,7 @@ import {
   loadSession,
   matchingInProgress,
   mergeAttemptChipStatuses,
+  paperStorageKey,
   parseHandoffQuery,
   saveSession,
   sessionAfterSelectingSet,
@@ -343,12 +344,37 @@ export function EduDecaMockExperience() {
     }
 
     if (correctIndex == null) return;
-    saveQuiz({
-      ...pendingQuiz,
-      score: index === correctIndex ? pendingQuiz.score + 1 : pendingQuiz.score,
-      questions: pendingQuiz.questions.map((item) =>
-        item.id === question.id ? { ...item, correctIndex } : item,
-      ),
+    applyLiveCheck(quiz.level, quiz.set, question.id, index, correctIndex);
+  }
+
+  function applyLiveCheck(
+    level: EduDecaMockLevelId,
+    set: number,
+    questionId: string,
+    pickedIndex: number,
+    correctIndex: number,
+  ) {
+    setQuiz((current) => {
+      if (!current || current.level !== level || current.set !== set) return current;
+      return applyQuestionCheck(current, questionId, pickedIndex, correctIndex) ?? current;
+    });
+    setSession((currentSession) => {
+      const key = paperStorageKey(level, set);
+      const papers = collectPapers(currentSession);
+      const stored = papers[key];
+      if (!stored) return currentSession;
+      const patched = applyQuestionCheck(stored, questionId, pickedIndex, correctIndex);
+      if (!patched) return currentSession;
+      const next: EduDecaMockSession = { ...currentSession, papers: { ...papers, [key]: patched } };
+      if (
+        currentSession.inProgress &&
+        currentSession.inProgress.level === level &&
+        currentSession.inProgress.set === set
+      ) {
+        next.inProgress = patched;
+      }
+      persist(next);
+      return next;
     });
   }
 

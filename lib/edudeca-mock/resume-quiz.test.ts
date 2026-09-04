@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { QuizQuestion } from "./question-bank";
-import { quizFromPaperAndAnswers } from "./resume-quiz";
+import { applyQuestionCheck, quizFromPaperAndAnswers } from "./resume-quiz";
 
 const QUESTIONS: QuizQuestion[] = [
   {
@@ -39,18 +39,23 @@ describe("quizFromPaperAndAnswers", () => {
   });
 
   it("resumes without a key when the paper omitted unanswered correctIndex", () => {
-    const questions = QUESTIONS.map((item) => ({
-      id: item.id,
-      tag: item.tag,
-      q: item.q,
-      options: item.options,
-    }));
+    const questions = QUESTIONS.map((item, index) =>
+      index === 0
+        ? item
+        : {
+            id: item.id,
+            tag: item.tag,
+            q: item.q,
+            options: item.options,
+          }
+    );
     const quiz = quizFromPaperAndAnswers(1, 1, questions, {
       "mock-l1-s01-phy-01": "alpha",
     });
     expect(quiz.idx).toBe(1);
-    expect(quiz.score).toBe(0);
+    expect(quiz.score).toBe(1);
     expect(quiz.pickedIndex).toBeNull();
+    expect(quiz.questions[1]).not.toHaveProperty("correctIndex");
   });
 
   it("lands on the last question when every item is answered", () => {
@@ -63,5 +68,35 @@ describe("quizFromPaperAndAnswers", () => {
     expect(quiz.score).toBe(3);
     expect(quiz.pickedIndex).toBe(2);
     expect(quiz.answered).toBe(true);
+  });
+});
+
+describe("applyQuestionCheck", () => {
+  it("keeps a later question index when the check arrives after Next", () => {
+    const pendingQuestions: QuizQuestion[] = QUESTIONS.map((item, index) =>
+      index === 0 ? { id: item.id, tag: item.tag, q: item.q, options: item.options } : item
+    );
+    const advanced = {
+      level: 1 as const,
+      set: 1,
+      idx: 1,
+      score: 0,
+      questions: pendingQuestions,
+      answers: { "mock-l1-s01-phy-01": "alpha" },
+      answered: false,
+      pickedIndex: null,
+    };
+    const patched = applyQuestionCheck(advanced, "mock-l1-s01-phy-01", 0, 0);
+    expect(patched?.idx).toBe(1);
+    expect(patched?.score).toBe(1);
+    expect(patched?.questions[0]?.correctIndex).toBe(0);
+    expect(patched?.pickedIndex).toBeNull();
+  });
+
+  it("does not apply the same check twice", () => {
+    const quiz = quizFromPaperAndAnswers(1, 1, QUESTIONS, {
+      "mock-l1-s01-phy-01": "alpha",
+    });
+    expect(applyQuestionCheck(quiz, "mock-l1-s01-phy-01", 0, 0)).toBeNull();
   });
 });

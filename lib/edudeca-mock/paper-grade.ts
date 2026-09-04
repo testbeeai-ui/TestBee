@@ -38,19 +38,23 @@ export function shuffleQuestionOptions<T extends GradeableQuestion>(
 export function toPublicPaperQuestion(
   question: GradeableQuestion & { stem: string; discipline_id: string },
   tag: string,
+  revealCorrectIndex = false,
 ): {
   id: string;
   tag: string;
   q: string;
   options: string[];
+  correctIndex?: number;
 } {
   const shuffled = shuffleQuestionOptions(question);
-  return {
+  const publicQuestion = {
     id: shuffled.id,
     tag,
     q: shuffled.stem,
     options: shuffled.options,
   };
+  if (!revealCorrectIndex) return publicQuestion;
+  return { ...publicQuestion, correctIndex: shuffled.correct_index };
 }
 
 export function gradeClientSelection(

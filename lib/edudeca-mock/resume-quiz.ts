@@ -45,3 +45,21 @@ export function quizFromPaperAndAnswers(
     pickedIndex: answered ? pickedIndex : null,
   };
 }
+
+/** Merge a live-check key into whatever quiz state is current; never rewind idx/answers. */
+export function applyQuestionCheck(
+  current: EduDecaMockInProgress,
+  questionId: string,
+  pickedIndex: number,
+  correctIndex: number
+): EduDecaMockInProgress | null {
+  const target = current.questions.find((item) => item.id === questionId);
+  if (!target || target.correctIndex != null) return null;
+  return {
+    ...current,
+    score: pickedIndex === correctIndex ? current.score + 1 : current.score,
+    questions: current.questions.map((item) =>
+      item.id === questionId ? { ...item, correctIndex } : item
+    ),
+  };
+}
