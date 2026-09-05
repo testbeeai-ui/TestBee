@@ -63,3 +63,17 @@ export function applyQuestionCheck(
     ),
   };
 }
+
+export type OptionRevealState = "idle" | "selected" | "correct" | "wrong" | "muted";
+
+export function optionRevealState(
+  picked: number | null,
+  index: number,
+  correctIndex: number | undefined,
+): OptionRevealState {
+  if (picked == null) return "idle";
+  if (correctIndex == null) return picked === index ? "selected" : "muted";
+  if (index === correctIndex) return "correct";
+  if (picked === index) return "wrong";
+  return "muted";
+}

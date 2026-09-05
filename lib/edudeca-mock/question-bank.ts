@@ -3,7 +3,7 @@ export type QuizQuestion = {
   tag: string;
   q: string;
   options: string[];
-  /** Present only after this question has been answered (never in a fresh paper). */
+  /** Preloaded with the paper so option clicks do not wait on the DB. */
   correctIndex?: number;
 };
 

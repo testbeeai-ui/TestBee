@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import type { GradeableQuestion } from "./paper-grade";
 import { filterMockPaper, type MockPaperLevel, type MockQuestionRow } from "./paper-filter";
 import { fromPublicTable, parseJsonOptions } from "./tables";
 
@@ -24,6 +25,15 @@ export function parseMockQuestionRows(data: unknown): MockQuestionRow[] {
     });
   }
   return rows;
+}
+
+export function parseGradeableQuestion(data: unknown): GradeableQuestion | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const row = data as Record<string, unknown>;
+  const options = parseJsonOptions(row.options);
+  if (typeof row.id !== "string" || options.length !== 4) return null;
+  if (typeof row.correct_index !== "number") return null;
+  return { id: row.id, options, correct_index: row.correct_index };
 }
 
 type LoadFailure = {

@@ -78,6 +78,8 @@ describe("EduDeca other-mocks picker", () => {
       "utf8",
     );
     expect(src).toContain("Start Test →");
+    expect(src).not.toMatch(/await persistOtherPapers\(session/);
+    expect(src).toContain("void persistOtherPapers(session");
     expect(src).toContain("Back to EduDeca without finishing");
     expect(src).toContain("Show me other EduDeca Levels &amp; Sets");
     expect(src).toContain("OTHER_MOCKS_CTA_LABEL");
@@ -109,6 +111,18 @@ describe("EduDeca levels browser", () => {
     expect(src).toContain("sessionAfterSelectingSet");
     expect(src).toContain("persistOtherPapers");
     expect(src).toContain("statuses={attemptStatuses}");
+  });
+
+  it("paints the pick before the check and before localStorage", () => {
+    const src = readFileSync(
+      path.resolve(__dirname, "../../components/edudeca-mock/EduDecaMockExperience.tsx"),
+      "utf8",
+    );
+    const pick = src.slice(src.indexOf("async function pickOption"), src.indexOf("function applyLiveCheck"));
+    expect(pick).toContain("setPicked(index)");
+    expect(pick).toContain("scheduleSessionPersist");
+    expect(pick).not.toMatch(/\bsaveQuiz\(/);
+    expect(src).toContain("optionRevealState");
   });
 });
 

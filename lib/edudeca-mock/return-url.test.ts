@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { edudecaMockLoginRedirect, edudecaMockPaperPath, edudecaMockFinishReturnUrl, edudecaMockReturnUrl } from "./return-url";
+import {
+  LIVE_EDUDECA_APP_URL,
+  edudecaAppOrigin,
+  edudecaMockLoginRedirect,
+  edudecaMockPaperPath,
+  edudecaMockFinishReturnUrl,
+  edudecaMockReturnUrl,
+} from "./return-url";
 
 describe("edudecaMockReturnUrl", () => {
   it("sends completed score back to EduDeca mock-test", () => {
@@ -56,6 +63,26 @@ describe("edudecaMockReturnUrl", () => {
       }),
     ).toBe(
       "http://localhost:3001/mock-test?level=2&set=6&score=80&correct=16&total=20&status=completed",
+    );
+  });
+});
+
+describe("edudecaAppOrigin", () => {
+  it("keeps localhost EduDeca only when this page is also local", () => {
+    expect(edudecaAppOrigin("http://localhost:3001", "localhost")).toBe("http://localhost:3001");
+    expect(edudecaAppOrigin("http://127.0.0.1:3001", "127.0.0.1")).toBe("http://127.0.0.1:3001");
+  });
+
+  it("does not send a public EduBlast page back to localhost EduDeca", () => {
+    expect(edudecaAppOrigin("http://localhost:3001", "www.edublast.in")).toBe(LIVE_EDUDECA_APP_URL);
+    expect(edudecaAppOrigin("http://localhost:3001", "edublast.vercel.app")).toBe(
+      LIVE_EDUDECA_APP_URL,
+    );
+  });
+
+  it("keeps an already-public EduDeca origin", () => {
+    expect(edudecaAppOrigin("https://edu-deca.vercel.app/", "www.edublast.in")).toBe(
+      "https://edu-deca.vercel.app",
     );
   });
 });

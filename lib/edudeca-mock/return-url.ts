@@ -1,4 +1,25 @@
 export const DEFAULT_EDUDECA_APP_URL = "http://localhost:3001";
+export const LIVE_EDUDECA_APP_URL = "https://edu-deca.vercel.app";
+
+function hostnameOf(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  try {
+    return new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`).hostname;
+  } catch {
+    return "";
+  }
+}
+
+function isLocalDevHost(host: string): boolean {
+  return host === "localhost" || host === "127.0.0.1";
+}
+
+function currentPageHost(explicit?: string): string {
+  if (explicit) return hostnameOf(explicit);
+  if (typeof window !== "undefined") return window.location.hostname;
+  return "";
+}
 
 export type EduDecaMockReturnPayload = {
   level: 1 | 2 | 3;
@@ -9,8 +30,17 @@ export type EduDecaMockReturnPayload = {
   total?: number;
 };
 
-export function edudecaAppOrigin(raw = process.env.NEXT_PUBLIC_EDUDECA_APP_URL): string {
-  return (raw?.trim() || DEFAULT_EDUDECA_APP_URL).replace(/\/$/, "");
+export function edudecaAppOrigin(
+  raw = process.env.NEXT_PUBLIC_EDUDECA_APP_URL,
+  pageHost?: string,
+): string {
+  const configured = (raw?.trim() || DEFAULT_EDUDECA_APP_URL).replace(/\/$/, "");
+  if (!isLocalDevHost(hostnameOf(configured))) return configured;
+
+  const host = currentPageHost(pageHost);
+  const allowLocal =
+    process.env.NODE_ENV !== "production" && (!host || isLocalDevHost(host));
+  return allowLocal ? configured : LIVE_EDUDECA_APP_URL;
 }
 
 export function edudecaMockPaperPath(level: number, set: number): string {
