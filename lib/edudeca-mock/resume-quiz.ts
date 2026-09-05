@@ -54,14 +54,33 @@ export function applyQuestionCheck(
   correctIndex: number
 ): EduDecaMockInProgress | null {
   const target = current.questions.find((item) => item.id === questionId);
-  if (!target || target.correctIndex != null) return null;
-  return {
-    ...current,
-    score: pickedIndex === correctIndex ? current.score + 1 : current.score,
-    questions: current.questions.map((item) =>
-      item.id === questionId ? { ...item, correctIndex } : item
-    ),
-  };
+  if (!target) return null;
+
+  const questions =
+    target.correctIndex === correctIndex
+      ? current.questions
+      : current.questions.map((item) =>
+          item.id === questionId ? { ...item, correctIndex } : item
+        );
+
+  let score = 0;
+  for (const question of questions) {
+    if (question.id === questionId) {
+      if (pickedIndex === correctIndex) score += 1;
+      continue;
+    }
+    const selected = current.answers?.[question.id];
+    if (
+      typeof selected === "string" &&
+      typeof question.correctIndex === "number" &&
+      question.options[question.correctIndex] === selected
+    ) {
+      score += 1;
+    }
+  }
+
+  if (target.correctIndex === correctIndex && current.score === score) return null;
+  return { ...current, score, questions };
 }
 
 export type OptionRevealState = "idle" | "selected" | "correct" | "wrong" | "muted";

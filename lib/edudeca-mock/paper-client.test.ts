@@ -41,6 +41,18 @@ describe("mergePaperKeys", () => {
     expect(paperQuestionsHaveKeys(merged)).toBe(true);
     expect(merged[0]?.correctIndex).toBe(1);
   });
+
+  it("remaps a shuffled key onto the resumed option order", () => {
+    const resumed = [
+      { id: "mock-l1-s01-phy-01", tag: "Physics", q: "Which law?", options: ["a", "b", "c", "d"] },
+    ];
+    const shuffled = [
+      { id: "mock-l1-s01-phy-01", tag: "Physics", q: "Which law?", options: ["c", "a", "d", "b"], correctIndex: 1 },
+    ];
+    const merged = mergePaperKeys(resumed, shuffled);
+    expect(merged[0]?.options).toEqual(["a", "b", "c", "d"]);
+    expect(merged[0]?.correctIndex).toBe(0);
+  });
 });
 
 describe("paperCacheKey", () => {

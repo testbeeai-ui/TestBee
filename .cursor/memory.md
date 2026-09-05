@@ -148,6 +148,7 @@ Anything that is not Next.js / tooling config now lives under:
 | Setup | `mobileapp/README.md`, `mobileapp/.env.example` |
 
 ## Decisions Log
+- 2026-09-05: **EduDeca preloaded-key score + resume merge** — `applyQuestionCheck` retallies from the pick even when `correctIndex` is already on the paper; `mergePaperKeys` remaps the correct option by text so a reshuffled `/paper` cannot highlight the wrong choice.
 - 2026-09-04: **EduDeca mock check/resume races** — live `/check` merges score/`correctIndex` into current quiz (does not rewind or resurrect a finished paper); paper GET reattaches `correctIndex` only for in-progress answered questions so resume tally is correct.
 - 2026-09-04: **Trial gate + EduDeca paper key** — `resolveTrialExpirationGateOpen` trusts a definitive server `false` (client 14-day clock cannot block a longer admin trial); paper GET omits `correctIndex` until a question is answered, with per-question `/api/edudeca-mock/check` for live feedback.
 - 2026-08-25: **Play Funbrain Forge layout** — matched Academic Arena card rhythm (`md:items-stretch`, `mt-auto` actions); Global rating moved below buttons; always show composite Elo (no `—` while loading); fixed `fetchUserStats` when user id absent. Homepage nav/footer link alignment (`AppLayout.module.css`, `RedesignedHomeDashboard`). — waitlist-only (`edudeca_interest_registrations`); no auth user create / `edudeca_profiles` upsert; waitlist errors return 500.

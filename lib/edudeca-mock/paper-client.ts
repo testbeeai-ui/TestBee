@@ -31,11 +31,16 @@ export function mergePaperKeys(
   const keys = new Map(
     keyed
       .filter((question) => typeof question.correctIndex === "number")
-      .map((question) => [question.id, question.correctIndex as number]),
+      .map((question) => [question.id, question]),
   );
   return questions.map((question) => {
-    const correctIndex = question.correctIndex ?? keys.get(question.id);
-    return typeof correctIndex === "number" ? { ...question, correctIndex } : question;
+    if (typeof question.correctIndex === "number") return question;
+    const source = keys.get(question.id);
+    if (!source || typeof source.correctIndex !== "number") return question;
+    const correctText = source.options[source.correctIndex];
+    if (correctText == null) return question;
+    const remapped = question.options.indexOf(correctText);
+    return remapped >= 0 ? { ...question, correctIndex: remapped } : question;
   });
 }
 

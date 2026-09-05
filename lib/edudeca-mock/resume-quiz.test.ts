@@ -99,6 +99,22 @@ describe("applyQuestionCheck", () => {
     });
     expect(applyQuestionCheck(quiz, "mock-l1-s01-phy-01", 0, 0)).toBeNull();
   });
+
+  it("increments score when the paper already preloaded the key", () => {
+    const pending = {
+      level: 1 as const,
+      set: 1,
+      idx: 0,
+      score: 0,
+      questions: QUESTIONS,
+      answers: { "mock-l1-s01-phy-01": "alpha" },
+      answered: true,
+      pickedIndex: 0,
+    };
+    const patched = applyQuestionCheck(pending, "mock-l1-s01-phy-01", 0, 0);
+    expect(patched?.score).toBe(1);
+    expect(patched?.questions[0]?.correctIndex).toBe(0);
+  });
 });
 
 describe("optionRevealState", () => {
