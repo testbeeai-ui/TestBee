@@ -58,13 +58,8 @@ export async function GET(request: NextRequest) {
       ? { status: attemptStatus, answers: attemptAnswers }
       : null;
 
-  const revealAnswers = attemptStatus === "inprogress" ? attemptAnswers : {};
   const questions = loaded.questions.map((question) =>
-    toPublicPaperQuestion(
-      question,
-      disciplineTag(question.discipline_id),
-      typeof revealAnswers[question.id] === "string"
-    )
+    toPublicPaperQuestion(question, disciplineTag(question.discipline_id), true),
   );
 
   return NextResponse.json({

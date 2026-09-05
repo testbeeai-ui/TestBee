@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import MathText from "@/components/MathText";
@@ -25,6 +25,13 @@ import {
   edudecaMockPaperPath,
   edudecaMockReturnUrl,
 } from "@/lib/edudeca-mock/return-url";
+import {
+  mergePaperKeys,
+  paperCacheKey,
+  paperQuestionsHaveKeys,
+  requestMockPaper,
+  type PaperLoadResult,
+} from "@/lib/edudeca-mock/paper-client";
 import { asMockAnswers } from "@/lib/edudeca-mock/pause-attempt";
 import {
   applyQuestionCheck,
@@ -99,6 +106,7 @@ export function EduDecaMockExperience() {
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const didAutoOpenResume = useRef(false);
+  const paperLoads = useRef(new Map<string, Promise<PaperLoadResult>>());
   const [session, setSession] = useState<EduDecaMockSession>(createEmptySession);
   const [screen, setScreen] = useState<Screen>("landing");
   const [quiz, setQuiz] = useState<EduDecaMockInProgress | null>(null);
@@ -161,6 +169,27 @@ export function EduDecaMockExperience() {
   const selected = levelMeta(session.lastLevel);
   const setNo = formatSetNumber(session.lastSet);
   const matchingResume = matchingInProgress(session);
+  const decaOrigin =
+    typeof window !== "undefined"
+      ? edudecaAppOrigin(undefined, window.location.hostname)
+      : edudecaAppOrigin();
+
+  const loadPaper = useCallback((level: number, set: number) => {
+    const key = paperCacheKey(level, set);
+    const existing = paperLoads.current.get(key);
+    if (existing) return existing;
+    const pending = requestMockPaper(fetchWithClientAuth, level, set).then((result) => {
+      if (result.status !== "ready") paperLoads.current.delete(key);
+      return result;
+    });
+    paperLoads.current.set(key, pending);
+    return pending;
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated || !user || authLoading) return;
+    void loadPaper(session.lastLevel, session.lastSet);
+  }, [authLoading, hydrated, loadPaper, session.lastLevel, session.lastSet, user]);
   const pausedAttempt =
     (session.inProgress && isApiPaper(session.inProgress.questions) ? session.inProgress : null) ??
     matchingResume;
@@ -235,9 +264,14 @@ export function EduDecaMockExperience() {
   }
 
   async function startQuiz(resume?: EduDecaMockInProgress) {
-    await persistOtherPapers(session, session.lastLevel, session.lastSet);
+    if (!user) {
+      redirectToMockLogin(session.lastLevel, session.lastSet);
+      return;
+    }
 
-    if (resume && isApiPaper(resume.questions)) {
+    void persistOtherPapers(session, session.lastLevel, session.lastSet);
+
+    if (resume && isApiPaper(resume.questions) && paperQuestionsHaveKeys(resume.questions)) {
       setPaperError(null);
       setQuiz(resume);
       setPicked(resume.pickedIndex ?? null);
@@ -249,51 +283,51 @@ export function EduDecaMockExperience() {
     setLoadingPaper(true);
     setPaperError(null);
     try {
-      if (!user) {
-        redirectToMockLogin(session.lastLevel, session.lastSet);
-        return;
+      const result = await loadPaper(session.lastLevel, session.lastSet);
+      switch (result.status) {
+        case "auth":
+          redirectToMockLogin(session.lastLevel, session.lastSet);
+          return;
+        case "incomplete_lineup":
+          setPaperError("incomplete_lineup");
+          return;
+        case "missing_discipline":
+          setPaperError("missing_discipline");
+          return;
+        case "load":
+          setPaperError("load");
+          return;
+        case "ready":
+          break;
+        default: {
+          const _never: never = result;
+          return _never;
+        }
       }
-      const res = await fetchWithClientAuth(
-        `/api/edudeca-mock/paper?level=${session.lastLevel}&set=${session.lastSet}`,
-        { cache: "no-store" },
-      );
-      if (res.status === 401) {
-        redirectToMockLogin(session.lastLevel, session.lastSet);
-        return;
-      }
-      if (res.status === 409) {
-        setPaperError("incomplete_lineup");
-        return;
-      }
-      if (res.status === 422) {
-        setPaperError("missing_discipline");
-        return;
-      }
-      if (!res.ok) {
-        setPaperError("load");
-        return;
-      }
-      const body = (await res.json()) as {
-        questions?: QuizQuestion[];
-        attempt?: { status?: string; answers?: unknown };
-      };
-      if (!Array.isArray(body.questions) || !isApiPaper(body.questions)) {
+
+      const questions =
+        resume && isApiPaper(resume.questions)
+          ? mergePaperKeys(resume.questions, result.paper.questions)
+          : result.paper.questions;
+      if (!isApiPaper(questions)) {
         setPaperError("load");
         return;
       }
 
-      const savedAnswers = asMockAnswers(body.attempt?.answers);
+      const savedAnswers = asMockAnswers(result.paper.attempt?.answers);
       const nextQuiz: EduDecaMockInProgress =
-        body.attempt?.status === "inprogress" && Object.keys(savedAnswers).length > 0
-          ? quizFromPaperAndAnswers(session.lastLevel, session.lastSet, body.questions, savedAnswers)
-          : {
-              level: session.lastLevel,
-              set: session.lastSet,
-              idx: 0,
-              score: 0,
-              questions: body.questions,
-              answers: {},
-            };
+        resume && isApiPaper(resume.questions)
+          ? { ...resume, questions }
+          : result.paper.attempt?.status === "inprogress" && Object.keys(savedAnswers).length > 0
+            ? quizFromPaperAndAnswers(session.lastLevel, session.lastSet, questions, savedAnswers)
+            : {
+                level: session.lastLevel,
+                set: session.lastSet,
+                idx: 0,
+                score: 0,
+                questions,
+                answers: {},
+              };
       setQuiz(nextQuiz);
       setPicked(nextQuiz.pickedIndex ?? null);
       setScreen("quiz");
@@ -457,19 +491,25 @@ export function EduDecaMockExperience() {
 
   const completedReturnUrl =
     quiz
-      ? edudecaMockFinishReturnUrl({
-          level: quiz.level,
-          set: quiz.set,
-          serverScore,
-        })
+      ? edudecaMockFinishReturnUrl(
+          {
+            level: quiz.level,
+            set: quiz.set,
+            serverScore,
+          },
+          decaOrigin,
+        )
       : null;
   const pausedReturnUrl = pausedAttempt
-    ? edudecaMockReturnUrl({
-        level: pausedAttempt.level,
-        set: pausedAttempt.set,
-        status: "inprogress",
-      })
-    : `${edudecaAppOrigin()}/mock-test`;
+    ? edudecaMockReturnUrl(
+        {
+          level: pausedAttempt.level,
+          set: pausedAttempt.set,
+          status: "inprogress",
+        },
+        decaOrigin,
+      )
+    : `${decaOrigin}/mock-test`;
 
   useEffect(() => {
     if (screen !== "quiz" || !quiz) return;
@@ -525,7 +565,7 @@ export function EduDecaMockExperience() {
               <p>{paperErrorCopy(paperError)}</p>
               {paperError === "incomplete_lineup" ? (
                 <a
-                  href={edudecaAppOrigin()}
+                  href={decaOrigin}
                   className="mt-2 inline-block text-xs font-extrabold text-[#22D3A6]"
                 >
                   Open EduDeca to pick disciplines

@@ -78,6 +78,8 @@ describe("EduDeca other-mocks picker", () => {
       "utf8",
     );
     expect(src).toContain("Start Test →");
+    expect(src).not.toMatch(/await persistOtherPapers\(session/);
+    expect(src).toContain("void persistOtherPapers(session");
     expect(src).toContain("Back to EduDeca without finishing");
     expect(src).toContain("Show me other EduDeca Levels &amp; Sets");
     expect(src).toContain("OTHER_MOCKS_CTA_LABEL");
