@@ -57,7 +57,7 @@ export interface NtaExamShellMobileProps {
   questionBadges?: Record<string, string>;
   /** Optional paper provenance on the question header (date + Morning/Evening). */
   questionSources?: Record<string, NtaQuestionSource>;
-  onOpenSolution: () => void;
+  onOpenSolution?: () => void;
 }
 
 export function NtaExamShellMobile({
@@ -381,13 +381,15 @@ export function NtaExamShellMobile({
             label="Save & mark"
             onClick={onSaveMarkReviewNext}
           />
-          <MobileActionBtn
-            variant="solution"
-            icon={<BookOpen className="h-4 w-4" aria-hidden />}
-            label="Solution"
-            onClick={onOpenSolution}
-            className="ml-2 min-w-[5.75rem] sm:ml-3"
-          />
+          {onOpenSolution ? (
+            <MobileActionBtn
+              variant="solution"
+              icon={<BookOpen className="h-4 w-4" aria-hidden />}
+              label="Solution"
+              onClick={onOpenSolution}
+              className="ml-2 min-w-[5.75rem] sm:ml-3"
+            />
+          ) : null}
         </div>
         <div className="flex items-center gap-1.5">
           <button

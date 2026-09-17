@@ -67,6 +67,8 @@ export interface NtaExamShellProps {
   questionSources?: Record<string, NtaQuestionSource>;
   /** Optional palette grid columns: 5 for ~25 question PYQ sets (5x5 grid), 8 for full mocks (default 8). */
   paletteColumns?: 5 | 8;
+  /** In-exam Solution control. Off by default so timed mocks cannot open the answer key. */
+  showSolution?: boolean;
 }
 
 export function NtaExamShell({
@@ -95,6 +97,7 @@ export function NtaExamShell({
   questionBadges,
   questionSources,
   paletteColumns = 8,
+  showSolution = false,
 }: NtaExamShellProps) {
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -143,17 +146,19 @@ export function NtaExamShell({
     onNumericDraftChange,
     questionBadges,
     questionSources,
-    onOpenSolution: () => setSolutionOpen(true),
+    onOpenSolution: showSolution ? () => setSolutionOpen(true) : undefined,
   };
 
   return (
     <>
       <NtaExamShellMobile {...shellProps} />
-      <NtaSolutionModal
-        open={solutionOpen}
-        onClose={() => setSolutionOpen(false)}
-        text={ntaQuestionSolutionText(q)}
-      />
+      {showSolution ? (
+        <NtaSolutionModal
+          open={solutionOpen}
+          onClose={() => setSolutionOpen(false)}
+          text={ntaQuestionSolutionText(q)}
+        />
+      ) : null}
       <div
         className="hidden min-h-0 flex-1 flex-col overflow-hidden text-xs antialiased sm:text-[13px] lg:flex lg:text-sm"
         style={{ color: "var(--nta-text)", background: "var(--nta-bg)" }}
@@ -386,12 +391,14 @@ export function NtaExamShell({
                   label="MARK FOR REVIEW & NEXT"
                   onClick={onMarkReviewNext}
                 />
-                <NtaBtn
-                  variant="solution"
-                  label="SOLUTION"
-                  onClick={() => setSolutionOpen(true)}
-                  className="ml-3 sm:ml-5"
-                />
+                {showSolution ? (
+                  <NtaBtn
+                    variant="solution"
+                    label="SOLUTION"
+                    onClick={() => setSolutionOpen(true)}
+                    className="ml-3 sm:ml-5"
+                  />
+                ) : null}
               </div>
 
               {/* Row 2: Nav buttons on left and Submit button on right */}
