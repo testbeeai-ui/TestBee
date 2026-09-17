@@ -20,6 +20,8 @@ describe("middleware matcher", () => {
     "/onboarding",
     "/api/user/bits-attempts",
     "/cbse/physics/11/unit-1/motion/advanced",
+    "/chapter-pyq",
+    "/chapter-pyq/math/circle",
   ])("guards %s", (pathname) => {
     expect(runsMiddleware(pathname)).toBe(true);
   });

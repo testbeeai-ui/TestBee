@@ -95,6 +95,15 @@ export function patchNtaHtmlPresentation(html: string): string {
 const TESTBEE_QIMAGE_RE =
   /^https?:\/\/(?:www\.)?testbee\.in\/preview\/show_qimage\/[a-zA-Z0-9._-]+\.(?:png|jpe?g|gif|webp)$/i;
 
+/**
+ * First-party Supabase Storage public objects — Chapter PYQ figures live at
+ * `pyq/physics/figures/`. These are served directly: they are our own origin,
+ * so the `/api/mock/question-image` proxy (which exists only to work around
+ * Testbee's hotlink behaviour) must not swallow them.
+ */
+export const SUPABASE_PUBLIC_OBJECT_RE =
+  /^https?:\/\/(?:[a-z0-9-]+\.supabase\.co|127\.0\.0\.1(?::\d+)?|localhost(?::\d+)?)\/storage\/v1\/object\/public\/[A-Za-z0-9._~/-]+\.(?:png|jpe?g|gif|webp)$/i;
+
 /** Normalize legacy bank `<img>` tags (trim src, proxy testbee.in, responsive class). */
 export function patchMockHtmlImages(html: string): string {
   return html.replace(/<img\b([^>]*)\/?>/gi, (_full, rawAttrs: string) => {
@@ -102,9 +111,12 @@ export function patchMockHtmlImages(html: string): string {
     let src = (srcMatch?.[1] ?? srcMatch?.[2] ?? "").trim();
     if (!src) return _full;
 
-    if (src.startsWith("//")) src = `https:${src}`;
-    if (!/^https?:\/\//i.test(src)) src = `https://${src}`;
-    src = src.replace(/^https:\/\/testbee\.in\//i, "https://www.testbee.in/");
+    const isSupabaseObject = SUPABASE_PUBLIC_OBJECT_RE.test(src);
+    if (!isSupabaseObject) {
+      if (src.startsWith("//")) src = `https:${src}`;
+      if (!/^https?:\/\//i.test(src)) src = `https://${src}`;
+      src = src.replace(/^https:\/\/testbee\.in\//i, "https://www.testbee.in/");
+    }
 
     let attrs = rawAttrs.replace(/\bsrc\s*=\s*(?:"[^"]*"|'[^']*')/i, `src="${src}"`);
 
@@ -156,7 +168,25 @@ export function repairBankMathLatex(math: string): string {
   s = s.replace(/\u00D7/g, "\\times ");
   s = s.replace(/\u00B7/g, "\\cdot ");
   s = s.replace(/\s{2,}/g, " ");
-  return s.trim();
+  return protectTexBrackets(s.trim());
+}
+
+/** Keep GIF `[x]` / intervals `[a,b]` from being eaten or wrapped mid-bracket. */
+export function protectTexBrackets(tex: string): string {
+  const holes: string[] = [];
+  const stash = (chunk: string) => {
+    holes.push(chunk);
+    return `\u0000${holes.length - 1}\u0000`;
+  };
+  let s = String(tex ?? "");
+  s = s.replace(/\\sqrt\s*\[[^\]]*\]/g, stash);
+  s = s.replace(/\\(?:left|right|bigl|bigr|Bigl|Bigr|big|Big)\s*\[/g, stash);
+  s = s.replace(/\\lbrack\b/g, stash);
+  s = s.replace(/(?<!\\)\[([^\]]*)\]/g, (_all, inner: string) => {
+    if (inner.includes(",")) return `\\left[${inner}\\right]`;
+    return `\\lbrack ${inner} \\rbrack`;
+  });
+  return s.replace(/\u0000(\d+)\u0000/g, (_all, index: string) => holes[Number(index)] ?? "");
 }
 
 /** Safe fragment: one paragraph KaTeX can scan for `\(` / `\[` / `$$`. */

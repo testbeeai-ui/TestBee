@@ -12,6 +12,7 @@ import { createSupabaseMiddleware } from "@/lib/supabase/middleware";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import {
   evaluateWhitelistGate,
+  isEduDecaMockDestination,
   waitlistBlockedAuthUrl,
 } from "@/lib/waitlist/whitelistGate";
 
@@ -23,6 +24,7 @@ const STUDENT_ONLY_PREFIXES = [
   "/edudeca-mock",
   "/revision",
   "/explore-1",
+  "/chapter-pyq",
   "/explore",
   "/dive",
   "/magic-wall",
@@ -115,19 +117,22 @@ export async function middleware(request: NextRequest) {
 
   const profile = await loadSessionProfile(supabase, user.id);
 
-  const gate = await evaluateWhitelistGate(supabase, {
-    userId: user.id,
-    email: user.email ?? undefined,
-    onboardingComplete: profile?.onboardingComplete === true,
-  });
+  const skipWaitlist = isEduDecaMockDestination(pathname);
+  if (!skipWaitlist) {
+    const gate = await evaluateWhitelistGate(supabase, {
+      userId: user.id,
+      email: user.email ?? undefined,
+      onboardingComplete: profile?.onboardingComplete === true,
+    });
 
-  if (!gate.allowed) {
-    const blockedPath = waitlistBlockedAuthUrl(request.nextUrl.origin, user.email);
-    const url = request.nextUrl.clone();
-    const blocked = new URL(blockedPath, request.url);
-    url.pathname = blocked.pathname;
-    url.search = blocked.search;
-    return NextResponse.redirect(url);
+    if (!gate.allowed) {
+      const blockedPath = waitlistBlockedAuthUrl(request.nextUrl.origin, user.email);
+      const url = request.nextUrl.clone();
+      const blocked = new URL(blockedPath, request.url);
+      url.pathname = blocked.pathname;
+      url.search = blocked.search;
+      return NextResponse.redirect(url);
+    }
   }
 
   const needsStudentRole = isStudentOnlyPath(pathname);

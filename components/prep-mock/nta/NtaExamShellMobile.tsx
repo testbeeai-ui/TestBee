@@ -1,15 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Bookmark, Check, Clock, Flag, Send, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, BookOpen, Check, Clock, Flag, Send, X } from "lucide-react";
 import type { Question, Subject } from "@/types";
 import { CORE_SUBJECTS } from "@/types";
 import { getNtaPaletteKind } from "@/components/prep-mock/nta/ntaPaletteShapes";
 import {
   computeNtaLegendCounts,
   formatNtaHhMmSs,
+  NtaNumericAnswerInput,
   NtaOptionBody,
+  NtaQuestionSourceChip,
   NtaQuestionStem,
+  type NtaQuestionSource,
 } from "@/components/prep-mock/nta/ntaExamParts";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +49,15 @@ export interface NtaExamShellMobileProps {
   onBackNav: () => void;
   onNextNav: () => void;
   onSubmitClick: () => void;
+  /** Raw numeric-entry text per question id. Only read when `answerFormat === "numerical"`. */
+  numericDrafts?: Record<string, string>;
+  /** Every keystroke of the numeric input. The caller parses and commits to `answers`. */
+  onNumericDraftChange?: (questionId: string, raw: string) => void;
+  /** Optional short label rendered beside the question number (Chapter PYQ tier badge). */
+  questionBadges?: Record<string, string>;
+  /** Optional paper provenance on the question header (date + Morning/Evening). */
+  questionSources?: Record<string, NtaQuestionSource>;
+  onOpenSolution: () => void;
 }
 
 export function NtaExamShellMobile({
@@ -68,6 +80,11 @@ export function NtaExamShellMobile({
   onBackNav,
   onNextNav,
   onSubmitClick,
+  numericDrafts,
+  onNumericDraftChange,
+  questionBadges,
+  questionSources,
+  onOpenSolution,
 }: NtaExamShellMobileProps) {
   const q = questions[currentIndex];
   const paletteScrollRef = useRef<HTMLDivElement>(null);
@@ -132,8 +149,8 @@ export function NtaExamShellMobile({
       className="flex min-h-0 flex-1 flex-col overflow-hidden antialiased lg:hidden"
       data-nta-mobile-exam
     >
-      <header className="nta-m-header shrink-0 px-3.5 py-2.5">
-        <div className="mb-1.5 flex items-start justify-between gap-2">
+      <header className="nta-m-header shrink-0 px-3 py-1.5">
+        <div className="mb-1 flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-xs font-medium text-[var(--nta-m-text)]">
               {candidateName}{" "}
@@ -144,14 +161,14 @@ export function NtaExamShellMobile({
             <p className="line-clamp-2 text-[11px] text-[var(--nta-m-muted)]">{subjectPaperLine}</p>
           </div>
           <div
-            className="nta-m-timer flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 font-mono text-sm font-medium tabular-nums"
+            className="nta-m-timer flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 font-mono text-base font-bold tabular-nums"
             aria-live="polite"
           >
             <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {formatNtaHhMmSs(secondsLeft)}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2.5 pt-1">
+        <div className="flex flex-wrap gap-x-2 gap-y-0.5">
           <MobileLegendDot color="#2A3347" border="#334060" label="Not visited" />
           <MobileLegendDot color="#1D9E75" label="Answered" />
           <MobileLegendDot color="#E24B4A" label="Not answered" />
@@ -190,8 +207,8 @@ export function NtaExamShellMobile({
         </div>
       ) : null}
 
-      <div className="nta-m-palette-band shrink-0 px-2.5 py-2">
-        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--nta-m-dim)]">
+      <div className="nta-m-palette-band shrink-0 px-2.5 py-1.5">
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-[var(--nta-m-dim)]">
           Question palette — scroll →
         </p>
         <div
@@ -246,6 +263,14 @@ export function NtaExamShellMobile({
           <p className="text-[11px] text-[var(--nta-m-dim)]">
             Q {displayQuestionNum} of {displayQuestionTotal} ·{" "}
             {SUBJECT_LABEL[q.subject] ?? q.subject}
+            {questionBadges?.[q.id] ? (
+              <span
+                className="ml-2 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+                style={{ borderColor: "var(--nta-m-border)", color: "var(--nta-m-dim)" }}
+              >
+                {questionBadges[q.id]}
+              </span>
+            ) : null}
           </p>
           <div className="flex gap-0.5" aria-hidden>
             {questions.slice(0, Math.min(questions.length, 40)).map((_, i) => {
@@ -272,43 +297,61 @@ export function NtaExamShellMobile({
         </div>
 
         <div className="mb-2.5 flex items-center justify-between gap-2">
-          <h2 className="text-[13px] font-medium text-[var(--nta-m-text)]">
-            Question {displayQuestionNum}
+          <h2 className="text-base font-bold text-[var(--nta-m-text)]">
+            Question {displayQuestionNum}:
           </h2>
-          <span className="nta-m-type-badge rounded-full px-2 py-0.5 text-[11px] font-medium">
-            MCQ · +4 / −1
-          </span>
+          {questionSources?.[q.id] ? (
+            <NtaQuestionSourceChip
+              date={questionSources[q.id].date}
+              shift={questionSources[q.id].shift}
+            />
+          ) : (
+            <span className="nta-m-type-badge rounded-full px-2 py-0.5 text-[11px] font-medium">
+              MCQ · +4 / −1
+            </span>
+          )}
         </div>
 
         <div className="mb-4 text-[var(--nta-m-text)]">
           <NtaQuestionStem q={q} mobile />
         </div>
 
-        <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--nta-m-dim)]">
-          Choose one option
-        </p>
-        <div className="space-y-2">
-          {q.options.map((opt, i) => {
-            const isSelected = selected === i;
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onAnswerSelect(q.id, i)}
-                className="nta-m-opt"
-                data-selected={isSelected ? "true" : "false"}
-              >
-                <span className="nta-m-opt-radio" aria-hidden>
-                  {isSelected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
-                </span>
-                <span className="nta-m-opt-num">{i + 1}.</span>
-                <div className="nta-m-opt-body min-w-0 flex-1 text-[13px] leading-snug">
-                  <NtaOptionBody text={opt} mobile />
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        {q.answerFormat === "numerical" ? (
+          <NtaNumericAnswerInput
+            value={numericDrafts?.[q.id] ?? ""}
+            onChange={(next) => onNumericDraftChange?.(q.id, next)}
+            disabled={!onNumericDraftChange}
+            mobile
+          />
+        ) : (
+          <>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--nta-m-dim)]">
+              Choose one option
+            </p>
+            <div className="space-y-2">
+              {q.options.map((opt, i) => {
+                const isSelected = selected === i;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => onAnswerSelect(q.id, i)}
+                    className="nta-m-opt"
+                    data-selected={isSelected ? "true" : "false"}
+                  >
+                    <span className="nta-m-opt-radio" aria-hidden>
+                      {isSelected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
+                    </span>
+                    <span className="nta-m-opt-num">{i + 1}.</span>
+                    <div className="nta-m-opt-body min-w-0 flex-1 text-[13px] leading-snug">
+                      <NtaOptionBody text={opt} mobile />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-[var(--nta-m-dim)]">
           <ArrowLeft className="h-3 w-3" aria-hidden />
@@ -317,8 +360,8 @@ export function NtaExamShellMobile({
         </p>
       </div>
 
-      <footer className="nta-m-footer shrink-0 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:py-2.5">
-        <div className="mb-2 flex gap-1.5">
+      <footer className="nta-m-footer shrink-0 px-3 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:py-2.5">
+        <div className="mb-2 flex flex-wrap gap-1.5">
           <MobileActionBtn
             variant="save"
             icon={<Check className="h-4 w-4" aria-hidden />}
@@ -337,6 +380,13 @@ export function NtaExamShellMobile({
             icon={<Bookmark className="h-4 w-4" aria-hidden />}
             label="Save & mark"
             onClick={onSaveMarkReviewNext}
+          />
+          <MobileActionBtn
+            variant="solution"
+            icon={<BookOpen className="h-4 w-4" aria-hidden />}
+            label="Solution"
+            onClick={onOpenSolution}
+            className="ml-2 min-w-[5.75rem] sm:ml-3"
           />
         </div>
         <div className="flex items-center gap-1.5">
@@ -406,6 +456,25 @@ function MobileLegendDot({
   );
 }
 
+type MobileActionVariant = "save" | "clear" | "review" | "solution";
+
+function mobileActionVariantClass(variant: MobileActionVariant): string {
+  switch (variant) {
+    case "save":
+      return "nta-m-btn-save";
+    case "clear":
+      return "nta-m-btn-clear";
+    case "review":
+      return "nta-m-btn-review";
+    case "solution":
+      return "nta-m-btn-solution";
+    default: {
+      const _exhaustive: never = variant;
+      return _exhaustive;
+    }
+  }
+}
+
 function MobileActionBtn({
   variant,
   icon,
@@ -413,18 +482,13 @@ function MobileActionBtn({
   onClick,
   className,
 }: {
-  variant: "save" | "clear" | "review";
+  variant: MobileActionVariant;
   icon: ReactNode;
   label: string;
   onClick: () => void;
   className?: string;
 }) {
-  const variantClass =
-    variant === "save"
-      ? "nta-m-btn-save"
-      : variant === "review"
-        ? "nta-m-btn-review"
-        : "nta-m-btn-clear";
+  const variantClass = mobileActionVariantClass(variant);
   return (
     <button
       type="button"
