@@ -41,6 +41,7 @@ export default function robots(): MetadataRoute.Robots {
         "/user",
         "/explore",
         "/explore-1",
+        "/chapter-pyq",
         "/doubts",
         "/magic-wall",
         "/edufund",

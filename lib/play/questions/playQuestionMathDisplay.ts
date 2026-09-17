@@ -75,13 +75,207 @@ export function splitGluedGreekCommands(text: string): string {
 const GREEK_CMD =
   "mu|lambda|tau|sigma|rho|theta|alpha|beta|gamma|delta|epsilon|varepsilon|omega|phi|varphi|psi|pi|chi|eta|iota|kappa|nu|xi|zeta|Delta|Gamma|Lambda|Omega|Phi|Pi|Psi|Sigma|Theta|Xi";
 
-/** Wrap a single TeX command in `$...$` without shattering existing math. */
+function collapseAdjacentInlineMath(text: string): string {
+  let t = text;
+  let prev = "";
+  while (t !== prev) {
+    prev = t;
+    t = t.replace(/\$([^$\n]+)\$\$([^$\n]+)\$/g, "$$$1$2$$");
+  }
+  return t;
+}
 function wrapTexCommandInDollars(text: string): string {
   // Note: in JS replace strings, `$$` → literal `$`, and `$1` → capture group.
   return text.replace(
     new RegExp(`(?<![\\\\$])\\\\(${GREEK_CMD})(?![A-Za-z])`, "g"),
     "$$\\$1$$"
   );
+}
+
+const UNICODE_SUPER_DIGIT: Record<string, string> = {
+  "⁰": "0",
+  "¹": "1",
+  "²": "2",
+  "³": "3",
+  "⁴": "4",
+  "⁵": "5",
+  "⁶": "6",
+  "⁷": "7",
+  "⁸": "8",
+  "⁹": "9",
+  "⁺": "+",
+  "⁻": "-",
+};
+
+const UNICODE_SUB_DIGIT: Record<string, string> = {
+  "₀": "0",
+  "₁": "1",
+  "₂": "2",
+  "₃": "3",
+  "₄": "4",
+  "₅": "5",
+  "₆": "6",
+  "₇": "7",
+  "₈": "8",
+  "₉": "9",
+  "₊": "+",
+  "₋": "-",
+  "ₜ": "t",
+  "ₑ": "e",
+  "ₕ": "h",
+  "ₖ": "k",
+  "ₘ": "m",
+  "ₙ": "n",
+  "ₚ": "p",
+  "ₛ": "s",
+  "ₓ": "x",
+  "ᵢ": "i",
+  "ⱼ": "j",
+  "ᵣ": "r",
+};
+
+/** Unicode Greek → TeX. μC micro-units are rewritten before this map runs. */
+const UNICODE_GREEK_TEX: Record<string, string> = {
+  α: "\\alpha",
+  β: "\\beta",
+  γ: "\\gamma",
+  δ: "\\delta",
+  Δ: "\\Delta",
+  θ: "\\theta",
+  Θ: "\\Theta",
+  λ: "\\lambda",
+  Λ: "\\Lambda",
+  η: "\\eta",
+  μ: "\\mu",
+  ρ: "\\rho",
+  σ: "\\sigma",
+  Σ: "\\Sigma",
+  τ: "\\tau",
+  φ: "\\phi",
+  Φ: "\\Phi",
+  ω: "\\omega",
+  Ω: "\\Omega",
+  π: "\\pi",
+  ε: "\\varepsilon",
+  κ: "\\kappa",
+  ν: "\\nu",
+  ξ: "\\xi",
+  χ: "\\chi",
+  ψ: "\\psi",
+  Γ: "\\Gamma",
+  Π: "\\Pi",
+  Ψ: "\\Psi",
+};
+
+function mapUnicodeRun(chars: string, table: Record<string, string>): string {
+  return [...chars].map((c) => table[c] ?? c).join("");
+}
+
+const UNICODE_GREEK_CLASS = Object.keys(UNICODE_GREEK_TEX).join("");
+const UNICODE_SUB_CLASS = Object.keys(UNICODE_SUB_DIGIT).join("");
+const UNICODE_SUPER_CLASS = Object.keys(UNICODE_SUPER_DIGIT).join("");
+
+function wrapBalancedCommand(s: string, cmd: string): string {
+  const needle = `\\${cmd}{`;
+  let out = "";
+  let i = 0;
+  while (i < s.length) {
+    const j = s.indexOf(needle, i);
+    if (j < 0) {
+      out += s.slice(i);
+      break;
+    }
+    out += s.slice(i, j);
+    let depth = 0;
+    let k = j + needle.length - 1;
+    for (; k < s.length; k++) {
+      const ch = s[k];
+      if (ch === "{") depth += 1;
+      else if (ch === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          k += 1;
+          break;
+        }
+      }
+    }
+    out += `$${s.slice(j, k)}$`;
+    i = k;
+  }
+  return out;
+}
+
+function mapOutsideDollarMath(text: string, replacer: (prose: string) => string): string {
+  return text
+    .split(/(\$[^$]*\$)/)
+    .map((part) => (part.startsWith("$") && part.endsWith("$") && part.length >= 2 ? part : replacer(part)))
+    .join("");
+}
+
+/** Convert Word/LO unicode to TeX, then wrap complete atoms — never insert `$` inside `\sqrt{...}`. */
+function convertUnicodePhysicsProse(s: string): string {
+  let t = s;
+  t = t.replace(
+    new RegExp(`([A-Za-z${UNICODE_GREEK_CLASS}])([${UNICODE_SUB_CLASS}]+)([${UNICODE_SUPER_CLASS}]+)`, "g"),
+    (_m, base: string, subs: string, supers: string) => {
+      const texBase = UNICODE_GREEK_TEX[base] ?? base;
+      return `${texBase}_{${mapUnicodeRun(subs, UNICODE_SUB_DIGIT)}}^{${mapUnicodeRun(supers, UNICODE_SUPER_DIGIT)}}`;
+    }
+  );
+  t = t.replace(
+    new RegExp(`([A-Za-z])⃗([${UNICODE_SUB_CLASS}])←([${UNICODE_SUB_CLASS}])`, "g"),
+    (_m, letter: string, a: string, b: string) => {
+      return `\\vec{${letter}}_{${UNICODE_SUB_DIGIT[a] ?? a}\\leftarrow ${UNICODE_SUB_DIGIT[b] ?? b}}`;
+    }
+  );
+  t = t.replace(
+    new RegExp(`([A-Za-z])⃗([${UNICODE_SUB_CLASS}]+)?`, "g"),
+    (_m, letter: string, subs?: string) => {
+      const core = `\\vec{${letter}}`;
+      return subs ? `${core}_{${mapUnicodeRun(subs, UNICODE_SUB_DIGIT)}}` : core;
+    }
+  );
+  const baseAndSub = new RegExp(`([A-Za-z${UNICODE_GREEK_CLASS}])([${UNICODE_SUB_CLASS}]+)`, "g");
+  t = t.replace(baseAndSub, (_m, base: string, subs: string) => {
+    const texBase = UNICODE_GREEK_TEX[base] ?? base;
+    return `${texBase}_{${mapUnicodeRun(subs, UNICODE_SUB_DIGIT)}}`;
+  });
+  t = t.replace(new RegExp(`([A-Za-z)|]|\\])([${UNICODE_SUPER_CLASS}]+)`, "g"), (_m, letter: string, supers: string) => {
+    return `${letter}^{${mapUnicodeRun(supers, UNICODE_SUPER_DIGIT)}}`;
+  });
+  t = t.replace(new RegExp(`([${UNICODE_GREEK_CLASS}])([${UNICODE_SUPER_CLASS}]+)`, "g"), (_m, ch: string, supers: string) => {
+    return `${UNICODE_GREEK_TEX[ch] ?? ch}^{${mapUnicodeRun(supers, UNICODE_SUPER_DIGIT)}}`;
+  });
+  t = t.replace(new RegExp(`[${UNICODE_GREEK_CLASS}]`, "g"), (ch) => UNICODE_GREEK_TEX[ch] ?? ch);
+
+  t = t.replace(/½/g, "\\frac{1}{2}");
+  t = t.replace(/¼/g, "\\frac{1}{4}");
+  t = t.replace(/¾/g, "\\frac{3}{4}");
+  t = t.replace(/⅓/g, "\\frac{1}{3}");
+  t = t.replace(/⅔/g, "\\frac{2}{3}");
+  t = t.replace(/√\s*\(([^)]+)\)/g, "\\sqrt{$1}");
+  t = t.replace(/√\s*([A-Za-z0-9\\{}^_]+)/g, "\\sqrt{$1}");
+  t = t.replace(/∝/g, " \\propto ");
+  t = t.replace(/([A-Za-z])′/g, "$1'");
+  t = t.replace(/\b(sin|cos|tan)\s*\\theta/gi, (_m, fn: string) => `\\${fn.toLowerCase()}\\theta`);
+
+  t = wrapBalancedCommand(t, "sqrt");
+  t = t.replace(/\\frac\{[^{}]+\}\{[^{}]+\}/g, (m) => `$${m}$`);
+
+  return mapOutsideDollarMath(t, (prose) => {
+    let p = prose;
+    p = p.replace(/\\propto/g, "$\\propto$");
+    p = p.replace(/\\vec\{[^{}]+\}(_\{[^{}]+\})?/g, (m) => `$${m}$`);
+    p = p.replace(/\\(sin|cos|tan)\\theta/g, (_m, fn: string) => `$\\${fn}\\theta$`);
+    p = p.replace(new RegExp(`\\\\(${GREEK_CMD})(_\\{[^{}]+\\})?(\\^\\{[^{}]+\\})?`, "g"), (m) => `$${m}$`);
+    p = p.replace(/([A-Za-z])_\{[^{}]+\}\^\{[^{}]+\}/g, (m) => `$${m}$`);
+    p = p.replace(/([A-Za-z])_\{[^{}]+\}/g, (m) => `$${m}$`);
+    p = p.replace(/(?<!\\[A-Za-z]+)([A-Za-z)|]|\])\^\{([^{}]+)\}/g, (_m, letter: string, exp: string) => {
+      if (letter === ")" || letter === "]" || letter === "|") return `$${letter}^{${exp}}$`;
+      return `$\\mathrm{${letter}}^{${exp}}$`;
+    });
+    return p;
+  });
 }
 
 /**
@@ -93,50 +287,37 @@ export function normalizePhysicsNotationForDisplay(text: string): string {
   if (!t.trim()) return t;
 
   // Unicode micro + unit: 2 μC / μC → $2\,\mu\mathrm{C}$ / $\mu\mathrm{C}$
+  // μ₀ (permeability) must win over stripping μ and leaving a dangling ₀.
+  t = t.replace(/[μµ]([₀₁₂₃₄₅₆₇₈₉₊₋]+)/g, (_m, subs: string) => {
+    return `$\\mu_{${mapUnicodeRun(subs, UNICODE_SUB_DIGIT)}}$`;
+  });
   t = t.replace(/(\d+(?:\.\d+)?)\s*[μµ]\s*([A-Za-z]+)/g, "$1 $\\mu\\mathrm{$2}$");
   t = t.replace(/[μµ]\s*([A-Za-z]+)/g, "$\\mu\\mathrm{$1}$");
-  t = t.replace(/[μµ]/g, "$\\mu$");
 
   // Unit vector hats commonly pasted from Word: î ĵ k̂
   t = t.replace(/î/g, "$\\hat{\\imath}$");
   t = t.replace(/ĵ/g, "$\\hat{\\jmath}$");
   t = t.replace(/k̂/g, "$\\hat{k}$");
 
-  // Scientific 10 with unicode superscripts: 10⁻⁴ / 10⁴ → $10^{-4}$
-  const superMap: Record<string, string> = {
-    "⁰": "0",
-    "¹": "1",
-    "²": "2",
-    "³": "3",
-    "⁴": "4",
-    "⁵": "5",
-    "⁶": "6",
-    "⁷": "7",
-    "⁸": "8",
-    "⁹": "9",
-    "⁺": "+",
-    "⁻": "-",
-  };
-  t = t.replace(/10([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+)/g, (_m, supers: string) => {
-    const tex = [...supers].map((c) => superMap[c] ?? c).join("");
-    return `$10^{${tex}}$`;
-  });
+  t = mapOutsideDollarMath(t, convertUnicodePhysicsProse);
 
-  // Trailing unicode superscripts on a unit letter: C⁻¹ → $\mathrm{C}^{-1}$
-  t = t.replace(/\b([A-Za-z])([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+)/g, (_m, letter: string, supers: string) => {
-    const tex = [...supers].map((c) => superMap[c] ?? c).join("");
-    return `$\\mathrm{${letter}}^{${tex}}$`;
-  });
+  // Scientific 10 with unicode superscripts: 10⁻⁴ / 10⁴ → $10^{-4}$
+  t = mapOutsideDollarMath(t, (prose) =>
+    prose.replace(/10([⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+)/g, (_m, supers: string) => {
+      return `$10^{${mapUnicodeRun(supers, UNICODE_SUPER_DIGIT)}}$`;
+    })
+  );
 
   // Multiplication sign between numbers / math: × → $\times$
   t = t.replace(/×/g, " $\\times$ ");
   t = t.replace(/\s{2,}/g, " ").trim();
+  t = collapseAdjacentInlineMath(t);
 
   // Already delimited (\(…\) / \[…\] / $…$) — never re-wrap greek/commands or the
   // whole string. Doing so shatters e.g. \( [0, 2\pi] \) into $[0, 2$\pi$]$.
   const trimmed = t.trim();
   if (/\\\(|\\\[|\$/.test(trimmed)) {
-    return splitGluedGreekCommands(trimmed);
+    return splitGluedGreekCommands(collapseAdjacentInlineMath(trimmed));
   }
 
   // ASCII latex already present but missing dollars (typical Numerals options)
@@ -294,7 +475,6 @@ export function repairPlayQuestionDollarSegments(text: string): string {
  * so MathText can render a small inline formula instead of mis-detecting chunks.
  */
 export function unicodePowToTeX(text: string): string {
-  if (/\$|\\\(|\\\[/.test(text)) return text;
   const map: Record<string, string> = {
     "⁰": "^{0}",
     "¹": "^{1}",
@@ -309,7 +489,7 @@ export function unicodePowToTeX(text: string): string {
   };
   let t = text;
   for (const [u, te] of Object.entries(map)) {
-    t = t.replace(new RegExp(`([A-Za-z])${u}`, "g"), `$1${te}`);
+    t = t.replace(new RegExp(`([A-Za-z])${u}`, "g"), `$$$1${te}$$`);
   }
   t = t.replace(/\u2212/g, "-");
   return t;

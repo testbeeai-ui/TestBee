@@ -87,6 +87,15 @@ export interface Question {
   solutionHtml?: string | null;
   options: string[];
   correctAnswer: number; // index
+  /**
+   * `"numerical"` marks a JEE Main numeric-entry question: `options` is empty,
+   * `correctAnswer` is `-1` and unused, and the expected value lives in
+   * `numericAnswer`. Absent or `"mcq"` means a normal 4-option question, so
+   * every existing producer keeps working unchanged.
+   */
+  answerFormat?: "mcq" | "numerical";
+  /** Verbatim expected value for `answerFormat === "numerical"` (e.g. `"12"`, `"-0.25"`). */
+  numericAnswer?: string | null;
   hint: string;
   solution: string;
   reference: {

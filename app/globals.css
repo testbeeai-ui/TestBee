@@ -1777,27 +1777,10 @@ html {
   font-size: 13px;
 }
 
-/* NTA desktop exam — question palette (8 columns, slightly larger tiles) */
+/* NTA desktop exam — question palette (8 columns, capped so zoom/2xl does not balloon) */
 .nta-palette-grid-8 .nta-palette-cell {
-  min-height: 1.65rem;
-}
-
-@media (min-width: 1024px) {
-  .nta-palette-grid-8 .nta-palette-cell {
-    min-height: 1.85rem;
-  }
-}
-
-@media (min-width: 1280px) {
-  .nta-palette-grid-8 .nta-palette-cell {
-    min-height: 2rem;
-  }
-}
-
-@media (min-width: 1536px) {
-  .nta-palette-grid-8 .nta-palette-cell {
-    min-height: 2.15rem;
-  }
+  min-height: 1.75rem;
+  max-height: 2rem;
 }
 
 /* NTA mobile exam — wireframe palette (nta_mobile_exam_wireframe.html) */
@@ -2030,6 +2013,11 @@ html {
   color: var(--nta-m-amber-text);
 }
 
+[data-nta-mobile-exam] .nta-m-btn-solution {
+  background: #0f766e;
+  color: #fff;
+}
+
 [data-nta-mobile-exam] .nta-m-btn-mark {
   background: var(--nta-m-purple-dark);
   color: #fff;
@@ -2136,13 +2124,22 @@ html {
   background-color: rgba(6, 15, 12, 0.7) !important;
 }
 
-/* Invert transparent dark-mode diagrams/formulas inside questions, options, and solutions */
-.dark .prose img,
-.dark .math-tex img,
-.dark .math-text img,
-.dark .edu-card img,
-.dark [class*="prose"] img {
+/*
+ * Invert transparent dark-mode diagrams/formulas inside questions, options,
+ * and solutions. Skip `.nta-mock-img`: those are exam-paper rasters with an
+ * opaque white background. Inverting them turns the whole figure into a
+ * black box instead of the printed PDF.
+ */
+.dark .prose img:not(.nta-mock-img),
+.dark .math-tex img:not(.nta-mock-img),
+.dark .math-text img:not(.nta-mock-img),
+.dark .edu-card img:not(.nta-mock-img),
+.dark [class*="prose"] img:not(.nta-mock-img) {
   filter: invert(1) hue-rotate(180deg) !important;
+}
+
+img.nta-mock-img {
+  background-color: #fff;
 }
 
 /* Chapter hub — investor v2 (scoped; does not change global theme) */
@@ -2183,5 +2180,126 @@ html {
 }
 .chapter-hub-v2-leg-concepts {
   background: hsl(38 70% 10%);
+}
+
+/* Chapter PYQ / NTA worked-solution sheet — reading layout, both skins */
+.nta-sol-sheet {
+  color: var(--nta-text);
+  font-size: 0.98rem;
+  line-height: 1.78;
+  letter-spacing: 0.01em;
+}
+@media (min-width: 640px) {
+  .nta-sol-sheet {
+    font-size: 1.05rem;
+    line-height: 1.8;
+  }
+}
+.nta-sol-sheet .nta-sol-lead {
+  margin: 0 0 1.15rem;
+  color: var(--nta-text);
+}
+.nta-sol-sheet ol.nta-sol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+.nta-sol-sheet .nta-sol-step {
+  display: grid;
+  grid-template-columns: 1.9rem minmax(0, 1fr);
+  column-gap: 0.85rem;
+  align-items: start;
+}
+.nta-sol-sheet .nta-sol-n {
+  display: inline-flex;
+  height: 1.7rem;
+  width: 1.7rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.12rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--nta-green);
+  background: color-mix(in srgb, var(--nta-green) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--nta-green) 38%, transparent);
+}
+.nta-sol-sheet .nta-sol-copy {
+  min-width: 0;
+  color: var(--nta-text);
+}
+.nta-sol-sheet .nta-sol-copy .katex,
+.nta-sol-sheet .nta-sol-lead .katex,
+.nta-sol-sheet .nta-sol-copy .katex *,
+.nta-sol-sheet .nta-sol-lead .katex * {
+  color: #ffffff;
+}
+
+.nta-worked-solution .katex,
+.nta-worked-solution .katex * {
+  color: #ffffff !important;
+}
+.nta-worked-solution .nta-sol-question {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.nta-worked-solution .nta-sol-question .katex {
+  white-space: nowrap;
+}
+.nta-worked-solution .nta-sol-display-box {
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+}
+.nta-worked-solution .katex-display {
+  margin: 0 !important;
+  overflow: visible;
+  text-align: left !important;
+}
+.nta-worked-solution .katex-display > .katex {
+  display: inline-block;
+  max-width: 100%;
+  text-align: left !important;
+}
+.nta-worked-solution .katex-error,
+.nta-worked-solution .katex-error * {
+  color: #f87171 !important;
+}
+.nta-sol-sheet .nta-sol-copy .katex-display,
+.nta-sol-sheet .nta-sol-lead .katex-display {
+  margin: 0.65rem 0 0.35rem;
+  padding: 0.7rem 0.8rem;
+  overflow-x: auto;
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--nta-text) 5.5%, transparent);
+}
+.nta-sol-sheet .nta-sol-step--end {
+  padding: 0.85rem 0.9rem 0.9rem 0.75rem;
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--nta-green) 11%, var(--nta-bg));
+  border: 1px solid color-mix(in srgb, var(--nta-green) 28%, var(--nta-border));
+}
+@media (max-width: 639px) {
+  .nta-sol-sheet {
+    font-size: 0.95rem;
+    line-height: 1.72;
+  }
+  .nta-sol-sheet .nta-sol-step {
+    grid-template-columns: 1.6rem minmax(0, 1fr);
+    column-gap: 0.7rem;
+  }
+  .nta-sol-sheet .nta-sol-n {
+    height: 1.5rem;
+    width: 1.5rem;
+    font-size: 0.65rem;
+  }
+  .nta-sol-sheet .nta-sol-step--end {
+    padding: 0.75rem 0.7rem;
+  }
 }
 

@@ -107,6 +107,21 @@ const SUBMENU_DATA: Record<string, Record<string, SubmenuData>> = {
         { i: "ti-clock", t: "Coming soon", s: "Biology, Computer Science and Economics unlocking soon." },
       ]
     },
+    chapterpyq: {
+      icon: "ti-list-details",
+      tag: "Prep",
+      title: "Chapter-wise PYQs",
+      sub: "Previous year questions related to chapters.",
+      themeClass: styles.tPrep,
+      chips: ["Physics", "Chemistry", "Mathematics", "JEE Main"],
+      col: { bg: "rgba(29,158,117,.12)", bc: "rgba(29,158,117,.3)", ic: "#9FE1CB", tag: "#1D9E75", cta: "#1D9E75" },
+      features: [
+        { i: "ti-atom", t: "Physics", s: "JEE Main previous-year questions grouped by chapter." },
+        { i: "ti-flask", t: "Chemistry", s: "JEE Main previous-year questions grouped by chapter." },
+        { i: "ti-math", t: "Mathematics", s: "JEE Main previous-year questions grouped by chapter." },
+        { i: "ti-clock", t: "Coming soon", s: "Browse the chapter list now. Questions will land on each chapter page." },
+      ]
+    },
     classes: {
       icon: "ti-video",
       tag: "Prep",
@@ -452,6 +467,8 @@ export default function RedesignedHomeDashboard() {
                           router.push("/news-blog");
                         } else if (activeDetail.key === "learnhub") {
                           router.push("/explore-1");
+                        } else if (activeDetail.key === "chapterpyq") {
+                          router.push("/chapter-pyq");
                         } else if (activeDetail.key === "classes") {
                           router.push("/mock");
                         } else if (activeDetail.key === "gyan") {
@@ -543,6 +560,8 @@ export default function RedesignedHomeDashboard() {
                       router.push("/news-blog");
                     } else if (key === "learnhub") {
                       router.push("/explore-1");
+                    } else if (key === "chapterpyq") {
+                      router.push("/chapter-pyq");
                     } else if (key === "classes") {
                       router.push("/mock");
                     } else if (key === "gyan") {
