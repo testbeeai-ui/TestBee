@@ -2142,6 +2142,15 @@ img.nta-mock-img {
   background-color: #fff;
 }
 
+.nta-sol-sheet .nta-paper-step-body img.nta-mock-img {
+  display: block;
+  width: auto;
+  max-width: min(100%, 36rem);
+  max-height: none;
+  height: auto;
+  cursor: zoom-in;
+}
+
 /* Chapter hub — investor v2 (scoped; does not change global theme) */
 .chapter-hub-v2-start {
   background: hsl(245 55% 67%);
@@ -2198,6 +2207,73 @@ img.nta-mock-img {
 .nta-sol-sheet .nta-sol-lead {
   margin: 0 0 1.15rem;
   color: var(--nta-text);
+}
+.nta-sol-sheet .nta-sol-paper-label {
+  margin: 0.85rem 0 0.25rem;
+  color: var(--nta-text);
+  font-weight: 600;
+}
+.nta-sol-sheet .nta-sol-paper-eq {
+  margin: 0 0 0.28rem;
+  color: var(--nta-text);
+}
+.nta-sol-sheet .nta-paper-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+.nta-sol-sheet .nta-paper-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.nta-sol-sheet .nta-paper-step-label {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #38bdf8;
+}
+.nta-sol-sheet .nta-paper-step-body {
+  background: rgba(15, 23, 42, 0.5);
+  border-left: 3px solid #38bdf8;
+  border-radius: 0 8px 8px 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+.nta-sol-sheet .nta-paper-step-body .katex-display {
+  margin: 0.4rem 0;
+  overflow-x: auto;
+  text-align: left;
+  white-space: nowrap;
+}
+.nta-sol-sheet .nta-paper-step-body .katex {
+  white-space: nowrap;
+}
+.nta-sol-sheet .nta-paper-step-body .katex .mtable {
+  white-space: nowrap;
+}
+.nta-sol-sheet .nta-paper-piecewise .katex-display,
+.nta-sol-sheet .nta-paper-step-body .katex-display:has(.mtable) {
+  margin: 0.15rem 0;
+  overflow: visible;
+}
+.nta-sol-sheet .nta-paper-step-body p {
+  margin: 0 0 0.55rem;
+  color: var(--nta-text);
+  overflow-x: auto;
+}
+.nta-sol-sheet .nta-paper-step-body p:last-child {
+  margin-bottom: 0;
+}
+.nta-sol-sheet .nta-paper-final {
+  display: inline-block;
+  border: 2px solid #38bdf8;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-weight: 700;
+  background: rgba(56, 189, 248, 0.08);
 }
 .nta-sol-sheet ol.nta-sol {
   list-style: none;

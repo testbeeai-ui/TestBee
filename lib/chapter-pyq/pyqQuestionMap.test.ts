@@ -82,9 +82,9 @@ describe("pyq question mapper", () => {
   });
 
   it("formats the provenance label the way the book tags it", () => {
-    expect(formatPyqExamLabel("2024-01-30", "evening")).toBe("30 Jan 2024 (Evening)");
-    expect(formatPyqExamLabel("2023-04-06", "morning")).toBe("6 Apr 2023 (Morning)");
-    expect(formatPyqExamLabel("2023-04-06", null)).toBe("6 Apr 2023");
+    expect(formatPyqExamLabel("2024-01-30", "evening")).toBe("JAN 2024 (Evening)");
+    expect(formatPyqExamLabel("2023-04-06", "morning")).toBe("APR 2023 (Morning)");
+    expect(formatPyqExamLabel("2023-04-06", null)).toBe("APR 2023");
     expect(formatPyqExamLabel(null, "morning")).toBeNull();
     expect(pyqExamYear("2026-01-21")).toBe(2026);
     expect(pyqExamYear(null)).toBeNull();
@@ -112,7 +112,7 @@ describe("pyq question mapper", () => {
   it("indexes paper labels by question id and skips undated rows", () => {
     const dated = mapPyqRowToChapterPyqQuestion(byId("000000000001"), "Laws of Motion")!;
     const undated = mapPyqRowToChapterPyqQuestion(byId("000000000004"), "Laws of Motion")!;
-    expect(dated.examLabel).toBe("30 Jan 2024 (Evening)");
+    expect(dated.examLabel).toBe("JAN 2024 (Evening)");
     expect(dated.examYear).toBe(2024);
     expect(dated.examMonth).toBe(1);
     expect(dated.examDay).toBe(30);
@@ -121,7 +121,7 @@ describe("pyq question mapper", () => {
     expect(undated.examMonth).toBeNull();
     expect(undated.examDay).toBeNull();
     expect(pyqQuestionSources([dated, undated])).toEqual({
-      [dated.question.id]: { date: "30 Jan 2024", shift: "Evening" },
+      [dated.question.id]: { date: "JAN 2024", shift: null },
     });
   });
 
@@ -175,5 +175,32 @@ describe("pyq question mapper", () => {
     expect(mapped.question.solutionHtml).toBeNull();
     expect(mapped.question.solution).toBe(payload);
     expect(mapped.question.solution).toContain("Definite Integral via Symmetry");
+  });
+
+  it("maps paper OCR to stacked HTML without a page-crop image", () => {
+    const mapped = mapPyqRowToChapterPyqQuestion(
+      {
+        ...byId("000000000001"),
+        solution_md: "<!-- paper-ocr -->\n\nApplying king\n$I = 9$.",
+      },
+      "Laws of Motion"
+    )!;
+    expect(mapped.question.solutionHtml).toContain("Applying king");
+    expect(mapped.question.solutionHtml).toContain("$I = 9$");
+    expect(mapped.question.solutionHtml).not.toContain("<img");
+    expect(mapped.question.solutionHtml).not.toContain("[[fig:");
+  });
+
+  it("still resolves a real printed diagram in paper solution HTML", () => {
+    const mapped = mapPyqRowToChapterPyqQuestion(
+      {
+        ...byId("000000000001"),
+        solution_md: "<!-- paper-ocr -->\n\n[[fig:s2026j_q09_1]]\n$I = 4\\pi$",
+      },
+      "Laws of Motion"
+    )!;
+    expect(mapped.question.solutionHtml).toContain("s2026j_q09_1.png");
+    expect(mapped.question.solutionHtml).toContain('class="nta-mock-img"');
+    expect(mapped.question.questionHtml).not.toContain("s2026j_q09_1");
   });
 });

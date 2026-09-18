@@ -411,9 +411,16 @@ function fromNumberedMarkdown(md: string): PyqWorkedSolution | null {
   };
 }
 
+/** Printed MathonGo write-up. Must not enter the glm step sheet. */
+export function isPaperOcrSolution(raw: string): boolean {
+  const text = String(raw ?? "");
+  return /<!--\s*paper-ocr\s*-->/.test(text) || /\[\[fig:/.test(text);
+}
+
 export function parsePyqWorkedSolution(raw: string): PyqWorkedSolution | null {
   const text = String(raw ?? "").trim();
   if (!text) return null;
+  if (isPaperOcrSolution(text) && !text.startsWith("{")) return null;
   if (text.startsWith("{")) {
     try {
       const parsed: unknown = JSON.parse(text);

@@ -5,10 +5,15 @@ export const PYQ_FIGURE_BUCKET = "pyq";
 
 const FIG_PLACEHOLDER_RE = /\[\[fig:([a-zA-Z0-9_]+)\]\]/g;
 
-/** Ingestion key scheme `p{page:03d}_x{xref}` — filename is the key. */
-const RASTER_KEY = /^p\d+_x\d+$/;
+/** Ingestion key: `p{page:03d}_x{xref}`, `s2026j_q01_1`, or `s2025j_di_q04_1`. */
+const RASTER_KEY = /^(?:p\d+_x\d+|s\d{4}[a-z](?:_[a-z]+)?_q\d+_\d+)$/i;
 
 export type PyqFigureFolder = "physics/figures" | "math/figures";
+
+export type ResolvePyqFigureOpts = {
+  /** Stem path appends unused `question_body` figures. Solution HTML must not. */
+  appendUnused?: boolean;
+};
 
 function asFigure(raw: unknown): PyqFigureRow | null {
   if (!raw || typeof raw !== "object") return null;
@@ -74,7 +79,8 @@ function imgTag(figure: PyqFigureRow): string {
 export function resolvePyqFigureHtml(
   body: string,
   links: PyqFigureLinkRow[] | null | undefined,
-  folder: PyqFigureFolder = "physics/figures"
+  folder: PyqFigureFolder = "physics/figures",
+  opts?: ResolvePyqFigureOpts
 ): string {
   const list = links ?? [];
   const stemFigures = list
@@ -95,7 +101,8 @@ export function resolvePyqFigureHtml(
   });
 
   const trailing = stemFigures.filter((f) => !used.has(f.figure_key)).map(imgTag);
-  return trailing.length > 0
-    ? `${withPlaceholders.trim()}<p>${trailing.join("")}</p>`
-    : withPlaceholders;
+  if (opts?.appendUnused === false || trailing.length === 0) {
+    return withPlaceholders;
+  }
+  return `${withPlaceholders.trim()}<p>${trailing.join("")}</p>`;
 }

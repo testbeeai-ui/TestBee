@@ -524,12 +524,69 @@ function closeSwallowedEnglish(s: string): string {
 }
 
 /**
+ * OCR/JSON sometimes stores JS `\u03c0` instead of π. KaTeX treats `\u` as a
+ * breve, which paints `ŏ3c0` in the solution popup.
+ */
+export function decodePyqUnicodeEscapes(raw: string): string {
+  return String(raw ?? "").replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex: string) =>
+    String.fromCharCode(Number.parseInt(hex, 16))
+  );
+}
+
+function unescapedBraceDepth(tex: string): number {
+  let depth = 0;
+  for (let i = 0; i < tex.length; i += 1) {
+    if (tex[i] === "\\") {
+      i += 1;
+      continue;
+    }
+    if (tex[i] === "{") depth += 1;
+    else if (tex[i] === "}") depth -= 1;
+  }
+  return depth;
+}
+
+/** OCR used `(` … `}_{a}^{b}` for evaluation bars and left groups unclosed. */
+function repairOcrEvalBraces(inner: string): string {
+  let t = inner.replace(
+    /\(\s*([^()]*?)\}\s*_(\{[^}]*\})\^(\{[^}]*\}|\d+(?:\/\d+)?)/g,
+    (_m, body: string, lo: string, hi: string) => {
+      const hiWrap = hi.startsWith("{") ? hi : `{${hi}}`;
+      return `\\left[${body.trim()}\\right]_${lo}^{${hiWrap}}`;
+    }
+  );
+  t = t.replace(/\(\s*([^()]+)\}\s*$/g, (_m, body: string) => `\\left(${body.trim()}\\right)`);
+  const depth = unescapedBraceDepth(t);
+  if (depth > 0) t += "}".repeat(depth);
+  return t;
+}
+
+function unicodeMathToLatex(raw: string): string {
+  let s = decodePyqUnicodeEscapes(raw)
+    .replace(/π/g, "\\pi")
+    .replace(/∫/g, "\\int")
+    .replace(/∪(?=_)/g, "\\int")
+    .replace(/√/g, "\\sqrt")
+    .replace(/≤/g, "\\le ")
+    .replace(/≥/g, "\\ge ")
+    .replace(/⇒/g, "\\Rightarrow ")
+    .replace(/·/g, "\\cdot ")
+    .replace(/⋅/g, "\\cdot ");
+  return s.replace(/\$([^$]*)\$/g, (_m, inner: string) => {
+    const tex = repairOcrEvalBraces(
+      inner.replace(/(?<!\\)\bsin\b/g, "\\sin").replace(/(?<!\\)\bcos\b/g, "\\cos")
+    );
+    return `$${tex}$`;
+  });
+}
+
+/**
  * OCR math heuristics sometimes close `$v = 10$` before `\sqrt{x}`, leave a
  * trailing `*`, smash `$\sqrt{3}$` into the next `$P_{24}$`, and leave `x^{2}`
  * outside math. Fold those back into `$…$` so KaTeX can render.
  */
 export function repairPyqKatex(raw: string): string {
-  let s = String(raw ?? "");
+  let s = decodePyqUnicodeEscapes(raw);
   s = s.replace(/\s+\*\s*$/g, "");
   // Vision wraps `$` after `{` (`= {$ θ∈… }. $`) so KaTeX sees a stray `}` and
   // paints the backslash codes. Pull the brace into the math run.
@@ -659,22 +716,303 @@ export function pyqStemToHtml(
 
 /** Worked solution markdown → NTA popup HTML. Do not run OCR caption stripping. */
 const SOLUTION_STEP = /^(\d+)\.\s+/;
+const PAPER_OCR_MARK = /<!--\s*paper-ocr\s*-->/g;
+const SOLUTION_FIG_TOKEN = /(\[\[fig:[a-zA-Z0-9_]+\]\])/;
+const CROP_FIG_TOKEN = /\[\[fig:[a-zA-Z0-9_]*_crop\]\]/gi;
+const WATERMARK_LINE =
+  /^(?:#\s*)?PaperPhodnaHai$|^www\.mathongo\.com$|^mathongo$|^Questions with Answer Keys$|^Definite Integration$|^Area Under Curves$|^Differential Equations$|^Chapter-wise Question Bank$|^JEE Main 20\d{2}(?:\s+\(January\)|\s+January|\s+April)?(?:\s+Chapter-wise Question Bank)?(?:\s+Question Bank)?$/i;
+/** Printed "12. (3)" / "Q1. (2)" listing — already on the exam chrome. */
+const PAPER_LISTING_PREFIX =
+  /^(?:Q\s*\d{1,2}\.\s*(?:\([^)]+\)\s*)?|\d{1,2}\.\s*\([^)]+\)\s*)/;
 
-export function pyqSolutionToHtml(md: string): string {
-  const raw = String(md ?? "")
-    .replace(/\r\n/g, "\n")
-    .trim();
+function solutionInlineHtml(text: string): string {
+  return text
+    .split(/(<img\b[^>]*>)/i)
+    .map((part) => (/^<img\b/i.test(part) ? part : escapeHtmlTextNode(part)))
+    .join("");
+}
+
+function splitSolutionChunks(raw: string): string[] {
+  const parts = raw.split(SOLUTION_FIG_TOKEN);
+  const chunks: string[] = [];
+  for (const part of parts) {
+    if (!part) continue;
+    if (/^\[\[fig:/.test(part)) {
+      chunks.push(part);
+      continue;
+    }
+    chunks.push(
+      ...part
+        .split(/\n{2,}|\n(?=\d+\.\s)/)
+        .map((para) => para.replace(/\n/g, " ").trim())
+        .filter(Boolean)
+    );
+  }
+  return chunks;
+}
+
+const PAPER_LISTING_KEY_ONLY = /^\(\s*\d+\s*\)$/;
+
+function paperContentLines(raw: string): string[] {
+  const lines = raw
+    .replace(CROP_FIG_TOKEN, "")
+    .replace(/\\n/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(PAPER_LISTING_PREFIX, "").trim())
+    .filter((line) => line.length > 0 && !WATERMARK_LINE.test(line));
+  while (lines.length && PAPER_LISTING_KEY_ONLY.test(lines[0])) {
+    lines.shift();
+  }
+  return lines;
+}
+
+function paperLineClass(line: string): string {
+  if (/^\$[^$]+\$\s*$/.test(line) || /^<img\b/i.test(line)) {
+    return "nta-sol-paper-eq nta-math-plain";
+  }
+  return "nta-sol-paper-label nta-math-plain";
+}
+
+const PAPER_HEADING = /^##\s+(Step\s+\d+:\s+.+)$/i;
+const MATH_ONLY = /^\$([^$]+)\$\s*[.]?\s*$/;
+const LEAD_THEN_MATH = /^([^$]+?)\s+\$([^$]+)\$\s*$/;
+const PAPER_STACKED_ENV = /\\begin\{(cases|array|aligned|pmatrix)\}/;
+const NEW_THOUGHT =
+  /^(First integral|Second integral|Applying|By parts|By IBP|Let\b|Using\b|Therefore|Thus|Hence|So\b|Total\b|Zeros in|Expression|From\b|Adding|Expanding|Setting|In\b|This\b|Calculating|Differentiating|Integrating|We\b|For\b|Then\b|Now\b|Here\b|Given|Split\b)/i;
+const CONNECTIVE_TAIL =
+  /(?:negative on|positive on|and|where|then|so|i\.e\.|giving|gives|from|to get|\bto|which|we need|or|plus|substitute)\s*$/i;
+/** Printed above a display line, never glued onto the integral. */
+const METHOD_ABOVE =
+  /^(By IBP:?|By parts:?|Applying King(?: Rule)?|Differentiating:?|We can verify:?)\s*$/i;
+const METHOD_THEN_MATH =
+  /^(By IBP:?|By parts:?|Applying King(?: Rule)?|Differentiating:?)\s+(\$.+)$/i;
+
+function mathOnlyTex(piece: string): string | null {
+  const match = piece.match(MATH_ONLY);
+  return match ? match[1]! : null;
+}
+
+function tidyPaperGlue(text: string): string {
+  return text
+    .split(/(\$[^$]+\$)/)
+    .map((part, index, parts) => {
+      if (index === 0) return part;
+      const prev = parts[index - 1]!;
+      if (part.startsWith("$") && /[A-Za-z,;:]$/.test(prev)) {
+        return ` ${part}`;
+      }
+      if (prev.startsWith("$") && prev.endsWith("$") && /^[A-Za-z(]/.test(part)) {
+        return ` ${part}`;
+      }
+      return part;
+    })
+    .join("");
+}
+
+function peelNewThoughts(line: string): string[] {
+  const match = line.match(/^(.*?)\.\s+(.+)$/);
+  if (!match) return [line];
+  const rest = match[2]!.trim();
+  if (!NEW_THOUGHT.test(rest)) return [line];
+  const core = match[1]!.trim();
+  if (!core) return [line];
+  return [core, ...peelNewThoughts(rest)];
+}
+
+function isLeadIn(line: string): boolean {
+  if (!line || /\$/.test(line) || /^<img\b/i.test(line) || /^\[\[fig:/.test(line)) {
+    return false;
+  }
+  if (line.length > 80) return false;
+  if (/[.!?]$/.test(line) && !/:$/.test(line)) return false;
+  if (/:$/.test(line)) return true;
+  if (line.split(/\s+/).length <= 6) return true;
+  return NEW_THOUGHT.test(line);
+}
+
+function endsWithConnective(line: string): boolean {
+  return CONNECTIVE_TAIL.test(line) || /,\s*$/.test(line);
+}
+
+function shouldJoinPaper(prev: string, next: string): boolean {
+  if (/^<img\b/i.test(prev) || /^<img\b/i.test(next)) return false;
+  if (!/\$/.test(next)) return false;
+  if (METHOD_ABOVE.test(prev.trim())) return false;
+  return isLeadIn(prev) || endsWithConnective(prev);
+}
+
+function peelMethodFromMath(line: string): string[] {
+  const match = line.match(METHOD_THEN_MATH);
+  if (!match) return [line];
+  return [match[1]!.trim(), match[2]!.trim()];
+}
+
+function coalescePaperLines(lines: string[]): string[] {
+  const out: string[] = [];
+  for (const line of lines) {
+    if (out.length > 0 && shouldJoinPaper(out[out.length - 1]!, line)) {
+      out[out.length - 1] = tidyPaperGlue(`${out[out.length - 1]!.trimEnd()} ${line.trimStart()}`);
+      continue;
+    }
+    out.push(tidyPaperGlue(line));
+  }
+  return out;
+}
+
+function shapePaperLines(lines: string[]): string[] {
+  return coalescePaperLines(lines.flatMap(peelNewThoughts)).flatMap(peelMethodFromMath);
+}
+
+function moveOrphanLeads(steps: { title: string; lines: string[] }[]): void {
+  for (let i = 0; i < steps.length - 1; i += 1) {
+    const lines = steps[i]!.lines;
+    while (lines.length > 0) {
+      const last = lines[lines.length - 1]!;
+      if (!isLeadIn(last)) break;
+      lines.pop();
+      steps[i + 1]!.lines.unshift(last);
+    }
+  }
+}
+
+function renderPaperLineHtml(line: string, className: string, boxed: boolean): string {
+  if (/^<img\b/i.test(line)) {
+    return `<p class="${className}">${solutionInlineHtml(line)}</p>`;
+  }
+  const tex = mathOnlyTex(line);
+  if (tex) {
+    const display = `$$${tex}$$`;
+    const inner = boxed
+      ? `<span class="nta-paper-final">${solutionInlineHtml(display)}</span>`
+      : solutionInlineHtml(display);
+    return `<p class="${className}">${inner}</p>`;
+  }
+  const mixed = line.match(LEAD_THEN_MATH);
+  if (mixed && PAPER_STACKED_ENV.test(mixed[2]!)) {
+    const lead = mixed[1]!.trim().replace(/[\\{}$]/g, "");
+    const body = mixed[2]!;
+    return (
+      `<p class="nta-paper-piecewise nta-math-plain">` +
+      solutionInlineHtml(`$$\\text{${lead} }${body}$$`) +
+      `</p>`
+    );
+  }
+  return `<p class="${className}">${solutionInlineHtml(line)}</p>`;
+}
+
+function paperStepBodyHtml(
+  lines: string[],
+  links: PyqFigureLinkRow[] | null | undefined,
+  folder: PyqFigureFolder,
+  markFinal: boolean
+): string {
+  const resolved = lines.flatMap((line) => {
+    const html = /\[\[fig:/.test(line)
+      ? resolvePyqFigureHtml(line, links, folder, { appendUnused: false }).trim()
+      : line;
+    return html ? [html] : [];
+  });
+  const shaped = shapePaperLines(resolved);
+  let lastMath = -1;
+  if (markFinal) {
+    for (let i = shaped.length - 1; i >= 0; i -= 1) {
+      const tex = mathOnlyTex(shaped[i]!);
+      if (!tex) continue;
+      if (!tex.includes("\\boxed")) lastMath = i;
+      break;
+    }
+  }
+  return shaped
+    .map((line, index) => renderPaperLineHtml(line, "nta-math-plain", index === lastMath))
+    .join("");
+}
+
+function paperStepsToHtml(
+  raw: string,
+  links: PyqFigureLinkRow[] | null | undefined,
+  folder: PyqFigureFolder
+): string | null {
+  const lines = paperContentLines(raw);
+  if (!lines.some((line) => PAPER_HEADING.test(line))) return null;
+
+  const steps: { title: string; lines: string[] }[] = [];
+  for (const line of lines) {
+    const heading = line.match(PAPER_HEADING);
+    if (heading) {
+      steps.push({ title: heading[1]!.trim(), lines: [] });
+      continue;
+    }
+    if (steps.length === 0) {
+      steps.push({ title: "Step 1: Solution", lines: [] });
+    }
+    steps[steps.length - 1]!.lines.push(line);
+  }
+  const filled = steps.filter((step) => step.lines.length > 0);
+  if (filled.length === 0) return null;
+  for (const step of filled) {
+    step.lines = step.lines.flatMap(peelNewThoughts);
+  }
+  moveOrphanLeads(filled);
+
+  return (
+    `<div class="nta-paper-steps">` +
+    filled
+      .map((step, index) => {
+        const last = index === filled.length - 1;
+        return (
+          `<div class="nta-paper-step">` +
+          `<span class="nta-paper-step-label">${escapeHtmlTextNode(step.title)}</span>` +
+          `<div class="nta-paper-step-body nta-math-plain">${paperStepBodyHtml(step.lines, links, folder, last)}</div>` +
+          `</div>`
+        );
+      })
+      .join("") +
+    `</div>`
+  );
+}
+
+function paperSolutionToHtml(
+  raw: string,
+  links: PyqFigureLinkRow[] | null | undefined,
+  folder: PyqFigureFolder
+): string {
+  const stepped = paperStepsToHtml(raw, links, folder);
+  if (stepped) return stepped;
+  const lines = paperContentLines(raw);
+  return shapePaperLines(lines)
+    .map((line) => {
+      const resolved = /\[\[fig:/.test(line)
+        ? resolvePyqFigureHtml(line, links, folder, { appendUnused: false }).trim()
+        : line;
+      if (!resolved) return "";
+      return renderPaperLineHtml(resolved, paperLineClass(resolved), false);
+    })
+    .join("");
+}
+
+export function pyqSolutionToHtml(
+  md: string,
+  links: PyqFigureLinkRow[] | null | undefined = [],
+  folder: PyqFigureFolder = "physics/figures"
+): string {
+  const source = String(md ?? "").replace(/\r\n/g, "\n");
+  const isPaper = /<!--\s*paper-ocr\s*-->/.test(source);
+  const raw = unicodeMathToLatex(source.replace(PAPER_OCR_MARK, "").trim());
   if (!raw) return "";
-  const chunks = raw
-    .split(/\n{2,}|\n(?=\d+\.\s)/)
-    .map((para) => para.replace(/\n/g, " ").trim())
-    .filter(Boolean);
+  if (isPaper) {
+    return paperSolutionToHtml(raw, links, folder);
+  }
+  const chunks = splitSolutionChunks(raw).map((chunk) =>
+    /\[\[fig:/.test(chunk)
+      ? resolvePyqFigureHtml(chunk, links, folder, { appendUnused: false }).trim()
+      : chunk
+  ).filter(Boolean);
 
   const leads: string[] = [];
   const steps: { n: string; body: string }[] = [];
   for (const chunk of chunks) {
     const match = chunk.match(SOLUTION_STEP);
-    if (match) {
+    if (match && !/^<img\b/i.test(chunk)) {
       steps.push({ n: match[1]!, body: chunk.slice(match[0].length).trim() });
       continue;
     }
@@ -687,13 +1025,13 @@ export function pyqSolutionToHtml(md: string): string {
   }
 
   const leadHtml = leads
-    .map((para) => `<p class="nta-sol-lead nta-math-plain">${escapeHtmlTextNode(para)}</p>`)
+    .map((para) => `<p class="nta-sol-lead nta-math-plain">${solutionInlineHtml(para)}</p>`)
     .join("");
   if (steps.length === 0) {
     return (
       leadHtml ||
       chunks
-        .map((para) => `<p class="nta-sol-lead nta-math-plain">${escapeHtmlTextNode(para)}</p>`)
+        .map((para) => `<p class="nta-sol-lead nta-math-plain">${solutionInlineHtml(para)}</p>`)
         .join("")
     );
   }
@@ -703,7 +1041,7 @@ export function pyqSolutionToHtml(md: string): string {
       return (
         `<li class="nta-sol-step${end}">` +
         `<span class="nta-sol-n">${escapeHtmlTextNode(step.n)}</span>` +
-        `<div class="nta-sol-copy nta-math-plain">${escapeHtmlTextNode(step.body)}</div>` +
+        `<div class="nta-sol-copy nta-math-plain">${solutionInlineHtml(step.body)}</div>` +
         `</li>`
       );
     })

@@ -1,4 +1,4 @@
-import { parsePyqWorkedSolution } from "@/lib/chapter-pyq/pyqWorkedSolution";
+import { isPaperOcrSolution, parsePyqWorkedSolution } from "@/lib/chapter-pyq/pyqWorkedSolution";
 
 /** Worked solution payload for the NTA popup. Prefers stored JSON/markdown over HTML. */
 export function ntaQuestionSolutionText(q: {
@@ -6,6 +6,10 @@ export function ntaQuestionSolutionText(q: {
   solution?: string | null;
 }): string {
   const plain = String(q.solution ?? "").trim();
+  if (isPaperOcrSolution(plain)) {
+    const html = String(q.solutionHtml ?? "").trim();
+    return html || plain;
+  }
   if (plain.startsWith("{") || parsePyqWorkedSolution(plain)) {
     return plain;
   }

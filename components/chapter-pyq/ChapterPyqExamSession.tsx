@@ -10,7 +10,6 @@ import { useAuth } from "@/hooks/useAuth";
 import ChapterPyqResultView from "@/components/chapter-pyq/ChapterPyqResultView";
 import { pyqQuestionSources, type ChapterPyqQuestion } from "@/lib/chapter-pyq/pyqQuestionMap";
 import { commitNumericDraft } from "@/lib/chapter-pyq/pyqNumericDraft";
-import { PYQ_TIER_LABEL } from "@/lib/chapter-pyq/pyqTiers";
 import { secondsForSet } from "@/lib/chapter-pyq/pyqSets";
 import {
   PYQ_EXAM_SESSION_OVERLAY_CLASS,
@@ -54,10 +53,6 @@ export default function ChapterPyqExamSession({
   const [finished, setFinished] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, number> | null>(null);
 
-  const questionBadges = useMemo(
-    () => Object.fromEntries(entries.map((e) => [e.question.id, PYQ_TIER_LABEL[e.tier]])),
-    [entries]
-  );
   const questionSources = useMemo(() => pyqQuestionSources(entries), [entries]);
 
   const handleFinish = useCallback(() => {
@@ -164,7 +159,6 @@ export default function ChapterPyqExamSession({
           visitedIds={visitedIds}
           numericDrafts={numericDrafts}
           onNumericDraftChange={handleNumericDraftChange}
-          questionBadges={questionBadges}
           questionSources={questionSources}
           onAnswerSelect={handleAnswerSelect}
           onSaveAndNext={goNext}

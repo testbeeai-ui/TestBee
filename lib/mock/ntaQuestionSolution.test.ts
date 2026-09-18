@@ -38,4 +38,20 @@ describe("ntaQuestionSolutionText", () => {
   it("falls back to the plain solution string", () => {
     expect(ntaQuestionSolutionText({ solutionHtml: "  ", solution: "  4π  " })).toBe("4π");
   });
+
+  it("uses HTML for paper OCR markdown instead of the glm sheet", () => {
+    const paper = "<!-- paper-ocr -->\n\n[[fig:s2026j_q01_crop]]\n\n1. King.\n2. $9$.";
+    expect(
+      ntaQuestionSolutionText({
+        solutionHtml: '<p class="nta-sol-lead"><img class="nta-mock-img" alt="crop"></p>',
+        solution: paper,
+      })
+    ).toContain("nta-mock-img");
+    expect(
+      ntaQuestionSolutionText({
+        solutionHtml: "",
+        solution: paper,
+      })
+    ).toBe(paper);
+  });
 });

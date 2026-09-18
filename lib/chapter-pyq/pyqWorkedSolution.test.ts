@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isPaperOcrSolution,
   parsePyqWorkedSolution,
   problemTexForQuestion,
   stackEqualsChain,
@@ -149,6 +150,18 @@ describe("parsePyqWorkedSolution", () => {
       "callout",
       "display",
     ]);
+  });
+
+  it("does not steal paper OCR markdown into the glm sheet", () => {
+    expect(
+      parsePyqWorkedSolution("<!-- paper-ocr -->\n\n1. Apply King.\n2. The value is $9$.")
+    ).toBeNull();
+    expect(
+      parsePyqWorkedSolution("1. Start.\n\n[[fig:s2026j_q01_crop]]\n\n2. Finish.")
+    ).toBeNull();
+    expect(isPaperOcrSolution("<!-- paper-ocr -->\n1. King.")).toBe(true);
+    expect(isPaperOcrSolution("See [[fig:s2026j_q01_crop]]")).toBe(true);
+    expect(isPaperOcrSolution("1. Split even and odd.\n2. Integrate.")).toBe(false);
   });
 
   it("turns leftover numbered write-ups into one step each, never Setup/Working", () => {

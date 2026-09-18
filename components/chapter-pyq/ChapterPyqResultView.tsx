@@ -240,7 +240,6 @@ export default function ChapterPyqResultView({
                       {paper ? (
                         <span title={pyqPaperHoverTitle(paper.date, paper.shift)}>
                           {paper.date}
-                          {paper.shift ? ` · ${paper.shift} shift` : ""}
                         </span>
                       ) : null}
                     </span>

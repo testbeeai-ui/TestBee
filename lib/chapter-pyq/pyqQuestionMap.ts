@@ -18,7 +18,7 @@ export type ChapterPyqQuestion = {
   topicName: string | null;
   qNo: number;
   sourcePage: number;
-  /** e.g. "30 Jan 2024 (Evening)". Null when `exam_date` is missing. */
+  /** e.g. "JAN 2024 (Evening)". Null when `exam_date` is missing. Day-of-month is never shown. */
   examLabel: string | null;
   /** Calendar year from `exam_date`. Null when the date is missing. */
   examYear: number | null;
@@ -64,7 +64,9 @@ export function formatPyqExamLabel(
   if (!examDate) return null;
   const m = examDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return null;
-  const date = `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
+  const month = MONTHS[Number(m[2]) - 1];
+  if (!month) return null;
+  const date = `${month.toUpperCase()} ${m[1]}`;
   const shiftLabel = formatPyqExamShift(shift);
   return shiftLabel ? `${date} (${shiftLabel})` : date;
 }
@@ -128,7 +130,10 @@ export function pyqQuestionSources(
 ): Record<string, { date: string; shift: "Morning" | "Evening" | null }> {
   const out: Record<string, { date: string; shift: "Morning" | "Evening" | null }> = {};
   for (const entry of entries) {
-    if (entry.examLabel) out[entry.question.id] = splitPyqExamLabel(entry.examLabel);
+    if (entry.examLabel) {
+      const { date } = splitPyqExamLabel(entry.examLabel);
+      out[entry.question.id] = { date, shift: null };
+    }
   }
   return out;
 }
@@ -158,13 +163,11 @@ export function mapPyqRowToChapterPyqQuestion(
   const pdfChapterName = row.chapters.name || chapterFallback;
   const topicName = row.topics?.name?.trim() || null;
   const isNumerical = row.format === "numerical";
-  const questionHtml = pyqStemToHtml(
-    body,
-    row.figure_links ?? [],
+  const figFolder =
     mathPdfChaptersForCatalogSlug(row.chapters.catalog_slug ?? "").length > 0
       ? "math/figures"
-      : "physics/figures"
-  );
+      : "physics/figures";
+  const questionHtml = pyqStemToHtml(body, row.figure_links ?? [], figFolder);
 
   const solutionMd = row.solution_md?.trim() ?? "";
   const question: Question = {
@@ -175,7 +178,10 @@ export function mapPyqRowToChapterPyqQuestion(
     examType: ["JEE_Mains"],
     question: stripHtmlToPlain(questionHtml) || "Question",
     questionHtml,
-    solutionHtml: solutionMd && !solutionMd.startsWith("{") ? pyqSolutionToHtml(solutionMd) : null,
+    solutionHtml:
+      solutionMd && !solutionMd.startsWith("{")
+        ? pyqSolutionToHtml(solutionMd, row.figure_links ?? [], figFolder)
+        : null,
     options: isNumerical ? [] : mcqOptions(row),
     // -1 is an out-of-range option index, not an unreachable value: a student can
     // legitimately enter -1. Scoring must branch on answerFormat first.

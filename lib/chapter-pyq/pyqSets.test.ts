@@ -105,7 +105,8 @@ describe("pyq set splitting", () => {
   });
 
   it("uses live year-set size when no listed override exists", () => {
-    expect(pyqYearSetListedCount("definite-integration", "2025", 63)).toBe(63);
+    expect(pyqYearSetListedCount("definite-integration", "2025", 22)).toBe(22);
+    expect(pyqYearSetListedCount("area-under-curves", "2025", 19)).toBe(19);
     expect(pyqYearSetListedCount("quadratic-equation", "2025", 22)).toBe(22);
   });
 });

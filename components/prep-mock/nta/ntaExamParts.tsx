@@ -12,6 +12,7 @@ import {
 } from "@/lib/mock/mockRichTextKatex";
 import { useKatexAutoRender } from "@/hooks/useKatexAutoRender";
 import { cn } from "@/lib/utils";
+import { NtaFigureLightbox, useNtaFigurePreview } from "@/components/prep-mock/nta/NtaFigureLightbox";
 
 export function formatNtaHhMmSs(totalSeconds: number): string {
   const t = Math.max(0, totalSeconds);
@@ -22,7 +23,7 @@ export function formatNtaHhMmSs(totalSeconds: number): string {
 }
 
 const ntaImgClass =
-  "[&_img]:my-2 [&_img]:block [&_img]:h-auto [&_img]:max-h-56 [&_img]:max-w-full [&_img]:w-auto [&_img]:rounded [&_img]:object-contain sm:[&_img]:max-h-64 lg:[&_img]:max-h-72";
+  "[&_img]:my-2 [&_img]:block [&_img]:h-auto [&_img]:max-h-56 [&_img]:max-w-full [&_img]:w-auto [&_img]:rounded [&_img]:object-contain sm:[&_img]:max-h-64 lg:[&_img]:max-h-72 [&_img.nta-mock-img]:cursor-zoom-in";
 
 const ntaMdClass =
   "min-w-0 max-w-full break-words text-[var(--nta-text)] [&_.katex]:!text-[var(--nta-text)] [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_a]:!text-[var(--nta-blue)] [&_.katex-error]:!text-[var(--nta-text)] [&_.katex-error]:!bg-transparent";
@@ -187,6 +188,8 @@ export const NtaRichTextBlock = memo(function NtaRichTextBlock({
   }, [t]);
   useKatexAutoRender(htmlRef, safeHtml, t);
 
+  const { previewSrc, previewAlt, onPreviewClick, closePreview } = useNtaFigurePreview();
+
   if (!safeHtml) return null;
 
   const variantClass = (() => {
@@ -216,7 +219,15 @@ export const NtaRichTextBlock = memo(function NtaRichTextBlock({
   })();
 
   return (
-    <div ref={htmlRef} className={cn(variantClass, className)} suppressHydrationWarning />
+    <>
+      <div
+        ref={htmlRef}
+        className={cn(variantClass, className)}
+        onClick={onPreviewClick}
+        suppressHydrationWarning
+      />
+      <NtaFigureLightbox src={previewSrc} alt={previewAlt} onClose={closePreview} />
+    </>
   );
 });
 
@@ -241,23 +252,28 @@ export const NtaQuestionStem = memo(function NtaQuestionStem({
     );
   }, [q.questionHtml, q.question]);
   useKatexAutoRender(htmlRef, safeHtml, q.id);
+  const { previewSrc, previewAlt, onPreviewClick, closePreview } = useNtaFigurePreview();
 
   if (!safeHtml) return null;
   return (
-    <div
-      ref={htmlRef}
-      className={cn(
-        "prose max-w-none font-medium leading-[1.75] [&_p]:my-2",
-        mobile
-          ? "text-[14px] leading-[1.7] sm:text-[15px]"
-          : "text-base sm:text-[17px] md:text-[18px] lg:text-[18.5px] xl:text-[19px]",
-        mobile ? ntaMobileMdClass : ntaMdClass,
-        ntaImgClass,
-        mobile ? ntaMobileStemKatexClass : ntaStemKatexClass,
-        className
-      )}
-      suppressHydrationWarning
-    />
+    <>
+      <div
+        ref={htmlRef}
+        className={cn(
+          "prose max-w-none font-medium leading-[1.75] [&_p]:my-2",
+          mobile
+            ? "text-[14px] leading-[1.7] sm:text-[15px]"
+            : "text-base sm:text-[17px] md:text-[18px] lg:text-[18.5px] xl:text-[19px]",
+          mobile ? ntaMobileMdClass : ntaMdClass,
+          ntaImgClass,
+          mobile ? ntaMobileStemKatexClass : ntaStemKatexClass,
+          className
+        )}
+        onClick={onPreviewClick}
+        suppressHydrationWarning
+      />
+      <NtaFigureLightbox src={previewSrc} alt={previewAlt} onClose={closePreview} />
+    </>
   );
 });
 
