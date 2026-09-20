@@ -48,16 +48,18 @@ export const PYQ_PHYSICS_PDF_CHAPTERS: readonly PdfChapterMapping[] = [
 ];
 
 /**
- * MathonGo JEE Main Mathematics PYQ book (33 chapters) → app catalog.
+ * MathonGo JEE Main 2025 January / April chapter-wise Mathematics bank (29 chapters)
+ * → app catalog. One PDF chapter number = one catalog page. Do not use the 33-chapter
+ * 2019–2025 compilation map here (that book inserts Mathematical Reasoning,
+ * Differentiation, Heights and Distances, and Properties of Triangles and shifts
+ * every later number).
  *
- * Units from the PDF Content page: Algebra (1–11), Calculus (12–21),
- * Coordinate Geometry (22–26), Trigonometry (27–31), Vector Algebra (32–33).
+ * Question-page footers may shorten a TOC title (ch.25 prints "Trigonometric Ratios").
+ * That is still chapter 25 — never merge it into another catalog slug.
  *
- * Heights and Distances + Properties of Triangles are trig topics — they land
- * on Trigonometric Ratios and Identities (no extra route). Mathematical
- * Reasoning is its own Algebra chapter (same idea as Communication System).
- * The leftover catalog row "Limits, Continuity and Differentiability" is not
- * a PDF chapter; 14 / 15 / 16 stay split.
+ * Catalog leftovers that are not in this PDF stay unsourced: Differentiation
+ * and "Limits, Continuity and Differentiability". Heights and Distances and
+ * Properties of Triangles are not catalog chapters.
  */
 export const PYQ_MATH_PDF_CHAPTERS: readonly PdfChapterMapping[] = [
   { pdfChapterNo: 1, pdfChapterTitle: "Basic of Mathematics", catalogSlug: "basic-of-mathematics", note: "1:1 · Algebra" },
@@ -66,33 +68,29 @@ export const PYQ_MATH_PDF_CHAPTERS: readonly PdfChapterMapping[] = [
   { pdfChapterNo: 4, pdfChapterTitle: "Sequences and Series", catalogSlug: "sequences-and-series", note: "1:1 · Algebra" },
   { pdfChapterNo: 5, pdfChapterTitle: "Permutation Combination", catalogSlug: "permutation-combination", note: "1:1 · Algebra" },
   { pdfChapterNo: 6, pdfChapterTitle: "Binomial Theorem", catalogSlug: "binomial-theorem", note: "1:1 · Algebra" },
-  { pdfChapterNo: 7, pdfChapterTitle: "Mathematical Reasoning", catalogSlug: "mathematical-reasoning", note: "New catalog chapter · Algebra" },
-  { pdfChapterNo: 8, pdfChapterTitle: "Statistics", catalogSlug: "statistics", note: "1:1 · Algebra" },
-  { pdfChapterNo: 9, pdfChapterTitle: "Matrices", catalogSlug: "matrices", note: "1:1 · Algebra" },
-  { pdfChapterNo: 10, pdfChapterTitle: "Determinants", catalogSlug: "determinants", note: "1:1 · Algebra" },
-  { pdfChapterNo: 11, pdfChapterTitle: "Probability", catalogSlug: "probability", note: "1:1 · Algebra" },
-  { pdfChapterNo: 12, pdfChapterTitle: "Sets and Relations", catalogSlug: "sets-and-relations", note: "1:1 · Calculus" },
-  { pdfChapterNo: 13, pdfChapterTitle: "Functions", catalogSlug: "functions", note: "1:1 · Calculus" },
-  { pdfChapterNo: 14, pdfChapterTitle: "Limits", catalogSlug: "limits", note: "1:1 · Calculus" },
-  { pdfChapterNo: 15, pdfChapterTitle: "Continuity and Differentiability", catalogSlug: "continuity-and-differentiability", note: "1:1 · Calculus" },
-  { pdfChapterNo: 16, pdfChapterTitle: "Differentiation", catalogSlug: "differentiation", note: "1:1 · Calculus" },
-  { pdfChapterNo: 17, pdfChapterTitle: "Application of Derivatives", catalogSlug: "application-of-derivatives", note: "1:1 · Calculus" },
-  { pdfChapterNo: 18, pdfChapterTitle: "Indefinite Integration", catalogSlug: "indefinite-integration", note: "1:1 · Calculus" },
-  { pdfChapterNo: 19, pdfChapterTitle: "Definite Integration", catalogSlug: "definite-integration", note: "1:1 · Calculus" },
-  { pdfChapterNo: 20, pdfChapterTitle: "Area Under Curves", catalogSlug: "area-under-curves", note: "1:1 · Calculus" },
-  { pdfChapterNo: 21, pdfChapterTitle: "Differential Equations", catalogSlug: "differential-equations", note: "1:1 · Calculus" },
-  { pdfChapterNo: 22, pdfChapterTitle: "Straight Lines", catalogSlug: "straight-lines", note: "1:1 · Coordinate Geometry" },
-  { pdfChapterNo: 23, pdfChapterTitle: "Circle", catalogSlug: "circle", note: "1:1 · Coordinate Geometry" },
-  { pdfChapterNo: 24, pdfChapterTitle: "Parabola", catalogSlug: "parabola", note: "1:1 · Coordinate Geometry" },
-  { pdfChapterNo: 25, pdfChapterTitle: "Ellipse", catalogSlug: "ellipse", note: "1:1 · Coordinate Geometry" },
-  { pdfChapterNo: 26, pdfChapterTitle: "Hyperbola", catalogSlug: "hyperbola", note: "1:1 · Coordinate Geometry" },
-  { pdfChapterNo: 27, pdfChapterTitle: "Trigonometric Ratios & Identities", catalogSlug: "trigonometric-ratios-and-identities", note: "Rename · Trigonometry" },
-  { pdfChapterNo: 28, pdfChapterTitle: "Trigonometric Equations", catalogSlug: "trigonometric-equations", note: "1:1 · Trigonometry" },
-  { pdfChapterNo: 29, pdfChapterTitle: "Inverse Trigonometric Functions", catalogSlug: "inverse-trigonometric-functions", note: "1:1 · Trigonometry" },
-  { pdfChapterNo: 30, pdfChapterTitle: "Heights and Distances", catalogSlug: "trigonometric-ratios-and-identities", note: "Becomes a topic · Trigonometry" },
-  { pdfChapterNo: 31, pdfChapterTitle: "Properties of Triangles", catalogSlug: "trigonometric-ratios-and-identities", note: "Becomes a topic · Trigonometry" },
-  { pdfChapterNo: 32, pdfChapterTitle: "Vector Algebra", catalogSlug: "vector-algebra", note: "1:1 · Vector Algebra" },
-  { pdfChapterNo: 33, pdfChapterTitle: "Three Dimensional Geometry", catalogSlug: "three-dimensional-geometry", note: "1:1 · Vector Algebra" },
+  { pdfChapterNo: 7, pdfChapterTitle: "Statistics", catalogSlug: "statistics", note: "1:1 · Algebra" },
+  { pdfChapterNo: 8, pdfChapterTitle: "Matrices", catalogSlug: "matrices", note: "1:1 · Algebra" },
+  { pdfChapterNo: 9, pdfChapterTitle: "Determinants", catalogSlug: "determinants", note: "1:1 · Algebra" },
+  { pdfChapterNo: 10, pdfChapterTitle: "Probability", catalogSlug: "probability", note: "1:1 · Algebra" },
+  { pdfChapterNo: 11, pdfChapterTitle: "Sets and Relations", catalogSlug: "sets-and-relations", note: "1:1 · Calculus" },
+  { pdfChapterNo: 12, pdfChapterTitle: "Functions", catalogSlug: "functions", note: "1:1 · Calculus" },
+  { pdfChapterNo: 13, pdfChapterTitle: "Limits", catalogSlug: "limits", note: "1:1 · Calculus" },
+  { pdfChapterNo: 14, pdfChapterTitle: "Continuity and Differentiability", catalogSlug: "continuity-and-differentiability", note: "1:1 · Calculus" },
+  { pdfChapterNo: 15, pdfChapterTitle: "Application of Derivatives", catalogSlug: "application-of-derivatives", note: "1:1 · Calculus" },
+  { pdfChapterNo: 16, pdfChapterTitle: "Indefinite Integration", catalogSlug: "indefinite-integration", note: "1:1 · Calculus" },
+  { pdfChapterNo: 17, pdfChapterTitle: "Definite Integration", catalogSlug: "definite-integration", note: "1:1 · Calculus" },
+  { pdfChapterNo: 18, pdfChapterTitle: "Area Under Curves", catalogSlug: "area-under-curves", note: "1:1 · Calculus" },
+  { pdfChapterNo: 19, pdfChapterTitle: "Differential Equations", catalogSlug: "differential-equations", note: "1:1 · Calculus" },
+  { pdfChapterNo: 20, pdfChapterTitle: "Straight Lines", catalogSlug: "straight-lines", note: "1:1 · Coordinate Geometry" },
+  { pdfChapterNo: 21, pdfChapterTitle: "Circle", catalogSlug: "circle", note: "1:1 · Coordinate Geometry" },
+  { pdfChapterNo: 22, pdfChapterTitle: "Parabola", catalogSlug: "parabola", note: "1:1 · Coordinate Geometry" },
+  { pdfChapterNo: 23, pdfChapterTitle: "Ellipse", catalogSlug: "ellipse", note: "1:1 · Coordinate Geometry" },
+  { pdfChapterNo: 24, pdfChapterTitle: "Hyperbola", catalogSlug: "hyperbola", note: "1:1 · Coordinate Geometry" },
+  { pdfChapterNo: 25, pdfChapterTitle: "Trigonometric Ratios & Identities", catalogSlug: "trigonometric-ratios-and-identities", note: "1:1 · Trigonometry · footer may say Trigonometric Ratios" },
+  { pdfChapterNo: 26, pdfChapterTitle: "Trigonometric Equations", catalogSlug: "trigonometric-equations", note: "1:1 · Trigonometry" },
+  { pdfChapterNo: 27, pdfChapterTitle: "Inverse Trigonometric Functions", catalogSlug: "inverse-trigonometric-functions", note: "1:1 · Trigonometry" },
+  { pdfChapterNo: 28, pdfChapterTitle: "Vector Algebra", catalogSlug: "vector-algebra", note: "1:1 · Vector Algebra" },
+  { pdfChapterNo: 29, pdfChapterTitle: "Three Dimensional Geometry", catalogSlug: "three-dimensional-geometry", note: "1:1 · Vector Algebra" },
 ];
 
 export const PYQ_DEFERRED_PDF_CHAPTERS: readonly number[] = PYQ_PHYSICS_PDF_CHAPTERS.filter(

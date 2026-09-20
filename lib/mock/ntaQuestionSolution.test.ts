@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ntaQuestionSolutionText } from "./ntaQuestionSolution";
+import { ntaQuestionCoachText, ntaQuestionSolutionText } from "./ntaQuestionSolution";
 
 describe("ntaQuestionSolutionText", () => {
   it("is empty when MathonGo-style questions ship no worked solution", () => {
@@ -37,5 +37,37 @@ describe("ntaQuestionSolutionText", () => {
 
   it("falls back to the plain solution string", () => {
     expect(ntaQuestionSolutionText({ solutionHtml: "  ", solution: "  4π  " })).toBe("4π");
+  });
+
+  it("feeds paper OCR markdown to the worked sheet", () => {
+    const paper = "<!-- paper-ocr -->\n\n## Step 1: King\n\n$I = 9$.";
+    expect(
+      ntaQuestionSolutionText({
+        solutionHtml: '<p class="nta-sol-lead"><img class="nta-mock-img" alt="crop"></p>',
+        solution: paper,
+      })
+    ).toBe(paper);
+  });
+});
+
+describe("ntaQuestionCoachText", () => {
+  it("is empty when that column was never filled", () => {
+    expect(ntaQuestionCoachText({ coachTips: null, coachFormulas: null }, "tips")).toBe("");
+    expect(ntaQuestionCoachText({ coachTips: "  ", coachFormulas: null }, "formulas")).toBe("");
+  });
+
+  it("returns the stored markdown for Tips or Formula's", () => {
+    expect(
+      ntaQuestionCoachText(
+        { coachTips: "  Split even/odd.  ", coachFormulas: "$I_{even}=2\\int_0^a$" },
+        "tips"
+      )
+    ).toBe("Split even/odd.");
+    expect(
+      ntaQuestionCoachText(
+        { coachTips: "Split even/odd.", coachFormulas: "  $\\int_{-a}^{a}f=0$  " },
+        "formulas"
+      )
+    ).toBe("$\\int_{-a}^{a}f=0$");
   });
 });

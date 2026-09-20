@@ -59,6 +59,10 @@ export type PyqQuestionRow = {
   figure_links: PyqFigureLinkRow[];
   /** Worked solution markdown. Null until pyq-solutions publishes it. */
   solution_md?: string | null;
+  /** Direction to attempt the question. Null until filled. */
+  tips_md?: string | null;
+  /** Formulae used on this question. Null until filled. */
+  formulas_md?: string | null;
 };
 
 export const PYQ_QUESTION_SELECT = [
@@ -76,6 +80,8 @@ export const PYQ_QUESTION_SELECT = [
   "out_of_syllabus",
   "good_to_solve",
   "solution_md",
+  "tips_md",
+  "formulas_md",
   // Each embed is aliased to its unprefixed name, so the JSON keys stay
   // `chapters` / `topics` / `question_options` / `figure_links` / `figures`.
   // Embedded filters use the alias too, hence `.eq("chapters.catalog_slug", …)`.

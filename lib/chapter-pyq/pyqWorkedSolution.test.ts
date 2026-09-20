@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isPaperOcrSolution,
   parsePyqWorkedSolution,
   problemTexForQuestion,
   stackEqualsChain,
@@ -151,6 +152,35 @@ describe("parsePyqWorkedSolution", () => {
     ]);
   });
 
+  it("maps paper OCR step cards onto the worked sheet", () => {
+    const parsed = parsePyqWorkedSolution(
+      [
+        "<!-- paper-ocr -->",
+        "## Step 1: Simplification of LHS",
+        "$\\frac{3\\cos 2x+\\cos^3 2x}{\\cos^6 x-\\sin^6 x}=x^3-x^2+6$",
+        "## Step 2: Solving polynomial equation",
+        "$x^3-x^2+2=0$",
+        "## Step 3: Final evaluation",
+        "so, sum of real solutions",
+        "$=-1$",
+      ].join("\n")
+    );
+    expect(parsed?.title).toBe("Worked solution");
+    expect(parsed?.phases.map((p) => p.title)).toEqual([
+      "Simplification of LHS",
+      "Solving polynomial equation",
+      "Final evaluation",
+    ]);
+    expect(parsed?.phases[0]?.blocks.some((b) => b.kind === "display")).toBe(true);
+    expect(parsed?.answer_tex).toContain("-1");
+  });
+
+  it("still treats crop-only figure tokens as paper, not glm numbered markdown", () => {
+    expect(isPaperOcrSolution("<!-- paper-ocr -->\n1. King.")).toBe(true);
+    expect(isPaperOcrSolution("See [[fig:s2026j_q01_crop]]")).toBe(true);
+    expect(isPaperOcrSolution("1. Split even and odd.\n2. Integrate.")).toBe(false);
+  });
+
   it("turns leftover numbered write-ups into one step each, never Setup/Working", () => {
     const parsed = parsePyqWorkedSolution(
       "1. Split even and odd.\n2. Integrate.\n3. The value is $4\\pi$."
@@ -192,6 +222,12 @@ describe("parsePyqWorkedSolution", () => {
     expect(stacked).toContain("&= 13/32 \\ne 0");
     expect(stackEqualsChain("16-36+24+4=8 \\ne 0")).toBe("16-36+24+4=8 \\ne 0");
     expect(wrapDisplayTex(tex)).toContain("\\begin{aligned}");
+  });
+
+  it("does not treat subscript k=1 as another equals in the chain", () => {
+    const tex = "\\sum_{k=1}^{n}\\frac{k}{2^k}=2-\\frac{n+2}{2^n}";
+    expect(stackEqualsChain(tex)).toBe(tex);
+    expect(wrapDisplayTex(tex)).toBe(`$$${tex}$$`);
   });
 
   it("splits jammed root-checks into a labeled grid and short prose", () => {

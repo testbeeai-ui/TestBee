@@ -40,13 +40,52 @@ describe("pyq figures", () => {
     expect(html).not.toContain("onerror");
   });
 
-  it("synthesizes an img from a raster placeholder when figure_links is empty", () => {
-    const html = resolvePyqFigureHtml("See [[fig:p047_x549]] here", []);
-    expect(html).not.toContain("[[fig:");
+  it("synthesizes an img from a printed-diagram key", () => {
+    const html = resolvePyqFigureHtml("See [[fig:s2026j_q09_1]]", [], "math/figures");
     expect(html).toContain("<img");
-    expect(html).toContain("p047_x549.png");
-    expect(html).toContain("pyq/physics/figures/p047_x549.png");
-    expect(html).toContain("See");
+    expect(html).toContain("s2026j_q09_1.png");
+    expect(html).toContain("pyq/math/figures/s2026j_q09_1.png");
+    expect(html).toContain('class="nta-mock-img"');
+  });
+
+  it("synthesizes an img from a 2025 chapter-wise section key", () => {
+    const html = resolvePyqFigureHtml("See [[fig:s2025j_di_q04_1]]", [], "math/figures");
+    expect(html).toContain("<img");
+    expect(html).toContain("s2025j_di_q04_1.png");
+    expect(html).toContain("pyq/math/figures/s2025j_di_q04_1.png");
+    expect(html).toContain('class="nta-mock-img"');
+    expect(html).not.toContain("[[fig:");
+  });
+
+  it("synthesizes an img from a three-letter month chapter-wise key", () => {
+    const html = resolvePyqFigureHtml("See [[fig:s2025apr_te_q03_1]]", [], "math/figures");
+    expect(html).toContain("<img");
+    expect(html).toContain("s2025apr_te_q03_1.png");
+    expect(html).not.toContain("[[fig:");
+  });
+
+  it("synthesizes an img from a year-only session chapter key", () => {
+    const html = resolvePyqFigureHtml("See [[fig:s2026_te_q01_1]]", [], "math/figures");
+    expect(html).toContain("<img");
+    expect(html).toContain("s2026_te_q01_1.png");
+    expect(html).not.toContain("[[fig:");
+  });
+
+  it("does not paste a full-page crop watermark as a figure", () => {
+    const html = resolvePyqFigureHtml("See [[fig:s2026j_q01_crop]]", [], "math/figures");
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("s2026j_q01_crop");
+  });
+
+  it("does not append unused question_body figures onto solution HTML", () => {
+    const html = resolvePyqFigureHtml(
+      "Printed write-up only.",
+      [link("p047_x101")],
+      "physics/figures",
+      { appendUnused: false }
+    );
+    expect(html).not.toContain("<img");
+    expect(html).toContain("Printed write-up only.");
   });
 
   it("unwraps PostgREST array-shaped figure embeds", () => {

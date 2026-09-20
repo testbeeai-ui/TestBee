@@ -301,6 +301,8 @@ describe("pyq question rows", () => {
       "question_options:pyq_question_options(option_index, body)",
       "figure_links:pyq_figure_links(role, sort_order, figures:pyq_figures(figure_key, storage_path, public_url, alt_text))",
       "solution_md",
+      "tips_md",
+      "formulas_md",
     ]) {
       expect(PYQ_QUESTION_SELECT).toContain(fragment);
     }

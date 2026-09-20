@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Bookmark, BookOpen, Check, Clock, Flag, Send, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, BookOpen, Check, Clock, Flag, Lightbulb, Send, Sigma, X } from "lucide-react";
 import type { Question, Subject } from "@/types";
 import { CORE_SUBJECTS } from "@/types";
 import { getNtaPaletteKind } from "@/components/prep-mock/nta/ntaPaletteShapes";
@@ -57,7 +57,9 @@ export interface NtaExamShellMobileProps {
   questionBadges?: Record<string, string>;
   /** Optional paper provenance on the question header (date + Morning/Evening). */
   questionSources?: Record<string, NtaQuestionSource>;
-  onOpenSolution: () => void;
+  onOpenSolution?: () => void;
+  onOpenTips?: () => void;
+  onOpenFormulas?: () => void;
 }
 
 export function NtaExamShellMobile({
@@ -85,6 +87,8 @@ export function NtaExamShellMobile({
   questionBadges,
   questionSources,
   onOpenSolution,
+  onOpenTips,
+  onOpenFormulas,
 }: NtaExamShellMobileProps) {
   const q = questions[currentIndex];
   const paletteScrollRef = useRef<HTMLDivElement>(null);
@@ -381,13 +385,33 @@ export function NtaExamShellMobile({
             label="Save & mark"
             onClick={onSaveMarkReviewNext}
           />
-          <MobileActionBtn
-            variant="solution"
-            icon={<BookOpen className="h-4 w-4" aria-hidden />}
-            label="Solution"
-            onClick={onOpenSolution}
-            className="ml-2 min-w-[5.75rem] sm:ml-3"
-          />
+          {onOpenTips ? (
+            <MobileActionBtn
+              variant="tips"
+              icon={<Lightbulb className="h-4 w-4" aria-hidden />}
+              label="Tips"
+              onClick={onOpenTips}
+              className="ml-2 min-w-[4.5rem] sm:ml-3"
+            />
+          ) : null}
+          {onOpenFormulas ? (
+            <MobileActionBtn
+              variant="formulas"
+              icon={<Sigma className="h-4 w-4" aria-hidden />}
+              label="Formula's"
+              onClick={onOpenFormulas}
+              className={onOpenTips ? "min-w-[5.5rem]" : "ml-2 min-w-[5.5rem] sm:ml-3"}
+            />
+          ) : null}
+          {onOpenSolution ? (
+            <MobileActionBtn
+              variant="solution"
+              icon={<BookOpen className="h-4 w-4" aria-hidden />}
+              label="Solution"
+              onClick={onOpenSolution}
+              className={onOpenTips || onOpenFormulas ? "min-w-[5.75rem]" : "ml-2 min-w-[5.75rem] sm:ml-3"}
+            />
+          ) : null}
         </div>
         <div className="flex items-center gap-1.5">
           <button
@@ -456,7 +480,7 @@ function MobileLegendDot({
   );
 }
 
-type MobileActionVariant = "save" | "clear" | "review" | "solution";
+type MobileActionVariant = "save" | "clear" | "review" | "solution" | "tips" | "formulas";
 
 function mobileActionVariantClass(variant: MobileActionVariant): string {
   switch (variant) {
@@ -468,6 +492,10 @@ function mobileActionVariantClass(variant: MobileActionVariant): string {
       return "nta-m-btn-review";
     case "solution":
       return "nta-m-btn-solution";
+    case "tips":
+      return "nta-m-btn-tips";
+    case "formulas":
+      return "nta-m-btn-formulas";
     default: {
       const _exhaustive: never = variant;
       return _exhaustive;

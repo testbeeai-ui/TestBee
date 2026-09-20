@@ -33,7 +33,6 @@ const MATH_NAMES = [
   "Inverse Trigonometric Functions",
   "Limits",
   "Limits, Continuity and Differentiability",
-  "Mathematical Reasoning",
   "Matrices",
   "Parabola",
   "Permutation Combination",

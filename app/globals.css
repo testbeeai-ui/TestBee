@@ -2018,6 +2018,16 @@ html {
   color: #fff;
 }
 
+[data-nta-mobile-exam] .nta-m-btn-tips {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+[data-nta-mobile-exam] .nta-m-btn-formulas {
+  background: #6d28d9;
+  color: #fff;
+}
+
 [data-nta-mobile-exam] .nta-m-btn-mark {
   background: var(--nta-m-purple-dark);
   color: #fff;
@@ -2142,6 +2152,15 @@ img.nta-mock-img {
   background-color: #fff;
 }
 
+.nta-sol-sheet .nta-paper-step-body img.nta-mock-img {
+  display: block;
+  width: auto;
+  max-width: min(100%, 36rem);
+  max-height: none;
+  height: auto;
+  cursor: zoom-in;
+}
+
 /* Chapter hub — investor v2 (scoped; does not change global theme) */
 .chapter-hub-v2-start {
   background: hsl(245 55% 67%);
@@ -2198,6 +2217,73 @@ img.nta-mock-img {
 .nta-sol-sheet .nta-sol-lead {
   margin: 0 0 1.15rem;
   color: var(--nta-text);
+}
+.nta-sol-sheet .nta-sol-paper-label {
+  margin: 0.85rem 0 0.25rem;
+  color: var(--nta-text);
+  font-weight: 600;
+}
+.nta-sol-sheet .nta-sol-paper-eq {
+  margin: 0 0 0.28rem;
+  color: var(--nta-text);
+}
+.nta-sol-sheet .nta-paper-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+.nta-sol-sheet .nta-paper-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.nta-sol-sheet .nta-paper-step-label {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #38bdf8;
+}
+.nta-sol-sheet .nta-paper-step-body {
+  background: rgba(15, 23, 42, 0.5);
+  border-left: 3px solid #38bdf8;
+  border-radius: 0 8px 8px 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+.nta-sol-sheet .nta-paper-step-body .katex-display {
+  margin: 0.4rem 0;
+  overflow-x: auto;
+  text-align: left;
+  white-space: nowrap;
+}
+.nta-sol-sheet .nta-paper-step-body .katex {
+  white-space: nowrap;
+}
+.nta-sol-sheet .nta-paper-step-body .katex .mtable {
+  white-space: nowrap;
+}
+.nta-sol-sheet .nta-paper-piecewise .katex-display,
+.nta-sol-sheet .nta-paper-step-body .katex-display:has(.mtable) {
+  margin: 0.15rem 0;
+  overflow: visible;
+}
+.nta-sol-sheet .nta-paper-step-body p {
+  margin: 0 0 0.55rem;
+  color: var(--nta-text);
+  overflow-x: auto;
+}
+.nta-sol-sheet .nta-paper-step-body p:last-child {
+  margin-bottom: 0;
+}
+.nta-sol-sheet .nta-paper-final {
+  display: inline-block;
+  border: 2px solid #38bdf8;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-weight: 700;
+  background: rgba(56, 189, 248, 0.08);
 }
 .nta-sol-sheet ol.nta-sol {
   list-style: none;
@@ -2301,5 +2387,570 @@ img.nta-mock-img {
   .nta-sol-sheet .nta-sol-step--end {
     padding: 0.75rem 0.7rem;
   }
+}
+
+.nta-coach-blueprint {
+  --coach-neon: #38bdf8;
+  --coach-muted: #818cf8;
+  --coach-head: #f9fafb;
+  --coach-sub: #9ca3af;
+  --coach-track: #1f2937;
+  --coach-border: rgba(255, 255, 255, 0.08);
+  width: 100%;
+  max-width: 680px;
+  background:
+    radial-gradient(ellipse at 80% 0%, rgba(56, 189, 248, 0.07) 0%, transparent 50%),
+    rgba(17, 24, 39, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--coach-border);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+}
+
+.nta-coach-blueprint .nta-coach-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--coach-border);
+}
+
+.nta-coach-blueprint .nta-coach-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--coach-head);
+}
+
+.nta-coach-blueprint .nta-coach-kicker {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--coach-sub);
+}
+
+.nta-coach-blueprint .nta-coach-timeline {
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.nta-coach-blueprint .nta-coach-timeline::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 14px;
+  bottom: 24px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--coach-neon), var(--coach-muted), var(--coach-track));
+}
+
+.nta-coach-blueprint .nta-coach-step {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.nta-coach-blueprint .nta-coach-step:last-child {
+  margin-bottom: 0;
+}
+
+.nta-coach-blueprint .nta-coach-node {
+  position: absolute;
+  left: -1.75rem;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #0b0f19;
+  border: 2px solid var(--coach-neon);
+}
+
+.nta-coach-blueprint .nta-coach-node::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 999px;
+  background: var(--coach-neon);
+}
+
+.nta-coach-blueprint .nta-coach-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--coach-border);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+}
+
+.nta-coach-blueprint .nta-coach-tag {
+  margin-bottom: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--coach-neon);
+}
+
+.nta-coach-blueprint .nta-coach-heading {
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--coach-head);
+}
+
+.nta-coach-blueprint .nta-coach-copy,
+.nta-coach-blueprint .nta-coach-copy .nta-math-plain,
+.nta-coach-blueprint .nta-coach-copy p {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--coach-sub);
+}
+
+.nta-coach-blueprint .nta-sol-sheet,
+.nta-coach-blueprint .nta-worked-solution {
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+.nta-coach-blueprint .nta-coach-heading .nta-sol-sheet,
+.nta-coach-blueprint .nta-coach-heading .nta-sol-sheet p {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  line-height: inherit;
+}
+
+.nta-coach-blueprint .nta-coach-copy .nta-sol-sheet p,
+.nta-coach-blueprint .nta-coach-callout .nta-sol-sheet p {
+  margin: 0;
+}
+
+.nta-coach-blueprint .nta-coach-callout {
+  margin-top: 0.65rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-left: 2px solid var(--coach-muted);
+  border-radius: 4px;
+  color: #e5e7eb;
+  overflow-x: auto;
+}
+
+.nta-coach-blueprint .katex,
+.nta-coach-blueprint .katex * {
+  color: #f3f4f6;
+}
+
+.nta-formula-codex {
+  --codex-cyan: #38bdf8;
+  --codex-indigo: #818cf8;
+  --codex-emerald: #34d399;
+  position: relative;
+  width: 100%;
+  max-width: 42rem;
+  overflow: hidden;
+  color: #e2e8f0;
+  background:
+    linear-gradient(135deg, rgba(16, 24, 40, 0.72) 0%, rgba(8, 12, 22, 0.88) 100%);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.5rem;
+  box-shadow:
+    0 30px 70px -15px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 1px 25px 0 rgba(56, 189, 248, 0.05);
+}
+
+.nta-formula-codex .nta-codex-ribbon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(to right, transparent, rgba(34, 211, 238, 0.5), transparent);
+  pointer-events: none;
+}
+
+.nta-formula-codex .nta-codex-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.nta-formula-codex .nta-codex-brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.nta-formula-codex .nta-codex-emblem {
+  display: flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  background: linear-gradient(to bottom right, rgba(6, 182, 212, 0.2), rgba(147, 51, 234, 0.2));
+  color: #67e8f9;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+}
+
+.nta-formula-codex .nta-codex-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nta-formula-codex .nta-codex-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #fff;
+}
+
+@media (min-width: 640px) {
+  .nta-formula-codex .nta-codex-title {
+    font-size: 1.5rem;
+  }
+}
+
+.nta-formula-codex .nta-codex-badge {
+  border-radius: 999px;
+  border: 1px solid rgba(14, 116, 144, 0.4);
+  background: rgba(8, 47, 73, 0.6);
+  padding: 0.125rem 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #22d3ee;
+}
+
+.nta-formula-codex .nta-codex-kicker {
+  margin: 0.125rem 0 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.025em;
+  color: #94a3b8;
+}
+
+@media (min-width: 640px) {
+  .nta-formula-codex .nta-codex-kicker {
+    font-size: 0.875rem;
+  }
+}
+
+.nta-formula-codex .nta-codex-close {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 999px;
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  background: rgba(15, 23, 42, 0.8);
+  padding: 0.375rem 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: #cbd5e1;
+}
+
+.nta-formula-codex .nta-codex-close-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.8);
+}
+
+.nta-formula-codex .nta-codex-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.nta-formula-codex .nta-codex-card {
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(2, 6, 23, 0.5);
+  padding: 1.25rem;
+  transition: border-color 0.3s ease;
+}
+
+@media (min-width: 640px) {
+  .nta-formula-codex .nta-codex-card {
+    padding: 1.5rem;
+  }
+}
+
+.nta-formula-codex .nta-codex-card[data-tone="cyan"]:hover {
+  border-color: rgba(6, 182, 212, 0.25);
+}
+
+.nta-formula-codex .nta-codex-card[data-tone="indigo"]:hover {
+  border-color: rgba(139, 92, 246, 0.25);
+}
+
+.nta-formula-codex .nta-codex-card[data-tone="emerald"]:hover {
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.nta-formula-codex .nta-codex-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.nta-formula-codex .nta-codex-card-label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.nta-formula-codex .nta-codex-card-name {
+  min-width: 0;
+}
+
+.nta-formula-codex .nta-codex-card-name .nta-sol-sheet,
+.nta-formula-codex .nta-codex-card-name .nta-sol-sheet p {
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1.35;
+  letter-spacing: inherit;
+}
+
+.nta-formula-codex .nta-codex-card-label .katex,
+.nta-formula-codex .nta-codex-card-label .katex-display {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.nta-formula-codex .nta-codex-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+}
+
+.nta-formula-codex .nta-codex-card[data-tone="cyan"] .nta-codex-dot {
+  background: #22d3ee;
+  box-shadow: 0 0 8px #38bdf8;
+}
+
+.nta-formula-codex .nta-codex-card[data-tone="indigo"] .nta-codex-dot {
+  background: #818cf8;
+  box-shadow: 0 0 8px #818cf8;
+}
+
+.nta-formula-codex .nta-codex-card[data-tone="emerald"] .nta-codex-dot {
+  background: #34d399;
+  box-shadow: 0 0 8px #34d399;
+}
+
+.nta-formula-codex .nta-codex-card[data-tone="cyan"] .nta-codex-card-label {
+  color: rgba(34, 211, 238, 0.9);
+}
+
+.nta-formula-codex .nta-codex-card[data-tone="indigo"] .nta-codex-card-label {
+  color: rgba(165, 180, 252, 0.9);
+}
+
+.nta-formula-codex .nta-codex-card[data-tone="emerald"] .nta-codex-card-label {
+  color: rgba(52, 211, 153, 0.9);
+}
+
+.nta-formula-codex .nta-codex-ref {
+  flex-shrink: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.nta-formula-codex .nta-codex-sanctuary {
+  position: relative;
+  display: flex;
+  min-height: 82px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.875rem;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(4, 7, 15, 0.82) 0%, rgba(7, 11, 20, 0.94) 100%);
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.7),
+    inset 0 0 35px rgba(56, 189, 248, 0.02);
+  padding: 1.25rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .nta-formula-codex .nta-codex-sanctuary {
+    padding-right: 1.5rem;
+    padding-left: 1.5rem;
+  }
+}
+
+.nta-formula-codex .nta-codex-sanctuary-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(56, 189, 248, 0.06) 0%,
+    rgba(139, 92, 246, 0.02) 60%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.nta-formula-codex .nta-codex-math {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.nta-formula-codex .nta-codex-sanctuary .nta-sol-sheet,
+.nta-formula-codex .nta-codex-sanctuary .nta-worked-solution,
+.nta-formula-codex .nta-codex-note .nta-sol-sheet,
+.nta-formula-codex .nta-codex-note .nta-worked-solution {
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+.nta-formula-codex .nta-codex-sanctuary .nta-sol-sheet p,
+.nta-formula-codex .nta-codex-note .nta-sol-sheet p {
+  margin: 0;
+}
+
+.nta-formula-codex .nta-codex-sanctuary .katex-display {
+  margin: 0 !important;
+  padding: 0.25rem 0;
+}
+
+.nta-formula-codex .nta-codex-sanctuary .katex {
+  font-size: 1.45em !important;
+  letter-spacing: 0.02em;
+  color: #f8fafc;
+  text-shadow:
+    0 0 24px rgba(255, 255, 255, 0.12),
+    0 0 45px rgba(56, 189, 248, 0.15);
+}
+
+.nta-formula-codex .nta-codex-sanctuary .katex * {
+  color: #f8fafc;
+}
+
+@media (max-width: 640px) {
+  .nta-formula-codex .nta-codex-sanctuary .katex {
+    font-size: 1.2em !important;
+  }
+}
+
+.nta-formula-codex .nta-codex-note {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  padding: 0.25rem 0 0 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.625;
+  letter-spacing: 0.025em;
+  color: rgba(203, 213, 225, 0.9);
+}
+
+@media (min-width: 640px) {
+  .nta-formula-codex .nta-codex-note {
+    font-size: 0.875rem;
+  }
+}
+
+.nta-formula-codex .nta-codex-bullet {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  user-select: none;
+}
+
+.nta-formula-codex .nta-codex-card[data-tone="cyan"] .nta-codex-bullet {
+  color: #22d3ee;
+}
+
+.nta-formula-codex .nta-codex-card[data-tone="indigo"] .nta-codex-bullet {
+  color: #818cf8;
+}
+
+.nta-formula-codex .nta-codex-card[data-tone="emerald"] .nta-codex-bullet {
+  color: #34d399;
+}
+
+.nta-formula-codex .nta-codex-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #64748b;
+}
+
+@media (min-width: 640px) {
+  .nta-formula-codex .nta-codex-footer {
+    flex-direction: row;
+  }
+}
+
+.nta-formula-codex .nta-codex-footer-live {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nta-formula-codex .nta-codex-pulse {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.8);
+  animation: nta-codex-pulse 2s ease-in-out infinite;
+}
+
+@keyframes nta-codex-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.nta-formula-codex .nta-codex-footer-mark {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #475569;
 }
 

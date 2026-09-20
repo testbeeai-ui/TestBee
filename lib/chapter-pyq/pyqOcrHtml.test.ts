@@ -315,4 +315,319 @@ describe("pyqSolutionToHtml", () => {
     expect(html).toContain("nta-sol-step--end");
     expect(html.match(/class="nta-sol-step/g)?.length).toBe(2);
   });
+
+  it("resolves a printed diagram token without flattening the next line", () => {
+    const html = pyqSolutionToHtml(
+      "<!-- paper-ocr -->\n\nApplying king\n\n[[fig:s2026j_q09_1]]\n\n$I = 4\\pi$",
+      [],
+      "math/figures"
+    );
+    expect(html).toContain('class="nta-mock-img"');
+    expect(html).toContain("s2026j_q09_1.png");
+    expect(html).toContain("math/figures");
+    expect(html).not.toContain("[[fig:");
+    expect(html).not.toContain("<!-- paper-ocr -->");
+    expect(html).toContain("Applying king");
+    expect(html).toContain("$I = 4\\pi$");
+    const imgAt = html.indexOf("<img");
+    const eqAt = html.indexOf("$I = 4\\pi$");
+    expect(imgAt).toBeGreaterThan(-1);
+    expect(eqAt).toBeGreaterThan(imgAt);
+  });
+
+  it("keeps paper OCR as stacked text and never pastes a page-crop watermark", () => {
+    const html = pyqSolutionToHtml(
+      "<!-- paper-ocr -->\n\n[[fig:s2026j_q01_crop]]\n#PaperPhodnaHai\nwww.mathongo.com\nApplying king\n$I = \\int_0^1 x\\,dx$\nBy parts\n$I = 9$",
+      [],
+      "math/figures"
+    );
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("s2026j_q01_crop");
+    expect(html).not.toContain("PaperPhodnaHai");
+    expect(html).not.toContain("mathongo");
+    expect(html).not.toContain("nta-sol-n");
+    expect(html.match(/nta-sol-paper-/g)?.length).toBe(4);
+    expect(html).toContain("Applying king");
+    expect(html).toContain("$$I = \\int_0^1 x\\,dx$$");
+    expect(html).toContain("By parts");
+    expect(html).toContain("$$I = 9$$");
+    expect(html).not.toContain("By parts $I = 9$");
+  });
+
+  it("turns JS unicode escapes into latex so KaTeX does not paint a breve", () => {
+    const html = pyqSolutionToHtml(
+      "<!-- paper-ocr -->\n\n$= \\u03c0^2 \\u222b_{-1}^{1} x \\u0073\\u0069\\u006e \\u03c0 x dx$\n$|x-y| \\u2264 4\\u221a{x}$"
+    );
+    expect(html).toContain("\\pi");
+    expect(html).toContain("\\int");
+    expect(html).toContain("\\sin");
+    expect(html).toContain("\\le");
+    expect(html).toContain("\\sqrt");
+    expect(html).not.toContain("\\u03c0");
+    expect(html).not.toContain("\\u222b");
+  });
+
+  it("does not inject \\cos inside \\text{cos } so KaTeX can compile the line", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "## Step 3: Solving for Cosine",
+        "$\\Rightarrow \\text{cos } \\theta = -2, \\frac{1}{3}$",
+        "$\\Rightarrow \\text{cos } \\theta = \\frac{1}{3}$",
+      ].join("\n")
+    );
+    expect(html).not.toContain("\\text{\\cos");
+    expect(html).not.toContain("\\text{cos");
+    expect(html).toContain("\\cos");
+    for (const inner of [...html.matchAll(/\$\$([^$]+)\$\$/g)].map((m) => m[1]!)) {
+      expect(() => katex.renderToString(inner, { throwOnError: true })).not.toThrow();
+    }
+  });
+
+  it("maps OCR greek lookalikes of sin and cos into latex", () => {
+    const html = pyqSolutionToHtml(
+      "<!-- paper-ocr -->\n\n$2\\u221a2 \\u03c3\\u03bf\\u03c3^2 \\u03b8 + \\u03c3\\u03b9\\u03bd x, x \\u2208 [-2\\u03c0, 2\\u03c0]$"
+    );
+    expect(html).toContain("\\cos");
+    expect(html).toContain("\\sin");
+    expect(html).toContain("\\theta");
+    expect(html).toContain("\\in");
+    expect(html).not.toContain("σοσ");
+    expect(html).not.toContain("σιν");
+  });
+
+  it("keeps a three-letter month solution figure instead of swallowing the token", () => {
+    const html = pyqSolutionToHtml(
+      "<!-- paper-ocr -->\n\n## Step 1: Graphical intersections\n\n[[fig:s2025apr_te_q03_1]]\n\n5 solutions",
+      [],
+      "math/figures"
+    );
+    expect(html).toContain("<img");
+    expect(html).toContain("s2025apr_te_q03_1.png");
+    expect(html).toContain("5 solutions");
+    expect(html).not.toContain("[[fig:");
+  });
+
+  it("repairs mixed OCR eval bars so KaTeX can compile the limits line", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "$I = \\pi^2 { 2 ( -\\frac{x}{\\pi} \\cos \\pi x + \\frac{\\sin \\pi x}{\\pi^2} }_{0}^{1} - ( -\\frac{x}{\\pi} \\cos \\pi x + \\frac{\\sin \\pi x}{\\pi^2} }_{-1}^{3/2} }$",
+        "$= \\pi^2 { \\frac{2}{\\pi} - ( -\\frac{1}{\\pi} - \\frac{1}{\\pi} }$",
+      ].join("\n")
+    );
+    expect(html).toContain("\\left[");
+    expect(html).toContain("\\right]");
+    expect(html).toContain("\\left(");
+    expect(html).toContain("\\right)");
+    for (const inner of [...html.matchAll(/\$\$([^$]+)\$\$/g)].map((m) => m[1]!)) {
+      expect(() => katex.renderToString(inner, { throwOnError: true })).not.toThrow();
+    }
+  });
+
+  it("renders paper ## headings as labeled step cards without rewriting the math", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "",
+        "## Step 1: Decomposition",
+        "",
+        "Split:",
+        "$I = A + B$",
+        "",
+        "## Step 2: Final Evaluation",
+        "",
+        "$I = 4\\pi$",
+      ].join("\n")
+    );
+    expect(html).toContain('class="nta-paper-steps"');
+    expect(html).toContain("Step 1: Decomposition");
+    expect(html).toContain("Step 2: Final Evaluation");
+    expect(html).toContain("nta-paper-step-body");
+    expect(html).toContain("Split: $I = A + B$");
+    expect(html).not.toContain("$$I = A + B$$");
+    expect(html).toContain("nta-paper-final");
+    expect(html).toContain("$$I = 4\\pi$$");
+    expect(html).not.toContain("nta-sol-n");
+  });
+
+  it("keeps Let / Zeros in / interval phrases on the same line as the math", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "## Step 1: Finding Zeros and Signs",
+        "Zeros in",
+        "$[0, \\pi]: x = 0, \\pi/2, 2\\pi/3, \\pi$",
+        "Expression is positive on",
+        "$(0, \\pi/2)$, negative on",
+        "$(\\pi/2, 2\\pi/3)$, positive on",
+        "$(2\\pi/3, \\pi)$",
+        "## Step 2: Integration and Evaluation",
+        "Let",
+        "$F(x) = -\\frac{\\cos 3x}{3}$",
+        "$F(0) = -\\frac{11}{6}$",
+        "Total",
+        "$= \\frac{17}{6}$",
+      ].join("\n")
+    );
+    expect(html).toContain("Zeros in $[0, \\pi]: x = 0, \\pi/2, 2\\pi/3, \\pi$");
+    expect(html).toContain(
+      "Expression is positive on $(0, \\pi/2)$, negative on $(\\pi/2, 2\\pi/3)$, positive on $(2\\pi/3, \\pi)$"
+    );
+    expect(html).toContain("Let $F(x) = -\\frac{\\cos 3x}{3}$");
+    expect(html).toContain("$$F(0) = -\\frac{11}{6}$$");
+    expect(html).toContain("Total $= \\frac{17}{6}$");
+    expect(html).not.toMatch(/<p class="nta-math-plain">Zeros in<\/p>/);
+    expect(html).not.toMatch(/<p class="nta-math-plain">Let<\/p>/);
+  });
+
+  it("puts Second integral with = 0 and First integral with the even piece", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "## Step 1: Integral Decomposition",
+        "$\\int_0^1 x\\,dx + \\int_0^1 x^{11}\\,dx$. Second integral",
+        "$= 0$(odd function). First integral:",
+        "## Step 2: Final Evaluation",
+        "$2\\pi \\int_0^1 x\\,dx$",
+      ].join("\n")
+    );
+    expect(html).toContain("$$\\int_0^1 x\\,dx + \\int_0^1 x^{11}\\,dx$$");
+    expect(html).toContain("Second integral $= 0$ (odd function)");
+    expect(html).toContain("First integral: $2\\pi \\int_0^1 x\\,dx$");
+    expect(html).not.toContain("(odd function). First integral:");
+  });
+
+  it("drops the printed 12. (3) / 14. (64) listing so the popup does not repeat question and key", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "## Step 1: Integral Decomposition",
+        "12. (3)",
+        "$\\int x\\,dx$",
+        "## Step 2: Substitution",
+        "14. (64) From",
+        "$u = t$",
+      ].join("\n")
+    );
+    expect(html).not.toContain("12. (3)");
+    expect(html).not.toContain("14. (64)");
+    expect(html).toContain("$$\\int x\\,dx$$");
+    expect(html).toContain("From $u = t$");
+  });
+
+  it("drops 2025 chapter-wise Q1. (2) listing labels and running titles", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "## Step 1: Substitution",
+        "Q1. (2)",
+        "Area Under Curves",
+        "JEE Main 2025 January",
+        "$I = \\int_0^1 x\\,dx$",
+        "Q12. (4) From",
+        "$u = t$",
+      ].join("\n")
+    );
+    expect(html).not.toContain("Q1. (2)");
+    expect(html).not.toContain("Q12. (4)");
+    expect(html).not.toContain("Area Under Curves");
+    expect(html).not.toContain("JEE Main 2025 January");
+    expect(html).toContain("$$I = \\int_0^1 x\\,dx$$");
+    expect(html).toContain("From $u = t$");
+  });
+
+  it("keeps By IBP above the working line so the integral is not wrapped mid-formula", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "## Step 2: Simplification and IBP",
+        "$= \\int \\frac{\\sec^2 x\\,dx}{\\sin^5 x}$",
+        "By IBP:",
+        "$= \\frac{\\tan x}{\\sin^5 x} - \\int \\left(-\\frac{5}{\\sin^6 x}\\right)\\cos x \\cdot \\tan x\\,dx$",
+      ].join("\n")
+    );
+    expect(html).toContain("By IBP:");
+    expect(html).toContain("$$= \\frac{\\tan x}{\\sin^5 x} - \\int \\left(-\\frac{5}{\\sin^6 x}\\right)\\cos x \\cdot \\tan x\\,dx$$");
+    expect(html).not.toContain("By IBP: $");
+    expect(html.indexOf("By IBP:")).toBeLessThan(html.indexOf("$$= \\frac{\\tan x}{\\sin^5 x}"));
+  });
+
+  it("keeps a printed piecewise brace as two stacked cases, not one mashed line", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "## Step 2: Absolute Value Analysis",
+        "Now",
+        "$|4x - \\frac{\\pi}{12}| = \\begin{cases} -4x + \\frac{\\pi}{12} & ; x < \\frac{\\pi}{48} \\\\ 4x - \\frac{\\pi}{12} & ; x \\ge \\frac{\\pi}{48} \\end{cases}$",
+      ].join("\n")
+    );
+    expect(html).toContain('class="nta-paper-piecewise');
+    expect(html).toContain(
+      "$$\\text{Now }|4x - \\frac{\\pi}{12}| = \\begin{cases} -4x + \\frac{\\pi}{12} &amp; ; x &lt; \\frac{\\pi}{48} \\\\ 4x - \\frac{\\pi}{12} &amp; ; x \\ge \\frac{\\pi}{48} \\end{cases}$$"
+    );
+    expect(html).not.toContain("Now $|4x");
+    expect(html).not.toContain("; x &lt; \\frac{\\pi}{48} 4x");
+  });
+
+  it("pulls a trailing Now from the previous step onto the printed cases brace", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "## Step 1: Integral Definition",
+        "Let",
+        "$I = 24 \\int_{0}^{\\frac{\\pi}{2}} \\left( \\sin |4x - \\frac{\\pi}{12}| + [2 \\sin x] \\right) dx \\dots(i)$",
+        "Now",
+        "## Step 2: Absolute Value Analysis",
+        "$|4x - \\frac{\\pi}{12}| = \\begin{cases} -4x + \\frac{\\pi}{12} & ; x < \\frac{\\pi}{48} \\\\ 4x - \\frac{\\pi}{12} & ; x \\ge \\frac{\\pi}{48} \\end{cases}$",
+      ].join("\n")
+    );
+    const afterStep2 = html.split("Step 2:")[1] ?? "";
+    const beforeStep2 = html.split("Step 2:")[0] ?? "";
+    expect(afterStep2).toContain("$$\\text{Now }|4x - \\frac{\\pi}{12}| = \\begin{cases}");
+    expect(beforeStep2).not.toContain("\\text{Now }");
+    expect(html).not.toContain("Now $|4x");
+  });
+
+  it("keeps the printed wavy-curve sketch in Sign analysis", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "",
+        "## Step 1: Differentiation of function",
+        "",
+        "$f'(x) = \\frac{x^4 - 8x^2 + 15}{e^{x^2}}(2x) = 0$",
+        "",
+        "## Step 2: Finding critical points",
+        "",
+        "$\\Rightarrow x(x + \\sqrt{5})(x - \\sqrt{5})(x + \\sqrt{3})(x - \\sqrt{3}) = 0$",
+        "",
+        "## Step 3: Sign analysis",
+        "",
+        "By using wavy curve method",
+        "[[fig:s2025j_di_q04_1]]",
+        "",
+        "## Step 4: Final evaluation",
+        "",
+        "Number of local maximum $= 2$",
+        "Number of local minimum $= 3$",
+      ].join("\n"),
+      [],
+      "math/figures"
+    );
+    const signAt = html.indexOf("Step 3: Sign analysis");
+    const finalAt = html.indexOf("Step 4: Final evaluation");
+    const imgAt = html.indexOf("s2025j_di_q04_1.png");
+    const wavyAt = html.indexOf("By using wavy curve method");
+    expect(html).toContain('class="nta-mock-img"');
+    expect(html).not.toContain("[[fig:");
+    expect(signAt).toBeGreaterThan(-1);
+    expect(finalAt).toBeGreaterThan(signAt);
+    expect(imgAt).toBeGreaterThan(signAt);
+    expect(imgAt).toBeLessThan(finalAt);
+    expect(wavyAt).toBeGreaterThan(signAt);
+    expect(wavyAt).toBeLessThan(finalAt);
+    expect(html).toContain("Number of local maximum $= 2$");
+    expect(html).toContain("Number of local minimum $= 3$");
+  });
 });
