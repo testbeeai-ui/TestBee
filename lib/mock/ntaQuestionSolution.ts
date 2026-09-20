@@ -19,10 +19,12 @@ export function ntaQuestionSolutionText(q: {
   return plain;
 }
 
-export function ntaQuestionCoachText(
-  q: { coachTips?: string | null; coachFormulas?: string | null },
-  kind: "tips" | "formulas"
-): string {
+export type NtaCoachFields = {
+  coachTips?: string | null;
+  coachFormulas?: string | null;
+};
+
+export function ntaQuestionCoachText(q: NtaCoachFields, kind: "tips" | "formulas"): string {
   switch (kind) {
     case "tips":
       return String(q.coachTips ?? "").trim();

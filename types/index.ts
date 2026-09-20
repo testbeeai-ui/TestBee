@@ -98,6 +98,10 @@ export interface Question {
   numericAnswer?: string | null;
   hint: string;
   solution: string;
+  /** Direction to start the question (NCERT/NTA). Null until filled. */
+  coachTips?: string | null;
+  /** Formulae used on this question. Null until filled. */
+  coachFormulas?: string | null;
   reference: {
     theory: string;
     inventor?: string;
