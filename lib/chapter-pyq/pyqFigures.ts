@@ -5,8 +5,8 @@ export const PYQ_FIGURE_BUCKET = "pyq";
 
 const FIG_PLACEHOLDER_RE = /\[\[fig:([a-zA-Z0-9_]+)\]\]/g;
 
-/** Ingestion key: `p{page:03d}_x{xref}`, `s2026j_q01_1`, or `s2025j_di_q04_1`. */
-const RASTER_KEY = /^(?:p\d+_x\d+|s\d{4}[a-z](?:_[a-z]+)?_q\d+_\d+)$/i;
+/** Ingestion key: `p{page:03d}_x{xref}`, `s2026j_q01_1`, `s2025j_di_q04_1`, `s2025apr_te_q03_1`, `s2026_te_q01_1`. */
+const RASTER_KEY = /^(?:p\d+_x\d+|s\d{4}[a-z]{0,3}(?:_[a-z]+)?_q\d+_\d+)$/i;
 
 export type PyqFigureFolder = "physics/figures" | "math/figures";
 

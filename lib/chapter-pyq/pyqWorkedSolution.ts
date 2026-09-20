@@ -1,3 +1,5 @@
+import { resolvePyqFigureHtml } from "@/lib/chapter-pyq/pyqFigures";
+
 export type PyqWorkedCallout = {
   text: string;
   tex: string;
@@ -12,7 +14,8 @@ export type PyqWorkedBlock =
   | { kind: "paragraph"; text: string }
   | { kind: "callout"; text: string; tex: string }
   | { kind: "display"; tex: string }
-  | { kind: "grid"; cells: PyqWorkedGridCell[] };
+  | { kind: "grid"; cells: PyqWorkedGridCell[] }
+  | { kind: "figure"; html: string };
 
 export type PyqWorkedPhase = {
   title: string;
@@ -87,6 +90,10 @@ function blockOf(value: unknown): PyqWorkedBlock | null {
     case "grid": {
       const cells = gridOf(rec.cells);
       return cells.length > 0 ? { kind: "grid", cells } : null;
+    }
+    case "figure": {
+      const html = String(rec.html ?? "").trim();
+      return html ? { kind: "figure", html } : null;
     }
     default:
       return null;
@@ -348,10 +355,22 @@ function layoutWorkedBlocks(blocks: PyqWorkedBlock[]): PyqWorkedBlock[] {
   }
   flushTrials();
   return out.filter((block) => {
-    if (block.kind === "paragraph") return isUsefulProse(block.text);
-    if (block.kind === "display") return Boolean(block.tex.trim());
-    if (block.kind === "grid") return block.cells.length > 0;
-    return true;
+    switch (block.kind) {
+      case "paragraph":
+        return isUsefulProse(block.text);
+      case "display":
+        return Boolean(block.tex.trim());
+      case "grid":
+        return block.cells.length > 0;
+      case "callout":
+        return Boolean(block.text.trim() || block.tex.trim());
+      case "figure":
+        return Boolean(block.html.trim());
+      default: {
+        const _exhaustive: never = block;
+        return _exhaustive;
+      }
+    }
   });
 }
 
@@ -411,7 +430,84 @@ function fromNumberedMarkdown(md: string): PyqWorkedSolution | null {
   };
 }
 
-/** Printed MathonGo write-up. Must not enter the glm step sheet. */
+const PAPER_HEADING = /^##\s+Step\s+(\d+):\s+(.+)$/i;
+const PAPER_MARK = /<!--\s*paper-ocr\s*-->/g;
+const CROP_FIG_TOKEN = /\[\[fig:[a-zA-Z0-9_]*_crop\]\]/gi;
+const WATERMARK_LINE =
+  /^(?:#\s*)?PaperPhodnaHai$|^www\.mathongo\.com$|^mathongo$|^Questions with Answer Keys$|^Chapter-wise Question Bank$|^JEE Main 20\d{2}/i;
+const PAPER_LISTING_PREFIX =
+  /^(?:Q\s*\d{1,2}\.\s*(?:\([^)]+\)\s*)?|\d{1,2}\.\s*\([^)]+\)\s*)/;
+
+function paperLineBlocks(line: string): PyqWorkedBlock[] {
+  const trimmed = line.replace(PAPER_LISTING_PREFIX, "").trim();
+  if (!trimmed || WATERMARK_LINE.test(trimmed)) return [];
+  if (/\[\[fig:/.test(trimmed)) {
+    const html = resolvePyqFigureHtml(trimmed, [], "math/figures", { appendUnused: false }).trim();
+    if (!html || html === trimmed.replace(/\[\[fig:[a-zA-Z0-9_]+\]\]/g, "").trim()) {
+      return trimmed.replace(/\[\[fig:[^\]]+\]\]/g, "").trim()
+        ? [{ kind: "paragraph", text: trimmed.replace(/\[\[fig:[^\]]+\]\]/g, "").trim() }]
+        : [];
+    }
+    return html ? [{ kind: "figure", html }] : [];
+  }
+  const mathOnly = trimmed.match(/^\$([^$]+)\$\s*$/);
+  if (mathOnly?.[1]?.trim()) return [{ kind: "display", tex: mathOnly[1].trim() }];
+  return splitProseAndMath(trimmed);
+}
+
+function fromPaperOcrMarkdown(md: string): PyqWorkedSolution | null {
+  const lines = md
+    .replace(PAPER_MARK, "")
+    .replace(CROP_FIG_TOKEN, "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return null;
+
+  const phases: PyqWorkedPhase[] = [];
+  for (const line of lines) {
+    const heading = line.match(PAPER_HEADING);
+    if (heading) {
+      phases.push({
+        title: heading[2]!.trim(),
+        paragraphs: [],
+        displays: [],
+        grid: [],
+        blocks: [],
+      });
+      continue;
+    }
+    if (phases.length === 0) {
+      phases.push({ title: "Solution", paragraphs: [], displays: [], grid: [], blocks: [] });
+    }
+    phases[phases.length - 1]!.blocks.push(...paperLineBlocks(line));
+  }
+
+  const filled = phases.filter((phase) => phase.blocks.length > 0);
+  if (filled.length === 0) return null;
+  for (const phase of filled) {
+    phase.displays = phase.blocks.filter((b) => b.kind === "display").map((b) => b.tex);
+    phase.paragraphs = phase.blocks.filter((b) => b.kind === "paragraph").map((b) => b.text);
+  }
+
+  const last = filled[filled.length - 1]!;
+  const lastDisplay = [...last.blocks].reverse().find((b) => b.kind === "display");
+  const lastProse = [...last.blocks].reverse().find((b) => b.kind === "paragraph");
+  const answerTex =
+    lastDisplay && lastDisplay.tex.length <= 96 ? lastDisplay.tex : "";
+
+  return {
+    answer: "",
+    title: "Worked solution",
+    problem_tex: "",
+    answer_tex: answerTex,
+    answer_note: lastProse?.text || "The printed result",
+    phases: filled,
+  };
+}
+
+/** Printed MathonGo write-up. Routed onto the same worked sheet as glm JSON. */
 export function isPaperOcrSolution(raw: string): boolean {
   const text = String(raw ?? "");
   return /<!--\s*paper-ocr\s*-->/.test(text) || /\[\[fig:/.test(text);
@@ -420,7 +516,9 @@ export function isPaperOcrSolution(raw: string): boolean {
 export function parsePyqWorkedSolution(raw: string): PyqWorkedSolution | null {
   const text = String(raw ?? "").trim();
   if (!text) return null;
-  if (isPaperOcrSolution(text) && !text.startsWith("{")) return null;
+  if (isPaperOcrSolution(text) && !text.startsWith("{")) {
+    return fromPaperOcrMarkdown(text);
+  }
   if (text.startsWith("{")) {
     try {
       const parsed: unknown = JSON.parse(text);
@@ -456,13 +554,33 @@ export function stackEqualsChain(tex: string): string {
   const t = tex.trim();
   if (!t) return "";
   if (/\\begin\{aligned\}/.test(t) || /\\\\/.test(t)) return t;
-  const parts = t
-    .split(/(?<!\\)=/)
-    .map((part) => part.trim())
-    .filter(Boolean);
+  const parts = splitEqualsOutsideBraces(t);
   if (parts.length < 3) return t;
   const lines = parts.map((part, index) => (index === 0 ? `& ${part}` : `&= ${part}`));
   return `\\begin{aligned} ${lines.join(" \\\\ ")} \\end{aligned}`;
+}
+
+function splitEqualsOutsideBraces(tex: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < tex.length; i++) {
+    const ch = tex[i];
+    if (ch === "{") {
+      depth += 1;
+      continue;
+    }
+    if (ch === "}" && depth > 0) {
+      depth -= 1;
+      continue;
+    }
+    if (ch === "=" && depth === 0 && tex[i - 1] !== "\\") {
+      parts.push(tex.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  parts.push(tex.slice(start).trim());
+  return parts.filter(Boolean);
 }
 
 function readBraceGroup(source: string, openIndex: number): { inner: string; end: number } | null {

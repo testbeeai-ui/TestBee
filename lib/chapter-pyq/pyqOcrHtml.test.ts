@@ -367,6 +367,47 @@ describe("pyqSolutionToHtml", () => {
     expect(html).not.toContain("\\u222b");
   });
 
+  it("does not inject \\cos inside \\text{cos } so KaTeX can compile the line", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "## Step 3: Solving for Cosine",
+        "$\\Rightarrow \\text{cos } \\theta = -2, \\frac{1}{3}$",
+        "$\\Rightarrow \\text{cos } \\theta = \\frac{1}{3}$",
+      ].join("\n")
+    );
+    expect(html).not.toContain("\\text{\\cos");
+    expect(html).not.toContain("\\text{cos");
+    expect(html).toContain("\\cos");
+    for (const inner of [...html.matchAll(/\$\$([^$]+)\$\$/g)].map((m) => m[1]!)) {
+      expect(() => katex.renderToString(inner, { throwOnError: true })).not.toThrow();
+    }
+  });
+
+  it("maps OCR greek lookalikes of sin and cos into latex", () => {
+    const html = pyqSolutionToHtml(
+      "<!-- paper-ocr -->\n\n$2\\u221a2 \\u03c3\\u03bf\\u03c3^2 \\u03b8 + \\u03c3\\u03b9\\u03bd x, x \\u2208 [-2\\u03c0, 2\\u03c0]$"
+    );
+    expect(html).toContain("\\cos");
+    expect(html).toContain("\\sin");
+    expect(html).toContain("\\theta");
+    expect(html).toContain("\\in");
+    expect(html).not.toContain("σοσ");
+    expect(html).not.toContain("σιν");
+  });
+
+  it("keeps a three-letter month solution figure instead of swallowing the token", () => {
+    const html = pyqSolutionToHtml(
+      "<!-- paper-ocr -->\n\n## Step 1: Graphical intersections\n\n[[fig:s2025apr_te_q03_1]]\n\n5 solutions",
+      [],
+      "math/figures"
+    );
+    expect(html).toContain("<img");
+    expect(html).toContain("s2025apr_te_q03_1.png");
+    expect(html).toContain("5 solutions");
+    expect(html).not.toContain("[[fig:");
+  });
+
   it("repairs mixed OCR eval bars so KaTeX can compile the limits line", () => {
     const html = pyqSolutionToHtml(
       [

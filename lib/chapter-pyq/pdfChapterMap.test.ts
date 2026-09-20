@@ -99,10 +99,11 @@ describe("physics PDF chapter map", () => {
 });
 
 describe("math PDF chapter map", () => {
-  it("accounts for every PDF chapter 1 through 33 exactly once", () => {
+  it("accounts for every 2025 session PDF chapter 1 through 29 exactly once", () => {
     const numbers = PYQ_MATH_PDF_CHAPTERS.map((row) => row.pdfChapterNo);
-    expect(numbers).toEqual(Array.from({ length: 33 }, (_, i) => i + 1));
-    expect(new Set(numbers).size).toBe(33);
+    expect(numbers).toEqual(Array.from({ length: 29 }, (_, i) => i + 1));
+    expect(new Set(numbers).size).toBe(29);
+    expect(new Set(PYQ_MATH_PDF_CHAPTERS.map((row) => row.catalogSlug)).size).toBe(29);
   });
 
   it("points every mapped slug at a real math catalog chapter", () => {
@@ -112,47 +113,54 @@ describe("math PDF chapter map", () => {
     }
   });
 
-  it("adds Mathematical Reasoning as its own Algebra catalog chapter", () => {
-    expect(catalogSlugForMathPdfChapter(7)).toBe("mathematical-reasoning");
-    expect(findChapter("math", "mathematical-reasoning")?.name).toBe("Mathematical Reasoning");
-    expect(mathPdfChaptersForCatalogSlug("mathematical-reasoning").map((r) => r.pdfChapterNo)).toEqual(
-      [7]
-    );
+  it("keeps Statistics as PDF chapter 7, not Mathematical Reasoning", () => {
+    expect(catalogSlugForMathPdfChapter(7)).toBe("statistics");
+    expect(mathPdfChaptersForCatalogSlug("mathematical-reasoning")).toEqual([]);
   });
 
-  it("merges Heights and Distances and Properties of Triangles into trig ratios", () => {
-    expect(catalogSlugForMathPdfChapter(27)).toBe("trigonometric-ratios-and-identities");
-    expect(catalogSlugForMathPdfChapter(30)).toBe("trigonometric-ratios-and-identities");
-    expect(catalogSlugForMathPdfChapter(31)).toBe("trigonometric-ratios-and-identities");
+  it("keeps one catalog page per PDF chapter, including trig ratios as 25 only", () => {
+    expect(catalogSlugForMathPdfChapter(17)).toBe("definite-integration");
+    expect(catalogSlugForMathPdfChapter(18)).toBe("area-under-curves");
+    expect(catalogSlugForMathPdfChapter(19)).toBe("differential-equations");
+    expect(catalogSlugForMathPdfChapter(25)).toBe("trigonometric-ratios-and-identities");
     expect(
       mathPdfChaptersForCatalogSlug("trigonometric-ratios-and-identities").map((r) => r.pdfChapterNo)
-    ).toEqual([27, 30, 31]);
+    ).toEqual([25]);
   });
 
-  it("adds no route for a PDF chapter that became a topic", () => {
-    for (const slug of ["heights-and-distances", "properties-of-triangles"]) {
-      expect(findChapter("math", slug), slug).toBeNull();
+  it("does not invent compilation-book chapters that this session PDF skipped", () => {
+    for (const slug of [
+      "mathematical-reasoning",
+      "differentiation",
+      "heights-and-distances",
+      "properties-of-triangles",
+    ]) {
       expect(mathPdfChaptersForCatalogSlug(slug), slug).toEqual([]);
     }
+    expect(findChapter("math", "heights-and-distances")).toBeNull();
+    expect(findChapter("math", "properties-of-triangles")).toBeNull();
   });
 
   it("does not ingest the leftover combined Limits catalog row", () => {
     expect(findChapter("math", "limits-continuity-and-differentiability")).not.toBeNull();
     expect(mathPdfChaptersForCatalogSlug("limits-continuity-and-differentiability")).toEqual([]);
-    expect(catalogSlugForMathPdfChapter(14)).toBe("limits");
-    expect(catalogSlugForMathPdfChapter(15)).toBe("continuity-and-differentiability");
-    expect(catalogSlugForMathPdfChapter(16)).toBe("differentiation");
+    expect(catalogSlugForMathPdfChapter(13)).toBe("limits");
+    expect(catalogSlugForMathPdfChapter(14)).toBe("continuity-and-differentiability");
+    expect(catalogSlugForMathPdfChapter(15)).toBe("application-of-derivatives");
+    expect(catalogSlugForMathPdfChapter(16)).toBe("indefinite-integration");
   });
 
-  it("marks mapped math slugs as sourced; leftover combined Limits is not", () => {
+  it("marks mapped math slugs as sourced; leftover compilation titles are not", () => {
     expect(isPyqSourcedCatalogSlug("quadratic-equation")).toBe(true);
-    expect(isPyqSourcedCatalogSlug("mathematical-reasoning")).toBe(true);
+    expect(isPyqSourcedCatalogSlug("statistics")).toBe(true);
     expect(isPyqSourcedCatalogSlug("trigonometric-ratios-and-identities")).toBe(true);
+    expect(isPyqSourcedCatalogSlug("mathematical-reasoning")).toBe(false);
+    expect(isPyqSourcedCatalogSlug("differentiation")).toBe(false);
     expect(isPyqSourcedCatalogSlug("limits-continuity-and-differentiability")).toBe(false);
   });
 
   it("returns null for an out-of-range math PDF chapter number", () => {
     expect(catalogSlugForMathPdfChapter(0)).toBeNull();
-    expect(catalogSlugForMathPdfChapter(34)).toBeNull();
+    expect(catalogSlugForMathPdfChapter(30)).toBeNull();
   });
 });

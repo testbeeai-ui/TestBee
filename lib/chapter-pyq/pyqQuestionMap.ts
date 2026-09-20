@@ -190,6 +190,8 @@ export function mapPyqRowToChapterPyqQuestion(
     numericAnswer: isNumerical ? row.numerical_answer : null,
     hint: "",
     solution: solutionMd,
+    coachTips: row.tips_md?.trim() || null,
+    coachFormulas: row.formulas_md?.trim() || null,
     reference: emptyReference,
   };
 

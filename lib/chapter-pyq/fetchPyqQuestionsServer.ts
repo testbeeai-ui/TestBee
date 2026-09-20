@@ -21,9 +21,9 @@ const MAX_PAGES = 20;
 
 /**
  * Publishable rows for one catalog chapter, spanning every PDF chapter that maps
- * to it. The aliased `chapters:pyq_chapters!inner` embed plus a `catalog_slug` eq
- * is the whole merge rule: the column is not unique, so one slug pulls rows from
- * several `pyq_chapters` rows at once.
+ * to it. Physics may share a slug across PDF chapters. 2025 session Maths is 1:1
+ * (`catalog_slug` unique per PDF chapter number). The embed still filters
+ * `chapters.catalog_slug`.
  */
 export async function fetchPyqRowsForCatalogChapter(
   supabase: SupabaseClient,

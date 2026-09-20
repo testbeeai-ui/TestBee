@@ -16,6 +16,7 @@ import {
   type PyqWorkedPhase,
   type PyqWorkedSolution,
 } from "@/lib/chapter-pyq/pyqWorkedSolution";
+import { NtaFigureLightbox, useNtaFigurePreview } from "@/components/prep-mock/nta/NtaFigureLightbox";
 import { cn } from "@/lib/utils";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -130,6 +131,13 @@ function PhaseBlockView({ block }: { block: PyqWorkedBlock }) {
       );
     case "display":
       return <BoxedDisplay tex={block.tex} />;
+    case "figure":
+      return (
+        <div
+          className="overflow-hidden rounded-lg border border-slate-700/60 bg-white p-2 [&_img]:mx-auto [&_img]:max-h-72 [&_img]:w-auto [&_img]:max-w-full [&_img]:cursor-zoom-in sm:[&_img]:max-h-80"
+          dangerouslySetInnerHTML={{ __html: sanitizeMockHtml(block.html) }}
+        />
+      );
     case "grid": {
       const compact =
         block.cells.length <= 2 &&
@@ -244,13 +252,17 @@ export function NtaWorkedSolutionSheet({
   solution: PyqWorkedSolution;
   onClose: () => void;
 }) {
+  const { previewSrc, previewAlt, onPreviewClick, closePreview } = useNtaFigurePreview();
   return (
     <div
       className={cn(
         jakarta.className,
         "nta-worked-solution relative flex h-auto max-h-[78dvh] w-full min-w-0 max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-slate-800/80 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-xl sm:max-h-[min(70vh,38rem)] sm:rounded-2xl sm:p-5"
       )}
-      onClick={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        onPreviewClick(event);
+        event.stopPropagation();
+      }}
     >
       <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
       <div className="relative flex shrink-0 items-start justify-between gap-3 border-b border-slate-800/80 pb-3">
@@ -308,6 +320,7 @@ export function NtaWorkedSolutionSheet({
           ) : null}
         </div>
       </div>
+      <NtaFigureLightbox src={previewSrc} alt={previewAlt} onClose={closePreview} />
     </div>
   );
 }

@@ -47,7 +47,7 @@ export function NtaFigureLightbox({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[240] flex items-center justify-center bg-slate-950/85 p-4 sm:p-8"
+      className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-950/90 p-4 sm:p-8"
       role="dialog"
       aria-modal="true"
       aria-label="Enlarged figure"

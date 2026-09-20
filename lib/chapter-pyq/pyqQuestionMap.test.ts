@@ -137,6 +137,25 @@ describe("pyq question mapper", () => {
     );
   });
 
+  it("leaves Tips and Formula's empty until those columns are filled", () => {
+    const mapped = mapPyqRowToChapterPyqQuestion(byId("000000000001"), "Laws of Motion")!;
+    expect(mapped.question.coachTips).toBeNull();
+    expect(mapped.question.coachFormulas).toBeNull();
+  });
+
+  it("maps stored tips and formulas markdown into the NTA popups", () => {
+    const mapped = mapPyqRowToChapterPyqQuestion(
+      {
+        ...byId("000000000001"),
+        tips_md: "Limits are symmetric. Split even and odd parts.",
+        formulas_md: "$\\int_{-a}^{a} f=0$ when $f$ is odd.",
+      },
+      "Laws of Motion"
+    )!;
+    expect(mapped.question.coachTips).toContain("even and odd");
+    expect(mapped.question.coachFormulas).toContain("\\int_{-a}^{a}");
+  });
+
   it("leaves the Solution popup empty when solution_md is missing", () => {
     const mapped = mapPyqRowToChapterPyqQuestion(byId("000000000001"), "Laws of Motion")!;
     expect(mapped.question.solutionHtml).toBeNull();

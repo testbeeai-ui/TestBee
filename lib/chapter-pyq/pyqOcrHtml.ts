@@ -561,17 +561,33 @@ function repairOcrEvalBraces(inner: string): string {
   return t;
 }
 
+/** OCR wraps `sin`/`cos`/`sec` in `\\text{…}`; injecting `\\cos` inside `\\text` makes KaTeX paint the source. */
+function unwrapOcrTrigText(s: string): string {
+  return s
+    .replace(/\\text\{\s*cosec\s*\}/gi, "\\csc")
+    .replace(/\\text\{\s*\\?(sin|cos|tan|sec|csc|cot)\s*\}/gi, (_m, name: string) => `\\${name.toLowerCase()}`)
+    .replace(/\\text\{\s*\\sqrt\s*\}(\d+)/g, "\\sqrt{$1}")
+    .replace(/\\text\{\s*\\sqrt\s*\}/g, "\\sqrt");
+}
+
 function unicodeMathToLatex(raw: string): string {
-  let s = decodePyqUnicodeEscapes(raw)
-    .replace(/π/g, "\\pi")
-    .replace(/∫/g, "\\int")
-    .replace(/∪(?=_)/g, "\\int")
-    .replace(/√/g, "\\sqrt")
-    .replace(/≤/g, "\\le ")
-    .replace(/≥/g, "\\ge ")
-    .replace(/⇒/g, "\\Rightarrow ")
-    .replace(/·/g, "\\cdot ")
-    .replace(/⋅/g, "\\cdot ");
+  let s = unwrapOcrTrigText(
+    decodePyqUnicodeEscapes(raw)
+      .replace(/σοσ/g, "\\cos")
+      .replace(/σιν/g, "\\sin")
+      .replace(/θ/g, "\\theta")
+      .replace(/π/g, "\\pi")
+      .replace(/∫/g, "\\int")
+      .replace(/∪(?=_)/g, "\\int")
+      .replace(/√/g, "\\sqrt")
+      .replace(/≤/g, "\\le ")
+      .replace(/≥/g, "\\ge ")
+      .replace(/∈/g, "\\in ")
+      .replace(/→/g, "\\to ")
+      .replace(/⇒/g, "\\Rightarrow ")
+      .replace(/·/g, "\\cdot ")
+      .replace(/⋅/g, "\\cdot ")
+  );
   return s.replace(/\$([^$]*)\$/g, (_m, inner: string) => {
     const tex = repairOcrEvalBraces(
       inner.replace(/(?<!\\)\bsin\b/g, "\\sin").replace(/(?<!\\)\bcos\b/g, "\\cos")

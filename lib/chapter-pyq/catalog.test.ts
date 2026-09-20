@@ -27,7 +27,6 @@ const MATH_NAMES = [
   "Inverse Trigonometric Functions",
   "Limits",
   "Limits, Continuity and Differentiability",
-  "Mathematical Reasoning",
   "Matrices",
   "Parabola",
   "Permutation Combination",
@@ -44,7 +43,7 @@ const MATH_NAMES = [
 ] as const;
 
 describe("chapter PYQ catalog", () => {
-  it("lists all 32 JEE Main math titles", () => {
+  it("lists the 31 MathonGo math download titles", () => {
     const math = chaptersForSubject("math").map((c) => c.name);
     expect(math).toEqual([...MATH_NAMES]);
   });
@@ -60,7 +59,7 @@ describe("chapter PYQ catalog", () => {
     const circle = findChapter("math", "circle");
     expect(circle?.name).toBe("Circle");
     expect(chapterPyqHref(circle!)).toBe("/chapter-pyq/math/circle");
-    expect(findChapter("math", "mathematical-reasoning")?.name).toBe("Mathematical Reasoning");
+    expect(findChapter("math", "mathematical-reasoning")).toBeNull();
     expect(findChapter("math", "heights-and-distances")).toBeNull();
     expect(findChapter("math", "properties-of-triangles")).toBeNull();
   });
@@ -83,7 +82,7 @@ describe("chapter PYQ catalog", () => {
   it("has 29 physics and 20 chemistry chapters", () => {
     expect(chaptersForSubject("physics")).toHaveLength(29);
     expect(chaptersForSubject("chemistry")).toHaveLength(20);
-    expect(CHAPTER_PYQ_CHAPTERS).toHaveLength(32 + 29 + 20);
+    expect(CHAPTER_PYQ_CHAPTERS).toHaveLength(31 + 29 + 20);
   });
 
   it("keeps physics in syllabus order and ends with Communication System", () => {

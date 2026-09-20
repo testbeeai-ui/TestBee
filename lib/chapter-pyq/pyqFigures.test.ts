@@ -57,6 +57,20 @@ describe("pyq figures", () => {
     expect(html).not.toContain("[[fig:");
   });
 
+  it("synthesizes an img from a three-letter month chapter-wise key", () => {
+    const html = resolvePyqFigureHtml("See [[fig:s2025apr_te_q03_1]]", [], "math/figures");
+    expect(html).toContain("<img");
+    expect(html).toContain("s2025apr_te_q03_1.png");
+    expect(html).not.toContain("[[fig:");
+  });
+
+  it("synthesizes an img from a year-only session chapter key", () => {
+    const html = resolvePyqFigureHtml("See [[fig:s2026_te_q01_1]]", [], "math/figures");
+    expect(html).toContain("<img");
+    expect(html).toContain("s2026_te_q01_1.png");
+    expect(html).not.toContain("[[fig:");
+  });
+
   it("does not paste a full-page crop watermark as a figure", () => {
     const html = resolvePyqFigureHtml("See [[fig:s2026j_q01_crop]]", [], "math/figures");
     expect(html).not.toContain("<img");

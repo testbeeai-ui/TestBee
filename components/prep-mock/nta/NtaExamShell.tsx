@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { Question } from "@/types";
 import { NtaSolutionModal } from "@/components/prep-mock/nta/NtaSolutionModal";
-import { ntaQuestionSolutionText } from "@/lib/mock/ntaQuestionSolution";
+import { ntaQuestionCoachText, ntaQuestionSolutionText } from "@/lib/mock/ntaQuestionSolution";
 import {
   ShapeNotVisited,
   ShapeNotAnswered,
@@ -101,7 +101,7 @@ export function NtaExamShell({
 }: NtaExamShellProps) {
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [avatarFailed, setAvatarFailed] = useState(false);
-  const [solutionOpen, setSolutionOpen] = useState(false);
+  const [assist, setAssist] = useState<"solution" | "tips" | "formulas" | null>(null);
   const avatarUrl = avatarUrlProp && !avatarFailed ? avatarUrlProp : null;
 
   useEffect(() => {
@@ -109,7 +109,7 @@ export function NtaExamShell({
   }, [avatarUrlProp]);
 
   useEffect(() => {
-    setSolutionOpen(false);
+    setAssist(null);
   }, [currentIndex]);
   const q = questions[currentIndex];
   const counts = useMemo(
@@ -120,6 +120,24 @@ export function NtaExamShell({
   if (!q) return null;
 
   const selected = answers[q.id];
+  const tipsText = ntaQuestionCoachText(q, "tips");
+  const formulasText = ntaQuestionCoachText(q, "formulas");
+  const showTips = Boolean(tipsText);
+  const showFormulas = Boolean(formulasText);
+  const assistTitle =
+    assist === "tips" ? "Tips" : assist === "formulas" ? "Formula's" : "Solution";
+  const assistEmpty =
+    assist === "tips"
+      ? "No tips for this question yet"
+      : assist === "formulas"
+        ? "No formulae for this question yet"
+        : "No solution";
+  const assistText =
+    assist === "tips"
+      ? tipsText
+      : assist === "formulas"
+        ? formulasText
+        : ntaQuestionSolutionText(q);
 
   const shellProps = {
     candidateName,
@@ -146,17 +164,23 @@ export function NtaExamShell({
     onNumericDraftChange,
     questionBadges,
     questionSources,
-    onOpenSolution: showSolution ? () => setSolutionOpen(true) : undefined,
+    onOpenSolution: showSolution ? () => setAssist("solution") : undefined,
+    onOpenTips: showTips ? () => setAssist("tips") : undefined,
+    onOpenFormulas: showFormulas ? () => setAssist("formulas") : undefined,
   };
 
   return (
     <>
       <NtaExamShellMobile {...shellProps} />
-      {showSolution ? (
+      {assist ? (
         <NtaSolutionModal
-          open={solutionOpen}
-          onClose={() => setSolutionOpen(false)}
-          text={ntaQuestionSolutionText(q)}
+          open
+          onClose={() => setAssist(null)}
+          text={assistText}
+          title={assistTitle}
+          emptyLabel={assistEmpty}
+          useWorkedSheet={assist === "solution"}
+          panel={assist}
         />
       ) : null}
       <div
@@ -391,12 +415,23 @@ export function NtaExamShell({
                   label="MARK FOR REVIEW & NEXT"
                   onClick={onMarkReviewNext}
                 />
+                {showTips ? (
+                  <NtaBtn variant="tips" label="TIPS" onClick={() => setAssist("tips")} className="ml-3 sm:ml-5" />
+                ) : null}
+                {showFormulas ? (
+                  <NtaBtn
+                    variant="formulas"
+                    label="FORMULA'S"
+                    onClick={() => setAssist("formulas")}
+                    className={showTips ? undefined : "ml-3 sm:ml-5"}
+                  />
+                ) : null}
                 {showSolution ? (
                   <NtaBtn
                     variant="solution"
                     label="SOLUTION"
-                    onClick={() => setSolutionOpen(true)}
-                    className="ml-3 sm:ml-5"
+                    onClick={() => setAssist("solution")}
+                    className={showTips || showFormulas ? undefined : "ml-3 sm:ml-5"}
                   />
                 ) : null}
               </div>
@@ -520,7 +555,7 @@ function HeaderLegendCell({ icon, n, label }: { icon: React.ReactNode; n: number
   );
 }
 
-type NtaBtnVariant = "green" | "orange" | "blue" | "white" | "solution";
+type NtaBtnVariant = "green" | "orange" | "blue" | "white" | "solution" | "tips" | "formulas";
 
 function ntaBtnStyle(variant: NtaBtnVariant): CSSProperties {
   switch (variant) {
@@ -538,6 +573,10 @@ function ntaBtnStyle(variant: NtaBtnVariant): CSSProperties {
       };
     case "solution":
       return { background: "#0f766e", color: "#fff", border: "1px solid #0d5e58" };
+    case "tips":
+      return { background: "#1d4ed8", color: "#fff", border: "1px solid #1e40af" };
+    case "formulas":
+      return { background: "#6d28d9", color: "#fff", border: "1px solid #5b21b6" };
     default: {
       const _exhaustive: never = variant;
       return _exhaustive;
