@@ -178,7 +178,6 @@ export default function ChapterPyqExamSession({
           onNextNav={goNext}
           onSubmitClick={() => setSubmitDialogOpen(true)}
           paletteColumns={5}
-          showSolution
         />
         <NtaSubmitModal
           open={submitDialogOpen}

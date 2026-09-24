@@ -1,4 +1,5 @@
 import { slugify } from "@/lib/slugs";
+import { isChapterPyqStudentVisible } from "@/lib/chapter-pyq/visibleChapters";
 
 export type ChapterPyqSubject = "physics" | "chemistry" | "math";
 
@@ -119,6 +120,12 @@ export function isChapterPyqSubject(value: string): value is ChapterPyqSubject {
 
 export function chaptersForSubject(subject: ChapterPyqSubject): ChapterPyqEntry[] {
   return CHAPTER_PYQ_CHAPTERS.filter((c) => c.subject === subject);
+}
+
+export function visibleChaptersForSubject(subject: ChapterPyqSubject): ChapterPyqEntry[] {
+  return chaptersForSubject(subject).filter((c) =>
+    isChapterPyqStudentVisible(c.subject, c.slug),
+  );
 }
 
 export function findChapter(subject: string, slug: string): ChapterPyqEntry | null {

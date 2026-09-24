@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { NtaMockTokens, type NtaSkin } from "@/components/prep-mock/nta/NtaMockTokens";
 import { NtaOptionBody, NtaQuestionStem } from "@/components/prep-mock/nta/ntaExamParts";
+import { NtaSolutionModal } from "@/components/prep-mock/nta/NtaSolutionModal";
 import { ReviewInlineHtml } from "@/components/prep-mock/utils/mockLatexReview";
 import {
   pyqPaperHoverTitle,
@@ -28,6 +29,7 @@ import {
   type PyqReviewFilter,
   type PyqReviewVerdict,
 } from "@/lib/chapter-pyq/pyqScoring";
+import { ntaQuestionSolutionText } from "@/lib/mock/ntaQuestionSolution";
 import { cn } from "@/lib/utils";
 
 type ChapterPyqResultViewProps = {
@@ -89,6 +91,7 @@ export default function ChapterPyqResultView({
   onNextSet,
 }: ChapterPyqResultViewProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [solutionOpenId, setSolutionOpenId] = useState<string | null>(null);
   const [filter, setFilter] = useState<PyqReviewFilter>("all");
 
   const { score, skipped, wrong } = useMemo(() => {
@@ -114,8 +117,8 @@ export default function ChapterPyqResultView({
 
   const allSkipped = skipped === entries.length;
   const lead = allSkipped
-    ? "You submitted without answering. Open a question below to see the paper and the answer key — or try the set again."
-    : "Open a question to see the paper, your pick, and the correct answer from the key.";
+    ? "You submitted without answering. Open a question, then tap Solution on the left to see the write-up."
+    : "Open a question to see the paper. Solution is on the left; your answer is on the right.";
 
   const filterCount = (id: PyqReviewFilter): number => {
     switch (id) {
@@ -293,21 +296,40 @@ export default function ChapterPyqResultView({
                         </div>
                       ) : null}
                     </NtaMockTokens>
-                    <p className="text-sm text-muted-foreground">
-                      Your answer:{" "}
-                      {yours != null && yours !== "" ? (
-                        <span className="text-foreground">
-                          <ReviewInlineHtml text={yours} />
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </p>
-                    {verdict !== "correct" ? (
-                      <p className="text-sm font-medium text-edu-green">
-                        Correct: {correct ? <ReviewInlineHtml text={correct} /> : "—"}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 flex-col items-start gap-2">
+                        <p className="text-sm font-medium text-edu-green">
+                          Solution: {correct ? <ReviewInlineHtml text={correct} /> : "—"}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setSolutionOpenId(q.id)}
+                          className="rounded-md px-3.5 py-2 text-center text-xs font-bold uppercase leading-tight shadow-sm transition-all duration-150 hover:brightness-105 active:scale-[0.98] sm:px-4 sm:py-2.5 sm:text-[12.5px]"
+                          style={{ background: "#0f766e", color: "#fff", border: "1px solid #0d5e58" }}
+                        >
+                          Solution
+                        </button>
+                      </div>
+                      <p className="min-w-0 text-right text-sm text-muted-foreground">
+                        Your answer:{" "}
+                        {yours != null && yours !== "" ? (
+                          <span className="text-foreground">
+                            <ReviewInlineHtml text={yours} />
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </p>
-                    ) : null}
+                    </div>
+                    <NtaSolutionModal
+                      open={solutionOpenId === q.id}
+                      onClose={() => setSolutionOpenId(null)}
+                      text={ntaQuestionSolutionText(q)}
+                      title="Solution"
+                      emptyLabel="No solution"
+                      useWorkedSheet
+                      panel="solution"
+                    />
                   </div>
                 ) : null}
               </div>

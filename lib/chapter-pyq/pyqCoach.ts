@@ -1,3 +1,5 @@
+import { parseJsonWithTexEscapes } from "@/lib/chapter-pyq/pyqWorkedSolution";
+
 export type PyqCoachTipStep = {
   title: string;
   body: string;
@@ -21,13 +23,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function parseJson(raw: string): unknown | null {
-  const text = String(raw ?? "").trim();
-  if (!text.startsWith("{") && !text.startsWith("[")) return null;
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return null;
-  }
+  return parseJsonWithTexEscapes(raw);
 }
 
 export function parsePyqCoachTips(raw: string): PyqCoachTipStep[] | null {
@@ -86,6 +82,14 @@ export function parsePyqCoachFormulas(raw: string): PyqCoachFormula[] | null {
     items.push({ name, tex, note });
   }
   return items.length > 0 ? items : null;
+}
+
+/** Prefix the formula card caption so a student can tell it is a hint, not more math. */
+export function formatCoachFormulaNote(note: string): string {
+  const text = note.trim();
+  if (!text) return "";
+  const body = text.replace(/^note\s*:\s*/i, "").trim();
+  return body ? `Note : ${body}` : "";
 }
 
 /** glm often writes ascii `sqrt3/2` in formula titles. The card label is CSS-uppercase, so that becomes SQRT3/2 unless it is real KaTeX. */

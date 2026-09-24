@@ -28,12 +28,19 @@ const ntaImgClass =
 const ntaMdClass =
   "min-w-0 max-w-full break-words text-[var(--nta-text)] [&_.katex]:!text-[var(--nta-text)] [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_a]:!text-[var(--nta-blue)] [&_.katex-error]:!text-[var(--nta-text)] [&_.katex-error]:!bg-transparent";
 
-/** Repair `\\(…\\)` / `math-tex` spans in sanitized HTML before KaTeX auto-render. */
+/** Repair `\\(…\\)` / `$$…$$` / `math-tex` spans in sanitized HTML before KaTeX auto-render. */
 function repairMathInMockHtml(html: string): string {
-  return html.replace(
-    /\\\(([\s\S]*?)\\\)/g,
-    (_match, inner: string) => `\\(${repairBankMathLatex(inner)}\\)`
-  );
+  return html
+    .replace(/\$\$([\s\S]*?)\$\$/g, (_match, inner: string) => `$$${repairBankMathLatex(inner)}$$`)
+    .replace(/\\\[([\s\S]*?)\\\]/g, (_match, inner: string) => `\\[${repairBankMathLatex(inner)}\\]`)
+    .replace(
+      /\\\(([\s\S]*?)\\\)/g,
+      (_match, inner: string) => `\\(${repairBankMathLatex(inner)}\\)`
+    )
+    .replace(
+      /(?<!\$)\$(?!\$)([^$]+)\$(?!\$)/g,
+      (_match, inner: string) => `$${repairBankMathLatex(inner)}$`
+    );
 }
 
 const ntaStemKatexClass =

@@ -2,6 +2,7 @@
 
 import { NtaRichTextBlock } from "@/components/prep-mock/nta/ntaExamParts";
 import {
+  formatCoachFormulaNote,
   parsePyqCoachFormulas,
   parsePyqCoachTips,
   type PyqCoachFormula,
@@ -72,13 +73,14 @@ function FormulaCodexCards({ items }: { items: PyqCoachFormula[] }) {
               <NtaRichTextBlock text={wrapDisplayTex(item.tex)} variant="solution" />
             </div>
           </div>
-          {item.note ? (
+          {formatCoachFormulaNote(item.note) ? (
             <div className="nta-codex-note">
-              <span className="nta-codex-bullet" aria-hidden>
-                •
-              </span>
-              <div>
-                <NtaRichTextBlock text={item.note} variant="solution" />
+              <span className="nta-codex-note-kicker">Note :</span>
+              <div className="nta-codex-note-body">
+                <NtaRichTextBlock
+                  text={formatCoachFormulaNote(item.note).replace(/^Note\s*:\s*/, "")}
+                  variant="solution"
+                />
               </div>
             </div>
           ) : null}

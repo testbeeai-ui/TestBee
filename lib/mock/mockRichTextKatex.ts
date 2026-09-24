@@ -146,13 +146,68 @@ export function patchMockHtmlImages(html: string): string {
   });
 }
 
+function unescapedBraceDepth(tex: string): number {
+  let depth = 0;
+  for (let i = 0; i < tex.length; i += 1) {
+    if (tex[i] === "\\") {
+      i += 1;
+      continue;
+    }
+    if (tex[i] === "{") depth += 1;
+    else if (tex[i] === "}") depth -= 1;
+  }
+  return depth;
+}
+
+function closeBareSetBraces(tex: string): string {
+  const holes: string[] = [];
+  const stash = (chunk: string) => {
+    holes.push(chunk);
+    return `\u0001${holes.length - 1}\u0001`;
+  };
+  let s = String(tex ?? "");
+  s = s.replace(/\\(?:left|right|bigl|bigr|Bigl|Bigr|big|Big)\s*\\\{/g, stash);
+  s = s.replace(/\\\{((?:[^\\{}]|\\(?![{}]))*)\}/g, (_all, inner: string) => `\\{${inner}\\}`);
+  return s.replace(/\u0001(\d+)\u0001/g, (_all, index: string) => holes[Number(index)] ?? "");
+}
+
 /**
  * Repair common JEE/PYQ bank LaTeX typos before KaTeX (NTA exam + review UI).
  * Fixes `\lim_\limits{…}`, `\text x`, glued `\rightarrow1+`, broken `\frac`, etc.
  */
+const KNOWN_TEX_CMD =
+  "mu|nu|lambda|pi|alpha|beta|gamma|theta|phi|psi|omega|sigma|rho|tau|delta|epsilon|sin|cos|tan|ln|log|lim|frac|sqrt|in|le|ge|neq|cdot|times|text|mathbf|mathrm|mathbb";
+
+function collapseDoubledTexCommands(s: string): string {
+  return s.replace(new RegExp(String.raw`\\\\(${KNOWN_TEX_CMD})\b`, "g"), "\\$1");
+}
+
+/** KaTeX ignores ordinary spaces, so `=1 4x` paints as `=14x`. */
+function splitGluedLinearEquations(s: string): string {
+  let t = s;
+  t = t.replace(/(=\s*-?\d+)\s+(?=(?:\d+[A-Za-z]|[xyz]|\\[A-Za-z]))/g, "$1,\\quad ");
+  t = t.replace(/(=\s*\\[A-Za-z]+)\s+(?=\\[A-Za-z]+,)/g, "$1,\\quad ");
+  return t;
+}
+
 export function repairBankMathLatex(math: string): string {
   let s = normalizeBankMathEscapes(String(math ?? ""));
+  s = s.replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex: string) =>
+    String.fromCharCode(Number.parseInt(hex, 16))
+  );
   s = s.replace(/\r?\n\s*/g, " ");
+  s = s.replace(/\\begin\{([a-z]+)\}\\n/g, "\\begin{$1} ");
+  s = s.replace(/\\n(?!(?:eq|u|abla|ot|less|geq|int)\b)(?=[A-Za-z])/g, " ");
+  s = collapseDoubledTexCommands(s);
+  s = splitGluedLinearEquations(s);
+  s = s.replace(/\u000crac/g, "\\frac");
+  s = s.replace(/\u0008inom/g, "\\binom");
+  s = s.replace(/\\ight\b/g, "\\right");
+  s = s.replace(/\\hat\s+([ijk])\}/g, "\\hat{$1}");
+  s = s.replace(/_{2,}/g, (run) => `\\_{}`.repeat(run.length));
+  s = s.replace(/\\\\(begin|end)\{/g, "\\$1{");
+  s = s.replace(/\}\s+\^{/g, "} {}^{");
+  s = closeBareSetBraces(s);
   s = s.replace(/\\text\s+\{/g, "\\text{");
   s = s.replace(/\\lim_\\limits\s*\{/g, "\\lim\\limits_{");
   s = s.replace(/\\lim_limits\b/g, "\\lim\\limits");
@@ -165,10 +220,20 @@ export function repairBankMathLatex(math: string): string {
   s = s.replace(/\\uparrowrac\b/g, "\\frac");
   s = s.replace(/\\[A-Za-z^]*rac(?=\s*\{)/g, "\\frac");
   s = s.replace(/\u2212/g, "-");
+  s = s.replace(/\u221a/g, "\\sqrt");
+  s = s.replace(/\u2219/g, "\\cdot ");
   s = s.replace(/\u00D7/g, "\\times ");
   s = s.replace(/\u00B7/g, "\\cdot ");
   s = s.replace(/\s{2,}/g, " ");
-  return protectTexBrackets(s.trim());
+  s = protectTexBrackets(s.trim());
+  while (unescapedBraceDepth(s) < 0 && s.endsWith("}")) {
+    s = s.slice(0, -1);
+  }
+  const depth = unescapedBraceDepth(s);
+  if (depth > 0 && depth <= 3 && /\\(?:sqrt|frac|lim|sum|int|binom|text)(?![A-Za-z])/.test(s)) {
+    s += "}".repeat(depth);
+  }
+  return s;
 }
 
 /** Keep GIF `[x]` / intervals `[a,b]` from being eaten or wrapped mid-bracket. */
@@ -183,8 +248,9 @@ export function protectTexBrackets(tex: string): string {
   s = s.replace(/\\(?:left|right|bigl|bigr|Bigl|Bigr|big|Big)\s*\[/g, stash);
   s = s.replace(/\\lbrack\b/g, stash);
   s = s.replace(/(?<!\\)\[([^\]]*)\]/g, (_all, inner: string) => {
+    if (inner.includes("&") || /\\\\/.test(inner)) return `[${inner}]`;
     if (inner.includes(",")) return `\\left[${inner}\\right]`;
-    return `\\lbrack ${inner} \\rbrack`;
+    return `\\lbrack{${inner}}\\rbrack{}`;
   });
   return s.replace(/\u0000(\d+)\u0000/g, (_all, index: string) => holes[Number(index)] ?? "");
 }

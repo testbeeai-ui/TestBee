@@ -166,6 +166,99 @@ function phaseOf(value: unknown): PyqWorkedPhase | null {
   };
 }
 
+const WEAK_LEAD_IN =
+  /^(so|hence|thus|therefore|then|and|now|henceforth)[,:]?\s*$/i;
+
+function texKey(tex: string): string {
+  return tex.replace(/\s+/g, "");
+}
+
+function looksLikeKeyedChip(tex: string): boolean {
+  const t = tex.trim();
+  if (!t) return false;
+  if (texKey(t).length <= 20) return true;
+  return /^[A-Za-z][A-Za-z0-9]*\s*=\s*\S{1,20}$/.test(t);
+}
+
+function isCompactAnswerTex(tex: string): boolean {
+  const t = tex.trim();
+  if (!t || /\\begin\s*\{/.test(t)) return false;
+  return texKey(t).length <= 48;
+}
+
+function lastDisplayTex(sol: PyqWorkedSolution): string {
+  for (let i = sol.phases.length - 1; i >= 0; i--) {
+    const blocks = sol.phases[i]!.blocks;
+    for (let j = blocks.length - 1; j >= 0; j--) {
+      const block = blocks[j]!;
+      if (block.kind === "display") return block.tex.trim();
+    }
+  }
+  return "";
+}
+
+function optionChoiceNote(answer: string, note: string): string | null {
+  const fromAnswer = answer.trim().match(/^(?:option\s*)?([1-4])$/i);
+  if (fromAnswer) return `Option ${fromAnswer[1]} is the correct choice`;
+  const fromNote = note.match(/\boption\s*([1-4])\b/i);
+  if (fromNote) return `Option ${fromNote[1]} is the correct choice`;
+  return null;
+}
+
+function isOptionDigit(tex: string): boolean {
+  return /^[1-4]$/.test(tex.trim());
+}
+
+/** Prefer `16` / `K = 1` on the chip over the MCQ option index. */
+function compactResultChip(tex: string): string | null {
+  const t = tex.trim();
+  if (!t) return null;
+  if (/^[A-Za-z][A-Za-z0-9]*\s*=\s*\S{1,24}$/.test(t)) return t;
+  const parts = splitEqualsOutsideBraces(t);
+  if (parts.length >= 2) {
+    const rhs = parts[parts.length - 1]!;
+    const compact = texKey(rhs);
+    if (
+      isCompactAnswerTex(rhs) &&
+      compact.length <= 20 &&
+      !isOptionDigit(rhs) &&
+      !compact.includes(",")
+    ) {
+      return rhs;
+    }
+  }
+  if (isCompactAnswerTex(t) && !isOptionDigit(t) && !texKey(t).includes(",")) return t;
+  return null;
+}
+
+/** Footer chip: short keyed result + option line, not the last working equation. */
+export function polishWorkedSolution(sol: PyqWorkedSolution): PyqWorkedSolution {
+  const last = lastDisplayTex(sol);
+  const optionNote = optionChoiceNote(sol.answer, sol.answer_note);
+  const rawNote = sol.answer_note.trim();
+  const note =
+    optionNote ??
+    (WEAK_LEAD_IN.test(rawNote) || rawNote.length < 3 ? "The keyed result" : rawNote);
+
+  const rawTex = sol.answer_tex.trim();
+  const key = sol.answer.trim();
+  const sameAsLast = Boolean(last) && texKey(rawTex) === texKey(last);
+  const keyedChip = looksLikeKeyedChip(rawTex);
+  const dupWorking = sameAsLast && !keyedChip;
+  const mathChip = compactResultChip(rawTex) ?? (dupWorking ? compactResultChip(last) : null);
+  let tex = rawTex;
+  if (mathChip && !isOptionDigit(mathChip)) {
+    tex = mathChip;
+  } else if (!isCompactAnswerTex(tex) || dupWorking) {
+    if (isCompactAnswerTex(key) && !isOptionDigit(key)) tex = key;
+    else if (looksLikeKeyedChip(last) && (dupWorking || !isCompactAnswerTex(tex))) tex = last;
+    else if (isOptionDigit(key)) tex = key;
+    else if (!isCompactAnswerTex(tex)) tex = "";
+  }
+
+  return { ...sol, answer_note: note, answer_tex: tex };
+}
+
 function fromJsonObject(raw: Record<string, unknown>): PyqWorkedSolution | null {
   const inner = asRecord(raw.solution);
   if (inner) {
@@ -176,14 +269,14 @@ function fromJsonObject(raw: Record<string, unknown>): PyqWorkedSolution | null 
   const phasesIn = Array.isArray(raw.phases) ? raw.phases : [];
   const phases = phasesIn.map(phaseOf).filter((p): p is PyqWorkedPhase => p != null);
   if (!title || !answer || phases.length < 2) return null;
-  return {
+  return polishWorkedSolution({
     answer,
     title,
     problem_tex: String(raw.problem_tex ?? "").trim(),
     answer_tex: String(raw.answer_tex ?? "").trim(),
     answer_note: String(raw.answer_note ?? "").trim(),
     phases,
-  };
+  });
 }
 
 const STEP = /^(\d+)\.\s+/;
@@ -420,14 +513,14 @@ function fromNumberedMarkdown(md: string): PyqWorkedSolution | null {
       ),
     };
   });
-  return {
+  return polishWorkedSolution({
     answer: "",
     title: "Worked solution",
     problem_tex: "",
     answer_tex: "",
     answer_note: last,
     phases,
-  };
+  });
 }
 
 const PAPER_HEADING = /^##\s+Step\s+(\d+):\s+(.+)$/i;
@@ -496,15 +589,15 @@ function fromPaperOcrMarkdown(md: string): PyqWorkedSolution | null {
   const lastProse = [...last.blocks].reverse().find((b) => b.kind === "paragraph");
   const answerTex =
     lastDisplay && lastDisplay.tex.length <= 96 ? lastDisplay.tex : "";
-
-  return {
+  const note = lastProse?.text?.trim() ?? "";
+  return polishWorkedSolution({
     answer: "",
     title: "Worked solution",
     problem_tex: "",
     answer_tex: answerTex,
-    answer_note: lastProse?.text || "The printed result",
+    answer_note: WEAK_LEAD_IN.test(note) ? "The printed result" : note || "The printed result",
     phases: filled,
-  };
+  });
 }
 
 /** Printed MathonGo write-up. Routed onto the same worked sheet as glm JSON. */
@@ -513,25 +606,108 @@ export function isPaperOcrSolution(raw: string): boolean {
   return /<!--\s*paper-ocr\s*-->/.test(text) || /\[\[fig:/.test(text);
 }
 
+const SMASHED_JSON_TEX =
+  /[\u0008\u0009\u000b\u000c\u000d]|\n(?:eq|u\b|abla|ot\b|earrow)/;
+
+function jsonHasSmashedTexEscapes(value: unknown): boolean {
+  if (typeof value === "string") return SMASHED_JSON_TEX.test(value);
+  if (Array.isArray(value)) return value.some(jsonHasSmashedTexEscapes);
+  if (value !== null && typeof value === "object") {
+    return Object.values(value).some(jsonHasSmashedTexEscapes);
+  }
+  return false;
+}
+
+/** Parse glm JSON, doubling TeX `\` that JSON would eat as `\f` / `\n` / `\t`. */
+export function parseJsonWithTexEscapes(text: string): unknown | null {
+  const rawText = String(text ?? "").trim();
+  if (!rawText.startsWith("{") && !rawText.startsWith("[")) return null;
+  let raw: unknown = null;
+  let repaired: unknown = null;
+  try {
+    raw = JSON.parse(rawText) as unknown;
+  } catch {
+    raw = null;
+  }
+  try {
+    repaired = JSON.parse(repairLooseJson(rawText)) as unknown;
+  } catch {
+    repaired = null;
+  }
+  if (repaired != null && (raw == null || jsonHasSmashedTexEscapes(raw))) {
+    return repaired;
+  }
+  return raw;
+}
+
+/** glm / a \\-collapse pass often leaves `\sin` in JSON source (`\s` is not a JSON escape). */
+export function repairLooseJson(text: string): string {
+  let out = "";
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!;
+    if (!inString) {
+      if (c === '"') inString = true;
+      out += c;
+      continue;
+    }
+    if (escaped) {
+      out += c;
+      escaped = false;
+      continue;
+    }
+    if (c === "\\") {
+      const next = text[i + 1] ?? "";
+      const after = text[i + 2] ?? "";
+      const jsonLetterEscape =
+        (next === "b" || next === "f" || next === "n" || next === "r" || next === "t") &&
+        !/[A-Za-z]/.test(after);
+      if (
+        next === '"' ||
+        next === "\\" ||
+        next === "/" ||
+        next === "u" ||
+        jsonLetterEscape
+      ) {
+        out += c;
+        escaped = true;
+        continue;
+      }
+      out += "\\\\";
+      continue;
+    }
+    if (c === '"') inString = false;
+    out += c;
+  }
+  return out;
+}
+
+function jsonObjectBlob(text: string): string | null {
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{")) return trimmed;
+  if (!trimmed.includes('"phases"') && !trimmed.includes('"answer"')) return null;
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  return trimmed.slice(start, end + 1);
+}
+
+function parseWorkedJson(blob: string): PyqWorkedSolution | null {
+  const parsed = parseJsonWithTexEscapes(blob);
+  const rec = asRecord(parsed);
+  if (!rec) return null;
+  return fromJsonObject(rec);
+}
+
 export function parsePyqWorkedSolution(raw: string): PyqWorkedSolution | null {
   const text = String(raw ?? "").trim();
   if (!text) return null;
   if (isPaperOcrSolution(text) && !text.startsWith("{")) {
     return fromPaperOcrMarkdown(text);
   }
-  if (text.startsWith("{")) {
-    try {
-      const parsed: unknown = JSON.parse(text);
-      const rec = asRecord(parsed);
-      if (rec) {
-        const worked = fromJsonObject(rec);
-        if (worked) return worked;
-      }
-    } catch {
-      return null;
-    }
-    return null;
-  }
+  const blob = jsonObjectBlob(text);
+  if (blob) return parseWorkedJson(blob);
   return fromNumberedMarkdown(text);
 }
 
