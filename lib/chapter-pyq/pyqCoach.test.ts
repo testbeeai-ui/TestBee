@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePyqCoachFormulas, parsePyqCoachTips, splitCoachTipCallout } from "./pyqCoach";
+import { formatCoachFormulaNote, parsePyqCoachFormulas, parsePyqCoachTips, splitCoachTipCallout } from "./pyqCoach";
 
 describe("parsePyqCoachTips", () => {
   it("reads numbered start-moves from glm JSON", () => {
@@ -118,5 +118,30 @@ describe("parsePyqCoachFormulas", () => {
       })
     );
     expect(items?.[0]?.name).toBe("Factor $(\\sqrt{3})$");
+  });
+
+  it("recovers TeX \\frac that JSON parsed as a form-feed", () => {
+    const loose =
+      '{ "formulas": [{ "name": "Half", "tex": "a=-\\frac{3}{2}", "note": "signed" }] }';
+    const items = parsePyqCoachFormulas(loose);
+    expect(items?.[0]?.tex).toContain("\\frac{3}{2}");
+    expect(items?.[0]?.tex).not.toContain("\f");
+  });
+});
+
+describe("formatCoachFormulaNote", () => {
+  it("prefixes a caption with Note :", () => {
+    expect(formatCoachFormulaNote("Combine 2 sin into one sine")).toBe(
+      "Note : Combine 2 sin into one sine"
+    );
+  });
+
+  it("does not double an existing Note : label", () => {
+    expect(formatCoachFormulaNote("Note : first quadrant")).toBe("Note : first quadrant");
+    expect(formatCoachFormulaNote("note: already labeled")).toBe("Note : already labeled");
+  });
+
+  it("is empty when there is no caption", () => {
+    expect(formatCoachFormulaNote("  ")).toBe("");
   });
 });

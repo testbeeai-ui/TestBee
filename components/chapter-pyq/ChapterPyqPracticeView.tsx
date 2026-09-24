@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Clock, Play } from "lucide-react";
 import { CHAPTER_PYQ_SUBJECTS, findChapter } from "@/lib/chapter-pyq/catalog";
+import { isChapterPyqStudentVisible } from "@/lib/chapter-pyq/visibleChapters";
 import { CHAPTER_PYQ_CACHE_VERSION } from "@/lib/chapter-pyq/cacheVersion";
 import { fetchChapterPyqQuestions } from "@/lib/chapter-pyq/fetchPyqQuestions";
 import type { ChapterPyqQuestion } from "@/lib/chapter-pyq/pyqQuestionMap";
@@ -21,6 +22,7 @@ export default function ChapterPyqPracticeView({
   chapter,
 }: ChapterPyqPracticeViewProps) {
   const entry = findChapter(subject, chapter);
+  const unlocked = entry ? isChapterPyqStudentVisible(entry.subject, entry.slug) : false;
   const [entries, setEntries] = useState<ChapterPyqQuestion[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tier, setTier] = useState<PyqTierFilter>("all");
@@ -29,6 +31,11 @@ export default function ChapterPyqPracticeView({
 
   useEffect(() => {
     if (!entry) return;
+    if (!unlocked) {
+      setEntries([]);
+      setLoadError(null);
+      return;
+    }
     let cancelled = false;
     setEntries(null);
     setLoadError(null);
@@ -44,7 +51,7 @@ export default function ChapterPyqPracticeView({
     return () => {
       cancelled = true;
     };
-  }, [entry, CHAPTER_PYQ_CACHE_VERSION]);
+  }, [entry, unlocked, CHAPTER_PYQ_CACHE_VERSION]);
 
   const filtered = useMemo(() => filterByTier(entries ?? [], tier), [entries, tier]);
   const sets = useMemo(

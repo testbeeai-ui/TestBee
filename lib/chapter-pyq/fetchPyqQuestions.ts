@@ -1,11 +1,13 @@
 import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
 import { CHAPTER_PYQ_CACHE_VERSION } from "@/lib/chapter-pyq/cacheVersion";
 import type { ChapterPyqQuestionBundle } from "@/lib/chapter-pyq/pyqQuestionMap";
+import { isChapterPyqStudentVisible } from "@/lib/chapter-pyq/visibleChapters";
 
 export async function fetchChapterPyqQuestions(
   catalogSlug: string,
   subject = "physics"
 ): Promise<ChapterPyqQuestionBundle | null> {
+  if (!isChapterPyqStudentVisible(subject, catalogSlug)) return null;
   const params = new URLSearchParams({
     chapter: catalogSlug,
     subject,

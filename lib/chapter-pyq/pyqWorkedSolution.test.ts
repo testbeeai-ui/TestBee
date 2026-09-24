@@ -94,6 +94,127 @@ describe("parsePyqWorkedSolution", () => {
     ]);
   });
 
+  it("parses glm JSON whose TeX backslashes were not doubled", () => {
+    const loose = [
+      "{",
+      ' "answer": "2",',
+      ' "title": "Continuity of Derivative at Origin",',
+      ' "problem_tex": "f(x)=\\sin\\left(\\frac{1}{x}\\right)",',
+      ' "answer_tex": "option 2",',
+      ' "answer_note": "Option 2 is the correct choice",',
+      ' "phases": [',
+      "  {",
+      '   "title": "Check Continuity at the Origin",',
+      '   "paragraphs": ["We first test whether f is continuous at x = 0."],',
+      '   "blocks": [{ "kind": "paragraph", "text": "We first test whether f is continuous at x = 0." }]',
+      "  },",
+      "  {",
+      '   "title": "Compute the Derivative from First Principles",',
+      '   "paragraphs": ["Away from the origin we differentiate."],',
+      '   "blocks": [{ "kind": "paragraph", "text": "Away from the origin we differentiate." }]',
+      "  }",
+      " ]",
+      "}",
+    ].join("\n");
+    const parsed = parsePyqWorkedSolution(loose);
+    expect(parsed?.title).toBe("Continuity of Derivative at Origin");
+    expect(parsed?.phases.map((p) => p.title)).toEqual([
+      "Check Continuity at the Origin",
+      "Compute the Derivative from First Principles",
+    ]);
+    expect(parsed?.problem_tex).toContain("\\sin");
+    expect(parsed?.problem_tex).toContain("\\left");
+  });
+
+  it("does not keep JSON \\frac as a form-feed in the TeX", () => {
+    const loose = [
+      "{",
+      ' "answer": "1",',
+      ' "title": "Critical points",',
+      ' "problem_tex": "a=-\\frac{3}{2}",',
+      ' "answer_tex": "a=-\\frac{3}{2}",',
+      ' "answer_note": "done",',
+      ' "phases": [',
+      '  { "title": "Setup", "paragraphs": ["Start."] },',
+      '  { "title": "Solve", "paragraphs": ["a=-\\frac{3}{2}."] }',
+      " ]",
+      "}",
+    ].join("\n");
+    const parsed = parsePyqWorkedSolution(loose);
+    expect(parsed?.problem_tex).toContain("\\frac{3}{2}");
+    expect(parsed?.problem_tex).not.toContain("\f");
+  });
+
+  it("shows the computed value on the footer chip, not the option number", () => {
+    const parsed = parsePyqWorkedSolution(
+      JSON.stringify({
+        answer: "1",
+        title: "Determinant Limit via Row Operations",
+        problem_tex: "(\\lambda+\\mu+\\nu)^2",
+        answer_tex: "(\\lambda + \\mu + \\nu)^2 = 16",
+        answer_note: "Option 1 is the correct choice",
+        phases: [
+          { title: "Expand", paragraphs: ["Row operations."] },
+          {
+            title: "Compute the final value",
+            paragraphs: ["Add the coefficients and square."],
+            displays: ["(\\lambda + \\mu + \\nu)^2 = 16"],
+          },
+        ],
+      })
+    );
+    expect(parsed?.answer_note).toBe("Option 1 is the correct choice");
+    expect(parsed?.answer_tex).toBe("16");
+  });
+
+  it("keeps a compact keyed chip instead of repeating the last working line", () => {
+    const parsed = parsePyqWorkedSolution(
+      JSON.stringify({
+        answer: "1",
+        title: "Circle matching",
+        problem_tex: "x^2+y^2=4",
+        answer_tex: "(2a,b^{2})=(\\alpha,\\beta^{2}-4r)",
+        answer_note: "So,",
+        phases: [
+          {
+            title: "Radius from the intercepts",
+            paragraphs: ["Drop a perpendicular to the chord."],
+            blocks: [{ kind: "paragraph", text: "Drop a perpendicular to the chord." }],
+          },
+          {
+            title: "Match coordinates",
+            paragraphs: ["So,"],
+            displays: ["(2a,b^{2})=(\\alpha,\\beta^{2}-4r)"],
+            blocks: [
+              { kind: "paragraph", text: "So," },
+              { kind: "display", tex: "(2a,b^{2})=(\\alpha,\\beta^{2}-4r)" },
+            ],
+          },
+        ],
+      })
+    );
+    expect(parsed?.answer_note).toBe("Option 1 is the correct choice");
+    expect(parsed?.answer_tex).toBe("1");
+  });
+
+  it("keeps K = 1 style chips on the footer", () => {
+    const parsed = parsePyqWorkedSolution(
+      JSON.stringify({
+        answer: "1",
+        title: "Integer k",
+        problem_tex: "k=?",
+        answer_tex: "K = 1",
+        answer_note: "Option 1 is the correct choice",
+        phases: [
+          { title: "Setup", paragraphs: ["Start."] },
+          { title: "Finish", paragraphs: ["Done."] },
+        ],
+      })
+    );
+    expect(parsed?.answer_note).toBe("Option 1 is the correct choice");
+    expect(parsed?.answer_tex).toBe("K = 1");
+  });
+
   it("does not turn valid phase JSON into Setup/Working", () => {
     const parsed = parsePyqWorkedSolution(
       JSON.stringify({

@@ -31,10 +31,11 @@ const MATH_WHITE =
 const GENERIC_STEP_TITLE = new Set(["setup", "working", "evaluate", "result", "solution"]);
 
 function repairMathHtml(html: string): string {
-  return html.replace(
-    /\\\(([\s\S]*?)\\\)/g,
-    (_match, inner: string) => `\\(${repairBankMathLatex(inner)}\\)`
-  );
+  return html
+    .replace(/\$\$([\s\S]*?)\$\$/g, (_match, inner: string) => `$$${repairBankMathLatex(inner)}$$`)
+    .replace(/\\\[([\s\S]*?)\\\]/g, (_match, inner: string) => `\\[${repairBankMathLatex(inner)}\\]`)
+    .replace(/\\\(([\s\S]*?)\\\)/g, (_match, inner: string) => `\\(${repairBankMathLatex(inner)}\\)`)
+    .replace(/(?<!\$)\$(?!\$)([^$]+)\$(?!\$)/g, (_match, inner: string) => `$${repairBankMathLatex(inner)}$`);
 }
 
 function NtaSolutionKatex({
@@ -104,7 +105,8 @@ function stepHeading(title: string): string | null {
 }
 
 function isPunctParagraph(text: string): boolean {
-  return /^[\s;:,.·•\-–—]*$/.test(text.trim());
+  const t = text.trim();
+  return /^[\s;:,.·•\-–—]*$/.test(t) || /^(so|hence|thus|therefore|then|and|now)[,:]?\s*$/i.test(t);
 }
 
 function PhaseBlockView({ block }: { block: PyqWorkedBlock }) {
@@ -235,9 +237,10 @@ function StepSection({ phase, index }: { phase: PyqWorkedPhase; index: number })
           Step {index + 1}
         </p>
         {heading ? (
-          <h3 className="mt-0.5 text-[15px] font-semibold leading-snug tracking-tight text-white">
-            {heading}
-          </h3>
+          <NtaSolutionKatex
+            text={heading}
+            className="mt-0.5 text-[15px] font-semibold leading-snug tracking-tight text-white"
+          />
         ) : null}
       </div>
       <StepBlocks blocks={phase.blocks} />
@@ -310,7 +313,7 @@ export function NtaWorkedSolutionSheet({
             </div>
           </div>
           {solution.answer_tex ? (
-            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-1.5 text-2xl font-bold text-white">
+            <div className="shrink-0 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-1.5 text-2xl font-bold text-white">
               <NtaSolutionKatex
                 text={solution.answer_tex}
                 display

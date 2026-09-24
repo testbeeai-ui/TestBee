@@ -7,6 +7,7 @@ import { fetchPyqRowsForCatalogChapter } from "@/lib/chapter-pyq/fetchPyqQuestio
 import { mapPyqRowsToChapterPyqQuestions } from "@/lib/chapter-pyq/pyqQuestionMap";
 import { isPyqSourcedCatalogSlug } from "@/lib/chapter-pyq/pdfChapterMap";
 import { findChapter } from "@/lib/chapter-pyq/catalog";
+import { isChapterPyqStudentVisible } from "@/lib/chapter-pyq/visibleChapters";
 
 const CACHE_REVALIDATE_SEC = 3600;
 
@@ -19,7 +20,9 @@ export async function GET(request: Request) {
     const chapter = url.searchParams.get("chapter")?.trim() ?? "";
     const subject = url.searchParams.get("subject")?.trim() ?? "physics";
     const entry = findChapter(subject, chapter);
-    if (!entry) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    if (!entry || !isChapterPyqStudentVisible(subject, chapter)) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
     if (!isPyqSourcedCatalogSlug(chapter)) {
       return NextResponse.json({ catalogSlug: chapter, chapterName: entry.name, questions: [] });
     }

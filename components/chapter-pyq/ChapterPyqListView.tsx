@@ -9,6 +9,7 @@ import {
   type ChapterPyqSubject,
   type ChapterPyqEntry,
 } from "@/lib/chapter-pyq/catalog";
+import { isChapterPyqStudentVisible, publishedCountForStudent } from "@/lib/chapter-pyq/visibleChapters";
 import { CHAPTER_PYQ_CACHE_VERSION } from "@/lib/chapter-pyq/cacheVersion";
 import { fetchChapterPyqCounts, fetchChapterPyqQuestions } from "@/lib/chapter-pyq/fetchPyqQuestions";
 import type { ChapterPyqQuestion } from "@/lib/chapter-pyq/pyqQuestionMap";
@@ -514,23 +515,26 @@ const CHAPTER_METAS: Record<string, ChapterMeta> = {
   },
 };
 
+const MATH_PYQ_YEAR_RANGE = "2023 – 2026";
+
 function getChapterMeta(slug: string, subject: ChapterPyqSubject): ChapterMeta {
   const meta = CHAPTER_METAS[slug];
-  if (meta) return meta;
-
   const defaultCategory =
     subject === "physics"
       ? "General Physics"
       : subject === "chemistry"
-      ? "Physical Chemistry"
-      : "Mathematics";
-
-  return {
+        ? "Physical Chemistry"
+        : "Mathematics";
+  const resolved: ChapterMeta = meta ?? {
     category: defaultCategory,
     weightage: "normal",
     yearRange: "2019 – 2025",
     defaultTotal: 45,
   };
+  if (subject === "math") {
+    return { ...resolved, yearRange: MATH_PYQ_YEAR_RANGE };
+  }
+  return resolved;
 }
 
 type ChapterPracticeModalProps = {
@@ -555,6 +559,12 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
     setLoadError(null);
     setTier("all");
     setActiveSetIndex(null);
+
+    if (!isChapterPyqStudentVisible(entry.subject, entry.slug)) {
+      setEntries([]);
+      onLiveCountRef.current(entry.slug, 0);
+      return;
+    }
 
     void fetchChapterPyqQuestions(entry.slug, entry.subject)
       .then((bundle) => {
@@ -819,7 +829,7 @@ export default function ChapterPyqListView() {
     let solved = 0;
 
     for (const c of chaptersForSubject(subject)) {
-      const actualCount = counts?.[c.slug];
+      const actualCount = publishedCountForStudent(c.subject, c.slug, counts?.[c.slug]);
       if (actualCount && actualCount > 0) {
         total += actualCount;
         if (c.slug === "laws-of-motion") {
@@ -944,8 +954,12 @@ export default function ChapterPyqListView() {
       >
         {chapters.map((entry) => {
           const meta = getChapterMeta(entry.slug, entry.subject);
-          const liveCount = counts?.[entry.slug];
-          const isLive = counts !== null && liveCount !== undefined && liveCount > 0;
+          const liveCount = publishedCountForStudent(
+            entry.subject,
+            entry.slug,
+            counts?.[entry.slug],
+          );
+          const isLive = counts !== null && liveCount > 0;
           const totalCount = isLive ? liveCount : 0;
 
           // Compute progress: Laws of Motion has pilot progress; otherwise 0 until attempted

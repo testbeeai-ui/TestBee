@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { resolveTsconfigPath } from "./lib/next/nextBuildPaths";
 
 const defaultSecurityHeaders = [
   // Allow embedding only within the same origin (enables in-app previews without clickjacking exposure).
@@ -16,6 +17,9 @@ const defaultSecurityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  typescript: {
+    tsconfigPath: resolveTsconfigPath(process.argv, process.env.NEXT_PHASE),
+  },
   transpilePackages: ["three", "@react-three/fiber", "@react-three/drei"],
   experimental: {
     // Default in Next 16 is true; persistent Turbopack dev cache is flaky on some Windows setups.
