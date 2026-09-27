@@ -41,6 +41,7 @@ type ChapterPyqResultViewProps = {
   onExit: () => void;
   onRetry: () => void;
   onNextSet?: () => void;
+  marks?: { earned: number; maximum: number };
 };
 
 function VerdictIcon({ verdict }: { verdict: PyqReviewVerdict }) {
@@ -89,6 +90,7 @@ export default function ChapterPyqResultView({
   onExit,
   onRetry,
   onNextSet,
+  marks,
 }: ChapterPyqResultViewProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [solutionOpenId, setSolutionOpenId] = useState<string | null>(null);
@@ -160,9 +162,18 @@ export default function ChapterPyqResultView({
 
       <header className="space-y-2 text-center sm:text-left">
         <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">Set complete</p>
-        <h2 className="text-3xl font-bold tracking-tight text-foreground">
-          {score} / {entries.length} correct
-        </h2>
+        {marks ? (
+          <>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">
+              {marks.earned} / {marks.maximum}
+            </h2>
+            <p className="text-sm font-medium text-muted-foreground">marks</p>
+          </>
+        ) : (
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">
+            {score} / {entries.length} correct
+          </h2>
+        )}
         <p className="text-sm font-medium text-muted-foreground">
           {chapterName} · {setLabel}
         </p>
