@@ -17,7 +17,9 @@ import type { ChapterPyqQuestion } from "@/lib/chapter-pyq/pyqQuestionMap";
 import { buildPyqEvenPracticeSets, buildPyqYearMonthSets, secondsForSet, practiceSetSessionLabel, pyqYearSetListedCount } from "@/lib/chapter-pyq/pyqSets";
 import { countByTier, filterByTier, PYQ_TIER_CHIPS, type PyqTierFilter } from "@/lib/chapter-pyq/pyqTiers";
 import ChapterPyqExamSession from "@/components/chapter-pyq/ChapterPyqExamSession";
+import ChapterPyqTestSetup from "@/components/chapter-pyq/ChapterPyqTestSetup";
 import ChapterPyqAttemptStats from "@/components/chapter-pyq/ChapterPyqAttemptStats";
+import { drawPyqTestQuestions } from "@/lib/chapter-pyq/pyqTestSetup";
 import {
   loadPyqAttempts,
   PYQ_ATTEMPTS_CHANGED,
@@ -557,6 +559,13 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
   const [tier, setTier] = useState<PyqTierFilter>("all");
   const [activeSetIndex, setActiveSetIndex] = useState<number | null>(null);
   const [sessionNonce, setSessionNonce] = useState(0);
+  const [testSetup, setTestSetup] = useState<{ setIndex: number; maxQuestions: number } | null>(
+    null
+  );
+  const [testDraw, setTestDraw] = useState<{
+    questions: ChapterPyqQuestion[];
+    minutesPerQuestion: number;
+  } | null>(null);
   const onLiveCountRef = useRef(onLiveCount);
   onLiveCountRef.current = onLiveCount;
 
@@ -567,6 +576,8 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
     setLoadError(null);
     setTier("all");
     setActiveSetIndex(null);
+    setTestSetup(null);
+    setTestDraw(null);
 
     if (!isChapterPyqStudentVisible(entry.subject, entry.slug)) {
       setEntries([]);
@@ -600,13 +611,13 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
 
   // Handle escape key to close modal
   useEffect(() => {
-    if (!entry || activeSetIndex !== null) return;
+    if (!entry || activeSetIndex !== null || testSetup !== null || testDraw !== null) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [entry, activeSetIndex, onClose]);
+  }, [entry, activeSetIndex, testSetup, testDraw, onClose]);
 
   // Lock body scroll when modal is active
   useEffect(() => {
@@ -644,9 +655,59 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
   const subjectLabel =
     CHAPTER_PYQ_SUBJECTS.find((item) => item.id === entry.subject)?.label ?? entry.subject;
 
+  const setupSet = testSetup ? sets[testSetup.setIndex] : undefined;
   const activeSet = activeSetIndex !== null ? sets[activeSetIndex] : undefined;
 
-  // If exam session is active, render the fullscreen NTA session
+  const clearTestAndSession = () => {
+    setTestDraw(null);
+    setTestSetup(null);
+    setActiveSetIndex(null);
+  };
+
+  if (testDraw && activeSet && activeSetIndex !== null) {
+    return (
+      <ChapterPyqExamSession
+        key={`${activeSetIndex}-${sessionNonce}`}
+        chapterName={entry.name}
+        chapterSlug={entry.slug}
+        subject={entry.subject}
+        subjectLabel={subjectLabel}
+        questions={testDraw.questions}
+        setLabel={practiceSetSessionLabel(activeSet.label, sets.length)}
+        mode="test"
+        minutesPerQuestion={testDraw.minutesPerQuestion}
+        onExit={clearTestAndSession}
+        onRetry={() => setSessionNonce((n) => n + 1)}
+      />
+    );
+  }
+
+  if (testSetup && setupSet) {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto"
+      >
+        <div className="relative my-auto w-full max-w-xl">
+          <ChapterPyqTestSetup
+            setLabel={practiceSetSessionLabel(setupSet.label, sets.length)}
+            maxQuestions={testSetup.maxQuestions}
+            onCancel={() => setTestSetup(null)}
+            onBegin={(questionCount, minutesPerQuestion) => {
+              setActiveSetIndex(testSetup.setIndex);
+              setTestDraw({
+                questions: drawPyqTestQuestions(setupSet.items, questionCount),
+                minutesPerQuestion,
+              });
+              setSessionNonce((n) => n + 1);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (activeSet && activeSetIndex !== null) {
     return (
       <ChapterPyqExamSession
@@ -657,7 +718,7 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
         subjectLabel={subjectLabel}
         questions={activeSet.items}
         setLabel={practiceSetSessionLabel(activeSet.label, sets.length)}
-        onExit={() => setActiveSetIndex(null)}
+        onExit={clearTestAndSession}
         onRetry={() => setSessionNonce((n) => n + 1)}
         onNextSet={
           activeSetIndex < sets.length - 1
@@ -753,17 +814,12 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
                 {sets.map((set, i) => {
                   const listedCount = pyqYearSetListedCount(entry.slug, set.label, set.items.length);
                   return (
-                  <button
+                  <div
                     key={set.label}
-                    type="button"
-                    onClick={() => {
-                      setSessionNonce((n) => n + 1);
-                      setActiveSetIndex(i);
-                    }}
-                    className="group flex items-center justify-between gap-3 rounded-2xl border border-[#1F2436] bg-[#121624] p-3.5 sm:p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#2F3752] hover:bg-[#181E30] hover:shadow-lg cursor-pointer"
+                    className="flex flex-col gap-3 rounded-2xl border border-[#1F2436] bg-[#121624] p-3.5 sm:p-4"
                   >
                     <div className="min-w-0">
-                      <span className="block text-sm sm:text-base font-bold text-[#F8FAFC] group-hover:text-white truncate">
+                      <span className="block text-sm sm:text-base font-bold text-[#F8FAFC] truncate">
                         {set.label}
                       </span>
                       <span className="mt-1 flex items-center gap-1.5 text-[0.72rem] sm:text-xs text-[#94A3B8]">
@@ -774,11 +830,33 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
                       </span>
                     </div>
 
-                    <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-[#6366F1]/30 bg-[#6366F1]/15 px-3 py-1.5 text-xs font-bold text-[#A5B4FC] transition-all duration-200 group-hover:border-[#6366F1] group-hover:bg-[#6366F1] group-hover:text-white group-hover:shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-                      <Play className="h-3 w-3 fill-current" />
-                      Start
-                    </span>
-                  </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTestSetup(null);
+                          setTestDraw(null);
+                          setSessionNonce((n) => n + 1);
+                          setActiveSetIndex(i);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[#6366F1]/30 bg-[#6366F1]/15 px-3 py-1.5 text-xs font-bold text-[#A5B4FC] transition-all duration-200 hover:border-[#6366F1] hover:bg-[#6366F1] hover:text-white cursor-pointer"
+                      >
+                        <Play className="h-3 w-3 fill-current" />
+                        Start Practice
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTestDraw(null);
+                          setActiveSetIndex(null);
+                          setTestSetup({ setIndex: i, maxQuestions: set.items.length });
+                        }}
+                        className="inline-flex items-center rounded-full border border-[#1F2436] bg-[#161A28] px-3 py-1.5 text-xs font-bold text-[#F8FAFC] transition-colors hover:border-[#2F3752] hover:bg-[#1E2438] cursor-pointer"
+                      >
+                        Start Test
+                      </button>
+                    </div>
+                  </div>
                   );
                 })}
               </div>
