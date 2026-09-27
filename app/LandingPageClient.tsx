@@ -14,6 +14,7 @@ import {
   persistPendingDeepLink,
   clearPendingDeepLink,
 } from "@/lib/auth/safeNextPath";
+import { shouldFollowPostLoginNext } from "@/lib/edudeca-mock/post-login";
 import { isPublicDeepLinkTarget } from "@/lib/auth/publicPaths";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 
@@ -58,7 +59,7 @@ function LandingPageContent() {
       return;
     }
 
-    if (user && profile?.onboarding_complete) {
+    if (user && shouldFollowPostLoginNext(safeNextFromUrl, profile?.onboarding_complete === true)) {
       didPostLoginNavigateRef.current = true;
       clearPendingDeepLink();
       router.replace(safeNextFromUrl);

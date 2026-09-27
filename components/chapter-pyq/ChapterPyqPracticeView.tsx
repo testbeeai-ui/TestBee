@@ -11,6 +11,8 @@ import type { ChapterPyqQuestion } from "@/lib/chapter-pyq/pyqQuestionMap";
 import { buildPyqEvenPracticeSets, buildPyqYearMonthSets, secondsForSet, practiceSetSessionLabel, pyqYearSetListedCount } from "@/lib/chapter-pyq/pyqSets";
 import { countByTier, filterByTier, type PyqTierFilter } from "@/lib/chapter-pyq/pyqTiers";
 import ChapterPyqExamSession from "@/components/chapter-pyq/ChapterPyqExamSession";
+import ChapterPyqTestSetup from "@/components/chapter-pyq/ChapterPyqTestSetup";
+import { drawPyqTestQuestions } from "@/lib/chapter-pyq/pyqTestSetup";
 
 type ChapterPyqPracticeViewProps = {
   subject: string;
@@ -28,6 +30,13 @@ export default function ChapterPyqPracticeView({
   const [tier, setTier] = useState<PyqTierFilter>("all");
   const [activeSetIndex, setActiveSetIndex] = useState<number | null>(null);
   const [sessionNonce, setSessionNonce] = useState(0);
+  const [testSetup, setTestSetup] = useState<{ setIndex: number; maxQuestions: number } | null>(
+    null
+  );
+  const [testDraw, setTestDraw] = useState<{
+    questions: ChapterPyqQuestion[];
+    minutesPerQuestion: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!entry) return;
@@ -39,6 +48,9 @@ export default function ChapterPyqPracticeView({
     let cancelled = false;
     setEntries(null);
     setLoadError(null);
+    setActiveSetIndex(null);
+    setTestSetup(null);
+    setTestDraw(null);
     void fetchChapterPyqQuestions(entry.slug, entry.subject)
       .then((bundle) => {
         if (!cancelled) setEntries(bundle?.questions ?? []);
@@ -87,7 +99,66 @@ export default function ChapterPyqPracticeView({
   const subjectLabel =
     CHAPTER_PYQ_SUBJECTS.find((item) => item.id === entry.subject)?.label ?? entry.subject;
 
+  const setupSet = testSetup ? sets[testSetup.setIndex] : undefined;
   const activeSet = activeSetIndex !== null ? sets[activeSetIndex] : undefined;
+
+  const clearTestAndSession = () => {
+    setTestDraw(null);
+    setTestSetup(null);
+    setActiveSetIndex(null);
+  };
+
+  const examOrSetup =
+    testDraw && activeSet && activeSetIndex !== null ? (
+      <ChapterPyqExamSession
+        key={`${activeSetIndex}-${sessionNonce}`}
+        chapterName={entry.name}
+        chapterSlug={entry.slug}
+        subject={entry.subject}
+        subjectLabel={subjectLabel}
+        questions={testDraw.questions}
+        setLabel={practiceSetSessionLabel(activeSet.label, sets.length)}
+        mode="test"
+        minutesPerQuestion={testDraw.minutesPerQuestion}
+        onExit={clearTestAndSession}
+        onRetry={() => setSessionNonce((n) => n + 1)}
+      />
+    ) : testSetup && setupSet ? (
+      <ChapterPyqTestSetup
+        setLabel={practiceSetSessionLabel(setupSet.label, sets.length)}
+        maxQuestions={testSetup.maxQuestions}
+        onCancel={() => setTestSetup(null)}
+        onBegin={(questionCount, minutesPerQuestion) => {
+          setActiveSetIndex(testSetup.setIndex);
+          setTestDraw({
+            questions: drawPyqTestQuestions(setupSet.items, questionCount),
+            minutesPerQuestion,
+          });
+          setTestSetup(null);
+          setSessionNonce((n) => n + 1);
+        }}
+      />
+    ) : activeSet && activeSetIndex !== null ? (
+      <ChapterPyqExamSession
+        key={`${activeSetIndex}-${sessionNonce}`}
+        chapterName={entry.name}
+        chapterSlug={entry.slug}
+        subject={entry.subject}
+        subjectLabel={subjectLabel}
+        questions={activeSet.items}
+        setLabel={practiceSetSessionLabel(activeSet.label, sets.length)}
+        onExit={clearTestAndSession}
+        onRetry={() => setSessionNonce((n) => n + 1)}
+        onNextSet={
+          activeSetIndex < sets.length - 1
+            ? () => {
+                setActiveSetIndex((i) => (i ?? 0) + 1);
+                setSessionNonce((n) => n + 1);
+              }
+            : undefined
+        }
+      />
+    ) : null;
 
   return (
     <section className="mx-auto w-full max-w-4xl space-y-6">
@@ -116,26 +187,8 @@ export default function ChapterPyqPracticeView({
           </p>
         </header>
 
-        {activeSet && activeSetIndex !== null ? (
-          <div className="mt-8">
-            <ChapterPyqExamSession
-              key={`${activeSetIndex}-${sessionNonce}`}
-              chapterName={entry.name}
-              subjectLabel={subjectLabel}
-              questions={activeSet.items}
-              setLabel={practiceSetSessionLabel(activeSet.label, sets.length)}
-              onExit={() => setActiveSetIndex(null)}
-              onRetry={() => setSessionNonce((n) => n + 1)}
-              onNextSet={
-                activeSetIndex < sets.length - 1
-                  ? () => {
-                      setActiveSetIndex((i) => (i ?? 0) + 1);
-                      setSessionNonce((n) => n + 1);
-                    }
-                  : undefined
-              }
-            />
-          </div>
+        {examOrSetup ? (
+          <div className="mt-8">{examOrSetup}</div>
         ) : entries === null ? (
           <div className="mt-12 py-12 text-center">
             <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#6366F1] border-t-transparent mb-3" />
@@ -165,17 +218,12 @@ export default function ChapterPyqPracticeView({
                 {sets.map((set, i) => {
                   const listedCount = pyqYearSetListedCount(entry.slug, set.label, set.items.length);
                   return (
-                  <button
+                  <div
                     key={set.label}
-                    type="button"
-                    onClick={() => {
-                      setSessionNonce((n) => n + 1);
-                      setActiveSetIndex(i);
-                    }}
-                    className="group flex items-center justify-between rounded-2xl border border-[#1F2436] bg-[#121624] p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#2F3752] hover:bg-[#181E30] hover:shadow-lg cursor-pointer"
+                    className="flex flex-col gap-3 rounded-2xl border border-[#1F2436] bg-[#121624] p-4"
                   >
                     <div>
-                      <span className="block text-base font-bold text-[#F8FAFC] group-hover:text-white">
+                      <span className="block text-base font-bold text-[#F8FAFC]">
                         {set.label}
                       </span>
                       <span className="mt-1 flex items-center gap-1.5 text-xs text-[#94A3B8]">
@@ -184,11 +232,33 @@ export default function ChapterPyqPracticeView({
                       </span>
                     </div>
 
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#6366F1]/30 bg-[#6366F1]/15 px-3 py-1.5 text-xs font-bold text-[#A5B4FC] transition-all duration-200 group-hover:border-[#6366F1] group-hover:bg-[#6366F1] group-hover:text-white group-hover:shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-                      <Play className="h-3 w-3 fill-current" />
-                      Start
-                    </span>
-                  </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTestSetup(null);
+                          setTestDraw(null);
+                          setSessionNonce((n) => n + 1);
+                          setActiveSetIndex(i);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[#6366F1]/30 bg-[#6366F1]/15 px-3 py-1.5 text-xs font-bold text-[#A5B4FC] transition-all duration-200 hover:border-[#6366F1] hover:bg-[#6366F1] hover:text-white cursor-pointer"
+                      >
+                        <Play className="h-3 w-3 fill-current" />
+                        Start Practice
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTestDraw(null);
+                          setActiveSetIndex(null);
+                          setTestSetup({ setIndex: i, maxQuestions: set.items.length });
+                        }}
+                        className="inline-flex items-center rounded-full border border-[#1F2436] bg-[#161A28] px-3 py-1.5 text-xs font-bold text-[#F8FAFC] transition-colors hover:border-[#2F3752] hover:bg-[#1E2438] cursor-pointer"
+                      >
+                        Start Test
+                      </button>
+                    </div>
+                  </div>
                   );
                 })}
               </div>

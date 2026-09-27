@@ -1,7 +1,21 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Bell } from "lucide-react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  addDaysLocal,
+  localDayKeyFromDate,
+  startOfLocalDay,
+} from "@/lib/dashboard/dashboardDayActivity";
+import { fetchStudyDays } from "@/lib/dashboard/studyDaysClient";
+import {
+  INACTIVE_PENALTY_NOTIFICATIONS_UPDATED,
+  mapInactivePenaltyRowToBellItem,
+  RDM_INACTIVE_PENALTY_KIND,
+  type InactiveDayPenaltyRow,
+  type RdmInactivePenaltyKind,
+} from "@/lib/notifications/inactivePenaltyNotifications";
 import {
   personalizeTeacherMotivationMessage,
   studentFirstNameForMotivationGreeting,
@@ -25,7 +39,7 @@ interface Notification {
   action_url: string | null;
   created_at: string;
   type: string;
-  studentMessageKind: StudentMessageKind;
+  studentMessageKind: StudentMessageKind | RdmInactivePenaltyKind;
   categoryLabel: string;
   chipClass: string;
   icon: string;
@@ -77,6 +91,8 @@ const NotificationBell = () => {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  /** Radix Popover/Dialog call useId(); SSR vs client IDs disagree and React 19 will not patch aria-controls. */
+  const [radixReady, setRadixReady] = useState(false);
   const [activeTab, setActiveTab] = useState<"unread" | "read">("unread");
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<Notification | null>(null);
@@ -86,6 +102,10 @@ const NotificationBell = () => {
   );
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   const seenIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    setRadixReady(true);
+  }, []);
 
   useEffect(() => {
     seenIdsRef.current = seenIds;
@@ -122,12 +142,26 @@ const NotificationBell = () => {
         }
       }
 
-      const { data } = await supabase
+      const todayStart = startOfLocalDay(new Date());
+      const toStr = localDayKeyFromDate(todayStart);
+      const fromStr = localDayKeyFromDate(addDaysLocal(todayStart, -45));
+      const postsQuery = supabase
         .from("posts")
         .select("id, title, created_at, classroom_id, content_json")
         .eq("type", "motivation")
         .order("created_at", { ascending: false })
         .limit(60);
+      await fetchStudyDays(fromStr, toStr, toStr);
+      const sb = supabase as unknown as SupabaseClient;
+      const [{ data }, { data: penaltyRows }] = await Promise.all([
+        postsQuery,
+        sb
+          .from("inactive_day_penalties")
+          .select("day,penalty_rdm,penalized_at")
+          .eq("user_id", user.id)
+          .order("penalized_at", { ascending: false })
+          .limit(28),
+      ]);
 
       const rows =
         (data as unknown as Array<{
@@ -261,7 +295,30 @@ const NotificationBell = () => {
         })
         .filter((x): x is Notification => x !== null);
 
-      setNotifications(mine.slice(0, 20));
+      const penaltyNotifs = ((penaltyRows ?? []) as InactiveDayPenaltyRow[])
+        .map((row) => mapInactivePenaltyRowToBellItem(user.id, row))
+        .filter((item): item is NonNullable<typeof item> => item !== null)
+        .map((item): Notification => ({
+          id: item.id,
+          title: item.title,
+          body: item.body,
+          read: persistedSeen.has(item.id),
+          action_url: item.action_url,
+          created_at: item.created_at,
+          type: RDM_INACTIVE_PENALTY_KIND,
+          studentMessageKind: item.studentMessageKind,
+          categoryLabel: item.categoryLabel,
+          chipClass: item.chipClass,
+          icon: item.icon,
+          preview: item.preview,
+          ctaLabel: item.ctaLabel,
+          rdmDelta: item.rdmDelta,
+        }));
+
+      const merged = [...mine, ...penaltyNotifs].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      setNotifications(merged.slice(0, 20));
     } catch {
       // ignore
     }
@@ -270,6 +327,13 @@ const NotificationBell = () => {
   useEffect(() => {
     if (!user) return;
     void load();
+    const onPenaltyUpdated = () => {
+      void load();
+    };
+    window.addEventListener(INACTIVE_PENALTY_NOTIFICATIONS_UPDATED, onPenaltyUpdated);
+    return () => {
+      window.removeEventListener(INACTIVE_PENALTY_NOTIFICATIONS_UPDATED, onPenaltyUpdated);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
@@ -349,19 +413,28 @@ const NotificationBell = () => {
     setDetailOpen(true);
   };
 
+  const bellButton = (
+    <button
+      type="button"
+      className="relative w-9 h-9 rounded-xl bg-muted/60 hover:bg-muted flex items-center justify-center transition-colors"
+    >
+      <Bell className="w-4.5 h-4.5 text-muted-foreground" suppressHydrationWarning />
+      {unread > 0 && (
+        <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-[10px] font-extrabold rounded-full flex items-center justify-center">
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+    </button>
+  );
+
+  if (!radixReady) {
+    return bellButton;
+  }
+
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button className="relative w-9 h-9 rounded-xl bg-muted/60 hover:bg-muted flex items-center justify-center transition-colors">
-            <Bell className="w-4.5 h-4.5 text-muted-foreground" suppressHydrationWarning />
-            {unread > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-[10px] font-extrabold rounded-full flex items-center justify-center">
-                {unread > 9 ? "9+" : unread}
-              </span>
-            )}
-          </button>
-        </PopoverTrigger>
+        <PopoverTrigger asChild>{bellButton}</PopoverTrigger>
         <PopoverContent align="end" className="w-80 p-0 rounded-2xl">
           <div className="p-4 border-b border-border/60 flex items-center justify-between gap-2">
             <h3 className="font-display text-sm text-foreground">Notifications</h3>
@@ -429,7 +502,9 @@ const NotificationBell = () => {
                         ? "italic text-muted-foreground"
                         : n.studentMessageKind === "assignment_reminder"
                           ? "font-medium text-sky-700/90 dark:text-sky-200/90"
-                          : "text-muted-foreground"
+                          : n.studentMessageKind === RDM_INACTIVE_PENALTY_KIND
+                            ? "font-semibold text-rose-700/90 dark:text-rose-200/90"
+                            : "text-muted-foreground"
                     }`}
                   >
                     {n.preview}
@@ -465,7 +540,18 @@ const NotificationBell = () => {
                 </span>
               </div>
 
-              {selected.studentMessageKind === "counsel" ||
+              {selected.studentMessageKind === RDM_INACTIVE_PENALTY_KIND ? (
+                <div className="space-y-3">
+                  {typeof selected.rdmDelta === "number" && selected.rdmDelta < 0 ? (
+                    <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-extrabold tracking-wide text-rose-900 dark:text-rose-100">
+                      Cutting {Math.abs(selected.rdmDelta)} RDM
+                    </div>
+                  ) : null}
+                  <div className="rounded-2xl border border-rose-500/25 bg-rose-500/5 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+                    {selected.body ? renderMotivationRichText(selected.body) : ""}
+                  </div>
+                </div>
+              ) : selected.studentMessageKind === "counsel" ||
               selected.studentMessageKind === "recognition" ? (
                 <>
                   <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground shadow-sm">

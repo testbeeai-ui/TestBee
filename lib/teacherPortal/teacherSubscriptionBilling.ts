@@ -70,10 +70,9 @@ export function computeTeacherSubscriptionPeriod(
   },
   nowMs = Date.now()
 ): TeacherSubscriptionPeriod | null {
-  const tier = normalizeTeacherPlanTier(profile.teacher_plan_tier, profile);
-  if (tier !== "starter" && tier !== "pro") return null;
-
   const effectiveNowMs = resolveTeacherSubscriptionNowMs(profile, nowMs);
+  const tier = normalizeTeacherPlanTier(profile.teacher_plan_tier, profile, effectiveNowMs);
+  if (tier !== "starter" && tier !== "pro") return null;
   const startedAt =
     profile.teacher_plan_started_at ?? new Date(effectiveNowMs).toISOString();
   const startMs = Date.parse(startedAt);

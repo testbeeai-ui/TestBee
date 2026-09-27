@@ -201,7 +201,8 @@ export async function fetchTeacherPlanConfig(client?: unknown): Promise<TeacherP
 
 export function normalizeTeacherPlanTier(
   raw: string | null | undefined,
-  profile?: TeacherPlanProfileFields | null
+  profile?: TeacherPlanProfileFields | null,
+  nowMs?: number
 ): TeacherPlanKey {
   const normalized = String(raw ?? "free").trim().toLowerCase();
   if (normalized !== "starter" && normalized !== "pro") return "free";
@@ -209,9 +210,9 @@ export function normalizeTeacherPlanTier(
   const expiresAt = profile?.teacher_plan_expires_at;
   if (!expiresAt) return "free";
 
-  const nowMs = Date.now() + (profile?.time_travel_offset_ms ?? 0);
+  const clock = nowMs ?? Date.now() + (profile?.time_travel_offset_ms ?? 0);
   const expiryMs = Date.parse(expiresAt);
-  if (Number.isNaN(expiryMs) || nowMs >= expiryMs) return "free";
+  if (Number.isNaN(expiryMs) || clock >= expiryMs) return "free";
 
   return normalized;
 }

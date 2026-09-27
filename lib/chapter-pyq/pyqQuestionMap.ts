@@ -1,6 +1,7 @@
 import type { Question } from "@/types";
 import { stripHtmlToPlain } from "@/lib/mock/catalogQuestionMap";
 import { cleanPyqOcrText, pyqSolutionToHtml, pyqStemToHtml } from "@/lib/chapter-pyq/pyqOcrHtml";
+import { chaptersForSubject } from "@/lib/chapter-pyq/catalog";
 import { mathPdfChaptersForCatalogSlug } from "@/lib/chapter-pyq/pdfChapterMap";
 import {
   isPyqPaperFilled,
@@ -163,8 +164,10 @@ export function mapPyqRowToChapterPyqQuestion(
   const pdfChapterName = row.chapters.name || chapterFallback;
   const topicName = row.topics?.name?.trim() || null;
   const isNumerical = row.format === "numerical";
+  const catalogSlug = row.chapters.catalog_slug ?? "";
   const figFolder =
-    mathPdfChaptersForCatalogSlug(row.chapters.catalog_slug ?? "").length > 0
+    mathPdfChaptersForCatalogSlug(catalogSlug).length > 0 ||
+    chaptersForSubject("math").some((chapter) => chapter.slug === catalogSlug)
       ? "math/figures"
       : "physics/figures";
   const questionHtml = pyqStemToHtml(body, row.figure_links ?? [], figFolder);

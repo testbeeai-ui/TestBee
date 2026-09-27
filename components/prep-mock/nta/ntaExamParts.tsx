@@ -9,6 +9,7 @@ import {
   patchNtaHtmlPresentation,
   repairBankMathLatex,
   wrapPlainMockTextForKatexHtml,
+  plainMockTextLooksLikeHtml,
 } from "@/lib/mock/mockRichTextKatex";
 import { useKatexAutoRender } from "@/hooks/useKatexAutoRender";
 import { cn } from "@/lib/utils";
@@ -71,7 +72,7 @@ export const NtaOptionBody = memo(function NtaOptionBody({
   const htmlRef = useRef<HTMLDivElement>(null);
   const safeHtml = useMemo(() => {
     if (!t) return "";
-    const core = t.includes("<")
+    const core = plainMockTextLooksLikeHtml(t)
       ? sanitizeMockHtml(t)
       : sanitizeMockHtml(wrapPlainMockTextForKatexHtml(t));
     return repairMathInMockHtml(patchNtaHtmlPresentation(core));
@@ -188,7 +189,7 @@ export const NtaRichTextBlock = memo(function NtaRichTextBlock({
   const htmlRef = useRef<HTMLDivElement>(null);
   const safeHtml = useMemo(() => {
     if (!t) return "";
-    const core = t.includes("<")
+    const core = plainMockTextLooksLikeHtml(t)
       ? sanitizeMockHtml(t)
       : sanitizeMockHtml(wrapPlainMockTextForKatexHtml(t));
     return repairMathInMockHtml(patchNtaHtmlPresentation(core));

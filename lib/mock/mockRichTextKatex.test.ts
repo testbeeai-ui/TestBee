@@ -4,8 +4,10 @@ import {
   SUPABASE_PUBLIC_OBJECT_RE,
   collapseSpuriousMockHtmlWhitespace,
   patchMockHtmlImages,
+  plainMockTextLooksLikeHtml,
   protectTexBrackets,
   repairBankMathLatex,
+  wrapPlainMockTextForKatexHtml,
 } from "./mockRichTextKatex";
 
 describe("collapseSpuriousMockHtmlWhitespace", () => {
@@ -226,6 +228,21 @@ describe("protectTexBrackets", () => {
 
   it("collapses doubled TeX command slashes so \\mu renders", () => {
     expect(repairBankMathLatex("\\\\mu")).toBe("\\mu");
+  });
+});
+
+describe("plainMockTextLooksLikeHtml", () => {
+  it("treats a quadratic inequality as math, not markup", () => {
+    const tex = "$$\\alpha<k<\\beta \\iff f(k)<0 \\quad (a>0)$$";
+    expect(plainMockTextLooksLikeHtml(tex)).toBe(false);
+    const html = wrapPlainMockTextForKatexHtml(tex);
+    expect(html).toContain("&lt;");
+    expect(html).not.toMatch(/<k/);
+    expect(html).toContain("f(k)");
+  });
+
+  it("still recognizes a real paragraph tag", () => {
+    expect(plainMockTextLooksLikeHtml("<p>$x<1$</p>")).toBe(true);
   });
 });
 

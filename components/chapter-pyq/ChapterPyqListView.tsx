@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Clock, Play, Search, Sparkles, X } from "lucide-react";
 import {
   CHAPTER_PYQ_SUBJECTS,
@@ -16,6 +17,15 @@ import type { ChapterPyqQuestion } from "@/lib/chapter-pyq/pyqQuestionMap";
 import { buildPyqEvenPracticeSets, buildPyqYearMonthSets, secondsForSet, practiceSetSessionLabel, pyqYearSetListedCount } from "@/lib/chapter-pyq/pyqSets";
 import { countByTier, filterByTier, PYQ_TIER_CHIPS, type PyqTierFilter } from "@/lib/chapter-pyq/pyqTiers";
 import ChapterPyqExamSession from "@/components/chapter-pyq/ChapterPyqExamSession";
+import ChapterPyqTestSetup from "@/components/chapter-pyq/ChapterPyqTestSetup";
+import ChapterPyqAttemptStats from "@/components/chapter-pyq/ChapterPyqAttemptStats";
+import { drawPyqTestQuestions } from "@/lib/chapter-pyq/pyqTestSetup";
+import {
+  loadPyqAttempts,
+  PYQ_ATTEMPTS_CHANGED,
+  tallyChapterAttempts,
+  type PyqAttemptMap,
+} from "@/lib/chapter-pyq/pyqAttemptStore";
 import { cn } from "@/lib/utils";
 
 type ChapterWeightage = "high" | "medium" | "normal";
@@ -549,6 +559,13 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
   const [tier, setTier] = useState<PyqTierFilter>("all");
   const [activeSetIndex, setActiveSetIndex] = useState<number | null>(null);
   const [sessionNonce, setSessionNonce] = useState(0);
+  const [testSetup, setTestSetup] = useState<{ setIndex: number; maxQuestions: number } | null>(
+    null
+  );
+  const [testDraw, setTestDraw] = useState<{
+    questions: ChapterPyqQuestion[];
+    minutesPerQuestion: number;
+  } | null>(null);
   const onLiveCountRef = useRef(onLiveCount);
   onLiveCountRef.current = onLiveCount;
 
@@ -559,6 +576,8 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
     setLoadError(null);
     setTier("all");
     setActiveSetIndex(null);
+    setTestSetup(null);
+    setTestDraw(null);
 
     if (!isChapterPyqStudentVisible(entry.subject, entry.slug)) {
       setEntries([]);
@@ -592,13 +611,13 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
 
   // Handle escape key to close modal
   useEffect(() => {
-    if (!entry || activeSetIndex !== null) return;
+    if (!entry || activeSetIndex !== null || testSetup !== null || testDraw !== null) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [entry, activeSetIndex, onClose]);
+  }, [entry, activeSetIndex, testSetup, testDraw, onClose]);
 
   // Lock body scroll when modal is active
   useEffect(() => {
@@ -636,18 +655,71 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
   const subjectLabel =
     CHAPTER_PYQ_SUBJECTS.find((item) => item.id === entry.subject)?.label ?? entry.subject;
 
+  const setupSet = testSetup ? sets[testSetup.setIndex] : undefined;
   const activeSet = activeSetIndex !== null ? sets[activeSetIndex] : undefined;
 
-  // If exam session is active, render the fullscreen NTA session
+  const clearTestAndSession = () => {
+    setTestDraw(null);
+    setTestSetup(null);
+    setActiveSetIndex(null);
+  };
+
+  if (testDraw && activeSet && activeSetIndex !== null) {
+    return (
+      <ChapterPyqExamSession
+        key={`${activeSetIndex}-${sessionNonce}`}
+        chapterName={entry.name}
+        chapterSlug={entry.slug}
+        subject={entry.subject}
+        subjectLabel={subjectLabel}
+        questions={testDraw.questions}
+        setLabel={practiceSetSessionLabel(activeSet.label, sets.length)}
+        mode="test"
+        minutesPerQuestion={testDraw.minutesPerQuestion}
+        onExit={clearTestAndSession}
+        onRetry={() => setSessionNonce((n) => n + 1)}
+      />
+    );
+  }
+
+  if (testSetup && setupSet) {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto"
+      >
+        <div className="relative my-auto w-full max-w-xl">
+          <ChapterPyqTestSetup
+            setLabel={practiceSetSessionLabel(setupSet.label, sets.length)}
+            maxQuestions={testSetup.maxQuestions}
+            onCancel={() => setTestSetup(null)}
+            onBegin={(questionCount, minutesPerQuestion) => {
+              setActiveSetIndex(testSetup.setIndex);
+              setTestDraw({
+                questions: drawPyqTestQuestions(setupSet.items, questionCount),
+                minutesPerQuestion,
+              });
+              setTestSetup(null);
+              setSessionNonce((n) => n + 1);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (activeSet && activeSetIndex !== null) {
     return (
       <ChapterPyqExamSession
         key={`${activeSetIndex}-${sessionNonce}`}
         chapterName={entry.name}
+        chapterSlug={entry.slug}
+        subject={entry.subject}
         subjectLabel={subjectLabel}
         questions={activeSet.items}
         setLabel={practiceSetSessionLabel(activeSet.label, sets.length)}
-        onExit={() => setActiveSetIndex(null)}
+        onExit={clearTestAndSession}
         onRetry={() => setSessionNonce((n) => n + 1)}
         onNextSet={
           activeSetIndex < sets.length - 1
@@ -743,17 +815,12 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
                 {sets.map((set, i) => {
                   const listedCount = pyqYearSetListedCount(entry.slug, set.label, set.items.length);
                   return (
-                  <button
+                  <div
                     key={set.label}
-                    type="button"
-                    onClick={() => {
-                      setSessionNonce((n) => n + 1);
-                      setActiveSetIndex(i);
-                    }}
-                    className="group flex items-center justify-between gap-3 rounded-2xl border border-[#1F2436] bg-[#121624] p-3.5 sm:p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#2F3752] hover:bg-[#181E30] hover:shadow-lg cursor-pointer"
+                    className="flex flex-col gap-3 rounded-2xl border border-[#1F2436] bg-[#121624] p-3.5 sm:p-4"
                   >
                     <div className="min-w-0">
-                      <span className="block text-sm sm:text-base font-bold text-[#F8FAFC] group-hover:text-white truncate">
+                      <span className="block text-sm sm:text-base font-bold text-[#F8FAFC] truncate">
                         {set.label}
                       </span>
                       <span className="mt-1 flex items-center gap-1.5 text-[0.72rem] sm:text-xs text-[#94A3B8]">
@@ -764,11 +831,33 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
                       </span>
                     </div>
 
-                    <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-[#6366F1]/30 bg-[#6366F1]/15 px-3 py-1.5 text-xs font-bold text-[#A5B4FC] transition-all duration-200 group-hover:border-[#6366F1] group-hover:bg-[#6366F1] group-hover:text-white group-hover:shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-                      <Play className="h-3 w-3 fill-current" />
-                      Start
-                    </span>
-                  </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTestSetup(null);
+                          setTestDraw(null);
+                          setSessionNonce((n) => n + 1);
+                          setActiveSetIndex(i);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[#6366F1]/30 bg-[#6366F1]/15 px-3 py-1.5 text-xs font-bold text-[#A5B4FC] transition-all duration-200 hover:border-[#6366F1] hover:bg-[#6366F1] hover:text-white cursor-pointer"
+                      >
+                        <Play className="h-3 w-3 fill-current" />
+                        Start Practice
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTestDraw(null);
+                          setActiveSetIndex(null);
+                          setTestSetup({ setIndex: i, maxQuestions: set.items.length });
+                        }}
+                        className="inline-flex items-center rounded-full border border-[#1F2436] bg-[#161A28] px-3 py-1.5 text-xs font-bold text-[#F8FAFC] transition-colors hover:border-[#2F3752] hover:bg-[#1E2438] cursor-pointer"
+                      >
+                        Start Test
+                      </button>
+                    </div>
+                  </div>
                   );
                 })}
               </div>
@@ -781,7 +870,9 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
 }
 
 export default function ChapterPyqListView() {
+  const { user } = useAuth();
   const [subject, setSubject] = useState<ChapterPyqSubject>("physics");
+  const [attemptMap, setAttemptMap] = useState<PyqAttemptMap>({});
   const [query, setQuery] = useState("");
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
   const [countsFailed, setCountsFailed] = useState(false);
@@ -793,6 +884,13 @@ export default function ChapterPyqListView() {
     () => filterChapters(chaptersForSubject(subject), query),
     [subject, query]
   );
+
+  useEffect(() => {
+    const reload = () => setAttemptMap(loadPyqAttempts(user?.id ?? null));
+    reload();
+    window.addEventListener(PYQ_ATTEMPTS_CHANGED, reload);
+    return () => window.removeEventListener(PYQ_ATTEMPTS_CHANGED, reload);
+  }, [user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -811,7 +909,6 @@ export default function ChapterPyqListView() {
     };
   }, []);
 
-  // Keyboard shortcut: Cmd+K / Ctrl+K or '/' focuses search
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && document.activeElement?.tagName !== "INPUT")) {
@@ -822,29 +919,6 @@ export default function ChapterPyqListView() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  // Compute aggregate stats across real questions in the bank
-  const { totalPyqs, solvedPyqs, completionPercent } = useMemo(() => {
-    let total = 0;
-    let solved = 0;
-
-    for (const c of chaptersForSubject(subject)) {
-      const actualCount = publishedCountForStudent(c.subject, c.slug, counts?.[c.slug]);
-      if (actualCount && actualCount > 0) {
-        total += actualCount;
-        if (c.slug === "laws-of-motion") {
-          solved += Math.min(18, actualCount);
-        }
-      }
-    }
-
-    const completion = total > 0 ? ((solved / total) * 100).toFixed(1) : "0.0";
-    return {
-      totalPyqs: countsLoading ? "—" : total.toLocaleString(),
-      solvedPyqs: countsLoading ? "—" : solved.toLocaleString(),
-      completionPercent: countsLoading ? "—" : `${completion}%`,
-    };
-  }, [subject, counts, countsLoading]);
 
   return (
     <div className="relative mx-auto w-full max-w-[1720px] px-3.5 sm:px-6 lg:px-8 xl:px-10 py-2 sm:py-4">
@@ -872,34 +946,23 @@ export default function ChapterPyqListView() {
           </p>
         </div>
 
-        {/* Quick Progress Strip */}
-        <div className="self-start lg:self-auto flex items-center gap-2.5 sm:gap-4 rounded-2xl border border-[#1F2436] bg-[#11141E]/70 px-3.5 py-2 sm:px-5 sm:py-2.5 backdrop-blur-md shrink-0">
-          <div className="flex flex-col border-r border-[#1F2436] pr-3 sm:pr-4">
-            <span className="text-sm sm:text-base lg:text-lg font-bold text-[#F8FAFC]">{totalPyqs}</span>
-            <span className="text-[0.62rem] sm:text-[0.7rem] font-medium tracking-[0.05em] uppercase text-[#64748B]">
-              Total PYQs
-            </span>
+        <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+          <div className="relative w-full sm:w-56 lg:w-64 shrink-0">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B]"
+            />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search chapters..."
+              className="w-full rounded-full border border-[#3A445C] bg-[#11141E] py-2.5 pl-10 pr-4 text-sm text-[#F8FAFC] placeholder:text-[#64748B] outline-none transition-all duration-200 focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/20"
+            />
           </div>
-          <div className="flex flex-col border-r border-[#1F2436] pr-3 sm:pr-4">
-            <span className="text-sm sm:text-base lg:text-lg font-bold text-[#10B981]">{solvedPyqs}</span>
-            <span className="text-[0.62rem] sm:text-[0.7rem] font-medium tracking-[0.05em] uppercase text-[#64748B]">
-              Solved
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm sm:text-base lg:text-lg font-bold text-[#F8FAFC]">{completionPercent}</span>
-            <span className="text-[0.62rem] sm:text-[0.7rem] font-medium tracking-[0.05em] uppercase text-[#64748B]">
-              Completion
-            </span>
-          </div>
-        </div>
-      </header>
-
-      {/* Controls Bar: Subject Tabs & Search */}
-      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-        {/* Subject Tabs */}
         <nav
-          className="inline-flex rounded-full border border-[#1F2436] bg-[#11141E] p-1 self-start overflow-x-auto max-w-full"
+          className="inline-flex w-full max-w-full shrink-0 overflow-x-auto rounded-full border border-[#3A445C] bg-[#11141E] p-1.5 sm:w-auto"
           role="tablist"
           aria-label="Subjects"
         >
@@ -913,9 +976,9 @@ export default function ChapterPyqListView() {
                 aria-selected={active}
                 onClick={() => setSubject(item.id)}
                 className={cn(
-                  "rounded-full px-4 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap",
+                  "flex-1 rounded-full px-4 py-2.5 text-sm font-bold whitespace-nowrap transition-all duration-200 cursor-pointer sm:flex-none sm:px-7 sm:py-3 sm:text-base",
                   active
-                    ? "bg-[#6366F1] text-white shadow-[0_4px_14px_rgba(99,102,241,0.4)]"
+                    ? "bg-[#6366F1] text-white shadow-[0_4px_16px_rgba(99,102,241,0.45)]"
                     : "text-[#94A3B8] hover:text-[#F8FAFC]"
                 )}
               >
@@ -924,26 +987,8 @@ export default function ChapterPyqListView() {
             );
           })}
         </nav>
-
-        {/* Search Input */}
-        <div className="relative w-full sm:w-80 lg:w-96 shrink-0">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B]"
-          />
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search chapters (e.g. Calculus, Matrix)..."
-            className="w-full rounded-full border border-[#1F2436] bg-[#11141E] py-2 sm:py-2.5 pl-10 pr-12 text-xs sm:text-sm text-[#F8FAFC] placeholder:text-[#64748B] outline-none transition-all duration-200 focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/20"
-          />
-          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 rounded border border-[#2B3349] bg-[#1C2233] px-1.5 py-0.5 text-[0.68rem] sm:text-[0.72rem] font-semibold text-[#64748B]">
-            ⌘K
-          </span>
         </div>
-      </div>
+      </header>
 
       {/* Chapter Cards Grid - Fluid auto-fill responsive grid */}
       <main
@@ -962,9 +1007,8 @@ export default function ChapterPyqListView() {
           const isLive = counts !== null && liveCount > 0;
           const totalCount = isLive ? liveCount : 0;
 
-          // Compute progress: Laws of Motion has pilot progress; otherwise 0 until attempted
-          const isPilotChapter = entry.slug === "laws-of-motion" && isLive;
-          const solvedCount = isPilotChapter ? 18 : 0;
+          const tally = tallyChapterAttempts(attemptMap, entry.subject, entry.slug);
+          const solvedCount = isLive ? Math.min(tally.attempted, totalCount) : 0;
           const percent = isLive && totalCount > 0 ? Math.round((solvedCount / totalCount) * 100) : 0;
           const statusLabel = countsLoading
             ? "Loading…"
@@ -1116,6 +1160,7 @@ export default function ChapterPyqListView() {
                     </svg>
                   </span>
                 </div>
+                <ChapterPyqAttemptStats tally={tally} />
               </div>
             </div>
           );

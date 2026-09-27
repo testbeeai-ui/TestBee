@@ -1,4 +1,5 @@
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
+import { INACTIVE_PENALTY_NOTIFICATIONS_UPDATED } from "@/lib/notifications/inactivePenaltyNotifications";
 
 export type StudyDaysApiResponse = {
   days?: { day: string; active_ms: number; presence_ms?: number }[];
@@ -85,6 +86,13 @@ export async function fetchStudyDays(
       }
       const data = (await res.json()) as StudyDaysApiResponse;
       cached = { key, at: Date.now(), data };
+      if (
+        runReconcile &&
+        typeof window !== "undefined" &&
+        (data.reconcile?.penaltiesApplied ?? 0) > 0
+      ) {
+        window.dispatchEvent(new CustomEvent(INACTIVE_PENALTY_NOTIFICATIONS_UPDATED));
+      }
       return data;
     } catch {
       return { error: "network", retryable: true };
