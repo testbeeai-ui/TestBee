@@ -76,16 +76,6 @@ export function tallyChapterAttempts(
   return { attempted: right + wrong, right, wrong };
 }
 
-export function tallyAllAttempts(map: PyqAttemptMap): PyqAttemptTally {
-  let right = 0;
-  let wrong = 0;
-  for (const row of Object.values(map)) {
-    if (row.verdict === "right") right += 1;
-    else wrong += 1;
-  }
-  return { attempted: right + wrong, right, wrong };
-}
-
 function readStorage(): AttemptStorage | null {
   if (typeof window === "undefined") return null;
   return window.localStorage;

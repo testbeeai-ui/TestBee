@@ -14,6 +14,11 @@ describe("pyq test setup", () => {
       questionCount: 4,
       minutesPerQuestion: 2,
     });
+    expect(parsePyqTestSetup("4", "1", 9)).toEqual({
+      ok: true,
+      questionCount: 4,
+      minutesPerQuestion: 1,
+    });
   });
 
   it("rejects a count above the set, below 1, blank, or fractional", () => {
@@ -30,10 +35,11 @@ describe("pyq test setup", () => {
   });
 
   it("draws a unique subset using the injected random source", () => {
-    const drawn = drawPyqTestQuestions(["a", "b", "c", "d"], 2, () => 0);
-    expect(drawn).toHaveLength(2);
-    expect(new Set(drawn).size).toBe(2);
-    expect(["a", "b", "c", "d"]).toEqual(expect.arrayContaining(drawn));
+    expect(drawPyqTestQuestions(["a", "b", "c", "d"], 2, () => 0)).toEqual(["b", "c"]);
+  });
+
+  it("draws the whole set when count equals length", () => {
+    expect(drawPyqTestQuestions(["a", "b", "c", "d"], 4, () => 0)).toEqual(["b", "c", "d", "a"]);
   });
 
   it("scores +4 right, −1 wrong, and ignores blanks in the formula", () => {

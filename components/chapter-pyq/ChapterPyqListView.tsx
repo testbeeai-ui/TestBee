@@ -700,6 +700,7 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
                 questions: drawPyqTestQuestions(setupSet.items, questionCount),
                 minutesPerQuestion,
               });
+              setTestSetup(null);
               setSessionNonce((n) => n + 1);
             }}
           />

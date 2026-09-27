@@ -52,8 +52,10 @@ export default function ChapterPyqExamSession({
   const ntaSkin: NtaSkin = resolvedTheme === "dark" ? "dark" : "light";
   const questions = useMemo<Question[]>(() => entries.map((e) => e.question), [entries]);
   const totalSeconds = useMemo(() => {
-    const minutes = mode === "test" ? Math.max(1, minutesPerQuestion ?? 2) : 2;
-    if (mode === "test") return questions.length * minutes * 60;
+    if (mode === "test") {
+      const minutes = Math.max(1, minutesPerQuestion ?? 2);
+      return questions.length * minutes * 60;
+    }
     return secondsForSet(questions.length);
   }, [mode, minutesPerQuestion, questions.length]);
 
@@ -276,6 +278,7 @@ export default function ChapterPyqExamSession({
           onNextNav={goNext}
           onSubmitClick={() => setSubmitDialogOpen(true)}
           paletteColumns={5}
+          showSolution
         />
         <NtaSubmitModal
           open={submitDialogOpen}

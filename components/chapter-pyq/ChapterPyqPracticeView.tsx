@@ -134,6 +134,7 @@ export default function ChapterPyqPracticeView({
             questions: drawPyqTestQuestions(setupSet.items, questionCount),
             minutesPerQuestion,
           });
+          setTestSetup(null);
           setSessionNonce((n) => n + 1);
         }}
       />
