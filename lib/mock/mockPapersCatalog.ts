@@ -3,7 +3,16 @@ import type { MockPaper, MockPaperType, Subject } from "@/types";
 export type LibraryCategoryFilter = "all" | MockPaperType;
 
 /** Exam chips shown on the Mock papers / Past papers library tabs. */
-export type LibraryExamFilter = "all" | "kcet" | "bitsat" | "jee-main" | "comedk";
+export type LibraryExamFilter = "all" | "kcet" | "bitsat" | "jee-main" | "jee-advanced" | "comedk";
+
+const LIBRARY_EXAM_FILTERS: readonly LibraryExamFilter[] = [
+  "all",
+  "kcet",
+  "bitsat",
+  "jee-main",
+  "jee-advanced",
+  "comedk",
+];
 
 /**
  * Map a chip id to the canonical `exam_name` stored on `mock_papers` / `past_papers`.
@@ -13,8 +22,15 @@ export const EXAM_FILTER_TO_NAME: Record<Exclude<LibraryExamFilter, "all">, stri
   kcet: "KCET",
   bitsat: "BITSAT",
   "jee-main": "JEE Main",
+  "jee-advanced": "JEE Advanced",
   comedk: "COMEDK",
 };
+
+export function parseLibraryExamFilter(raw: string | null | undefined): LibraryExamFilter | null {
+  if (raw == null) return null;
+  const key = raw.trim().toLowerCase();
+  return LIBRARY_EXAM_FILTERS.find((id) => id === key) ?? null;
+}
 
 /** Generic exam-name matcher shared by Mock + Past paper filters. */
 export function paperMatchesExamFilter(exam: string, examFilter: LibraryExamFilter): boolean {

@@ -13,6 +13,7 @@ import {
 } from "@/lib/auth/safeNextPath";
 import { oauthSignInFailedMessage, oauthTryAgainPath } from "@/lib/auth/oauthSignInHelp";
 import { authFinishWaitPhase } from "@/lib/auth/authFinishWait";
+import { pickEduDecaMockAwareDestination } from "@/lib/edudeca-mock/post-login";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { triggerLoginNotificationEmail } from "@/lib/email/triggerLoginNotificationClient";
 import { readOnboardingAuthMode } from "@/lib/onboarding/resolveOnboardingEntry";
@@ -127,18 +128,19 @@ function AuthCallbackFinishContent() {
         : "/onboarding?role=student"
       : "/onboarding";
 
-    if (user && profile?.onboarding_complete) {
+    if (user && profile !== null) {
       void supabase.auth.signOut({ scope: "others" }).catch(() => {});
       const pending = readPendingDeepLink();
       const fromOAuth = destinationFromOAuthStored(stored);
-      const dest = pending ?? fromOAuth ?? postOnboardPath;
+      const dest = pickEduDecaMockAwareDestination({
+        onboardingComplete: profile.onboarding_complete === true,
+        pendingDeepLink: pending,
+        oauthStored: fromOAuth,
+        onboardPath,
+        postOnboardPath,
+      });
       clearPendingDeepLink();
       doRedirect(dest, stored);
-      return;
-    }
-    if (user && profile !== null && !profile?.onboarding_complete) {
-      void supabase.auth.signOut({ scope: "others" }).catch(() => {});
-      doRedirect(onboardPath, stored);
       return;
     }
 

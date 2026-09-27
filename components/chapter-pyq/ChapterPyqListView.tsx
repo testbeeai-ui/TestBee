@@ -909,7 +909,6 @@ export default function ChapterPyqListView() {
     };
   }, []);
 
-  // Keyboard shortcut: Cmd+K / Ctrl+K or '/' focuses search
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && document.activeElement?.tagName !== "INPUT")) {
@@ -920,28 +919,6 @@ export default function ChapterPyqListView() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  // Compute aggregate stats across real questions in the bank
-  const { totalPyqs, solvedPyqs, completionPercent } = useMemo(() => {
-    let total = 0;
-    let solved = 0;
-
-    for (const c of chaptersForSubject(subject)) {
-      const actualCount = publishedCountForStudent(c.subject, c.slug, counts?.[c.slug]);
-      if (actualCount && actualCount > 0) {
-        total += actualCount;
-        const tally = tallyChapterAttempts(attemptMap, c.subject, c.slug);
-        solved += Math.min(tally.attempted, actualCount);
-      }
-    }
-
-    const completion = total > 0 ? ((solved / total) * 100).toFixed(1) : "0.0";
-    return {
-      totalPyqs: countsLoading ? "—" : total.toLocaleString(),
-      solvedPyqs: countsLoading ? "—" : solved.toLocaleString(),
-      completionPercent: countsLoading ? "—" : `${completion}%`,
-    };
-  }, [subject, counts, countsLoading, attemptMap]);
 
   return (
     <div className="relative mx-auto w-full max-w-[1720px] px-3.5 sm:px-6 lg:px-8 xl:px-10 py-2 sm:py-4">
@@ -969,34 +946,23 @@ export default function ChapterPyqListView() {
           </p>
         </div>
 
-        {/* Quick Progress Strip */}
-        <div className="self-start lg:self-auto flex items-center gap-2.5 sm:gap-4 rounded-2xl border border-[#1F2436] bg-[#11141E]/70 px-3.5 py-2 sm:px-5 sm:py-2.5 backdrop-blur-md shrink-0">
-          <div className="flex flex-col border-r border-[#1F2436] pr-3 sm:pr-4">
-            <span className="text-sm sm:text-base lg:text-lg font-bold text-[#F8FAFC]">{totalPyqs}</span>
-            <span className="text-[0.62rem] sm:text-[0.7rem] font-medium tracking-[0.05em] uppercase text-[#64748B]">
-              Total PYQs
-            </span>
+        <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+          <div className="relative w-full sm:w-56 lg:w-64 shrink-0">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B]"
+            />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search chapters..."
+              className="w-full rounded-full border border-[#3A445C] bg-[#11141E] py-2.5 pl-10 pr-4 text-sm text-[#F8FAFC] placeholder:text-[#64748B] outline-none transition-all duration-200 focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/20"
+            />
           </div>
-          <div className="flex flex-col border-r border-[#1F2436] pr-3 sm:pr-4">
-            <span className="text-sm sm:text-base lg:text-lg font-bold text-[#10B981]">{solvedPyqs}</span>
-            <span className="text-[0.62rem] sm:text-[0.7rem] font-medium tracking-[0.05em] uppercase text-[#64748B]">
-              Solved
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm sm:text-base lg:text-lg font-bold text-[#F8FAFC]">{completionPercent}</span>
-            <span className="text-[0.62rem] sm:text-[0.7rem] font-medium tracking-[0.05em] uppercase text-[#64748B]">
-              Completion
-            </span>
-          </div>
-        </div>
-      </header>
-
-      {/* Controls Bar: Subject Tabs & Search */}
-      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-        {/* Subject Tabs */}
         <nav
-          className="inline-flex rounded-full border border-[#1F2436] bg-[#11141E] p-1 self-start overflow-x-auto max-w-full"
+          className="inline-flex w-full max-w-full shrink-0 overflow-x-auto rounded-full border border-[#3A445C] bg-[#11141E] p-1.5 sm:w-auto"
           role="tablist"
           aria-label="Subjects"
         >
@@ -1010,9 +976,9 @@ export default function ChapterPyqListView() {
                 aria-selected={active}
                 onClick={() => setSubject(item.id)}
                 className={cn(
-                  "rounded-full px-4 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap",
+                  "flex-1 rounded-full px-4 py-2.5 text-sm font-bold whitespace-nowrap transition-all duration-200 cursor-pointer sm:flex-none sm:px-7 sm:py-3 sm:text-base",
                   active
-                    ? "bg-[#6366F1] text-white shadow-[0_4px_14px_rgba(99,102,241,0.4)]"
+                    ? "bg-[#6366F1] text-white shadow-[0_4px_16px_rgba(99,102,241,0.45)]"
                     : "text-[#94A3B8] hover:text-[#F8FAFC]"
                 )}
               >
@@ -1021,26 +987,8 @@ export default function ChapterPyqListView() {
             );
           })}
         </nav>
-
-        {/* Search Input */}
-        <div className="relative w-full sm:w-80 lg:w-96 shrink-0">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B]"
-          />
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search chapters (e.g. Calculus, Matrix)..."
-            className="w-full rounded-full border border-[#1F2436] bg-[#11141E] py-2 sm:py-2.5 pl-10 pr-12 text-xs sm:text-sm text-[#F8FAFC] placeholder:text-[#64748B] outline-none transition-all duration-200 focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/20"
-          />
-          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 rounded border border-[#2B3349] bg-[#1C2233] px-1.5 py-0.5 text-[0.68rem] sm:text-[0.72rem] font-semibold text-[#64748B]">
-            ⌘K
-          </span>
         </div>
-      </div>
+      </header>
 
       {/* Chapter Cards Grid - Fluid auto-fill responsive grid */}
       <main

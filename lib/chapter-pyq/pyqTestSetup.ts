@@ -47,8 +47,11 @@ export function drawPyqTestQuestions<T>(
   return copy.slice(0, Math.max(0, Math.min(count, copy.length)));
 }
 
+export const PYQ_TEST_MARK_RIGHT = 4;
+export const PYQ_TEST_MARK_WRONG = -1;
+
 export function pyqTestMarks(correct: number, wrong: number): number {
-  return correct * 4 + wrong * -1;
+  return correct * PYQ_TEST_MARK_RIGHT + wrong * PYQ_TEST_MARK_WRONG;
 }
 
 export function pyqTestMaxMarks(questionCount: number): number {

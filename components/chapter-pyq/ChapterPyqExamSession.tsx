@@ -202,6 +202,17 @@ export default function ChapterPyqExamSession({
     if (id) setFlagged((prev) => new Set(prev).add(id));
   }, [questions, currentIndex]);
 
+  const unflagCurrent = useCallback(() => {
+    const id = questions[currentIndex]?.id;
+    if (!id) return;
+    setFlagged((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, [questions, currentIndex]);
+
   const reviewAnswers = submittedAnswers ?? answers;
 
   if (finished) {
@@ -259,6 +270,7 @@ export default function ChapterPyqExamSession({
           onAnswerSelect={handleAnswerSelect}
           onSaveAndNext={() => {
             commitCurrent();
+            unflagCurrent();
             goNext();
           }}
           onClearResponse={clearCurrent}

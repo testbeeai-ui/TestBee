@@ -2611,7 +2611,7 @@ img.nta-mock-img {
 
 .nta-formula-codex .nta-codex-title {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.0625rem;
   font-weight: 700;
   letter-spacing: -0.025em;
   color: #fff;
@@ -2619,7 +2619,7 @@ img.nta-mock-img {
 
 @media (min-width: 640px) {
   .nta-formula-codex .nta-codex-title {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
   }
 }
 
@@ -2870,13 +2870,25 @@ img.nta-mock-img {
 .nta-formula-codex .nta-codex-note {
   display: flex;
   align-items: baseline;
-  gap: 0.625rem;
+  gap: 0.5rem;
   padding: 0.25rem 0 0 0.25rem;
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.625;
   letter-spacing: 0.025em;
   color: rgba(203, 213, 225, 0.9);
+}
+
+.nta-formula-codex .nta-codex-note-kicker {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: rgba(248, 250, 252, 0.95);
+}
+
+.nta-formula-codex .nta-codex-note-body {
+  min-width: 0;
 }
 
 @media (min-width: 640px) {

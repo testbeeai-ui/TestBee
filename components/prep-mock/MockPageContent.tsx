@@ -64,6 +64,7 @@ import {
 import {
   filterMockPapers,
   mockPaperTypeLabel,
+  parseLibraryExamFilter,
   type LibraryExamFilter,
 } from "@/lib/mock/mockPapersCatalog";
 import { filterPastPapers } from "@/lib/mock/pastPapersCatalog";
@@ -845,6 +846,8 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     if (subj === "physics" || subj === "chemistry" || subj === "math") {
       setSelectedSubject(subj);
     }
+    const exam = parseLibraryExamFilter(searchParams.get("exam"));
+    if (exam) setLibraryExamFilter(exam);
   }, [isLibraryPage, searchParams]);
 
   /** Standalone library URL has no prep dashboard; keep users in the library shell. */

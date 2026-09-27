@@ -35,6 +35,7 @@ const EXAM_CHIPS: { id: LibraryExamFilter; label: string }[] = [
   { id: "kcet", label: "KCET" },
   { id: "bitsat", label: "BITSAT" },
   { id: "jee-main", label: "JEE Main" },
+  { id: "jee-advanced", label: "JEE Advanced" },
   { id: "comedk", label: "COMEDK" },
 ];
 

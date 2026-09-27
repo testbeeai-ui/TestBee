@@ -28,6 +28,7 @@ const EDUDECA_EMAIL_KEYS = [
   "EMAIL_DAILY_SEND_CAP",
 ];
 
+const LOCAL_EDUBLAST_URL = "http://localhost:3000";
 const LOCAL_EDUDECA_URL = "http://localhost:3001";
 
 function parseEnv(filePath) {
@@ -135,6 +136,7 @@ const decaPairs = [
   ...pick(web, SHARED_SUPABASE_KEYS),
   ...pick(web, EDUDECA_EMAIL_KEYS),
   ["NEXT_PUBLIC_EDUDECA_APP_URL", LOCAL_EDUDECA_URL],
+  ["NEXT_PUBLIC_EDUBLAST_APP_URL", web.NEXT_PUBLIC_EDUBLAST_APP_URL || LOCAL_EDUBLAST_URL],
   ...pick(web, ["EDUDECA_INTERNAL_API_SECRET"]),
 ];
 

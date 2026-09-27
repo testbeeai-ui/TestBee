@@ -50,6 +50,7 @@ const STUDENT_APP_GATE_PREFIXES = [
   "/home",
   "/performance",
   "/explore-1",
+  "/chapter-pyq",
   "/explore",
   "/mock",
   "/mock-test",

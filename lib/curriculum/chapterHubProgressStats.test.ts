@@ -54,7 +54,7 @@ describe("buildChapterHubActivityStats", () => {
     });
 
     expect(stats.quizSetsTaken).toBe(2);
-    expect(stats.quizSetsTotal).toBe(6);
+    expect(stats.quizSetsTotal).toBe(12);
   });
 
   it("sums InstaCue flipped cards for advanced subtopics in the chapter", () => {

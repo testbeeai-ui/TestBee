@@ -16,6 +16,7 @@ import {
   readPendingDeepLink,
   clearPendingDeepLink,
 } from "@/lib/auth/safeNextPath";
+import { shouldFollowPostLoginNext } from "@/lib/edudeca-mock/post-login";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { OnboardingTermsAcceptance } from "@/components/legal/OnboardingTermsAcceptance";
 import SignInNoticeModal from "@/components/landing/SignInNoticeModal";
@@ -119,8 +120,13 @@ function AuthContent() {
   useEffect(() => {
     if (loading) return;
     const isTeacher = profile?.role === "teacher";
+    const pending = readPendingDeepLink();
+    if (user && shouldFollowPostLoginNext(pending, profile?.onboarding_complete === true) && pending) {
+      clearPendingDeepLink();
+      router.replace(pending);
+      return;
+    }
     if (user && profile?.onboarding_complete) {
-      const pending = readPendingDeepLink();
       const dest = pending ?? (isTeacher ? TEACHER_PORTAL_CLASSROOMS_URL : "/home");
       clearPendingDeepLink();
       router.replace(dest);

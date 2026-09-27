@@ -52,6 +52,14 @@ export function escapeHtmlTextNode(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Real markup, not a math inequality. `<k` in `\alpha<k<\beta` is not a tag. */
+const MOCK_HTML_TAG =
+  /<\/?(?:p|div|span|br|img|strong|em|b|i|u|ul|ol|li|table|thead|tbody|tr|td|th|sup|sub|h[1-6]|blockquote|pre|code|a|section|figure|figcaption)\b/i;
+
+export function plainMockTextLooksLikeHtml(text: string): boolean {
+  return MOCK_HTML_TAG.test(text);
+}
+
 /**
  * Bank HTML often pads after figures with dozens of `<br>` / `&nbsp;` (OCR paste junk).
  * That creates a huge empty gap above the options in the NTA exam UI.

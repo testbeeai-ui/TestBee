@@ -9,33 +9,20 @@ import {
   type PyqCountRow,
   type PyqQuestionRow,
 } from "@/lib/chapter-pyq/pyqQuestionRow";
-import {
-  mathPdfChaptersForCatalogSlug,
-  pdfChaptersForCatalogSlug,
-} from "@/lib/chapter-pyq/pdfChapterMap";
-import { isPyqMathExcludedExamDate } from "@/lib/chapter-pyq/pyqSets";
 
 /** PostgREST caps a single response (default 1,000 rows), so paginate explicitly. */
 const PAGE_SIZE = 1000;
 const MAX_PAGES = 20;
 
 /**
- * Publishable rows for one catalog chapter, spanning every PDF chapter that maps
- * to it. Physics may share a slug across PDF chapters. 2025 session Maths is 1:1
- * (`catalog_slug` unique per PDF chapter number). The embed still filters
- * `chapters.catalog_slug`.
+ * Publishable rows for one catalog chapter. The embed filters
+ * `chapters.catalog_slug`, including leftover catalog chapters that are not
+ * in the 2025 29-chapter TOC.
  */
 export async function fetchPyqRowsForCatalogChapter(
   supabase: SupabaseClient,
   catalogSlug: string
 ): Promise<PyqQuestionRow[]> {
-  if (
-    pdfChaptersForCatalogSlug(catalogSlug).length === 0 &&
-    mathPdfChaptersForCatalogSlug(catalogSlug).length === 0
-  ) {
-    return [];
-  }
-
   const rows: PyqQuestionRow[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
     const from = page * PAGE_SIZE;
