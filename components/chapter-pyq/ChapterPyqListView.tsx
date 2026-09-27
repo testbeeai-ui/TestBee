@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Clock, Play, Search, Sparkles, X } from "lucide-react";
 import {
   CHAPTER_PYQ_SUBJECTS,
@@ -16,6 +17,13 @@ import type { ChapterPyqQuestion } from "@/lib/chapter-pyq/pyqQuestionMap";
 import { buildPyqEvenPracticeSets, buildPyqYearMonthSets, secondsForSet, practiceSetSessionLabel, pyqYearSetListedCount } from "@/lib/chapter-pyq/pyqSets";
 import { countByTier, filterByTier, PYQ_TIER_CHIPS, type PyqTierFilter } from "@/lib/chapter-pyq/pyqTiers";
 import ChapterPyqExamSession from "@/components/chapter-pyq/ChapterPyqExamSession";
+import ChapterPyqAttemptStats from "@/components/chapter-pyq/ChapterPyqAttemptStats";
+import {
+  loadPyqAttempts,
+  PYQ_ATTEMPTS_CHANGED,
+  tallyChapterAttempts,
+  type PyqAttemptMap,
+} from "@/lib/chapter-pyq/pyqAttemptStore";
 import { cn } from "@/lib/utils";
 
 type ChapterWeightage = "high" | "medium" | "normal";
@@ -644,6 +652,8 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
       <ChapterPyqExamSession
         key={`${activeSetIndex}-${sessionNonce}`}
         chapterName={entry.name}
+        chapterSlug={entry.slug}
+        subject={entry.subject}
         subjectLabel={subjectLabel}
         questions={activeSet.items}
         setLabel={practiceSetSessionLabel(activeSet.label, sets.length)}
@@ -781,7 +791,9 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
 }
 
 export default function ChapterPyqListView() {
+  const { user } = useAuth();
   const [subject, setSubject] = useState<ChapterPyqSubject>("physics");
+  const [attemptMap, setAttemptMap] = useState<PyqAttemptMap>({});
   const [query, setQuery] = useState("");
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
   const [countsFailed, setCountsFailed] = useState(false);
@@ -793,6 +805,13 @@ export default function ChapterPyqListView() {
     () => filterChapters(chaptersForSubject(subject), query),
     [subject, query]
   );
+
+  useEffect(() => {
+    const reload = () => setAttemptMap(loadPyqAttempts(user?.id ?? null));
+    reload();
+    window.addEventListener(PYQ_ATTEMPTS_CHANGED, reload);
+    return () => window.removeEventListener(PYQ_ATTEMPTS_CHANGED, reload);
+  }, [user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -832,9 +851,8 @@ export default function ChapterPyqListView() {
       const actualCount = publishedCountForStudent(c.subject, c.slug, counts?.[c.slug]);
       if (actualCount && actualCount > 0) {
         total += actualCount;
-        if (c.slug === "laws-of-motion") {
-          solved += Math.min(18, actualCount);
-        }
+        const tally = tallyChapterAttempts(attemptMap, c.subject, c.slug);
+        solved += Math.min(tally.attempted, actualCount);
       }
     }
 
@@ -844,7 +862,7 @@ export default function ChapterPyqListView() {
       solvedPyqs: countsLoading ? "—" : solved.toLocaleString(),
       completionPercent: countsLoading ? "—" : `${completion}%`,
     };
-  }, [subject, counts, countsLoading]);
+  }, [subject, counts, countsLoading, attemptMap]);
 
   return (
     <div className="relative mx-auto w-full max-w-[1720px] px-3.5 sm:px-6 lg:px-8 xl:px-10 py-2 sm:py-4">
@@ -962,9 +980,8 @@ export default function ChapterPyqListView() {
           const isLive = counts !== null && liveCount > 0;
           const totalCount = isLive ? liveCount : 0;
 
-          // Compute progress: Laws of Motion has pilot progress; otherwise 0 until attempted
-          const isPilotChapter = entry.slug === "laws-of-motion" && isLive;
-          const solvedCount = isPilotChapter ? 18 : 0;
+          const tally = tallyChapterAttempts(attemptMap, entry.subject, entry.slug);
+          const solvedCount = isLive ? Math.min(tally.attempted, totalCount) : 0;
           const percent = isLive && totalCount > 0 ? Math.round((solvedCount / totalCount) * 100) : 0;
           const statusLabel = countsLoading
             ? "Loading…"
@@ -1116,6 +1133,7 @@ export default function ChapterPyqListView() {
                     </svg>
                   </span>
                 </div>
+                <ChapterPyqAttemptStats tally={tally} />
               </div>
             </div>
           );

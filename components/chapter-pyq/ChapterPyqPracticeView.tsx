@@ -121,6 +121,8 @@ export default function ChapterPyqPracticeView({
             <ChapterPyqExamSession
               key={`${activeSetIndex}-${sessionNonce}`}
               chapterName={entry.name}
+              chapterSlug={entry.slug}
+              subject={entry.subject}
               subjectLabel={subjectLabel}
               questions={activeSet.items}
               setLabel={practiceSetSessionLabel(activeSet.label, sets.length)}
