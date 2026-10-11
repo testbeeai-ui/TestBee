@@ -398,7 +398,7 @@ export function NtaExamShellMobile({
             <MobileActionBtn
               variant="formulas"
               icon={<Sigma className="h-4 w-4" aria-hidden />}
-              label="Formula's"
+              label="Formulae"
               onClick={onOpenFormulas}
               className={onOpenTips ? "min-w-[5.5rem]" : "ml-2 min-w-[5.5rem] sm:ml-3"}
             />

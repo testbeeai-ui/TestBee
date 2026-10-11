@@ -36,7 +36,8 @@ describe("siteTourCarouselRoutes", () => {
   });
 
   it("maps lessons and curriculum routes to lessons task", () => {
-    expect(resolveSiteTourTaskIdForPathname("/explore-1")).toBe("lessons");
+    expect(resolveSiteTourTaskIdForPathname("/learnhub")).toBe("lessons");
+    expect(resolveSiteTourTaskIdForPathname("/learnhub/mathematics")).toBe("lessons");
     expect(
       resolveSiteTourTaskIdForPathname("/cbse/physics/class-11/unit/topic/subtopic/basic")
     ).toBe("lessons");

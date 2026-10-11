@@ -709,7 +709,7 @@ export function OnboardingRewardDialog({
       launchOnboardingChecklistTask("lessons");
       setActiveDailyTaskId(null);
       onOpenChange(false);
-      router.push("/explore-1");
+      router.push("/learnhub");
       return;
     }
 

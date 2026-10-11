@@ -32,7 +32,9 @@ export async function GET(request: Request) {
         const supabase = createAdminClient();
         if (!supabase) throw new Error("Database configuration error");
         const rows = await fetchPyqRowsForCatalogChapter(supabase, chapter);
-        return mapPyqRowsToChapterPyqQuestions(rows, entry.name);
+        return mapPyqRowsToChapterPyqQuestions(rows, entry.name, {
+          deferParsedPaperHtml: true,
+        });
       },
       [`chapter-pyq-questions-v${CHAPTER_PYQ_CACHE_VERSION}`, subject, chapter],
       { revalidate: CACHE_REVALIDATE_SEC, tags: [`chapter-pyq-${subject}-${chapter}`] }

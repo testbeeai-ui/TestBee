@@ -29,6 +29,7 @@ import {
   type PyqReviewFilter,
   type PyqReviewVerdict,
 } from "@/lib/chapter-pyq/pyqScoring";
+import type { PyqFigureFolder } from "@/lib/chapter-pyq/pyqFigures";
 import { ntaQuestionSolutionText } from "@/lib/mock/ntaQuestionSolution";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ type ChapterPyqResultViewProps = {
   onRetry: () => void;
   onNextSet?: () => void;
   marks?: { earned: number; maximum: number };
+  figureFolder?: PyqFigureFolder;
 };
 
 function VerdictIcon({ verdict }: { verdict: PyqReviewVerdict }) {
@@ -91,6 +93,7 @@ export default function ChapterPyqResultView({
   onRetry,
   onNextSet,
   marks,
+  figureFolder = "math/figures",
 }: ChapterPyqResultViewProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [solutionOpenId, setSolutionOpenId] = useState<string | null>(null);
@@ -340,6 +343,7 @@ export default function ChapterPyqResultView({
                       emptyLabel="No solution"
                       useWorkedSheet
                       panel="solution"
+                      figureFolder={figureFolder}
                     />
                   </div>
                 ) : null}

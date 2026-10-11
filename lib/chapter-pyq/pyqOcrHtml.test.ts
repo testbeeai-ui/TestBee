@@ -1,5 +1,6 @@
 import katex from "katex";
 import { describe, expect, it } from "vitest";
+import { sanitizeMockHtml } from "@/lib/mock/mockHtml";
 import { cleanPyqOcrText, pyqSolutionToHtml, pyqStemToHtml, pyqStudentTextIsSafe } from "./pyqOcrHtml";
 import { PYQ_SAMPLE_FIGURES } from "./fixtures/lawsOfMotionSample";
 import type { PyqFigureLinkRow } from "./pyqQuestionRow";
@@ -11,6 +12,41 @@ const link = (key: string): PyqFigureLinkRow => ({
 });
 
 describe("cleanPyqOcrText", () => {
+  it("drops a fake markdown image and keeps the real figure token", () => {
+    const cleaned = cleanPyqOcrText(
+      "The charge stored is _____ $\\mu$C.![circuit](https://i.imgur.com/your_image_placeholder.png)\n\n[[fig:s2026_caps_q01_1]]"
+    );
+    expect(cleaned).not.toContain("imgur");
+    expect(cleaned).not.toContain("![");
+    expect(cleaned).toContain("[[fig:s2026_caps_q01_1]]");
+    expect(cleaned).toContain("The charge stored");
+  });
+
+  it("keeps an option graph image as the choice", () => {
+    const img =
+      '<img src="https://example.com/pyq/physics/figures/s2026_oscs_q06_1.png" alt="Option 1" class="nta-mock-img nta-option-graph">';
+    expect(cleanPyqOcrText(img)).toBe(img);
+  });
+
+  it("does not treat a script or event handler as an option graph", () => {
+    const shown = (raw: string) => sanitizeMockHtml(cleanPyqOcrText(raw)).toLowerCase();
+    expect(shown(
+      '<img src="https://example.com/a.png" class="nta-mock-img nta-option-graph" onerror="alert(1)">'
+    )).not.toContain("onerror");
+    expect(shown(
+      '<img src="https://example.com/a.png" alt="Option 1" class="nta-mock-img nta-option-graph"><script>alert(1)</script>'
+    )).not.toContain("<script>");
+    expect(shown(
+      '<img src="javascript:alert(1)" alt="Option 1" class="nta-mock-img nta-option-graph">'
+    )).not.toContain("javascript:");
+  });
+
+  it("leaves a leading minus inside its own math run", () => {
+    expect(cleanPyqOcrText("$b_3 - b_2$ are in an A.P. with common difference $-2$")).toBe(
+      "$b_3 - b_2$ are in an A.P. with common difference $-2$"
+    );
+  });
+
   it("keeps the printed stem and drops Document-AI image captions", () => {
     const raw =
       "Two billiard balls of equal mass 30 g strike a rigid wall. " +
@@ -110,6 +146,16 @@ describe("cleanPyqOcrText", () => {
     expect(cleanPyqOcrText("0.4 kg m s⁻¹")).toMatch(/\$0\.4\\,\\mathrm\{kg\\,m\\,s\^\{-1\}\}\$/);
     expect(cleanPyqOcrText("$g = 9$.8 $ms^{-2}$")).toContain("$g = 9.8\\,ms^{-2}$");
     expect(cleanPyqOcrText("7 m $s^{-2}$")).toContain("$7\\,m\\,s^{-2}$");
+  });
+
+  it("repairs unit vector hats and lambda prefixes for Vector Algebra PYQs", () => {
+    const raw = "Let a = λî + ĵ - k̂ and n = n̂ be a unit vector";
+    const cleaned = cleanPyqOcrText(raw);
+    expect(cleaned).toContain("\\lambda");
+    expect(cleaned).toContain("\\hat{i}");
+    expect(cleaned).toContain("\\hat{j}");
+    expect(cleaned).toContain("\\hat{k}");
+    expect(cleaned).toContain("\\hat{n}");
   });
 
   it("wraps remaining Laws of Motion stems and options so KaTeX compiles", () => {
@@ -285,6 +331,25 @@ describe("pyqStemToHtml", () => {
     expect(html).not.toContain("[[fig:");
   });
 
+  it("keeps an assertion-reason stem as separate blocks", () => {
+    const raw = [
+      "Given below are two statements: one is labelled as Assertion (A) and the other is labelled as Reason (R).",
+      "Consider a ferromagnetic material :",
+      "Assertion (A) : The individual atoms in a ferromagnetic material possess a magnetic dipole moment and interact with one another in such a way that they spontaneously align themselves forming domains.",
+      "Reason (R): At high enough temperature, the domain structure of ferromagnetic material disintegrates. Thus, magnetization will disappear at high enough temperature known as Curie temperature.",
+      "In the light of the above statements, choose the correct answer from the options given below :",
+    ].join("\n");
+    const html = pyqStemToHtml(raw, []);
+    const blocks = html.match(/<p class="nta-math-plain">/g) ?? [];
+    expect(blocks).toHaveLength(5);
+    expect(html).toContain("labelled as Assertion (A) and the other");
+    expect(html).toContain("<p class=\"nta-math-plain\">Consider a ferromagnetic material :</p>");
+    expect(html).toContain("<p class=\"nta-math-plain\">Assertion (A) : The individual atoms");
+    expect(html).toContain("<p class=\"nta-math-plain\">Reason (R): At high enough temperature");
+    expect(html).toContain("<p class=\"nta-math-plain\">In the light of the above statements");
+    expect(html).not.toContain("domains. Reason (R)");
+  });
+
   it("still emits the paper raster when figure_links is missing", () => {
     const html = pyqStemToHtml(
       "Three blocks A, B and C are pulled as shown.\n\n[[fig:p047_x549]]",
@@ -297,6 +362,16 @@ describe("pyqStemToHtml", () => {
 });
 
 describe("pyqSolutionToHtml", () => {
+  it("keeps \\neq and \\notin inside a paper line instead of breaking at \\n", () => {
+    const html = pyqSolutionToHtml(
+      "<!-- paper-ocr -->\n\n## Step 1: Domain\n$x \\neq 0$ and $(0, 1) \\notin R$\\nThen $\\nu > 0$"
+    );
+    expect(html).toContain("\\neq 0");
+    expect(html).toContain("\\notin R");
+    expect(html).toContain("\\nu &gt; 0");
+    expect(html).not.toMatch(/\$eq|\$otin/);
+  });
+
   it("wraps numbered steps without stripping them as OCR captions", () => {
     const html = pyqSolutionToHtml(
       "The graph is a unit circle.\n\n1. Use King.\n2. The answer is option 4."
@@ -314,6 +389,31 @@ describe("pyqSolutionToHtml", () => {
     const html = pyqSolutionToHtml("1. Start.\n2. Finish.");
     expect(html).toContain("nta-sol-step--end");
     expect(html.match(/class="nta-sol-step/g)?.length).toBe(2);
+  });
+
+  it("keeps a printed centre-of-mass sentence on one line", () => {
+    const html = pyqSolutionToHtml(
+      [
+        "<!-- paper-ocr -->",
+        "",
+        "## Step 1: Center of Mass Calculation",
+        "CM from mass",
+        "$m$:",
+        "$x_{cm} = \\frac{2md}{3m} = \\frac{2d}{3}$. Distances:",
+        "$m$is",
+        "$2d/3$from CM,$2m$is",
+        "$d/3$from CM.",
+        "",
+        "## Step 2: Moment of Inertia",
+        "$I_{cm} = m(2d/3)^{2}$",
+      ].join("\n")
+    );
+    const distance = html.split("</p>").find((part) => part.includes("Distances:"));
+    expect(distance).toBeTruthy();
+    expect(distance).toContain("CM from mass");
+    expect(distance).toContain("$m$ is");
+    expect(distance).toContain("from CM");
+    expect(html).toContain("$$I_{cm} = m(2d/3)^{2}$$");
   });
 
   it("resolves a printed diagram token without flattening the next line", () => {

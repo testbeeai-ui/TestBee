@@ -3,6 +3,7 @@
 # local agent / IDE
 .claude/
 .codegraph/
+.freebuff/
 
 # dependencies
 /node_modules

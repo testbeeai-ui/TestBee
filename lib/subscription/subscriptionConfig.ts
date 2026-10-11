@@ -266,9 +266,9 @@ export function isUnlimited(limit: number): boolean {
   return limit < 0;
 }
 
-/** Admin + UI copy: Lessons (/explore-1) chapter picker — not a monthly quota. */
+/** Admin + UI copy: Lessons (/learnhub) chapter picker — not a monthly quota. */
 export const LESSONS_CHAPTER_LIMIT_RDM_DESCRIPTION =
-  "Legacy chapter picker cap on Lessons (/explore-1). Investor default: -1 (all chapters open for every plan). Premium is inside lessons (quiz Question bank, numerals, saves). Separate cap per PCM subject. Not monthly.";
+  "Legacy chapter picker cap on Lessons (/learnhub). Investor default: -1 (all chapters open for every plan). Premium is inside lessons (quiz Question bank, numerals, saves). Separate cap per PCM subject. Not monthly.";
 
 export function resolveLessonsChapterCap(limit: number, fallback = 2): number {
   if (isUnlimited(limit)) return Infinity;

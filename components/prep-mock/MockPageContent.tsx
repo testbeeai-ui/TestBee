@@ -1668,6 +1668,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
                   onBackNav={() => setCurrentIndex((i) => Math.max(0, i - 1))}
                   onNextNav={() => setCurrentIndex((i) => Math.min(questions.length - 1, i + 1))}
                   onSubmitClick={() => setSubmitDialogOpen(true)}
+                  showCoach
                 />
                 <NtaSubmitModal
                   open={submitDialogOpen}

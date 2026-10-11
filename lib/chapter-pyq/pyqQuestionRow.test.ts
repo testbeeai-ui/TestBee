@@ -10,6 +10,35 @@ import {
 } from "./pyqQuestionRow";
 import { LAWS_OF_MOTION_SAMPLE_ROWS } from "./fixtures/lawsOfMotionSample";
 
+describe("isPyqPaperFilled tails", () => {
+  const numerical = (body: string) => ({ body, format: "numerical" as const, numerical_answer: "5" });
+
+  it.each([
+    "The sum of all the roots of the equation $(x-1)^{2}-5|x-1|+6=0$, is :",
+    "Find the value of $\\int_{0}^{2\\pi}\\dfrac{x\\sin^{8}x}{\\sin^{8}x+\\cos^{8}x}\\,dx$",
+    "Let $I_n(x) = \\int_{0}^{x} \\frac{1}{(t^2+5)^n} dt, \\ n=1, 2, 3, ...$ Then",
+    "The function $f(x) = 2x + 3(x)^{\\frac{2}{3}}, x \\in \\mathbb{R}$, has",
+    "The remainder when $19^{200} + 23^{200}$ is divided by $49$, is ______.",
+    "${}^{n-1}C_{r} = (k^{2}-8)^{n}C_{r+1}$ if and only if :",
+    "Then the centroid of $\\triangle PAB$ lies on the line :",
+    "Let $A = \\begin{pmatrix} p & q \\\\ p & q \\end{pmatrix}$, $d = |A|$. Then",
+    "Let $f(x)=x$, where $[t]$ denotes greatest integer function. Then,",
+    "Let $y=f(x)$. Then, at $x = 1$,",
+    "Let $y=y(x)$ solve $y'=x$. Then, $y(1)$ equals :",
+    "If $y' = x$, $y(0) = 0$, then $y(1)$ is :-",
+    "The number of points, where $y = x^{5}$ crosses the $x$-axis, is —————.",
+    "The sum of $\\theta$, for which $z$ is purely imaginary, is equal",
+    "The $8^{\\text{th}}$ common term of $S_{1}=3+7$, $S_{2}=1+6$ is $\\underline{\\quad}$.",
+  ])("keeps a real stem: %s", (body) => {
+    expect(isPyqPaperFilled(numerical(body))).toBe(true);
+  });
+
+  it("still hides a cut-off tail", () => {
+    expect(isPyqPaperFilled(numerical("Let $x$ be real and y, ₁/2"))).toBe(false);
+    expect(isPyqPaperFilled(numerical("Let the set be given as $A$ and then the"))).toBe(true);
+  });
+});
+
 describe("pyq question rows", () => {
   it("publishes only auto_ok and human_ok", () => {
     expect([...PYQ_PUBLISHABLE_STATUSES]).toEqual(["auto_ok", "human_ok"]);

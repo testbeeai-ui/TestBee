@@ -18,6 +18,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EXPLORE_APP_PATH } from "@/components/AppLayout";
+import { isLearnHubPathname } from "@/lib/learnhub/routes";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
 import { useStudyStreakFromApi } from "@/hooks/useStudyStreakFromApi";
@@ -63,8 +64,7 @@ function isActivePath(pathname: string, href: string, page: string | null): bool
   if (href === "/mock") {
     if (pathname === "/mock" || pathname === "/exam-prep") return true;
   }
-  if (href === EXPLORE_APP_PATH)
-    return pathname === EXPLORE_APP_PATH || pathname.startsWith("/explore-1");
+  if (href === EXPLORE_APP_PATH) return isLearnHubPathname(pathname);
   if (href === "/edufund") return pathname === "/edufund" || pathname.startsWith("/edufund/");
   return pathname === href;
 }

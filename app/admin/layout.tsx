@@ -15,7 +15,7 @@ import {
   CreditCard,
   BadgeCheck,
   Ticket,
-  ClipboardList,
+  Link2,
 } from "lucide-react";
 import { AdminRoute } from "@/components/AdminRoute";
 import { cn } from "@/lib/utils";
@@ -86,6 +86,12 @@ const navItems = [
     label: "Coupons",
     icon: Ticket,
     match: (p: string) => p.startsWith("/admin/coupons"),
+  },
+  {
+    href: "/admin/named-links",
+    label: "Name links",
+    icon: Link2,
+    match: (p: string) => p.startsWith("/admin/named-links"),
   },
 ];
 

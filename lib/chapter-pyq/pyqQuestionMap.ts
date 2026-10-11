@@ -1,8 +1,14 @@
 import type { Question } from "@/types";
 import { stripHtmlToPlain } from "@/lib/mock/catalogQuestionMap";
 import { cleanPyqOcrText, pyqSolutionToHtml, pyqStemToHtml } from "@/lib/chapter-pyq/pyqOcrHtml";
+import {
+  appendOptionFinalStep,
+  isPaperOcrSolution,
+  parsePyqWorkedSolution,
+} from "@/lib/chapter-pyq/pyqWorkedSolution";
 import { chaptersForSubject } from "@/lib/chapter-pyq/catalog";
 import { mathPdfChaptersForCatalogSlug } from "@/lib/chapter-pyq/pdfChapterMap";
+import { buildFallbackTips, buildFallbackFormulas } from "@/lib/chapter-pyq/pyqCoach";
 import {
   isPyqPaperFilled,
   type PyqExamShift,
@@ -153,9 +159,18 @@ function mcqOptions(row: PyqQuestionRow): string[] {
  * chapter, or an OCR fragment that is not a filled paper item.
  * Publishing status is filtered upstream by `filterPublishableRows`.
  */
+export type MapPyqOptions = {
+  /**
+   * Paper write-ups that already parse are sent as markdown. The popup renders
+   * that markdown, so the HTML twin is a second copy of the same solution.
+   */
+  deferParsedPaperHtml?: boolean;
+};
+
 export function mapPyqRowToChapterPyqQuestion(
   row: PyqQuestionRow,
-  chapterFallback: string
+  chapterFallback: string,
+  options?: MapPyqOptions
 ): ChapterPyqQuestion | null {
   const body = row.body?.trim();
   if (!body || !row.chapters) return null;
@@ -173,6 +188,16 @@ export function mapPyqRowToChapterPyqQuestion(
   const questionHtml = pyqStemToHtml(body, row.figure_links ?? [], figFolder);
 
   const solutionMd = row.solution_md?.trim() ?? "";
+  // Physics MCQs: close with the option so FINAL ANSWER names it instead of
+  // reprinting the keyed algebra. Paper markdown only — a phase-JSON payload must
+  // stay byte-identical or it stops parsing, and Mathematics keeps the printed result.
+  const isPhysicsFolder = figFolder === "physics/figures";
+  const isPaperMarkdown =
+    isPaperOcrSolution(solutionMd) && !solutionMd.trimStart().startsWith("{");
+  const solutionForSheet =
+    isPhysicsFolder && !isNumerical && isPaperMarkdown
+      ? appendOptionFinalStep(solutionMd, row.correct_option)
+      : solutionMd;
   const question: Question = {
     id: row.id,
     subject: "physics",
@@ -182,8 +207,13 @@ export function mapPyqRowToChapterPyqQuestion(
     question: stripHtmlToPlain(questionHtml) || "Question",
     questionHtml,
     solutionHtml:
-      solutionMd && !solutionMd.startsWith("{")
-        ? pyqSolutionToHtml(solutionMd, row.figure_links ?? [], figFolder)
+      solutionForSheet &&
+      !(
+        options?.deferParsedPaperHtml &&
+        isPaperMarkdown &&
+        parsePyqWorkedSolution(solutionForSheet)
+      )
+        ? pyqSolutionToHtml(solutionForSheet, row.figure_links ?? [], figFolder)
         : null,
     options: isNumerical ? [] : mcqOptions(row),
     // -1 is an out-of-range option index, not an unreachable value: a student can
@@ -192,9 +222,11 @@ export function mapPyqRowToChapterPyqQuestion(
     answerFormat: isNumerical ? "numerical" : "mcq",
     numericAnswer: isNumerical ? row.numerical_answer : null,
     hint: "",
-    solution: solutionMd,
-    coachTips: row.tips_md?.trim() || null,
-    coachFormulas: row.formulas_md?.trim() || null,
+    solution: solutionForSheet,
+    coachTips: row.tips_md?.trim() || buildFallbackTips(topicName ?? pdfChapterName),
+    coachFormulas:
+      row.formulas_md?.trim() ||
+      buildFallbackFormulas(topicName ?? pdfChapterName, solutionMd),
     reference: emptyReference,
   };
 
@@ -214,10 +246,11 @@ export function mapPyqRowToChapterPyqQuestion(
 
 export function mapPyqRowsToChapterPyqQuestions(
   rows: PyqQuestionRow[],
-  chapterName: string
+  chapterName: string,
+  options?: MapPyqOptions
 ): ChapterPyqQuestionBundle {
   const questions = rows
-    .map((row) => mapPyqRowToChapterPyqQuestion(row, chapterName))
+    .map((row) => mapPyqRowToChapterPyqQuestion(row, chapterName, options))
     .filter((q): q is ChapterPyqQuestion => q !== null);
   return {
     catalogSlug: rows[0]?.chapters?.catalog_slug ?? "",

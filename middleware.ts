@@ -8,6 +8,7 @@ import {
 } from "@/lib/auth/oauthCallbackRedirect";
 import { PREVIEW_AUTH_LEGACY_PATHS, PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
 import { isPublicPath } from "@/lib/auth/publicPaths";
+import { canonicalLearnHubRedirect } from "@/lib/learnhub/routes";
 import { createSupabaseMiddleware } from "@/lib/supabase/middleware";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import {
@@ -23,7 +24,7 @@ const STUDENT_ONLY_PREFIXES = [
   "/mock-test",
   "/edudeca-mock",
   "/revision",
-  "/explore-1",
+  "/learnhub",
   "/chapter-pyq",
   "/explore",
   "/dive",
@@ -77,6 +78,15 @@ export async function middleware(request: NextRequest) {
           : `${PREVIEW_AUTH_PATH}${pathname.slice(legacy.length)}`;
       return NextResponse.redirect(url, 308);
     }
+  }
+
+  /** `/explore-1` → `/learnhub`, and `/learnhub/maths` → `/learnhub/mathematics`. */
+  const learnHubRedirect = canonicalLearnHubRedirect(pathname, request.nextUrl.searchParams);
+  if (learnHubRedirect) {
+    const url = request.nextUrl.clone();
+    url.pathname = learnHubRedirect.pathname;
+    url.search = learnHubRedirect.search.toString();
+    return NextResponse.redirect(url, 308);
   }
 
   /** Legacy `/mock-test-library` links → `/mock-test`. Preserves `?paper=` etc. */

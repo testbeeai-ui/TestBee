@@ -25,12 +25,14 @@ describe("physics PDF chapter map", () => {
     }
   });
 
-  it("defers only PDF chapter 17 (Electrostatics)", () => {
+  it("maps PDF chapter 17 (Electrostatics) onto Electric Charges and Fields", () => {
     const unmapped = PYQ_PHYSICS_PDF_CHAPTERS.filter((row) => row.catalogSlug === null);
-    expect(unmapped.map((row) => row.pdfChapterNo)).toEqual([17]);
-    expect(unmapped[0]?.pdfChapterTitle).toBe("Electrostatics");
-    expect(PYQ_DEFERRED_PDF_CHAPTERS).toEqual([17]);
-    expect(catalogSlugForPdfChapter(17)).toBeNull();
+    expect(unmapped).toEqual([]);
+    expect(PYQ_DEFERRED_PDF_CHAPTERS).toEqual([]);
+    expect(catalogSlugForPdfChapter(17)).toBe("electric-charges-and-fields");
+    expect(pdfChaptersForCatalogSlug("electric-charges-and-fields").map((r) => r.pdfChapterNo)).toEqual([
+      17,
+    ]);
   });
 
   it("merges chapters 1, 2 and 32 into units-and-measurements", () => {
@@ -80,15 +82,14 @@ describe("physics PDF chapter map", () => {
     }
   });
 
-  it("leaves electric-charges-and-fields with no PYQ source", () => {
-    expect(pdfChaptersForCatalogSlug("electric-charges-and-fields")).toEqual([]);
-    expect(isPyqSourcedCatalogSlug("electric-charges-and-fields")).toBe(false);
+  it("sources electric-charges-and-fields from the Electrostatics booklet", () => {
+    expect(isPyqSourcedCatalogSlug("electric-charges-and-fields")).toBe(true);
     expect(isPyqSourcedCatalogSlug("laws-of-motion")).toBe(true);
   });
 
-  it("covers 28 of the 29 physics catalog chapters", () => {
+  it("covers all 29 physics catalog chapters", () => {
     const sourced = chaptersForSubject("physics").filter((c) => isPyqSourcedCatalogSlug(c.slug));
-    expect(sourced).toHaveLength(28);
+    expect(sourced).toHaveLength(29);
     expect(new Set(PYQ_PHYSICS_PDF_CHAPTERS.map((r) => r.catalogSlug)).size).toBe(29);
   });
 

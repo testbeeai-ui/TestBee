@@ -69,6 +69,7 @@ import {
 } from "@/lib/onboarding/dailyLessonsChecklist";
 import { isDailyChecklistCompanionRetryActive } from "@/lib/onboarding/dailyChecklistCompanionRetry";
 import { LESSONS_SUBJECT_SELECTED_EVENT } from "@/lib/onboarding/lessonsOnboarding";
+import { isLearnHubPathname } from "@/lib/learnhub/routes";
 import {
   EARN_BUDDY_COMPANION_PROGRESS_EVENT,
   markEarnBuddyCompanionLinkCopied,
@@ -551,11 +552,8 @@ export function FloatingTaskCompanion() {
         }
       }
 
-      // LESSONS — subject card on /explore-1 hub
-      if (
-        activeTaskId === "lessons" &&
-        (pathname === "/explore-1" || pathname.startsWith("/explore-1/"))
-      ) {
+      // LESSONS — subject card on /learnhub hub
+      if (activeTaskId === "lessons" && isLearnHubPathname(pathname)) {
         if (
           target.closest('section[aria-labelledby="browse-by-subject-heading"] button') ||
           target.closest('[data-lessons-subject-chip="1"]')

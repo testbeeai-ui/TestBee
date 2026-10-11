@@ -3,7 +3,7 @@
  *
  * `catalogSlug` is deliberately many-to-one: several PDF chapters collapse onto
  * one catalog chapter and render on its single page. `null` means deferred —
- * no route, no page, no questions (PDF chapter 17 straddles two catalog chapters).
+ * no route, no page, no questions.
  */
 export type PdfChapterMapping = {
   pdfChapterNo: number;
@@ -29,7 +29,7 @@ export const PYQ_PHYSICS_PDF_CHAPTERS: readonly PdfChapterMapping[] = [
   { pdfChapterNo: 14, pdfChapterTitle: "Thermal Properties of Matter", catalogSlug: "thermal-properties-of-matter", note: "1:1" },
   { pdfChapterNo: 15, pdfChapterTitle: "Thermodynamics", catalogSlug: "thermodynamics", note: "1:1" },
   { pdfChapterNo: 16, pdfChapterTitle: "Kinetic Theory of Gases", catalogSlug: "kinetic-theory-of-gases", note: "1:1" },
-  { pdfChapterNo: 17, pdfChapterTitle: "Electrostatics", catalogSlug: null, note: "Deferred — straddles Electric Charges and Fields + Electrostatic Potential and Capacitance" },
+  { pdfChapterNo: 17, pdfChapterTitle: "Electrostatics", catalogSlug: "electric-charges-and-fields", note: "Rename — Capacitance is PDF chapter 18" },
   { pdfChapterNo: 18, pdfChapterTitle: "Capacitance", catalogSlug: "electrostatic-potential-and-capacitance", note: "Becomes a topic" },
   { pdfChapterNo: 19, pdfChapterTitle: "Current Electricity", catalogSlug: "current-electricity", note: "1:1" },
   { pdfChapterNo: 20, pdfChapterTitle: "Magnetic Properties of Matter", catalogSlug: "magnetism-and-matter", note: "Rename" },

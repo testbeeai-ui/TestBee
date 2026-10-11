@@ -5,9 +5,11 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import { useKatexAutoRender } from "@/hooks/useKatexAutoRender";
 import { sanitizeMockHtml } from "@/lib/mock/mockHtml";
 import {
+  escapePlainTexForHtml,
   patchNtaHtmlPresentation,
   repairBankMathLatex,
 } from "@/lib/mock/mockRichTextKatex";
+import type { PyqFigureFolder } from "@/lib/chapter-pyq/pyqFigures";
 import {
   parsePyqWorkedSolution,
   problemTexForQuestion,
@@ -51,7 +53,7 @@ function NtaSolutionKatex({
   const safeHtml = useMemo(() => {
     const raw = display ? wrapDisplayTex(text) : text.trim();
     if (!raw) return "";
-    return repairMathHtml(patchNtaHtmlPresentation(sanitizeMockHtml(raw)));
+    return repairMathHtml(patchNtaHtmlPresentation(sanitizeMockHtml(escapePlainTexForHtml(raw))));
   }, [text, display]);
   useKatexAutoRender(ref, safeHtml, `${display}:${text}`);
   if (!safeHtml) return null;
@@ -328,6 +330,9 @@ export function NtaWorkedSolutionSheet({
   );
 }
 
-export function parseSolutionForSheet(text: string): PyqWorkedSolution | null {
-  return parsePyqWorkedSolution(text);
+export function parseSolutionForSheet(
+  text: string,
+  folder: PyqFigureFolder = "math/figures"
+): PyqWorkedSolution | null {
+  return parsePyqWorkedSolution(text, folder);
 }

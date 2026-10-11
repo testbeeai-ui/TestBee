@@ -56,8 +56,9 @@ export function escapeHtmlTextNode(s: string): string {
 const MOCK_HTML_TAG =
   /<\/?(?:p|div|span|br|img|strong|em|b|i|u|ul|ol|li|table|thead|tbody|tr|td|th|sup|sub|h[1-6]|blockquote|pre|code|a|section|figure|figcaption)\b/i;
 
+/** `$x<a\end{cases}$` is math, not an `<a>` tag — only prose outside `$…$` can hold markup. */
 export function plainMockTextLooksLikeHtml(text: string): boolean {
-  return MOCK_HTML_TAG.test(text);
+  return MOCK_HTML_TAG.test(text.replace(/\$\$[\s\S]*?\$\$|\$[^$]*\$/g, " "));
 }
 
 /**
@@ -137,7 +138,9 @@ export function patchMockHtmlImages(html: string): string {
       attrs += ' referrerpolicy="no-referrer"';
     }
     if (!/\bloading\s*=/i.test(attrs)) {
-      attrs += ' loading="lazy"';
+      attrs += isSupabaseObject
+        ? ' loading="eager" fetchpriority="high"'
+        : ' loading="lazy"';
     }
     if (!/\bdecoding\s*=/i.test(attrs)) {
       attrs += ' decoding="async"';
@@ -190,10 +193,25 @@ function collapseDoubledTexCommands(s: string): string {
   return s.replace(new RegExp(String.raw`\\\\(${KNOWN_TEX_CMD})\b`, "g"), "\\$1");
 }
 
-/** KaTeX ignores ordinary spaces, so `=1 4x` paints as `=14x`. */
+/** Factor-position additions to `KNOWN_TEX_CMD` — commands that bind to what follows them. */
+const TEX_FACTOR_ONLY_CMDS =
+  "div|pm|mp|dfrac|tfrac|exp|cot|sec|csc|arcsin|arccos|arctan|arg|min|max|binom|vec|hat|overline|operatorname|left|int|iint|iiint|sum|prod";
+
+/** Commands that can follow a numeric coefficient as a factor (`2 \\log_e x`), not open a new term. */
+const TEX_FACTOR_CMDS = `${KNOWN_TEX_CMD}|${TEX_FACTOR_ONLY_CMDS}`;
+
+/**
+ * KaTeX ignores ordinary spaces, so `=1 4x` paints as `=14x`. Split only when a numeric RHS
+ * (`= 12`) is followed by a term that itself contains `=` later on — and never when that term
+ * opens with a `TEX_FACTOR_CMDS` command, because `= 2 \\log_e x` is a coefficient, not a term.
+ */
 function splitGluedLinearEquations(s: string): string {
+  const gluedTermAhead = new RegExp(
+    String.raw`(=\s*-?\d+)\s+(?=(?:\d+[A-Za-z]|[xyz]|\\(?!(?:${TEX_FACTOR_CMDS})(?![A-Za-z]))[A-Za-z])[^=,]*=)`,
+    "g"
+  );
   let t = s;
-  t = t.replace(/(=\s*-?\d+)\s+(?=(?:\d+[A-Za-z]|[xyz]|\\[A-Za-z]))/g, "$1,\\quad ");
+  t = t.replace(gluedTermAhead, "$1,\\quad ");
   t = t.replace(/(=\s*\\[A-Za-z]+)\s+(?=\\[A-Za-z]+,)/g, "$1,\\quad ");
   return t;
 }
@@ -215,6 +233,7 @@ export function repairBankMathLatex(math: string): string {
   s = s.replace(/_{2,}/g, (run) => `\\_{}`.repeat(run.length));
   s = s.replace(/\\\\(begin|end)\{/g, "\\$1{");
   s = s.replace(/\}\s+\^{/g, "} {}^{");
+  s = s.replace(/(?<![\\A-Za-z])([A-Za-z])_([A-Za-z0-9])\^([A-Za-z0-9])_\{/g, "{$1_$2^$3}_{");
   s = closeBareSetBraces(s);
   s = s.replace(/\\text\s+\{/g, "\\text{");
   s = s.replace(/\\lim_\\limits\s*\{/g, "\\lim\\limits_{");
@@ -253,10 +272,14 @@ export function protectTexBrackets(tex: string): string {
   };
   let s = String(tex ?? "");
   s = s.replace(/\\sqrt\s*\[[^\]]*\]/g, stash);
-  s = s.replace(/\\(?:left|right|bigl|bigr|Bigl|Bigr|big|Big)\s*\[/g, stash);
-  s = s.replace(/\\lbrack\b/g, stash);
-  s = s.replace(/(?<!\\)\[([^\]]*)\]/g, (_all, inner: string) => {
+  s = s.replace(/\\(?:left|right|bigl|bigr|Bigl|Bigr|big|Big)\s*[[\]]/g, stash);
+  s = s.replace(/\\[lr]brack\b/g, stash);
+  s = s.replace(/(?<!\\)\[([^[\]]*)\]/g, (_all, inner: string) => {
     if (inner.includes("&") || /\\\\/.test(inner)) return `[${inner}]`;
+    // A fill-in like `\text{____ Hz. [take } \pi = \frac{22}{7} \text{]}` is not
+    // a GIF `[x]`. Rewriting it to `\lbrack{...}` splits the formula and the
+    // student sees the raw commands.
+    if (/[{}]/.test(inner)) return `[${inner}]`;
     if (inner.includes(",")) return `\\left[${inner}\\right]`;
     return `\\lbrack{${inner}}\\rbrack{}`;
   });
@@ -264,6 +287,15 @@ export function protectTexBrackets(tex: string): string {
 }
 
 /** Safe fragment: one paragraph KaTeX can scan for `\(` / `\[` / `$$`. */
+/**
+ * Worked-sheet TeX is text, not markup: `-2<x<-1` inside `\begin{cases}` must not reach the
+ * sanitizer as an `<x…>` tag (it swallows the rest of the cases block).
+ */
+export function escapePlainTexForHtml(text: string): string {
+  if (plainMockTextLooksLikeHtml(text)) return text;
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export function wrapPlainMockTextForKatexHtml(plain: string): string {
   const raw = String(plain ?? "").trim();
   if (!raw) return "";

@@ -251,7 +251,7 @@ const CATEGORIES: CategoryGroup[] = [
     title: "Lessons & Revision",
     icon: BookOpen,
     blurb:
-      "Chapter limit is per subject (Phy / Chem / Math) on /explore-1 — not per month. Mocks below are the monthly quota.",
+      "Chapter limit is per subject (Phy / Chem / Math) on /learnhub — not per month. Mocks below are the monthly quota.",
     keys: [
       "lessons_chapter_limit",
       "instacue_card_limit",
