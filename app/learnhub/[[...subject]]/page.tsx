@@ -14,7 +14,7 @@ import QuestionCard from "@/components/QuestionCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   ArrowLeft,
@@ -71,6 +71,13 @@ import {
   ONBOARDING_ACTIVE_TASK_CHANGED_EVENT,
 } from "@/lib/onboarding/onboardingTaskCompanion";
 import { slugify } from "@/lib/slugs";
+import {
+  LEARN_HUB_PATH,
+  LEARN_HUB_SUBJECT_TITLE,
+  learnHubSubjectFromPathname,
+  learnHubSubjectPath,
+  parseLearnHubSubjectSlug,
+} from "@/lib/learnhub/routes";
 import TheoryContent from "@/components/TheoryContent";
 import {
   fetchTopicHubDisplayBundle,
@@ -150,7 +157,7 @@ const subjects: { value: Subject; label: string; emoji: string; gradient: string
     emoji: "🧪",
     gradient: "from-purple-500 to-violet-400",
   },
-  { value: "math", label: "Math", emoji: "📐", gradient: "from-orange-500 to-amber-400" },
+  { value: "math", label: "Mathematics", emoji: "📐", gradient: "from-orange-500 to-amber-400" },
 ];
 
 const exams: { value: ExamType; label: string; emoji: string }[] = [
@@ -1579,9 +1586,11 @@ function UnitRoadmap({
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const Explore = () => {
+const Explore = ({ addressSubject = null }: { addressSubject?: Subject | null }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const pathSubject = addressSubject ?? learnHubSubjectFromPathname(pathname);
   const { profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const user = useUserStore((s) => s.user);
@@ -1600,7 +1609,7 @@ const Explore = () => {
 
   const classLevel = subjectEntryClassLevel ?? profileClassLevel;
 
-  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(pathSubject);
   const profileExamType = useUserStore((s) => s.user?.examType ?? null);
   const profileBoard = useUserStore((s) => s.user?.board ?? "CBSE");
   const setExamType = useUserStore((s) => s.setExamType);
@@ -1615,7 +1624,10 @@ const Explore = () => {
   const [visualPlayableOpen, setVisualPlayableOpen] = useState(false);
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [view, setView] = useState<ViewState>("hub");
+  // A unit resume link (`?class=&unit=`) starts on the hub so its loading skeleton shows.
+  const [view, setView] = useState<ViewState>(() =>
+    pathSubject && !searchParams.get("unit") ? "topics" : "hub"
+  );
   const [hoveredSubject, setHoveredSubject] = useState<string | null>(null);
   const [expandedTheoryKeys, setExpandedTheoryKeys] = useState<Set<string>>(new Set());
   const [practicePopupBlock, setPracticePopupBlock] = useState<InteractiveBlock | null>(null);
@@ -1660,6 +1672,54 @@ const Explore = () => {
   const notifyLessonsCompanionSubjectPicked = useCallback(() => {
     markLessonsOnboardingSubjectSelected();
   }, []);
+
+  /**
+   * Subject is part of the URL (`/learnhub/physics`). In-page picks update it with the
+   * History API so the page does not remount; `syncedPathSubjectRef` tells the pathname
+   * effect below which changes we made ourselves.
+   */
+  const syncedPathSubjectRef = useRef<Subject | null>(pathSubject);
+  const writeLearnHubSubjectUrl = useCallback(
+    (subject: Subject | null, mode: "push" | "replace" = "push") => {
+      if (addressSubject) return;
+      syncedPathSubjectRef.current = subject;
+      const target = subject ? learnHubSubjectPath(subject) : LEARN_HUB_PATH;
+      const params = new URLSearchParams(window.location.search);
+      params.delete("subject");
+      params.delete("class");
+      params.delete("unit");
+      const qs = params.toString();
+      const url = qs ? `${target}?${qs}` : target;
+      if (`${window.location.pathname}${window.location.search}` === url) return;
+      if (mode === "replace") window.history.replaceState(null, "", url);
+      else window.history.pushState(null, "", url);
+    },
+    [addressSubject]
+  );
+
+  /** Browser back/forward between `/learnhub` and `/learnhub/<subject>`. */
+  useEffect(() => {
+    if (syncedPathSubjectRef.current === pathSubject) return;
+    syncedPathSubjectRef.current = pathSubject;
+    setSelectedTopicNode(null);
+    setSelectedTopicClassLevel(null);
+    setFocusedSubtopicIndex(null);
+    if (pathSubject) {
+      setSelectedSubject(pathSubject);
+      setView("topics");
+      notifyLessonsCompanionSubjectPicked();
+    } else {
+      setSelectedSubject(null);
+      setSubjectEntryClassLevel(null);
+      setView("hub");
+    }
+  }, [pathSubject, notifyLessonsCompanionSubjectPicked]);
+
+  useEffect(() => {
+    document.title = selectedSubject
+      ? `${LEARN_HUB_SUBJECT_TITLE[selectedSubject]} · Learn Hub | EduBlast`
+      : "Learn Hub | EduBlast";
+  }, [selectedSubject]);
 
   /** Reconcile when companion launches after user already chose a subject (otherwise effect never re-runs). */
   const [lessonsCompanionLaunchRevision, setLessonsCompanionLaunchRevision] = useState(0);
@@ -1925,9 +1985,9 @@ const Explore = () => {
   );
   const classesToRender = classLevel != null ? [classLevel] : VISIBLE_CLASSES;
 
-  // Open unit from URL (?subject=&class=&unit=)
+  // Open unit from URL (`/learnhub/<subject>?class=&unit=`; legacy `?subject=` still accepted)
   useEffect(() => {
-    const sub = searchParams.get("subject") as Subject | null;
+    const sub = pathSubject ?? parseLearnHubSubjectSlug(searchParams.get("subject"));
     const cls = searchParams.get("class");
     const unitSlug = searchParams.get("unit");
     if (!sub || !cls || !unitSlug) return;
@@ -1945,7 +2005,7 @@ const Explore = () => {
     setView("topic-detail");
     setFocusedSubtopicIndex(null);
     notifyLessonsCompanionSubjectPicked();
-  }, [searchParams, topicTaxonomy, notifyLessonsCompanionSubjectPicked]);
+  }, [pathSubject, searchParams, topicTaxonomy, notifyLessonsCompanionSubjectPicked]);
 
   // Get question count for a specific subject
   const getSubjectCount = (subject: Subject) => {
@@ -2072,6 +2132,7 @@ const Explore = () => {
   const handleSubjectSelect = (subject: Subject) => {
     setSelectedSubject(subject);
     setView("topics");
+    writeLearnHubSubjectUrl(subject);
     notifyLessonsCompanionSubjectPicked();
   };
 
@@ -2117,6 +2178,7 @@ const Explore = () => {
     setSelectedSubject(null);
     setSubjectEntryClassLevel(null);
     setView("hub");
+    writeLearnHubSubjectUrl(null);
   };
 
   const handleBackToTopics = () => {
@@ -2663,16 +2725,16 @@ const Explore = () => {
     boardSlug,
   ]);
 
-  /** `/explore-1?subject=&class=&unit=` — resume chapter/topic after returning from a topic URL. */
+  /** `/learnhub/<subject>?class=&unit=` — resume chapter/topic after returning from a topic URL. */
   const exploreResumeLink = useMemo(() => {
-    const sub = searchParams.get("subject") as Subject | null;
+    const sub = pathSubject ?? parseLearnHubSubjectSlug(searchParams.get("subject"));
     const cls = searchParams.get("class");
     const unit = searchParams.get("unit");
     if (!sub || !cls || !unit) return null;
     const classNum = parseInt(cls, 10);
     if (classNum < 11 || classNum > 12) return null;
     return { sub, classNum: classNum as ClassLevel, unit };
-  }, [searchParams]);
+  }, [pathSubject, searchParams]);
 
   const exploreResumeMatch = useMemo(() => {
     if (!exploreResumeLink) return null;
@@ -2760,7 +2822,7 @@ const Explore = () => {
               <Button
                 type="button"
                 className="rounded-xl font-bold"
-                onClick={() => router.replace("/explore-1")}
+                onClick={() => router.replace(LEARN_HUB_PATH)}
               >
                 Go to Lessons
               </Button>
@@ -2779,6 +2841,7 @@ const Explore = () => {
                 onNavigateToSubject={handleSubjectSelect}
                 onNavigateToTopic={(node) => {
                   setSelectedSubject(node.subject);
+                  writeLearnHubSubjectUrl(node.subject);
                   notifyLessonsCompanionSubjectPicked();
                   handleTopicClick(
                     node,
@@ -2800,6 +2863,7 @@ const Explore = () => {
                     setSubjectEntryClassLevel(cl);
                   }
                   setView("topics");
+                  writeLearnHubSubjectUrl(subject);
                   notifyLessonsCompanionSubjectPicked();
                 }}
               />
@@ -4197,6 +4261,14 @@ function ExploreFallback() {
         <p className="text-muted-foreground font-medium">Loading...</p>
       </div>
     </AppLayout>
+  );
+}
+
+export function LearnHubAtName({ subject }: { subject: Subject }) {
+  return (
+    <Suspense fallback={<ExploreFallback />}>
+      <Explore addressSubject={subject} />
+    </Suspense>
   );
 }
 

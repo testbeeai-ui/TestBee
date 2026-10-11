@@ -1,4 +1,4 @@
-import { parseJsonWithTexEscapes } from "@/lib/chapter-pyq/pyqWorkedSolution";
+import { parseJsonWithTexEscapes, wrapBareTexProse } from "@/lib/chapter-pyq/pyqWorkedSolution";
 
 export type PyqCoachTipStep = {
   title: string;
@@ -35,9 +35,9 @@ export function parsePyqCoachTips(raw: string): PyqCoachTipStep[] | null {
   for (const item of list) {
     const row = asRecord(item);
     if (!row) continue;
-    const title = String(row.title ?? "").trim();
-    const body = String(row.body ?? "").trim();
-    const calloutRaw = String(row.callout ?? "").trim();
+    const title = wrapBareTexProse(String(row.title ?? "").trim());
+    const body = wrapBareTexProse(String(row.body ?? "").trim());
+    const calloutRaw = wrapBareTexProse(String(row.callout ?? "").trim());
     if (!title || !body) continue;
     const split = splitCoachTipCallout(body, calloutRaw);
     steps.push({ title, body: split.body, callout: split.callout });
@@ -75,9 +75,9 @@ export function parsePyqCoachFormulas(raw: string): PyqCoachFormula[] | null {
   for (const item of list) {
     const row = asRecord(item);
     if (!row) continue;
-    const name = prettyCoachFormulaName(String(row.name ?? "").trim());
+    const name = wrapBareTexProse(prettyCoachFormulaName(String(row.name ?? "").trim()));
     const tex = String(row.tex ?? "").trim();
-    const note = String(row.note ?? "").trim();
+    const note = wrapBareTexProse(String(row.note ?? "").trim());
     if (!name || !tex) continue;
     items.push({ name, tex, note });
   }
@@ -111,4 +111,42 @@ export function prettyCoachFormulaName(name: string): string {
   s = s.replace(/\bsin\s+theta\b/gi, "$\\sin\\theta$");
   s = s.replace(/\btan\s+theta\b/gi, "$\\tan\\theta$");
   return s;
+}
+
+export function buildFallbackTips(topicName: string): string {
+  return JSON.stringify({
+    tips: [
+      {
+        title: `Approach for ${topicName}`,
+        body: `Analyze the given values and identify the fundamental concepts governing ${topicName}. Formulate your equations step-by-step before calculating.`,
+        callout: "",
+      },
+    ],
+  });
+}
+
+export function buildFallbackFormulas(topicName: string, solutionMd?: string | null): string {
+  const matches = [...(solutionMd ?? "").matchAll(/\$\$?([^$]+)\$?\$?/g)]
+    .map((m) => m[1].trim())
+    .filter((t) => t.length >= 3 && t.length <= 60 && (t.includes("=") || t.includes("\\int") || t.includes("\\frac")));
+
+  if (matches.length > 0) {
+    const uniqueTex = [...new Set(matches)].slice(0, 3);
+    const formulas = uniqueTex.map((tex, idx) => ({
+      name: `Formula ${idx + 1}`,
+      tex,
+      note: `Key relation for ${topicName}`,
+    }));
+    return JSON.stringify({ formulas });
+  }
+
+  return JSON.stringify({
+    formulas: [
+      {
+        name: `${topicName} Relation`,
+        tex: `\\text{Apply governing equations for } ${topicName}`,
+        note: "Use standard formulas for this topic.",
+      },
+    ],
+  });
 }

@@ -7,6 +7,7 @@ import AppLayout from "@/components/AppLayout";
 import type { useStreakTimer } from "@/hooks/useStreakTimer";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { EXPLORE_APP_PATH } from "@/components/AppLayout";
+import { isLearnHubPathname } from "@/lib/learnhub/routes";
 import { cn } from "@/lib/utils";
 
 type DashboardLayoutProps = {
@@ -42,7 +43,7 @@ export default function DashboardLayout({ children, streakTimer, hideSidebar = f
                   className={cn(
                     "shrink-0 rounded-full px-3 py-1.5 text-xs font-bold",
                     pathname === l.href ||
-                      (l.href === EXPLORE_APP_PATH && pathname.startsWith("/explore-1"))
+                      (l.href === EXPLORE_APP_PATH && isLearnHubPathname(pathname))
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted/70 text-muted-foreground"
                   )}

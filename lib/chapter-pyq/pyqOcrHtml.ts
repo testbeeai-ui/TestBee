@@ -1,9 +1,12 @@
 import katex from "katex";
 import { escapeHtmlTextNode } from "@/lib/mock/mockRichTextKatex";
-import { resolvePyqFigureHtml, type PyqFigureFolder } from "@/lib/chapter-pyq/pyqFigures";
+import { SOLUTION_FIGURE_ROLES, resolvePyqFigureHtml, type PyqFigureFolder } from "@/lib/chapter-pyq/pyqFigures";
 import type { PyqFigureLinkRow } from "@/lib/chapter-pyq/pyqQuestionRow";
+import { parsePyqWorkedSolution } from "@/lib/chapter-pyq/pyqWorkedSolution";
 
 const FIG_TOKEN = /\[\[fig:[^\]]+\]\]/g;
+/** OCR leftovers such as `![circuit](https://i.imgur.com/your_image_placeholder.png)`. The real drawing is `[[fig:]]`. */
+const MD_IMAGE = /!\[[^\]]*\](?:\([^)]*\))?/g;
 
 /** Document-AI captions for the printed figure — never part of the question paper. */
 const IMAGE_CAPTION =
@@ -26,10 +29,49 @@ const PAGE_FOOTER = /(?<=\S)\s+\d{1,3}(?:\s+\d{1,3}){1,4}\s*(?:mi)?\s*$/i;
  * Paper-only OCR: stem/option text as printed. Drop figure captions, invented
  * chart tables, markdown `**`, and overlay scraps. Keep `[[fig:KEY]]`.
  */
+const OPTION_GRAPH =
+  /^<img\b[^>]*\bclass="nta-mock-img nta-option-graph"[^>]*>$/i;
+
+/** Survives the whitespace collapse, then becomes a blank line between stem blocks. */
+const STEM_PARA = "\uE000";
+const ASSERTION_LABEL =
+  String.raw`Assertion\s*\(\s*A\s*\)\s*:|Reason\s*\(\s*R\s*\)\s*:|In the light of the above`;
+
+/**
+ * Assertion–Reason stems are printed as separate lines. The cleaner collapses
+ * every newline, so mark those breaks before the collapse and put them back after.
+ */
+function protectStemParagraphs(s: string): string {
+  const label = ASSERTION_LABEL;
+  let out = s.replace(/\r\n/g, "\n");
+  out = out.replace(
+    new RegExp(String.raw`\n+([^\n]{0,140}:)\n+(?=(?:${label}))`, "gi"),
+    (_m, line: string) => `${STEM_PARA}${line.trim()}${STEM_PARA}`
+  );
+  out = out.replace(new RegExp(String.raw`\n+\s*(?=(?:${label}))`, "gi"), STEM_PARA);
+  out = out.replace(new RegExp(String.raw`([.:])\s+(?=(?:${label}))`, "gi"), `$1${STEM_PARA}`);
+  out = out.replace(
+    new RegExp(
+      String.raw`\.\s+(?=Consider\b[^:]{0,100}:\s+Assertion\s*\(\s*A\s*\)\s*:)`,
+      "gi"
+    ),
+    `.${STEM_PARA}`
+  );
+  return out;
+}
+
+function restoreStemParagraphs(s: string): string {
+  return s.replace(new RegExp(` ?${STEM_PARA} ?`, "g"), "\n\n");
+}
+
 export function cleanPyqOcrText(raw: string): string {
   const source = String(raw ?? "");
+  // Choice graphs are the option itself. Leave the tag alone so the button
+  // can show the plot instead of an OCR caption.
+  if (OPTION_GRAPH.test(source.trim())) return source.trim();
   const figs = [...source.matchAll(FIG_TOKEN)].map((m) => m[0]);
   let s = source.replace(FIG_TOKEN, " ");
+  s = s.replace(MD_IMAGE, " ");
   s = s.replace(/\*\*/g, "");
   s = s.replace(HTML_TABLE, " ");
   s = s.replace(IMAGE_CAPTION, " ");
@@ -42,8 +84,10 @@ export function cleanPyqOcrText(raw: string): string {
   s = s.replace(HASH_MI, " ");
   s = s.replace(PAGE_FOOTER, " ");
   s = s.replace(PAGE_TAIL, " ");
+  s = protectStemParagraphs(s);
   s = s.replace(/\s+/g, " ").trim();
   s = repairPyqKatex(s);
+  s = restoreStemParagraphs(s);
   const uniqueFigs = [...new Set(figs)];
   return uniqueFigs.length > 0 ? `${s}\n\n${uniqueFigs.join("\n\n")}`.trim() : s;
 }
@@ -425,12 +469,23 @@ function wrapNakedLatex(s: string): string {
   return mapOutsideMath(s, wrapNakedLatexChunk);
 }
 
+const MATH_RUN_TAIL =
+  /^(?:\s*[+\-]\s*(?:\d+[A-Za-z\u0370-\u03FF]*|[A-Za-z\u0370-\u03FF]\w*|\|[^|]+\|))+(?:\s*=\s*-?[A-Za-z\u0370-\u03FF0-9]+)?/;
+
+/**
+ * `$a$ - b` → `$a - b$`. Walks real `$…$` pairs: a bare regex would also treat the prose between
+ * `$a$` and `$-2$` as a run and pull the `-2` out of its own math.
+ */
 function extendMathRuns(s: string): string {
-  const tail =
-    /((?:\s*[+\-]\s*(?:\d+[A-Za-z\u0370-\u03FF]*|[A-Za-z\u0370-\u03FF]\w*|\|[^|]+\|))+(?:\s*=\s*-?[A-Za-z\u0370-\u03FF0-9]+)?)/;
-  return s.replace(new RegExp(`\\$([^$]+)\\$${tail.source}`, "g"), (_m, inner: string, extra: string) => {
-    return `$${inner}${extra}$`;
-  });
+  const parts = s.split(/(\$[^$]+\$)/);
+  for (let i = 1; i < parts.length; i += 2) {
+    const next = parts[i + 1] ?? "";
+    const tail = next.match(MATH_RUN_TAIL)?.[0];
+    if (!tail) continue;
+    parts[i] = `${parts[i]!.slice(0, -1)}${tail}$`;
+    parts[i + 1] = next.slice(tail.length);
+  }
+  return parts.join("");
 }
 
 function mergeAdjacentMath(s: string): string {
@@ -577,6 +632,15 @@ function unicodeMathToLatex(raw: string): string {
       .replace(/σιν/g, "\\sin")
       .replace(/θ/g, "\\theta")
       .replace(/π/g, "\\pi")
+      .replace(/λ/g, "\\lambda ")
+      .replace(/i\u0302|î/g, "\\hat{i}")
+      .replace(/j\u0302|ĵ/g, "\\hat{j}")
+      .replace(/k\u0302|k̂/g, "\\hat{k}")
+      .replace(/n\u0302|n̂/g, "\\hat{n}")
+      .replace(/a\u0302|â/g, "\\hat{a}")
+      .replace(/b\u0302|b̂/g, "\\hat{b}")
+      .replace(/c\u0302|ĉ/g, "\\hat{c}")
+      .replace(/d\u0302|d̂/g, "\\hat{d}")
       .replace(/∫/g, "\\int")
       .replace(/∪(?=_)/g, "\\int")
       .replace(/√/g, "\\sqrt")
@@ -590,7 +654,11 @@ function unicodeMathToLatex(raw: string): string {
   );
   return s.replace(/\$([^$]*)\$/g, (_m, inner: string) => {
     const tex = repairOcrEvalBraces(
-      inner.replace(/(?<!\\)\bsin\b/g, "\\sin").replace(/(?<!\\)\bcos\b/g, "\\cos")
+      inner
+        .replace(/(?<!\\)\bsin\b/g, "\\sin")
+        .replace(/(?<!\\)\bcos\b/g, "\\cos")
+        .replace(/√\s*\(?([0-9A-Za-z\u0370-\u03FF]+)\)?/g, "\\sqrt{$1}")
+        .replace(/√/g, "\\sqrt ")
     );
     return `$${tex}$`;
   });
@@ -604,6 +672,8 @@ function unicodeMathToLatex(raw: string): string {
 export function repairPyqKatex(raw: string): string {
   let s = decodePyqUnicodeEscapes(raw);
   s = s.replace(/\s+\*\s*$/g, "");
+  s = s.replace(/√\s*\(?([0-9A-Za-z\u0370-\u03FF]+)\)?/g, "\\sqrt{$1}");
+  s = s.replace(/√/g, "\\sqrt ");
   // Vision wraps `$` after `{` (`= {$ θ∈… }. $`) so KaTeX sees a stray `}` and
   // paints the backslash codes. Pull the brace into the math run.
   s = s.replace(/(?<!\\)\{\s*\$/g, "$\\{");
@@ -633,6 +703,15 @@ export function repairPyqKatex(raw: string): string {
   s = s.replace(/i\u0302|î/g, "\\hat{i}");
   s = s.replace(/j\u0302|ĵ/g, "\\hat{j}");
   s = s.replace(/k\u0302|k̂/g, "\\hat{k}");
+  s = s.replace(/n\u0302|n̂/g, "\\hat{n}");
+  s = s.replace(/a\u0302|â/g, "\\hat{a}");
+  s = s.replace(/b\u0302|b̂/g, "\\hat{b}");
+  s = s.replace(/c\u0302|ĉ/g, "\\hat{c}");
+  s = s.replace(/d\u0302|d̂/g, "\\hat{d}");
+  s = s.replace(/λ\s*\\hat\{/g, "\\lambda \\hat{");
+  s = s.replace(/λ/g, "\\lambda ");
+  s = s.replace(/\$\\lambda\$\s*\$\\hat\{/g, "$\\lambda \\hat{");
+  s = s.replace(/\\n(?=\s*[A-Za-z0-9$])/g, "\n");
   s = s.replace(/\$([^$]+)\$([²³])(?:\/(\d+))?/g, (_m, inner: string, sup: string, den: string | undefined) => {
     const n = sup === "²" ? "2" : "3";
     return den ? `$${inner}^{${n}}/${den}$` : `$${inner}^{${n}}$`;
@@ -714,10 +793,14 @@ export function pyqStemToHtml(
   folder: PyqFigureFolder = "physics/figures"
 ): string {
   const resolved = resolvePyqFigureHtml(cleanPyqOcrText(body), links, folder);
-  const parts = resolved.split(/(<img\b[^>]*>)/i);
+  // `resolvePyqFigureHtml` wraps appended figures in a `<p>`. Splitting only on
+  // `<img>` left those wrapper tags to be escaped, so students saw a literal
+  // `<p>` / `</p>` around the diagram. Pass block tags through untouched.
+  const parts = resolved.split(/(<img\b[^>]*>|<\/?p\b[^>]*>)/i);
   return parts
     .map((part) => {
       if (/^<img\b/i.test(part)) return part;
+      if (/^<\/?p\b/i.test(part)) return part;
       const text = part.replace(/\r\n/g, "\n").trim();
       if (!text) return "";
       return text
@@ -769,10 +852,14 @@ function splitSolutionChunks(raw: string): string[] {
 
 const PAPER_LISTING_KEY_ONLY = /^\(\s*\d+\s*\)$/;
 
+/** A stored two-char `\n` is a line break — unless it starts `\neq`, `\notin`, `\nu`, `\nabla`, … */
+const LITERAL_NEWLINE =
+  /(?<!\\)\\n(?!(?:e|eq|eg|u|abla|ot|otin|i|mid|leq|geq|less|gtr|exists|parallel|subseteq|supseteq|leftarrow|rightarrow|Leftarrow|Rightarrow|leftrightarrow|Leftrightarrow|cong|sim|prec|succ|vdash|vDash|searrow|nwarrow|atural|ewline)(?![A-Za-z]))/g;
+
 function paperContentLines(raw: string): string[] {
   const lines = raw
     .replace(CROP_FIG_TOKEN, "")
-    .replace(/\\n/g, "\n")
+    .replace(LITERAL_NEWLINE, "\n")
     .split("\n")
     .map((line) => line.replace(PAPER_LISTING_PREFIX, "").trim())
     .filter((line) => line.length > 0 && !WATERMARK_LINE.test(line));
@@ -875,8 +962,36 @@ function coalescePaperLines(lines: string[]): string[] {
   return out;
 }
 
+function isMathOnlyLine(line: string): boolean {
+  return mathOnlyTex(line.trim()) !== null;
+}
+
+/** A printed sentence that was stored as several broken lines. A full equation stays on its own line. */
+function sentenceStillOpen(line: string): boolean {
+  const text = line.trim();
+  if (!text || /^<img\b/i.test(text) || /^\[\[fig:/.test(text)) return false;
+  if (METHOD_ABOVE.test(text) || isMathOnlyLine(text)) return false;
+  return !/[.?!]\s*$/.test(text);
+}
+
+function coalesceBrokenSentences(lines: string[]): string[] {
+  const out: string[] = [];
+  for (const line of lines) {
+    const prev = out.length > 0 ? out[out.length - 1]! : "";
+    const fig = /^<img\b/i.test(line) || /^\[\[fig:/.test(line);
+    if (prev && sentenceStillOpen(prev) && !fig && !isMathOnlyLine(line)) {
+      out[out.length - 1] = tidyPaperGlue(`${prev.trimEnd()} ${line.trimStart()}`);
+      continue;
+    }
+    out.push(tidyPaperGlue(line));
+  }
+  return out;
+}
+
 function shapePaperLines(lines: string[]): string[] {
-  return coalescePaperLines(lines.flatMap(peelNewThoughts)).flatMap(peelMethodFromMath);
+  return coalesceBrokenSentences(
+    coalescePaperLines(lines.flatMap(peelNewThoughts)).flatMap(peelMethodFromMath)
+  );
 }
 
 function moveOrphanLeads(steps: { title: string; lines: string[] }[]): void {
@@ -924,7 +1039,7 @@ function paperStepBodyHtml(
 ): string {
   const resolved = lines.flatMap((line) => {
     const html = /\[\[fig:/.test(line)
-      ? resolvePyqFigureHtml(line, links, folder, { appendUnused: false }).trim()
+      ? resolvePyqFigureHtml(line, links, folder, { appendUnused: false, roles: SOLUTION_FIGURE_ROLES }).trim()
       : line;
     return html ? [html] : [];
   });
@@ -998,12 +1113,63 @@ function paperSolutionToHtml(
   return shapePaperLines(lines)
     .map((line) => {
       const resolved = /\[\[fig:/.test(line)
-        ? resolvePyqFigureHtml(line, links, folder, { appendUnused: false }).trim()
+        ? resolvePyqFigureHtml(line, links, folder, { appendUnused: false, roles: SOLUTION_FIGURE_ROLES }).trim()
         : line;
       if (!resolved) return "";
       return renderPaperLineHtml(resolved, paperLineClass(resolved), false);
     })
     .join("");
+}
+
+/** Phase JSON (glm sheet) → the same stacked step cards as an enriched markdown solution. */
+function workedSolutionToHtml(
+  raw: string,
+  links: PyqFigureLinkRow[] | null | undefined,
+  folder: PyqFigureFolder
+): string {
+  const parsed = parsePyqWorkedSolution(raw);
+  if (!parsed) return "";
+  const steps = parsed.phases.map((phase) => ({
+    title: phase.title,
+    lines: phase.blocks.flatMap((block): string[] => {
+      switch (block.kind) {
+        case "paragraph":
+          return block.text ? [block.text] : [];
+        case "callout": {
+          const text = block.text.trim();
+          const tex = block.tex.trim();
+          if (text && tex) return [`${text} $${tex}$`];
+          if (text) return [text];
+          return tex ? [`$$${tex}$$`] : [];
+        }
+        case "display":
+          return block.tex ? [`$$${block.tex}$$`] : [];
+        case "grid":
+          return block.cells
+            .filter((cell) => cell.tex.trim().length > 0)
+            .map((cell) => (cell.label ? `${cell.label}: $${cell.tex}$` : `$${cell.tex}$`));
+        default:
+          return [];
+      }
+    }),
+  }));
+  const filled = steps.filter((step) => step.lines.length > 0);
+  if (filled.length === 0) return "";
+  return (
+    `<div class="nta-paper-steps">` +
+    filled
+      .map((step, index) => {
+        const last = index === filled.length - 1;
+        return (
+          `<div class="nta-paper-step">` +
+          `<span class="nta-paper-step-label">${escapeHtmlTextNode(step.title)}</span>` +
+          `<div class="nta-paper-step-body nta-math-plain">${paperStepBodyHtml(step.lines, links, folder, last)}</div>` +
+          `</div>`
+        );
+      })
+      .join("") +
+    `</div>`
+  );
 }
 
 export function pyqSolutionToHtml(
@@ -1013,14 +1179,19 @@ export function pyqSolutionToHtml(
 ): string {
   const source = String(md ?? "").replace(/\r\n/g, "\n");
   const isPaper = /<!--\s*paper-ocr\s*-->/.test(source);
-  const raw = unicodeMathToLatex(source.replace(PAPER_OCR_MARK, "").trim());
+  const trimmedSource = source.replace(PAPER_OCR_MARK, "").trim();
+  if (trimmedSource.startsWith("{")) {
+    const worked = workedSolutionToHtml(trimmedSource, links, folder);
+    if (worked) return worked;
+  }
+  const raw = unicodeMathToLatex(trimmedSource);
   if (!raw) return "";
   if (isPaper) {
     return paperSolutionToHtml(raw, links, folder);
   }
   const chunks = splitSolutionChunks(raw).map((chunk) =>
     /\[\[fig:/.test(chunk)
-      ? resolvePyqFigureHtml(chunk, links, folder, { appendUnused: false }).trim()
+      ? resolvePyqFigureHtml(chunk, links, folder, { appendUnused: false, roles: SOLUTION_FIGURE_ROLES }).trim()
       : chunk
   ).filter(Boolean);
 

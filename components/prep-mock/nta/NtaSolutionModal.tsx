@@ -7,6 +7,7 @@ import {
   NtaWorkedSolutionSheet,
   parseSolutionForSheet,
 } from "@/components/prep-mock/nta/NtaWorkedSolutionSheet";
+import type { PyqFigureFolder } from "@/lib/chapter-pyq/pyqFigures";
 
 interface NtaSolutionModalProps {
   open: boolean;
@@ -14,9 +15,11 @@ interface NtaSolutionModalProps {
   text: string;
   title?: string;
   emptyLabel?: string;
-  /** Worked step cards. Off for Tips / Formula's. */
+  /** Worked step cards. Off for Tips / Formulae. */
   useWorkedSheet?: boolean;
   panel?: "solution" | "tips" | "formulas";
+  /** Where `[[fig:]]` tokens in a printed solution live. Math stays the default. */
+  figureFolder?: PyqFigureFolder;
 }
 
 export function NtaSolutionModal({
@@ -27,6 +30,7 @@ export function NtaSolutionModal({
   emptyLabel = "No solution",
   useWorkedSheet = true,
   panel = "solution",
+  figureFolder = "math/figures",
 }: NtaSolutionModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -41,7 +45,8 @@ export function NtaSolutionModal({
 
   const body = text.trim();
   const coachKind = coachSheetKind(panel, body);
-  const worked = useWorkedSheet && panel === "solution" ? parseSolutionForSheet(body) : null;
+  const worked =
+    useWorkedSheet && panel === "solution" ? parseSolutionForSheet(body, figureFolder) : null;
 
   return (
     <div

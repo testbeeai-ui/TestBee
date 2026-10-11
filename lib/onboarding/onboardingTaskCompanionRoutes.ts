@@ -1,3 +1,5 @@
+import { isLearnHubPathname } from "@/lib/learnhub/routes";
+
 /** Pathname (no query) where the floating task companion may appear for each checklist task. */
 
 /** Curriculum lesson URLs: /cbse/physics/class-11/unit/subtopic/level */
@@ -44,7 +46,7 @@ export function isPathRelevantForOnboardingTask(taskId: string, pathname: string
       return p === "/magic-wall" || p.startsWith("/magic-wall/") || CURRICULUM_TOPIC_PATH.test(p);
 
     case "lessons":
-      return p === "/explore-1" || p.startsWith("/explore-1/") || CURRICULUM_TOPIC_PATH.test(p);
+      return isLearnHubPathname(p) || CURRICULUM_TOPIC_PATH.test(p);
 
     case "prep_classes":
       return isPrepClassesPath(p);

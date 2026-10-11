@@ -32,6 +32,7 @@ import {
   NTA_EXAM_PALETTE_ASIDE_CLASS,
   NTA_EXAM_TIMER_CLASS,
 } from "@/lib/mock/ntaExamChrome";
+import type { PyqFigureFolder } from "@/lib/chapter-pyq/pyqFigures";
 import { cn } from "@/lib/utils";
 
 export type { NtaLegendCounts } from "@/components/prep-mock/nta/ntaExamParts";
@@ -69,6 +70,10 @@ export interface NtaExamShellProps {
   paletteColumns?: 5 | 8;
   /** In-exam Solution control. Off by default so timed mocks cannot open the answer key. */
   showSolution?: boolean;
+  /** In-exam Tips / Formulae controls. Off by default so a paced assessment cannot open the method. */
+  showCoach?: boolean;
+  /** Printed-solution drawings. Physics chapter PYQs pass `physics/figures`. */
+  figureFolder?: PyqFigureFolder;
 }
 
 export function NtaExamShell({
@@ -98,6 +103,8 @@ export function NtaExamShell({
   questionSources,
   paletteColumns = 8,
   showSolution = false,
+  showCoach = false,
+  figureFolder = "math/figures",
 }: NtaExamShellProps) {
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -122,10 +129,10 @@ export function NtaExamShell({
   const selected = answers[q.id];
   const tipsText = ntaQuestionCoachText(q, "tips");
   const formulasText = ntaQuestionCoachText(q, "formulas");
-  const showTips = Boolean(tipsText);
-  const showFormulas = Boolean(formulasText);
+  const showTips = showCoach && Boolean(tipsText);
+  const showFormulas = showCoach && Boolean(formulasText);
   const assistTitle =
-    assist === "tips" ? "Tips" : assist === "formulas" ? "Formula's" : "Solution";
+    assist === "tips" ? "Tips" : assist === "formulas" ? "Formulae" : "Solution";
   const assistEmpty =
     assist === "tips"
       ? "No tips for this question yet"
@@ -181,6 +188,7 @@ export function NtaExamShell({
           emptyLabel={assistEmpty}
           useWorkedSheet={assist === "solution"}
           panel={assist}
+          figureFolder={figureFolder}
         />
       ) : null}
       <div
@@ -363,7 +371,8 @@ export function NtaExamShell({
                         <label
                           key={i}
                           className={cn(
-                            "group flex min-h-[3rem] sm:min-h-[3.25rem] w-full cursor-pointer items-center gap-3.5 sm:gap-4 rounded-lg border px-4 py-3 sm:px-5 sm:py-3.5 text-base sm:text-[17px] lg:text-[18px] transition-all duration-150 select-none",
+                            "group flex min-h-[3rem] sm:min-h-[3.25rem] w-full cursor-pointer gap-3.5 sm:gap-4 rounded-lg border px-4 py-3 sm:px-5 sm:py-3.5 text-base sm:text-[17px] lg:text-[18px] transition-all duration-150 select-none",
+                            opt.includes("nta-option-graph") ? "items-start" : "items-center",
                             selected === i ? "ring-2" : ""
                           )}
                           style={{
@@ -421,7 +430,7 @@ export function NtaExamShell({
                 {showFormulas ? (
                   <NtaBtn
                     variant="formulas"
-                    label="FORMULA'S"
+                    label="FORMULAE"
                     onClick={() => setAssist("formulas")}
                     className={showTips ? undefined : "ml-3 sm:ml-5"}
                   />

@@ -5,8 +5,59 @@ import {
   problemTexForQuestion,
   stackEqualsChain,
   unwrapProblemTex,
+  wrapBareTexProse,
   wrapDisplayTex,
 } from "./pyqWorkedSolution";
+
+describe("wrapBareTexProse", () => {
+  it("wraps a powered group as one formula, not just its inner caret", () => {
+    expect(wrapBareTexProse("Reduction formula for (1-x^7)^K")).toBe("Reduction formula for $(1-x^7)^{K}$");
+    expect(wrapBareTexProse("P(x) = 5/[x(x^5+1)] and Q(x) = (x^5+1)^2/x^7.")).toBe(
+      "P(x) = 5/[x($x^{5}$+1)] and Q(x) = $(x^5+1)^{2}$/$x^{7}$."
+    );
+    expect(wrapBareTexProse("The coefficient of x^{-6} is 5040")).toBe("The coefficient of $x^{-6}$ is 5040");
+  });
+
+  it("wraps a pure-math callout with no dollars", () => {
+    expect(wrapBareTexProse("S_n = a\\,\\frac{1-r^{n}}{1-r}")).toBe("$S_n = a\\,\\frac{1-r^{n}}{1-r}$");
+    expect(wrapBareTexProse("mg - T = ma_{cm}")).toBe("$mg - T = ma_{cm}$");
+    expect(wrapBareTexProse("mv - 2mv = 23m\\,v_{cm}")).toBe("$mv - 2mv = 23m\\,v_{cm}$");
+  });
+
+  it("wraps only the math runs inside a sentence", () => {
+    expect(wrapBareTexProse("Since the discriminant is b^2 - 4ac \\ge 0 the roots are real")).toBe(
+      "Since the discriminant is $b^2 - 4ac \\ge 0$ the roots are real"
+    );
+  });
+
+  it("keeps \\text{ … } words inside the math run", () => {
+    const out = wrapBareTexProse("Hence x \\in [0,1] \\text{ for all } y and the claim holds for every case");
+    expect(out).toContain("$x \\in [0,1] \\text{ for all } y$");
+  });
+
+  it("leaves text that already has dollars or no TeX alone", () => {
+    expect(wrapBareTexProse("Use $x^2$ here")).toBe("Use $x^2$ here");
+    expect(wrapBareTexProse("Fill in the blank ______ now")).toBe("Fill in the blank ______ now");
+  });
+
+  it("wraps a bare command that sits beside math which already has dollars", () => {
+    expect(wrapBareTexProse("Needed to compute \\frac{dv}{dx} when $v$ is given")).toBe(
+      "Needed to compute $\\frac{dv}{dx}$ when $v$ is given"
+    );
+  });
+
+  it("braces a multi-letter subscript so KaTeX does not drop the rest", () => {
+    expect(wrapBareTexProse("The speed is $v_cm$ after impact")).toBe("The speed is $v_{cm}$ after impact");
+    expect(wrapDisplayTex("mv - 2mv = 23m\\,v_cm")).toBe("$$mv - 2mv = 23m\\,v_{cm}$$");
+    expect(wrapDisplayTex("A_xB_x + F_xv_x")).toBe("$$A_xB_x + F_xv_x$$");
+    const summed = wrapDisplayTex("$\\sum F_x = ma_x \\quad \\sum F_y = ma_y$");
+    expect(summed.replace(/^\$\$|\$\$$/g, "")).not.toContain("$");
+  });
+
+  it("drops a trailing \\\\ so the closing dollar is not escaped", () => {
+    expect(wrapBareTexProse("f(2)=\\frac{e^2}{2},\\\\")).toBe("$f(2)=\\frac{e^2}{2},$");
+  });
+});
 
 const SYMMETRY_JSON = JSON.stringify({
   answer: "4",
@@ -273,6 +324,105 @@ describe("parsePyqWorkedSolution", () => {
     ]);
   });
 
+  it("maps enriched `## Step N:` markdown onto the worked sheet without the paper-ocr marker", () => {
+    const parsed = parsePyqWorkedSolution(
+      [
+        "## Step 1: Find the vectors",
+        "Given the position vectors:",
+        "- $A: \\vec{a} - \\vec{b}$",
+        "$$\\overrightarrow{AB} = B - A$$",
+        "## Step 2: Apply the coplanarity condition",
+        "They must be linearly dependent:",
+        "$$x\\overrightarrow{AB} + y\\overrightarrow{AC} = \\vec{0}$$",
+        "## Step 3: Compute the final value",
+        "$$\\lambda = 2$$",
+      ].join("\n")
+    );
+    expect(parsed?.title).toBe("Worked solution");
+    expect(parsed?.phases.map((p) => p.title)).toEqual([
+      "Find the vectors",
+      "Apply the coplanarity condition",
+      "Compute the final value",
+    ]);
+    expect(parsed?.phases.every((p) => p.blocks.length > 0)).toBe(true);
+    expect(parsed?.phases[0]?.blocks.some((b) => b.kind === "display")).toBe(true);
+    expect(parsed?.answer_tex).toContain("2");
+  });
+
+  it("parses enriched `## Given` / `## Step` heading mixes without a Step N prefix", () => {
+    const parsed = parsePyqWorkedSolution(
+      [
+        "## Given Information",
+        "We are given $|\\vec{a}| = 1$.",
+        "## Analyze the orthogonality",
+        "Dot with $\\vec{a}$ to eliminate $\\vec{w}$:",
+        "$$\\vec{v} \\cdot \\vec{a} = 0$$",
+        "## Step 3: Final Answer",
+        "$$2$$",
+      ].join("\n")
+    );
+    expect(parsed?.phases.map((p) => p.title)).toEqual([
+      "Given Information",
+      "Analyze the orthogonality",
+      "Final Answer",
+    ]);
+  });
+
+  it("strips bold markers and bullet dashes from enriched markdown", () => {
+    const parsed = parsePyqWorkedSolution(
+      [
+        "## Step 1: Setup",
+        "**Key identity:** $\\sin^2\\theta + \\cos^2\\theta = 1$",
+        "- first point",
+        "- second point",
+        "## Step 2: Finish",
+        "Done with **bold** text.",
+      ].join("\n")
+    );
+    const prose = parsed?.phases
+      .flatMap((p) => p.blocks)
+      .filter((b) => b.kind === "paragraph")
+      .map((b) => (b.kind === "paragraph" ? b.text : ""))
+      .join(" ");
+    expect(prose).not.toContain("**");
+    expect(prose).toContain("first point");
+    expect(prose).toContain("Done with bold text.");
+  });
+
+  it("parses a real enriched Vector Algebra solution (orthocenter/circumcenter shape)", () => {
+    const parsed = parsePyqWorkedSolution(
+      [
+        "## Step 1: Identify the vertices and key centers",
+        "Let the position vectors of the vertices $A$, $B$, $C$ be:",
+        "$\\vec{a} = 4\\vec{p}+\\vec{q}-3\\vec{r}$, $\\vec{b} = -5\\vec{p}+\\vec{q}+2\\vec{r}$",
+        "We are given the orthocenter $H$ and circumcenter $O$ as:",
+        "$$\\vec{h} = \\frac{\\vec{p}+\\vec{q}+\\vec{r}}{4}$$",
+        "## Step 2: Use the Euler line relation",
+        "For any triangle, the centroid $G$ lies on the Euler line such that $\\vec{OG} = \\frac{1}{3}\\vec{GH}$:",
+        "$$\\vec{h} = 3\\vec{g} - 2\\vec{o}$$",
+        "## Step 3: Compute the centroid",
+        "The centroid is the average of the vertex position vectors:",
+        "$$\\vec{g} = \\frac{\\vec{a}+\\vec{b}+\\vec{c}}{3}$$",
+      ].join("\n")
+    );
+    expect(parsed).not.toBeNull();
+    expect(parsed?.phases.map((p) => p.title)).toEqual([
+      "Identify the vertices and key centers",
+      "Use the Euler line relation",
+      "Compute the centroid",
+    ]);
+    const kinds = parsed?.phases.flatMap((p) => p.blocks.map((b) => b.kind));
+    expect(kinds).toContain("display");
+    expect(kinds).toContain("paragraph");
+    const prose = parsed?.phases
+      .flatMap((p) => p.blocks)
+      .filter((b) => b.kind === "paragraph")
+      .map((b) => (b.kind === "paragraph" ? b.text : ""))
+      .join(" ");
+    expect(prose).not.toContain("##");
+    expect(prose).toContain("Euler line");
+  });
+
   it("maps paper OCR step cards onto the worked sheet", () => {
     const parsed = parsePyqWorkedSolution(
       [
@@ -294,6 +444,47 @@ describe("parsePyqWorkedSolution", () => {
     ]);
     expect(parsed?.phases[0]?.blocks.some((b) => b.kind === "display")).toBe(true);
     expect(parsed?.answer_tex).toContain("-1");
+  });
+
+  it("loads a physics solution figure from the physics folder", () => {
+    const parsed = parsePyqWorkedSolution(
+      "<!-- paper-ocr -->\n## Step 1: Given values\n[[fig:s2025j_cap_q02_1]]\n$i = 1$",
+      "physics/figures"
+    );
+    const fig = parsed?.phases[0]?.blocks.find((block) => block.kind === "figure");
+    expect(fig?.kind).toBe("figure");
+    if (fig?.kind === "figure") {
+      expect(fig.html).toContain("physics/figures/s2025j_cap_q02_1.png");
+      expect(fig.html).not.toContain("math/figures");
+    }
+  });
+
+  it("keeps an unscoped solution figure in the math folder", () => {
+    const parsed = parsePyqWorkedSolution(
+      "<!-- paper-ocr -->\n## Step 1: Figure\n[[fig:s2026j_q09_1]]\n$x = 1$"
+    );
+    const fig = parsed?.phases[0]?.blocks.find((block) => block.kind === "figure");
+    expect(fig?.kind).toBe("figure");
+    if (fig?.kind === "figure") expect(fig.html).toContain("math/figures/s2026j_q09_1.png");
+  });
+
+  it("drops a second Final Answer that only repeats the printed option", () => {
+    const parsed = parsePyqWorkedSolution(
+      [
+        "<!-- paper-ocr -->",
+        "## Step 3: Equivalent Capacitance Evaluation",
+        "$= 4 + 5 = 9\\mu\\text{ F}$",
+        "## Step 4: Final Answer",
+        "Correct Option (3)",
+        "## Final Answer",
+        "Option 3",
+      ].join("\n")
+    );
+    expect(parsed?.phases.map((phase) => phase.title)).toEqual([
+      "Equivalent Capacitance Evaluation",
+      "Final Answer",
+    ]);
+    expect(parsed?.answer_note).toContain("Correct Option (3)");
   });
 
   it("still treats crop-only figure tokens as paper, not glm numbered markdown", () => {
@@ -501,5 +692,117 @@ describe("problemTexForQuestion", () => {
       display: true,
       text: "I = \\int_{-\\pi/6}^{\\pi/6} x\\,dx",
     });
+  });
+
+  it("splits a bare English problem_tex into prose and inline math instead of one smashed display", () => {
+    const q = problemTexForQuestion(
+      "The locus of the mid points of the chords of the circle C : (x - 4)^{2} + (y - 5)^{2} = 4 which subtend an angle \\theta at the centre of the circle C, is a circle of radius r. If \\theta = \\theta_{1}, \\theta = \\theta_{2} and r_{1}^{2} = r_{2}^{2} + r_{3}^{2}, then \\theta_{2} is equal to"
+    );
+    expect(q.display).toBe(false);
+    expect(q.text.startsWith("The locus of the mid points of the chords of the circle $C : (x - 4)^{2}")).toBe(
+      true
+    );
+    expect(q.text).toContain("= 4$ which subtend an angle $\\theta$ at the centre of the circle $C$, is a circle of radius $r$. If $\\theta");
+    expect(q.text).toContain("$\\theta_{2}$ is equal to");
+  });
+
+  it("keeps two-letter variables like by inside the equation", () => {
+    const q = problemTexForQuestion(
+      "The points of intersection of the line ax + by = 0, (a \\neq b) and the circle x^{2} + y^{2} - 2x = 0 are A(\\alpha, 0) and B(1, \\beta). The image of the circle with AB as a diameter in the line x + y + 2 = 0 is :"
+    );
+    expect(q.display).toBe(false);
+    expect(q.text).toContain("the line $ax + by = 0, (a \\neq b)$ and the circle $x^{2} + y^{2} - 2x = 0$ are");
+    expect(q.text).toContain("with $AB$ as a diameter in the line $x + y + 2 = 0$ is :");
+  });
+
+  it("keeps \\text nested in a formula inside that formula", () => {
+    const frac =
+      "\\frac{1^{3}+2^{3}+\\cdots+\\text{upto } n \\text{ terms}}{1\\cdot 3+2\\cdot 5+\\cdots+\\text{upto } n \\text{ terms}}=\\frac{9}{5}";
+    expect(problemTexForQuestion(frac)).toEqual({ display: true, text: frac });
+    const set =
+      "A = \\left\\{ \\theta \\in [0, 2\\pi] : 1 + 10\\, \\text{Re}\\left( \\frac{2\\cos\\theta}{\\cos\\theta} \\right) = 0 \\right\\}, \\quad \\sum_{\\theta \\in A} \\theta^{2} = ?";
+    expect(problemTexForQuestion(set).display).toBe(true);
+    const cases = "f(x)=\\begin{cases} x-[x], & x \\text{ odd} \\\\ 1+[x]-x, & x \\text{ even} \\end{cases}";
+    expect(problemTexForQuestion(cases).display).toBe(true);
+    expect(unwrapProblemTex("50^{\\text{th}} \\text{ root of } x \\text{ is } 12.")).toBe(
+      "$50^{\\text{th}}$ root of $x$ is $12$."
+    );
+    const dollars = "The $4^{\\text{th}}$ term of a GP is 500";
+    expect(problemTexForQuestion(dollars)).toEqual({ display: false, text: dollars });
+  });
+});
+
+describe("worked sheet paragraphs and duplicates", () => {
+  const sheet = (blocks: unknown[]) =>
+    JSON.stringify({
+      answer: "1",
+      title: "T",
+      problem_tex: "x = 1",
+      answer_tex: "x = 1",
+      phases: [
+        { title: "One", blocks: [{ kind: "paragraph", text: "Start." }] },
+        { title: "Two", blocks },
+      ],
+    });
+
+  it("renders bare x^2 in prose as math", () => {
+    const parsed = parsePyqWorkedSolution(
+      sheet([{ kind: "paragraph", text: "The circle x^2 + y^2 - 2x = 0 passes through (x + 5/2)^2 and α^2." }])
+    );
+    const text = parsed?.phases[1]?.blocks.find((b) => b.kind === "paragraph");
+    expect(text && "text" in text ? text.text : "").toBe(
+      "The circle $x^{2}$ + $y^{2}$ - 2x = 0 passes through $(x + 5/2)^{2}$ and $α^{2}$."
+    );
+  });
+
+  it("leaves $-delimited math alone", () => {
+    const parsed = parsePyqWorkedSolution(sheet([{ kind: "paragraph", text: "So $x^2 = 4$ here." }]));
+    const text = parsed?.phases[1]?.blocks.find((b) => b.kind === "paragraph");
+    expect(text && "text" in text ? text.text : "").toBe("So $x^2 = 4$ here.");
+  });
+
+  it("drops a display that repeats the callout right above it", () => {
+    const parsed = parsePyqWorkedSolution(
+      sheet([
+        { kind: "paragraph", text: "Done." },
+        { kind: "callout", text: "Final result:", tex: "\\theta_{2} = \\frac{\\pi}{2}" },
+        { kind: "display", tex: "\\theta_{2}=\\frac{\\pi}{2}" },
+      ])
+    );
+    const kinds = parsed?.phases[1]?.blocks.map((b) => b.kind);
+    expect(kinds).toEqual(["paragraph", "callout"]);
+  });
+
+  it("wraps bare carets the same way for blocks and for paragraphs plus callout", () => {
+    const textOf = (parsed: ReturnType<typeof parsePyqWorkedSolution>) =>
+      parsed?.phases[1]?.blocks
+        .filter((block) => block.kind === "paragraph" || block.kind === "callout")
+        .map((block) => ("text" in block ? block.text : ""));
+
+    const fromBlocks = parsePyqWorkedSolution(
+      sheet([
+        { kind: "paragraph", text: "Simple prose." },
+        { kind: "callout", text: "Radius x^2 grows:", tex: "r^2 = 0" },
+      ])
+    );
+    const fromFields = parsePyqWorkedSolution(
+      JSON.stringify({
+        answer: "1",
+        title: "T",
+        problem_tex: "x = 1",
+        answer_tex: "x = 1",
+        phases: [
+          { title: "One", blocks: [{ kind: "paragraph", text: "Start." }] },
+          {
+            title: "Two",
+            paragraphs: ["Simple prose."],
+            callout: { text: "Radius x^2 grows:", tex: "r^2 = 0" },
+          },
+        ],
+      })
+    );
+
+    expect(textOf(fromBlocks)).toEqual(["Simple prose.", "Radius $x^{2}$ grows:"]);
+    expect(textOf(fromFields)).toEqual(textOf(fromBlocks));
   });
 });

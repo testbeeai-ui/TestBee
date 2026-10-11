@@ -1,8 +1,10 @@
+import { LEARN_HUB_PATH } from "@/lib/learnhub/routes";
+
 /** Query + session flag: onboarding reward checklist → Random topic → subtopic → Lessons/Progress. */
 export const LESSONS_ONBOARDING_QUERY = "onboarding_lessons";
 
 const SESSION_KEY = "edublast.onboarding_lessons_flow_v1";
-/** Set when user taps Go on checklist; cleared after they pick a subject on /explore-1 hub. */
+/** Set when user taps Go on checklist; cleared after they pick a subject on /learnhub hub. */
 const SUBJECT_PICK_STEP_KEY = "edublast.onboarding_lessons_subject_pick_v1";
 /** Set when leaving explore for a topic during onboarding; required to auto-open Lessons / Progress. */
 const PROGRESS_PANEL_STEP_KEY = "edublast.onboarding_lessons_progress_panel_v1";
@@ -67,5 +69,5 @@ export function appendLessonsOnboardingToUrl(path: string): string {
 }
 
 export function lessonsOnboardingExploreHref(): string {
-  return `/explore-1?${LESSONS_ONBOARDING_QUERY}=1`;
+  return `${LEARN_HUB_PATH}?${LESSONS_ONBOARDING_QUERY}=1`;
 }

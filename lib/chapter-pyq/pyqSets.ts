@@ -73,6 +73,16 @@ export function isPyqMathExcludedYear(year: number | null | undefined): boolean 
   return year != null && PYQ_MATH_EXCLUDED_YEARS.has(year);
 }
 
+/**
+ * Physics year chips start at 2023 — four years (2023, 2024, 2025, 2026).
+ * Anything older, or undated, stays out of the player.
+ */
+export const PYQ_PHYSICS_FIRST_YEAR = 2023;
+
+export function isPyqPhysicsOutOfRangeYear(year: number | null | undefined): boolean {
+  return year == null || year < PYQ_PHYSICS_FIRST_YEAR;
+}
+
 export function isPyqMathExcludedExamDate(examDate: string | null | undefined): boolean {
   return typeof examDate === "string" && examDate.startsWith("2020-");
 }
@@ -121,6 +131,38 @@ export function buildPyqEvenPracticeSets<T>(items: T[]): PyqPracticeSet<T>[] {
     label: `Set ${i + 1}`,
     items: chunk,
   }));
+}
+
+/**
+ * One practice set per exam year, newest year first, for every subject that
+ * groups by year. Physics keeps only 2023 and later; Mathematics keeps its
+ * own excluded-year rule. Anything else falls back to even-sized sets.
+ */
+export function buildPyqSubjectPracticeSets<T extends PyqYearMonthEntry>(
+  items: T[],
+  subject: string | null | undefined
+): PyqPracticeSet<T>[] {
+  if (subject === "math") return buildPyqYearMonthSets(items);
+  if (subject === "physics") {
+    return buildPyqYearMonthSets(
+      items.filter((item) => !isPyqPhysicsOutOfRangeYear(item.examYear))
+    ).filter((set) => set.label !== "Undated");
+  }
+  return buildPyqEvenPracticeSets(items);
+}
+
+/** Questions a subject's year window hides, so the client agrees with the server. */
+export function filterPyqSubjectYearWindow<T extends PyqYearMonthEntry>(
+  items: T[],
+  subject: string | null | undefined
+): T[] {
+  if (subject !== "physics") return items;
+  return items.filter((item) => !isPyqPhysicsOutOfRangeYear(item.examYear));
+}
+
+/** Physics and Mathematics list by year; other subjects list every live row. */
+export function isPyqYearGroupedSubject(subject: string | null | undefined): boolean {
+  return subject === "math" || subject === "physics";
 }
 
 export function practiceSetSessionLabel(label: string, totalSets: number): string {

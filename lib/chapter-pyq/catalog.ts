@@ -133,6 +133,11 @@ export function findChapter(subject: string, slug: string): ChapterPyqEntry | nu
   return CHAPTER_PYQ_CHAPTERS.find((c) => c.subject === subject && c.slug === slug) ?? null;
 }
 
+/** Subject that owns a catalog slug, for server-side fetches that only know the slug. */
+export function subjectForCatalogSlug(slug: string): ChapterPyqSubject | null {
+  return CHAPTER_PYQ_CHAPTERS.find((c) => c.slug === slug)?.subject ?? null;
+}
+
 export function filterChapters(chapters: ChapterPyqEntry[], query: string): ChapterPyqEntry[] {
   const needle = query.trim().toLowerCase();
   if (!needle) return chapters;

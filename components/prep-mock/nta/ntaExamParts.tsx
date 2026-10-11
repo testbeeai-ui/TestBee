@@ -87,6 +87,8 @@ export const NtaOptionBody = memo(function NtaOptionBody({
         mobile && "text-sm sm:text-[15px]",
         mobile ? ntaMobileMdClass : ntaMdClass,
         ntaImgClass,
+        t.includes("nta-option-graph") &&
+          "[&_img.nta-option-graph]:!my-1 [&_img.nta-option-graph]:!block [&_img.nta-option-graph]:!h-auto [&_img.nta-option-graph]:!max-h-72 [&_img.nta-option-graph]:!w-auto [&_img.nta-option-graph]:!max-w-full [&_img.nta-option-graph]:!object-contain [&_img.nta-option-graph]:!bg-white [&_img.nta-option-graph]:!cursor-pointer sm:[&_img.nta-option-graph]:!max-h-80 lg:[&_img.nta-option-graph]:!max-h-96",
         mobile ? ntaMobileOptionKatexClass : ntaOptionKatexClass,
         className
       )}

@@ -8,7 +8,7 @@ import { isChapterPyqStudentVisible } from "@/lib/chapter-pyq/visibleChapters";
 import { CHAPTER_PYQ_CACHE_VERSION } from "@/lib/chapter-pyq/cacheVersion";
 import { fetchChapterPyqQuestions } from "@/lib/chapter-pyq/fetchPyqQuestions";
 import type { ChapterPyqQuestion } from "@/lib/chapter-pyq/pyqQuestionMap";
-import { buildPyqEvenPracticeSets, buildPyqYearMonthSets, secondsForSet, practiceSetSessionLabel, pyqYearSetListedCount } from "@/lib/chapter-pyq/pyqSets";
+import { buildPyqEvenPracticeSets, buildPyqSubjectPracticeSets, buildPyqYearMonthSets, secondsForSet, practiceSetSessionLabel, pyqYearSetListedCount, isPyqYearGroupedSubject } from "@/lib/chapter-pyq/pyqSets";
 import { countByTier, filterByTier, type PyqTierFilter } from "@/lib/chapter-pyq/pyqTiers";
 import ChapterPyqExamSession from "@/components/chapter-pyq/ChapterPyqExamSession";
 import ChapterPyqTestSetup from "@/components/chapter-pyq/ChapterPyqTestSetup";
@@ -67,16 +67,13 @@ export default function ChapterPyqPracticeView({
 
   const filtered = useMemo(() => filterByTier(entries ?? [], tier), [entries, tier]);
   const sets = useMemo(
-    () =>
-      entry?.subject === "math"
-        ? buildPyqYearMonthSets(filtered)
-        : buildPyqEvenPracticeSets(filtered),
+    () => buildPyqSubjectPracticeSets(filtered, entry?.subject),
     [entry?.subject, filtered]
   );
   const counts = useMemo(() => countByTier(entries ?? []), [entries]);
   const listedQuestionCount = useMemo(
     () =>
-      entry && entry.subject === "math"
+      entry && isPyqYearGroupedSubject(entry.subject)
         ? sets.reduce(
             (n, set) => n + pyqYearSetListedCount(entry.slug, set.label, set.items.length),
             0

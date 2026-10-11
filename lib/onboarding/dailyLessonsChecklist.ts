@@ -32,7 +32,7 @@ export const LESSONS_DAILY_COMPANION_TASK: OnboardingTask = {
     "On the sub-topic, complete everything and tap Mark as complete.",
   ],
   hints: ["Saved chapters → sub-topic → Mark as complete"],
-  href: "/explore-1",
+  href: "/learnhub",
   icon: BookOpen,
   color: "purple",
 };

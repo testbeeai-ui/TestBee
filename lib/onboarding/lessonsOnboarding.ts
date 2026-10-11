@@ -14,7 +14,7 @@ const CHAPTERS_SAVED_SESSION_KEY = "edublast.onboarding_lessons_chapters_saved_v
 const QUIZ_OR_INSTACUE_SESSION_KEY = "edublast.onboarding_lessons_quiz_instacue_v1";
 const SUBJECT_SELECTED_SESSION_KEY = "edublast.onboarding_lessons_subject_selected_v1";
 
-/** Fired when the learner picks Physics / Chemistry / Math on /explore-1. */
+/** Fired when the learner picks Physics / Chemistry / Math on /learnhub. */
 export const LESSONS_SUBJECT_SELECTED_EVENT = "edublast-lessons-subject-selected";
 
 /** Clears ephemeral session markers (persisted checklist keys in localStorage are unchanged). */

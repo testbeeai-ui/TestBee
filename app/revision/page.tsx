@@ -446,7 +446,7 @@ const RevisionContent = () => {
                     your revision deck.
                   </p>
                   <Button variant="outline" className="rounded-xl" asChild>
-                    <Link href="/explore-1">
+                    <Link href="/learnhub">
                       Go to Explore <ChevronRight className="w-4 h-4 ml-1" />
                     </Link>
                   </Button>
@@ -614,7 +614,7 @@ const RevisionContent = () => {
                     Dive section to add them here.
                   </p>
                   <Button variant="outline" className="rounded-xl" asChild>
-                    <Link href="/explore-1">
+                    <Link href="/learnhub">
                       Go to Explore <ChevronRight className="w-4 h-4 ml-1" />
                     </Link>
                   </Button>
@@ -710,7 +710,7 @@ const RevisionContent = () => {
                     here.
                   </p>
                   <Button variant="outline" className="rounded-xl" asChild>
-                    <Link href="/explore-1">
+                    <Link href="/learnhub">
                       Go to Lessons <ChevronRight className="w-4 h-4 ml-1" />
                     </Link>
                   </Button>

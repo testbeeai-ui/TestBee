@@ -10,10 +10,26 @@ const RASTER_KEY = /^(?:p\d+_x\d+|s\d{4}[a-z]{0,3}(?:_[a-z]+)?_q\d+_\d+)$/i;
 
 export type PyqFigureFolder = "physics/figures" | "math/figures";
 
+/** Chapter PYQ subject string → the public folder that subject's drawings use. */
+export function pyqFigureFolderForSubject(subject: string): PyqFigureFolder {
+  return subject.trim().toLowerCase() === "math" ? "math/figures" : "physics/figures";
+}
+
 export type ResolvePyqFigureOpts = {
   /** Stem path appends unused `question_body` figures. Solution HTML must not. */
   appendUnused?: boolean;
+  /**
+   * Link roles this call may resolve. The stem shows only figures printed with
+   * the question; the worked solution may also use `solution_body` figures that
+   * belong to the printed write-up and must never appear in the stem.
+   */
+  roles?: readonly string[];
 };
+
+/** Roles a question stem may render. */
+export const STEM_FIGURE_ROLES: readonly string[] = ["question_body"];
+/** Roles a worked solution may render. */
+export const SOLUTION_FIGURE_ROLES: readonly string[] = ["question_body", "solution_body"];
 
 function asFigure(raw: unknown): PyqFigureRow | null {
   if (!raw || typeof raw !== "object") return null;
@@ -83,8 +99,9 @@ export function resolvePyqFigureHtml(
   opts?: ResolvePyqFigureOpts
 ): string {
   const list = links ?? [];
+  const roles = opts?.roles ?? STEM_FIGURE_ROLES;
   const stemFigures = list
-    .filter((l) => l.role === "question_body")
+    .filter((l) => roles.includes(String(l.role)))
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     .map((l) => asFigure(l.figures))
     .filter((f): f is PyqFigureRow => Boolean(f));

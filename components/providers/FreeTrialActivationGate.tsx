@@ -49,7 +49,7 @@ const GATE_BYPASS_PREFIXES = [
 const STUDENT_APP_GATE_PREFIXES = [
   "/home",
   "/performance",
-  "/explore-1",
+  "/learnhub",
   "/chapter-pyq",
   "/explore",
   "/mock",
@@ -100,7 +100,7 @@ function FreeTrialActivationGateInner() {
     if (!isTrialGateAudience(profile.role)) return false;
     if (isGateBypassRoute(pathname)) return false;
     // Gate every authenticated student route (includes /home?page=dashboard,
-    // /performance, /explore-1, /mock, /classrooms, /mock-test, /doubts, /play,
+    // /performance, /learnhub, /mock, /classrooms, /mock-test, /doubts, /play,
     // /explore/community, /magic-wall, /refer-earn, /dive, …).
     // Deep links must not bypass — only GATE_BYPASS_PREFIXES are excluded.
     if (!isStudentAppGateRoute(pathname) && process.env.NODE_ENV === "development") {

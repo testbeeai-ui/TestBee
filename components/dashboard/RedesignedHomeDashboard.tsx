@@ -466,7 +466,7 @@ export default function RedesignedHomeDashboard() {
                         } else if (activeDetail.key === "news") {
                           router.push("/news-blog");
                         } else if (activeDetail.key === "learnhub") {
-                          router.push("/explore-1");
+                          router.push("/learnhub");
                         } else if (activeDetail.key === "chapterpyq") {
                           router.push("/chapter-pyq");
                         } else if (activeDetail.key === "classes") {
@@ -474,7 +474,7 @@ export default function RedesignedHomeDashboard() {
                         } else if (activeDetail.key === "gyan") {
                           router.push("/doubts");
                         } else if (activeDetail.key === "planner") {
-                          router.push("/explore-1");
+                          router.push("/learnhub");
                         } else if (activeDetail.key === "dailydose" || activeDetail.key === "funbrain") {
                           router.push("/play");
                         } else if (activeDetail.key === "community") {
@@ -559,7 +559,7 @@ export default function RedesignedHomeDashboard() {
                     } else if (key === "news") {
                       router.push("/news-blog");
                     } else if (key === "learnhub") {
-                      router.push("/explore-1");
+                      router.push("/learnhub");
                     } else if (key === "chapterpyq") {
                       router.push("/chapter-pyq");
                     } else if (key === "classes") {
@@ -567,7 +567,7 @@ export default function RedesignedHomeDashboard() {
                     } else if (key === "gyan") {
                       router.push("/doubts");
                     } else if (key === "planner") {
-                      router.push("/explore-1");
+                      router.push("/learnhub");
                     } else if (key === "dailydose" || key === "funbrain") {
                       router.push("/play");
                     } else if (key === "community") {
@@ -1077,7 +1077,7 @@ export default function RedesignedHomeDashboard() {
           <div className={styles.footerRight}>
             <Link href="/pricing">Pricing</Link>
             <Link href="/profile">Profile</Link>
-            <Link href="/explore-1">LearnHub</Link>
+            <Link href="/learnhub">LearnHub</Link>
             <Link href="/contact">Contact us</Link>
           </div>
         </div>

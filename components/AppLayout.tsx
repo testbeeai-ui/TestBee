@@ -35,6 +35,7 @@ import { SiteTourCarouselHost } from "@/components/onboarding/SiteTourCarouselHo
 import { SitePresenceProvider } from "@/components/providers/SitePresenceProvider";
 import { cn } from "@/lib/utils";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
+import { LEARN_HUB_PATH, isLearnHubPathname } from "@/lib/learnhub/routes";
 import StudentRdmWalletDialog from "@/components/wallet/StudentRdmWalletDialog";
 import { requestOpenSiteTourCarousel } from "@/lib/onboarding/openSiteTourCarousel";
 
@@ -49,8 +50,8 @@ interface AppLayoutProps {
   fullBleed?: boolean;
 }
 
-/** Curriculum browser: URL stays `/explore-1`; UI label is "Learn Hub". */
-export const EXPLORE_APP_PATH = "/explore-1" as const;
+/** Curriculum browser ("Learn Hub"); subjects live at `/learnhub/<subject>`. */
+export const EXPLORE_APP_PATH = LEARN_HUB_PATH;
 
 /** Header nav brand image â€” new resized logo at `public/images/logo-2.png` (served as `/images/logo-2.png`). */
 const EDUBLAST_WORDMARK_SRC = "/images/logo-2.png";
@@ -67,6 +68,7 @@ function isPrepMockActive(pathname: string): boolean {
 
 function isNavLinkActive(navPath: string, pathname: string): boolean {
   if (pathname === navPath) return true;
+  if (navPath === EXPLORE_APP_PATH && isLearnHubPathname(pathname)) return true;
   if (navPath === "/mock" && isPrepMockActive(pathname)) return true;
   if (navPath === "/edufund" && (pathname === "/edufund" || pathname.startsWith("/edufund/")))
     return true;
@@ -578,7 +580,7 @@ const AppLayout = ({
                   className={styles.dsecItems}
                   style={{ maxHeight: sectionsOpen.prep ? "600px" : "0px" }}
                 >
-                  <Link href="/explore-1" className={styles.ditem} onClick={() => setDrawerOpen(false)}>
+                  <Link href={EXPLORE_APP_PATH} className={styles.ditem} onClick={() => setDrawerOpen(false)}>
                     <div
                       className={styles.ditemIcon}
                       style={{ background: "rgba(29, 158, 117, 0.12)", border: ".5px solid rgba(29, 158, 117, 0.2)" }}
@@ -617,7 +619,7 @@ const AppLayout = ({
                     </div>
                     <i className={`ti ti-arrow-right ${styles.ditemArrow}`} aria-hidden="true"></i>
                   </Link>
-                  <Link href="/explore-1" className={styles.ditem} onClick={() => setDrawerOpen(false)}>
+                  <Link href={EXPLORE_APP_PATH} className={styles.ditem} onClick={() => setDrawerOpen(false)}>
                     <div
                       className={styles.ditemIcon}
                       style={{ background: "rgba(29, 158, 117, 0.12)", border: ".5px solid rgba(29, 158, 117, 0.2)" }}

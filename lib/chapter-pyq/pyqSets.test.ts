@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  PYQ_PHYSICS_FIRST_YEAR,
   PYQ_SECONDS_PER_QUESTION,
   buildPyqSets,
+  buildPyqSubjectPracticeSets,
   buildPyqYearMonthSets,
+  filterPyqSubjectYearWindow,
+  isPyqPhysicsOutOfRangeYear,
+  isPyqYearGroupedSubject,
   pyqYearSetListedCount,
   secondsForSet,
   splitIntoSetSizes,
@@ -108,5 +113,57 @@ describe("pyq set splitting", () => {
     expect(pyqYearSetListedCount("definite-integration", "2025", 22)).toBe(22);
     expect(pyqYearSetListedCount("area-under-curves", "2025", 19)).toBe(19);
     expect(pyqYearSetListedCount("quadratic-equation", "2025", 22)).toBe(22);
+  });
+});
+
+describe("physics year window", () => {
+  const row = (id: string, examYear: number | null) => ({
+    id,
+    examYear,
+    examMonth: examYear === null ? null : 1,
+    examDay: examYear === null ? null : 21,
+    examLabel: examYear === null ? null : `21 Jan ${examYear} (Morning)`,
+  });
+
+  it("keeps 2023 and later and drops older or undated rows", () => {
+    expect(PYQ_PHYSICS_FIRST_YEAR).toBe(2023);
+    expect(isPyqPhysicsOutOfRangeYear(2022)).toBe(true);
+    expect(isPyqPhysicsOutOfRangeYear(2019)).toBe(true);
+    expect(isPyqPhysicsOutOfRangeYear(null)).toBe(true);
+    expect(isPyqPhysicsOutOfRangeYear(2023)).toBe(false);
+    expect(isPyqPhysicsOutOfRangeYear(2026)).toBe(false);
+  });
+
+  it("groups Physics into year cards instead of Set 1 / Set 2", () => {
+    const items = [
+      row("y2019", 2019),
+      row("y2022", 2022),
+      row("y2023-apr", 2023),
+      row("y2023-jan", 2023),
+      row("y2024", 2024),
+      row("y2025", 2025),
+      row("y2026", 2026),
+      row("undated", null),
+    ];
+    const sets = buildPyqSubjectPracticeSets(items, "physics");
+    expect(sets.map((s) => s.label)).toEqual(["2026", "2025", "2024", "2023"]);
+    expect(sets.map((s) => s.items.length)).toEqual([1, 1, 1, 2]);
+  });
+
+  it("filters the same rows the server hides", () => {
+    const items = [row("old", 2021), row("new", 2024), row("none", null)];
+    expect(filterPyqSubjectYearWindow(items, "physics").map((i) => i.id)).toEqual(["new"]);
+    expect(filterPyqSubjectYearWindow(items, "math").map((i) => i.id)).toEqual([
+      "old",
+      "new",
+      "none",
+    ]);
+  });
+
+  it("treats math and physics as year-grouped, other subjects as even sets", () => {
+    expect(isPyqYearGroupedSubject("math")).toBe(true);
+    expect(isPyqYearGroupedSubject("physics")).toBe(true);
+    expect(isPyqYearGroupedSubject("chemistry")).toBe(false);
+    expect(isPyqYearGroupedSubject(null)).toBe(false);
   });
 });

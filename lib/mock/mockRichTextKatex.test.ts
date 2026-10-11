@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import katex from "katex";
+import { sanitizeMockHtml } from "./mockHtml";
 import {
   SUPABASE_PUBLIC_OBJECT_RE,
   collapseSpuriousMockHtmlWhitespace,
+  escapePlainTexForHtml,
   patchMockHtmlImages,
   plainMockTextLooksLikeHtml,
   protectTexBrackets,
@@ -62,7 +64,8 @@ describe("patchMockHtmlImages", () => {
 
   it("adds the render attributes Storage figures need", () => {
     const out = patchMockHtmlImages(`<img src="${STORAGE_URL}" alt="fbd" class="nta-mock-img">`);
-    expect(out).toContain('loading="lazy"');
+    expect(out).toContain('loading="eager"');
+    expect(out).toContain('fetchpriority="high"');
     expect(out).toContain('decoding="async"');
     expect(out).toContain("nta-mock-img");
     expect(out).toContain('alt="fbd"');
@@ -90,7 +93,12 @@ describe("protectTexBrackets", () => {
     expect(protectTexBrackets("[-\\pi/2,\\pi/2]")).toBe("\\left[-\\pi/2,\\pi/2\\right]");
     expect(protectTexBrackets("\\frac{1}{[x]+4}")).toBe("\\frac{1}{\\lbrack{x}\\rbrack{}+4}");
     expect(protectTexBrackets("\\sqrt[3]{\\tan 2x}")).toBe("\\sqrt[3]{\\tan 2x}");
+    expect(protectTexBrackets("x\\in[0,1)\\cup[1,2]")).toBe("x\\in[0,1)\\cup\\left[1,2\\right]");
     expect(repairBankMathLatex("[\\cdot]")).toBe("\\lbrack{\\cdot}\\rbrack{}");
+    expect(protectTexBrackets("[0,2),[2,4),\\left[4,5\\right]")).toBe("[0,2),[2,4),\\left[4,5\\right]");
+    const blankHz = "\\text{\\_\\_\\_\\_\\_ Hz. [ take } \\pi = \\frac{22}{7} \\text{]}";
+    expect(protectTexBrackets(blankHz)).toBe(blankHz);
+    expect(repairBankMathLatex("\\sum x_i^2_{\\text{new}}")).toBe("\\sum {x_i^2}_{\\text{new}}");
   });
 
   it("does not glue \\rbrack onto the next letter", () => {
@@ -226,6 +234,22 @@ describe("protectTexBrackets", () => {
     ).not.toThrow();
   });
 
+  it("does not split a coefficient from the function it multiplies", () => {
+    expect(repairBankMathLatex("f(x) = 2 \\log_e(x - 2) - x^2 + ax + 1")).toBe(
+      "f(x) = 2 \\log_e(x - 2) - x^2 + ax + 1"
+    );
+    expect(repairBankMathLatex("g(x) = 3 \\sin x + 4x")).not.toContain("\\quad");
+    expect(repairBankMathLatex("8\\alpha = 8 \\times \\frac{9}{4} = 18")).not.toContain("\\quad");
+    expect(repairBankMathLatex("g'(x) = 3 \\times \\frac{1}{3} f'(x) = 0")).not.toContain("\\quad");
+  });
+
+  it("keeps a coefficient when a factor command opens the next term", () => {
+    expect(repairBankMathLatex("C = 2 \\binom{4}{2} = 12")).not.toContain("\\quad");
+    expect(repairBankMathLatex("S = 2 \\vec{a} + 3 \\vec{b} = 0")).not.toContain("\\quad");
+    expect(repairBankMathLatex("m = 4 \\max(a) = 1")).not.toContain("\\quad");
+    expect(repairBankMathLatex("x=1 4y=2")).toContain("\\quad");
+  });
+
   it("collapses doubled TeX command slashes so \\mu renders", () => {
     expect(repairBankMathLatex("\\\\mu")).toBe("\\mu");
   });
@@ -243,6 +267,18 @@ describe("plainMockTextLooksLikeHtml", () => {
 
   it("still recognizes a real paragraph tag", () => {
     expect(plainMockTextLooksLikeHtml("<p>$x<1$</p>")).toBe(true);
+  });
+
+  it("escapes worked-sheet cases so the sanitizer keeps every row", () => {
+    const tex = "$$f(x)=\\begin{cases} -2x & -2<x<-1 \\\\ x-1 & 1\\le x<2 \\end{cases}$$";
+    const html = sanitizeMockHtml(escapePlainTexForHtml(tex));
+    expect(html).toContain("1\\le x&lt;2");
+    expect(html).toContain("\\end{cases}$$");
+    expect(escapePlainTexForHtml("<p>$x$</p>")).toBe("<p>$x$</p>");
+  });
+
+  it("does not read x<a\\end inside dollars as an anchor tag", () => {
+    expect(plainMockTextLooksLikeHtml("$f(x)=\\begin{cases}1, & x<a\\end{cases}$")).toBe(false);
   });
 });
 

@@ -23,6 +23,7 @@ import {
   getSiblingTopics,
   appendQueryParams,
 } from "@/lib/curriculum/topicRoutes";
+import { LEARN_HUB_PATH, learnHubUnitPath } from "@/lib/learnhub/routes";
 import { chapterRefDistinctFromTopic } from "@/lib/explore/feedCurriculumChips";
 import {
   LESSONS_ONBOARDING_QUERY,
@@ -4418,17 +4419,15 @@ function TopicPageInner() {
               "This topic or unit may not exist, or your syllabus has not loaded. Check the URL or go back to Explore."}
           </p>
           <Button asChild variant="outline" className="rounded-xl">
-            <Link href="/explore-1">Back to Explore</Link>
+            <Link href={LEARN_HUB_PATH}>Back to Learn Hub</Link>
           </Button>
         </div>
       </AppLayout>
     );
   }
 
-  const backHref = isMagicWallSource
-    ? "/magic-wall"
-    : `/explore-1?subject=${topicNode.subject}&class=${topicNode.classLevel}&unit=${unitSlug}`;
-  const spinAgainHref = `/explore-1?subject=${topicNode.subject}&class=${topicNode.classLevel}&unit=${unitSlug}`;
+  const spinAgainHref = learnHubUnitPath(topicNode.subject, topicNode.classLevel, unitSlug);
+  const backHref = isMagicWallSource ? "/magic-wall" : spinAgainHref;
 
   const allStackPlaceholders =
     subtopicStackRows.length > 0 && subtopicStackRows.every((r) => r.isPh);

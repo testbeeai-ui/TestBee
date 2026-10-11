@@ -17,6 +17,7 @@ import {
   Star,
 } from "lucide-react";
 import LandingNavbar from "@/components/landing/LandingNavbar";
+import { isLearnHubPathname } from "@/lib/learnhub/routes";
 import { INVESTOR_NAV_LINKS } from "@/components/landing/landing-constants";
 
 type ContactCategory = "sales" | "issue" | "comment" | null;
@@ -284,7 +285,7 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
   const inAppFromLabel = (() => {
     if (safeFromPath === "/home") return "Dashboard";
     if (safeFromPath === "/magic-wall") return "Magic Wall";
-    if (safeFromPath === "/explore-1") return "Lessons";
+    if (isLearnHubPathname(safeFromPath)) return "Learn Hub";
     if (
       safeFromPath === "/mock" ||
       safeFromPath === "/mock-test" ||

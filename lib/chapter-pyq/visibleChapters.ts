@@ -1,21 +1,64 @@
 /**
- * Student /chapter-pyq question allowlist (Mathematics only).
+ * Student /chapter-pyq question allowlist.
  * All chapter cards stay on the grid. Locked chapters show 0 / 0 and do not load questions.
  *
- * Unblock every math chapter: set this to [].
+ * Unblock a subject: set its list to [].
  */
-/**
- * Student /chapter-pyq question allowlist (Mathematics only).
- * All chapter cards stay on the grid. Locked chapters show 0 / 0 and do not load questions.
- *
- * Unblock every math chapter: set this to [].
- */
+
+/** Mathematics: everything unlocked. */
 export const CHAPTER_PYQ_VISIBLE_MATH_SLUGS: readonly string[] = [];
 
+/**
+ * Physics: only these chapters are released. The remaining chapters stay
+ * on the grid as 0 / 0 "Coming soon" until their content is verified.
+ */
+export const CHAPTER_PYQ_VISIBLE_PHYSICS_SLUGS: readonly string[] = [
+  "units-and-measurements",
+  "motion-in-a-straight-line",
+  "motion-in-a-plane",
+  "laws-of-motion",
+  "work-energy-and-power",
+  "system-of-particles-and-rotational-motion",
+      "gravitation",
+      "mechanical-properties-of-solids",
+      "mechanical-properties-of-fluids",
+      "thermal-properties-of-matter",
+      "thermodynamics",
+      "kinetic-theory-of-gases",
+      "oscillations",
+      "waves",
+      "electric-charges-and-fields",
+      "electrostatic-potential-and-capacitance",
+      "current-electricity",
+      "moving-charges-and-magnetism",
+      "magnetism-and-matter",
+      "electromagnetic-induction",
+      "alternating-current",
+      "electromagnetic-waves",
+      "ray-optics",
+      "wave-optics",
+      "dual-nature-of-radiation-and-matter",
+      "atoms",
+      "nuclei",
+      "semiconductor-electronics",
+      "communication-system",
+    ];
+
+/** Coming soon until told to open. Delete a slug here to show that chapter. */
+const PHYSICS_HOLD_BACK: readonly string[] = [];
+
+function subjectAllowlist(subject: string): readonly string[] | null {
+  if (subject === "math") return CHAPTER_PYQ_VISIBLE_MATH_SLUGS;
+  if (subject === "physics") return CHAPTER_PYQ_VISIBLE_PHYSICS_SLUGS;
+  return null;
+}
+
 export function isChapterPyqStudentVisible(subject: string, slug: string): boolean {
-  if (subject !== "math") return true;
-  if (CHAPTER_PYQ_VISIBLE_MATH_SLUGS.length === 0) return true;
-  return CHAPTER_PYQ_VISIBLE_MATH_SLUGS.includes(slug);
+  const allowlist = subjectAllowlist(subject);
+  if (allowlist === null) return true;
+  if (allowlist.length === 0) return true;
+  if (subject === "physics" && PHYSICS_HOLD_BACK.includes(slug)) return false;
+  return allowlist.includes(slug);
 }
 
 export function publishedCountForStudent(

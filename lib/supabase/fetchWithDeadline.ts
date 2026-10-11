@@ -6,6 +6,11 @@ export function fetchWithDeadline(fetchImpl: typeof fetch, timeoutMs: number): t
     const timer = setTimeout(() => controller.abort(), ms);
     try {
       return await fetchImpl(input, { ...init, signal: controller.signal });
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new Error(`Fetch deadline exceeded (${ms}ms)`);
+      }
+      throw err;
     } finally {
       clearTimeout(timer);
     }

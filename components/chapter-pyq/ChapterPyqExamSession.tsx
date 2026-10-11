@@ -8,6 +8,8 @@ import { NtaExamShell } from "@/components/prep-mock/nta/NtaExamShell";
 import { NtaSubmitModal } from "@/components/prep-mock/nta/NtaSubmitModal";
 import { useAuth } from "@/hooks/useAuth";
 import ChapterPyqResultView from "@/components/chapter-pyq/ChapterPyqResultView";
+import { pyqInPaperAssists } from "@/lib/chapter-pyq/pyqAssists";
+import { pyqFigureFolderForSubject } from "@/lib/chapter-pyq/pyqFigures";
 import { pyqQuestionSources, type ChapterPyqQuestion } from "@/lib/chapter-pyq/pyqQuestionMap";
 import { commitNumericDraft } from "@/lib/chapter-pyq/pyqNumericDraft";
 import { clearPyqAttempt, recordPyqAttempt } from "@/lib/chapter-pyq/pyqAttemptStore";
@@ -51,6 +53,8 @@ export default function ChapterPyqExamSession({
   const { resolvedTheme } = useTheme();
   const ntaSkin: NtaSkin = resolvedTheme === "dark" ? "dark" : "light";
   const questions = useMemo<Question[]>(() => entries.map((e) => e.question), [entries]);
+  const inPaperAssists = pyqInPaperAssists(mode);
+  const figureFolder = pyqFigureFolderForSubject(subject);
   const totalSeconds = useMemo(() => {
     if (mode === "test") {
       const minutes = Math.max(1, minutesPerQuestion ?? 2);
@@ -242,6 +246,7 @@ export default function ChapterPyqExamSession({
             onExit={onExit}
             onRetry={onRetry}
             onNextSet={onNextSet}
+            figureFolder={figureFolder}
             {...(marks ? { marks } : {})}
           />
         </div>
@@ -290,7 +295,9 @@ export default function ChapterPyqExamSession({
           onNextNav={goNext}
           onSubmitClick={() => setSubmitDialogOpen(true)}
           paletteColumns={5}
-          showSolution
+          showSolution={inPaperAssists.solution}
+          figureFolder={figureFolder}
+          showCoach={inPaperAssists.coach}
         />
         <NtaSubmitModal
           open={submitDialogOpen}

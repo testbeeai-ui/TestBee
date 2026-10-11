@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { Clock, Play, Search, Sparkles, X } from "lucide-react";
 import {
@@ -14,11 +15,12 @@ import { isChapterPyqStudentVisible, publishedCountForStudent } from "@/lib/chap
 import { CHAPTER_PYQ_CACHE_VERSION } from "@/lib/chapter-pyq/cacheVersion";
 import { fetchChapterPyqCounts, fetchChapterPyqQuestions } from "@/lib/chapter-pyq/fetchPyqQuestions";
 import type { ChapterPyqQuestion } from "@/lib/chapter-pyq/pyqQuestionMap";
-import { buildPyqEvenPracticeSets, buildPyqYearMonthSets, secondsForSet, practiceSetSessionLabel, pyqYearSetListedCount } from "@/lib/chapter-pyq/pyqSets";
+import { buildPyqEvenPracticeSets, buildPyqSubjectPracticeSets, buildPyqYearMonthSets, secondsForSet, practiceSetSessionLabel, pyqYearSetListedCount, isPyqYearGroupedSubject } from "@/lib/chapter-pyq/pyqSets";
 import { countByTier, filterByTier, PYQ_TIER_CHIPS, type PyqTierFilter } from "@/lib/chapter-pyq/pyqTiers";
 import ChapterPyqExamSession from "@/components/chapter-pyq/ChapterPyqExamSession";
 import ChapterPyqTestSetup from "@/components/chapter-pyq/ChapterPyqTestSetup";
 import ChapterPyqAttemptStats from "@/components/chapter-pyq/ChapterPyqAttemptStats";
+import ChapterPyqProficiency from "@/components/chapter-pyq/ChapterPyqProficiency";
 import { drawPyqTestQuestions } from "@/lib/chapter-pyq/pyqTestSetup";
 import {
   loadPyqAttempts,
@@ -27,6 +29,7 @@ import {
   type PyqAttemptMap,
 } from "@/lib/chapter-pyq/pyqAttemptStore";
 import { cn } from "@/lib/utils";
+import { parseLearnHubSubjectSlug } from "@/lib/learnhub/routes";
 
 type ChapterWeightage = "high" | "medium" | "normal";
 
@@ -526,6 +529,8 @@ const CHAPTER_METAS: Record<string, ChapterMeta> = {
 };
 
 const MATH_PYQ_YEAR_RANGE = "2023 – 2026";
+/** Physics serves the same 2023-onward window; see PYQ_PHYSICS_FIRST_YEAR. */
+const PHYSICS_PYQ_YEAR_RANGE = "2023 – 2026";
 
 function getChapterMeta(slug: string, subject: ChapterPyqSubject): ChapterMeta {
   const meta = CHAPTER_METAS[slug];
@@ -541,8 +546,13 @@ function getChapterMeta(slug: string, subject: ChapterPyqSubject): ChapterMeta {
     yearRange: "2019 – 2025",
     defaultTotal: 45,
   };
+  // Both year-grouped subjects must show the window they actually serve, or the
+  // card advertises years the player will never load.
   if (subject === "math") {
     return { ...resolved, yearRange: MATH_PYQ_YEAR_RANGE };
+  }
+  if (subject === "physics") {
+    return { ...resolved, yearRange: PHYSICS_PYQ_YEAR_RANGE };
   }
   return resolved;
 }
@@ -590,13 +600,12 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
         if (cancelled) return;
         const questions = bundle?.questions ?? [];
         setEntries(questions);
-        const listed =
-          entry.subject === "math"
-            ? buildPyqYearMonthSets(questions).reduce(
-                (n, set) => n + pyqYearSetListedCount(entry.slug, set.label, set.items.length),
-                0
-              )
-            : questions.length;
+        const listed = isPyqYearGroupedSubject(entry.subject)
+          ? buildPyqSubjectPracticeSets(questions, entry.subject).reduce(
+              (n, set) => n + pyqYearSetListedCount(entry.slug, set.label, set.items.length),
+              0
+            )
+          : questions.length;
         onLiveCountRef.current(entry.slug, listed);
       })
       .catch((e: unknown) => {
@@ -631,16 +640,13 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
 
   const filtered = useMemo(() => filterByTier(entries ?? [], tier), [entries, tier]);
   const sets = useMemo(
-    () =>
-      entry?.subject === "math"
-        ? buildPyqYearMonthSets(filtered)
-        : buildPyqEvenPracticeSets(filtered),
+    () => buildPyqSubjectPracticeSets(filtered, entry?.subject),
     [entry?.subject, filtered]
   );
   const counts = useMemo(() => countByTier(entries ?? []), [entries]);
   const listedQuestionCount = useMemo(
     () =>
-      entry && entry.subject === "math"
+      entry && isPyqYearGroupedSubject(entry.subject)
         ? sets.reduce(
             (n, set) => n + pyqYearSetListedCount(entry.slug, set.label, set.items.length),
             0
@@ -869,9 +875,23 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
   );
 }
 
-export default function ChapterPyqListView() {
+export default function ChapterPyqListView({
+  initialSubject = null,
+  keepAddress = false,
+}: {
+  /** Used when this page is opened from a name, so the address is not `/chapter-pyq`. */
+  initialSubject?: ChapterPyqSubject | null;
+  /** Keep the current path (a name such as /mrphani) when the subject toggle is used. */
+  keepAddress?: boolean;
+}) {
   const { user } = useAuth();
-  const [subject, setSubject] = useState<ChapterPyqSubject>("physics");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const subjectFromUrl = parseLearnHubSubjectSlug(searchParams.get("subject"));
+  const [subject, setSubject] = useState<ChapterPyqSubject>(
+    subjectFromUrl ?? initialSubject ?? "physics"
+  );
   const [attemptMap, setAttemptMap] = useState<PyqAttemptMap>({});
   const [query, setQuery] = useState("");
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
@@ -884,6 +904,24 @@ export default function ChapterPyqListView() {
     () => filterChapters(chaptersForSubject(subject), query),
     [subject, query]
   );
+
+  useEffect(() => {
+    if (keepAddress) return;
+    if (subjectFromUrl) setSubject(subjectFromUrl);
+  }, [keepAddress, subjectFromUrl]);
+
+  const selectSubject = (next: ChapterPyqSubject) => {
+    setSubject(next);
+    setSelectedChapter(null);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("subject", next);
+    if (keepAddress) {
+      const qs = params.toString();
+      window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
+      return;
+    }
+    router.replace(`/chapter-pyq?${params.toString()}`);
+  };
 
   useEffect(() => {
     const reload = () => setAttemptMap(loadPyqAttempts(user?.id ?? null));
@@ -907,7 +945,7 @@ export default function ChapterPyqListView() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [CHAPTER_PYQ_CACHE_VERSION]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -936,7 +974,7 @@ export default function ChapterPyqListView() {
       <header className="relative mb-6 sm:mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
         <div className="max-w-2xl">
           <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full border border-[#6366F1]/30 bg-[#6366F1]/[0.12] px-3 py-1 text-[0.7rem] sm:text-xs font-bold uppercase tracking-[0.08em] text-[#A5B4FC]">
-            <span>Target</span> • JEE Main 2026
+            <span>Target</span> • JEE Main 2027
           </div>
           <h1 className="mb-1 text-2xl sm:text-3xl lg:text-[2.25rem] font-extrabold tracking-[-0.03em] text-[#F8FAFC] bg-gradient-to-b from-white via-white/90 to-slate-400 bg-clip-text text-transparent leading-tight">
             Chapter-wise PYQs
@@ -974,7 +1012,7 @@ export default function ChapterPyqListView() {
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => setSubject(item.id)}
+                onClick={() => selectSubject(item.id)}
                 className={cn(
                   "flex-1 rounded-full px-4 py-2.5 text-sm font-bold whitespace-nowrap transition-all duration-200 cursor-pointer sm:flex-none sm:px-7 sm:py-3 sm:text-base",
                   active
@@ -1026,10 +1064,10 @@ export default function ChapterPyqListView() {
               : !isLive
                 ? "Coming soon"
                 : percent === 100
-                  ? "Review All"
+                  ? "Review"
                   : percent > 0
-                    ? "Continue Practice"
-                    : "Start Practice";
+                    ? "Continue"
+                    : "Start";
 
           return (
             <div
@@ -1128,39 +1166,36 @@ export default function ChapterPyqListView() {
                 </div>
 
                 {/* Bottom Action Strip */}
-                <div className="flex items-center justify-between border-t border-white/[0.05] pt-2.5 text-[0.74rem] sm:text-[0.8rem] text-[#64748B]">
-                  <span>{meta.yearRange} PYQs</span>
+                <div className="flex items-center justify-between gap-3 border-t border-white/[0.05] pt-2.5 text-[0.74rem] sm:text-[0.8rem] text-[#64748B]">
+                  <span className="truncate">{meta.yearRange} PYQs</span>
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1 font-semibold transition-all duration-200 shrink-0",
+                      "inline-flex items-center gap-2 font-semibold transition-all duration-200 shrink-0",
                       isLive
                         ? percent === 100
-                          ? "text-[#10B981] group-hover:text-[#34D399] group-hover:gap-1.5"
-                          : "text-[#A5B4FC] group-hover:text-[#C7D2FE] group-hover:gap-1.5"
+                          ? "text-[#10B981] group-hover:text-[#34D399]"
+                          : "text-[#A5B4FC] group-hover:text-[#C7D2FE]"
                         : "text-[#64748B] opacity-75"
                     )}
                   >
                     {actionLabel}
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+                    <span
+                      aria-hidden="true"
                       className={cn(
-                        "transition-transform",
-                        isLive && "group-hover:translate-x-0.5"
+                        "grid h-8 w-8 shrink-0 place-items-center rounded-full transition-all duration-200",
+                        isLive
+                          ? percent === 100
+                            ? "bg-gradient-to-br from-[#10B981] to-[#059669] text-white shadow-[0_4px_14px_rgba(16,185,129,0.4)] group-hover:scale-110"
+                            : "bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] text-white shadow-[0_4px_14px_rgba(99,102,241,0.45)] group-hover:scale-110"
+                          : "bg-[#1C2333] text-[#64748B]"
                       )}
                     >
-                      <path d="M5 12h14" />
-                      <path d="m12 5 7 7-7 7" />
-                    </svg>
+                      <Play className="h-3.5 w-3.5 translate-x-[1px] fill-current" />
+                    </span>
                   </span>
                 </div>
                 <ChapterPyqAttemptStats tally={tally} />
+                <ChapterPyqProficiency tally={tally} />
               </div>
             </div>
           );

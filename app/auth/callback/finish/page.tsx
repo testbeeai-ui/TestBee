@@ -139,7 +139,8 @@ function AuthCallbackFinishContent() {
         onboardPath,
         postOnboardPath,
       });
-      clearPendingDeepLink();
+      // Onboarding reads the pending link when it finishes, so only clear it once it is followed.
+      if (dest !== onboardPath) clearPendingDeepLink();
       doRedirect(dest, stored);
       return;
     }

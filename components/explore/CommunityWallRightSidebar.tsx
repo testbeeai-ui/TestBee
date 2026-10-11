@@ -249,7 +249,7 @@ export default function CommunityWallRightSidebar({
             <span className="truncate">Trending topics</span>
           </h3>
           <Link
-            href="/explore-1"
+            href="/learnhub"
             className={cn("shrink-0 font-medium text-emerald-400 hover:underline", captionText)}
           >
             See all

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { getDeepDiveContent } from "@/data/deepDiveContent";
 import { getTheoryOrPlaceholder } from "@/data/topicTheory";
 import { resolveTopicFromParams, buildTopicPath } from "@/lib/curriculum/topicRoutes";
+import { LEARN_HUB_PATH } from "@/lib/learnhub/routes";
 import {
   formatDifficultyLevelForUi,
   type DifficultyLevel,
@@ -394,7 +395,7 @@ function DeepDivePageInner() {
           deepDiveContent: null,
           sectionTitle: "Deep Dive",
           instaCueCards: [] as InstaCueCard[],
-          topicHref: "/explore-1",
+          topicHref: LEARN_HUB_PATH,
           topicNode: null,
           subtopicName: "",
         };
@@ -550,7 +551,7 @@ function DeepDivePageInner() {
               "This topic or unit may not exist, or your syllabus has not loaded. Check the URL or go back to Explore."}
           </p>
           <Button asChild variant="outline" className="rounded-xl">
-            <Link href="/explore-1">Back to Explore</Link>
+            <Link href={LEARN_HUB_PATH}>Back to Learn Hub</Link>
           </Button>
         </div>
       </AppLayout>

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parsePyqWorkedSolution } from "@/lib/chapter-pyq/pyqWorkedSolution";
 import {
   formatPyqExamLabel,
   formatPyqExamShift,
@@ -137,10 +138,10 @@ describe("pyq question mapper", () => {
     );
   });
 
-  it("leaves Tips and Formula's empty until those columns are filled", () => {
+  it("provides fallback Tips and Formula's when database columns are empty", () => {
     const mapped = mapPyqRowToChapterPyqQuestion(byId("000000000001"), "Laws of Motion")!;
-    expect(mapped.question.coachTips).toBeNull();
-    expect(mapped.question.coachFormulas).toBeNull();
+    expect(mapped.question.coachTips).toBeTruthy();
+    expect(mapped.question.coachFormulas).toBeTruthy();
   });
 
   it("maps stored tips and formulas markdown into the NTA popups", () => {
@@ -175,7 +176,7 @@ describe("pyq question mapper", () => {
     expect(mapped.question.solution).toContain("1. $a = F/m$");
   });
 
-  it("keeps phase JSON on solution and does not wrap it as HTML", () => {
+  it("renders phase JSON into worked HTML and keeps the raw payload on solution", () => {
     const payload = JSON.stringify({
       answer: "4",
       title: "Definite Integral via Symmetry",
@@ -191,7 +192,8 @@ describe("pyq question mapper", () => {
       { ...byId("000000000001"), solution_md: payload },
       "Laws of Motion"
     )!;
-    expect(mapped.question.solutionHtml).toBeNull();
+    expect(mapped.question.solutionHtml).toContain("nta-paper-steps");
+    expect(mapped.question.solutionHtml).toContain("Symmetry Decomposition");
     expect(mapped.question.solution).toBe(payload);
     expect(mapped.question.solution).toContain("Definite Integral via Symmetry");
   });

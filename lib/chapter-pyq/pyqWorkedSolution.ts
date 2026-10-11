@@ -1,4 +1,4 @@
-import { resolvePyqFigureHtml } from "@/lib/chapter-pyq/pyqFigures";
+import { resolvePyqFigureHtml, type PyqFigureFolder } from "@/lib/chapter-pyq/pyqFigures";
 
 export type PyqWorkedCallout = {
   text: string;
@@ -49,7 +49,7 @@ function strList(value: unknown): string[] {
 function calloutOf(value: unknown): PyqWorkedCallout | undefined {
   const rec = asRecord(value);
   if (!rec) return undefined;
-  const text = String(rec.text ?? "").trim();
+  const text = wrapBareTexProse(String(rec.text ?? "").trim());
   const tex = String(rec.tex ?? "").trim();
   if (!text && !tex) return undefined;
   return { text, tex };
@@ -61,7 +61,7 @@ function gridOf(value: unknown): PyqWorkedGridCell[] {
   for (const item of value) {
     const rec = asRecord(item);
     if (!rec) continue;
-    const label = String(rec.label ?? "").trim();
+    const label = wrapBareTexProse(String(rec.label ?? "").trim());
     const tex = String(rec.tex ?? "").trim();
     if (label || tex) out.push({ label, tex });
   }
@@ -74,14 +74,12 @@ function blockOf(value: unknown): PyqWorkedBlock | null {
   const kind = String(rec.kind ?? "").trim();
   switch (kind) {
     case "paragraph": {
-      const text = String(rec.text ?? "").trim();
+      const text = wrapBareTexProse(String(rec.text ?? "").trim());
       return isUsefulProse(text) ? { kind: "paragraph", text: cleanProse(text) } : null;
     }
     case "callout": {
-      const text = String(rec.text ?? "").trim();
-      const tex = String(rec.tex ?? "").trim();
-      if (!text && !tex) return null;
-      return { kind: "callout", text, tex };
+      const callout = calloutOf(rec);
+      return callout ? { kind: "callout", ...callout } : null;
     }
     case "display": {
       const tex = String(rec.tex ?? "").trim();
@@ -137,9 +135,9 @@ export function synthesizePhaseBlocks(input: {
 function phaseOf(value: unknown): PyqWorkedPhase | null {
   const rec = asRecord(value);
   if (!rec) return null;
-  const title = String(rec.title ?? "").trim();
+  const title = wrapBareTexProse(String(rec.title ?? "").trim());
   if (!title) return null;
-  const paragraphs = strList(rec.paragraphs);
+  const paragraphs = strList(rec.paragraphs).map(wrapBareTexProse);
   const callout = calloutOf(rec.callout);
   const displays = strList(rec.displays);
   const grid = gridOf(rec.grid);
@@ -256,7 +254,7 @@ export function polishWorkedSolution(sol: PyqWorkedSolution): PyqWorkedSolution 
     else if (!isCompactAnswerTex(tex)) tex = "";
   }
 
-  return { ...sol, answer_note: note, answer_tex: tex };
+  return { ...sol, answer_note: wrapBareTexProse(note), answer_tex: tex };
 }
 
 function fromJsonObject(raw: Record<string, unknown>): PyqWorkedSolution | null {
@@ -330,6 +328,112 @@ function maskMath(text: string): { masked: string; holes: string[] } {
 
 function unmaskMath(text: string, holes: string[]): string {
   return text.replace(/\u0000(\d+)\u0000/g, (_all, index: string) => holes[Number(index)] ?? "");
+}
+
+const BARE_CARET = /([A-Za-z0-9\u0370-\u03FF)])\^(\{[^{}]*\}|\d+|[A-Za-z])/g;
+
+/** A command (`\frac`), a spacer (`\,`), or a braced subscript (`a_{cm}`) with no `$` is still TeX. Carets stay with wrapBareCarets. */
+const BARE_TEX_CMD = /\\[A-Za-z]+|\\[,;:!]|_\{/;
+
+/**
+ * glm prose with `\cdot` / `\le` / `\sqrt{…}` but no `$` would reach the student as raw TeX.
+ * Pure math becomes one `$…$`; a sentence keeps its words and wraps only the math runs.
+ */
+/**
+ * `v_cm` is one subscript in print; KaTeX would show only `v_c` and a following `m`.
+ * A product `A_xB_x` or `F_xv_x` already is single-letter subscripts, so it stays.
+ */
+function braceBareSubscripts(tex: string): string {
+  return tex.replace(/([A-Za-z])_([a-z]{2,})(?!_)/g, (_all, base: string, sub: string) => `${base}_{${sub}}`);
+}
+
+function braceDelimitedMath(text: string): string {
+  return text.replace(/\$\$([\s\S]+?)\$\$|\$([^$\n]+)\$/g, (full, display: string | undefined, inline: string | undefined) => {
+    if (display != null) return `$$${braceBareSubscripts(display)}$$`;
+    return `$${braceBareSubscripts(inline ?? "")}$`;
+  });
+}
+
+export function wrapBareTexProse(text: string): string {
+  const lead = text.match(/^\s*/)?.[0] ?? "";
+  const tail = text.match(/\s*$/)?.[0] ?? "";
+  const t = text.trim();
+  if (!t) return text;
+  if (t.includes("$")) {
+    return (
+      lead +
+      braceDelimitedMath(
+        t
+          .split(/(\$\$[\s\S]+?\$\$|\$[^$\n]+\$)/g)
+          .map((part) => (part.startsWith("$") ? part : wrapBareTexProse(part)))
+          .join("")
+      ) +
+      tail
+    );
+  }
+  if (!BARE_TEX_CMD.test(t)) return lead + braceDelimitedMath(wrapBareCarets(t)) + tail;
+  const hasProse = tokenizeProse(t).some((token) => token.kind === "prose");
+  const wrapped = hasProse ? splitBareProseProblemTex(t) : `$${trimTexSpacing(t)}$`;
+  return lead + braceDelimitedMath(wrapped) + tail;
+}
+
+/** glm prose sometimes writes `x^2` with no `$`; KaTeX auto-render would show the caret. */
+const GROUP_CARET = /\)\^(\{[^{}]*\}|\d+|[A-Za-z])/g;
+
+/** `(1-x^7)^K`: the whole group is one formula, so it is wrapped before its inner `x^7`. */
+function wrapCaretGroups(text: string): string {
+  const { masked, holes } = maskMath(text);
+  let out = "";
+  let last = 0;
+  for (const match of masked.matchAll(GROUP_CARET)) {
+    const at = match.index ?? 0;
+    let start = -1;
+    let depth = 0;
+    for (let i = at; i >= last; i--) {
+      if (masked[i] === ")") depth += 1;
+      else if (masked[i] === "(" && --depth === 0) {
+        start = i;
+        break;
+      }
+    }
+    if (start < 0) continue;
+    const group = masked.slice(start, at + 1);
+    if (group.length > 48 || /(?<!\\)[A-Za-z]{4,}/.test(group)) continue;
+    const inner = unmaskMath(group, holes.map((h) => h.replace(/^\$+|\$+$/g, "")));
+    const exp = match[1]!.replace(/^\{|\}$/g, "");
+    out += masked.slice(last, start) + `$${inner}^{${exp}}$`;
+    last = at + match[0].length;
+  }
+  out += masked.slice(last);
+  return unmaskMath(out, holes);
+}
+
+export function wrapBareCarets(text: string): string {
+  if (!text.includes("^")) return text;
+  const { masked, holes } = maskMath(wrapCaretGroups(text));
+  let out = "";
+  let last = 0;
+  for (const match of masked.matchAll(BARE_CARET)) {
+    const at = match.index ?? 0;
+    const base = match[1]!;
+    const exp = match[2]!.replace(/^\{|\}$/g, "");
+    let start = at;
+    if (base === ")") {
+      let depth = 0;
+      for (let i = at; i >= last; i--) {
+        if (masked[i] === ")") depth += 1;
+        else if (masked[i] === "(" && --depth === 0) {
+          start = i;
+          break;
+        }
+      }
+      if (start === at) continue;
+    }
+    out += masked.slice(last, start) + `$${masked.slice(start, at)}${base}^{${exp}}$`;
+    last = at + match[0].length;
+  }
+  out += masked.slice(last);
+  return unmaskMath(out, holes);
 }
 
 function splitThoughtUnits(text: string): string[] {
@@ -428,6 +532,10 @@ function layoutWorkedBlocks(blocks: PyqWorkedBlock[]): PyqWorkedBlock[] {
   for (const block of blocks) {
     if (block.kind !== "paragraph") {
       flushTrials();
+      const prev = out[out.length - 1];
+      if (block.kind === "display" && prev?.kind === "callout" && texKey(prev.tex) === texKey(block.tex)) {
+        continue;
+      }
       out.push(block);
       continue;
     }
@@ -523,7 +631,14 @@ function fromNumberedMarkdown(md: string): PyqWorkedSolution | null {
   });
 }
 
-const PAPER_HEADING = /^##\s+Step\s+(\d+):\s+(.+)$/i;
+/**
+ * `## Step 2: Title`, `## Given Information`, `### Notes` — one phase per markdown heading.
+ * A leading `Step N:` prefix is stripped so the sheet's own STEP pill is not duplicated.
+ */
+const MD_HEADING = /^#{1,3}\s+(?:Step\s*[-–]?\s*\d+\s*[:.]?\s*)?(.+)$/i;
+
+/** Any markdown ATX heading at line start marks a structured write-up worth the worked sheet. */
+const MD_HEADING_ANY = /^#{1,3}\s+\S/m;
 const PAPER_MARK = /<!--\s*paper-ocr\s*-->/g;
 const CROP_FIG_TOKEN = /\[\[fig:[a-zA-Z0-9_]*_crop\]\]/gi;
 const WATERMARK_LINE =
@@ -531,11 +646,11 @@ const WATERMARK_LINE =
 const PAPER_LISTING_PREFIX =
   /^(?:Q\s*\d{1,2}\.\s*(?:\([^)]+\)\s*)?|\d{1,2}\.\s*\([^)]+\)\s*)/;
 
-function paperLineBlocks(line: string): PyqWorkedBlock[] {
+function paperLineBlocks(line: string, folder: PyqFigureFolder): PyqWorkedBlock[] {
   const trimmed = line.replace(PAPER_LISTING_PREFIX, "").trim();
   if (!trimmed || WATERMARK_LINE.test(trimmed)) return [];
   if (/\[\[fig:/.test(trimmed)) {
-    const html = resolvePyqFigureHtml(trimmed, [], "math/figures", { appendUnused: false }).trim();
+    const html = resolvePyqFigureHtml(trimmed, [], folder, { appendUnused: false }).trim();
     if (!html || html === trimmed.replace(/\[\[fig:[a-zA-Z0-9_]+\]\]/g, "").trim()) {
       return trimmed.replace(/\[\[fig:[^\]]+\]\]/g, "").trim()
         ? [{ kind: "paragraph", text: trimmed.replace(/\[\[fig:[^\]]+\]\]/g, "").trim() }]
@@ -548,7 +663,15 @@ function paperLineBlocks(line: string): PyqWorkedBlock[] {
   return splitProseAndMath(trimmed);
 }
 
-function fromPaperOcrMarkdown(md: string): PyqWorkedSolution | null {
+/** Enriched markdown carries bold markers and bullet dashes the sheet must not render literally. */
+function cleanMarkdownLine(line: string): string {
+  return line
+    .replace(/\*\*/g, "")
+    .replace(/^[-*•]\s+/, "")
+    .trim();
+}
+
+function fromPaperOcrMarkdown(md: string, folder: PyqFigureFolder): PyqWorkedSolution | null {
   const lines = md
     .replace(PAPER_MARK, "")
     .replace(CROP_FIG_TOKEN, "")
@@ -560,10 +683,11 @@ function fromPaperOcrMarkdown(md: string): PyqWorkedSolution | null {
 
   const phases: PyqWorkedPhase[] = [];
   for (const line of lines) {
-    const heading = line.match(PAPER_HEADING);
+    if (WATERMARK_LINE.test(line)) continue;
+    const heading = line.match(MD_HEADING);
     if (heading) {
       phases.push({
-        title: heading[2]!.trim(),
+        title: cleanMarkdownLine(heading[1] ?? ""),
         paragraphs: [],
         displays: [],
         grid: [],
@@ -574,10 +698,10 @@ function fromPaperOcrMarkdown(md: string): PyqWorkedSolution | null {
     if (phases.length === 0) {
       phases.push({ title: "Solution", paragraphs: [], displays: [], grid: [], blocks: [] });
     }
-    phases[phases.length - 1]!.blocks.push(...paperLineBlocks(line));
+    phases[phases.length - 1]!.blocks.push(...paperLineBlocks(cleanMarkdownLine(line), folder));
   }
 
-  const filled = phases.filter((phase) => phase.blocks.length > 0);
+  const filled = dropRepeatedOptionStep(phases.filter((phase) => phase.title || phase.blocks.length > 0));
   if (filled.length === 0) return null;
   for (const phase of filled) {
     phase.displays = phase.blocks.filter((b) => b.kind === "display").map((b) => b.tex);
@@ -604,6 +728,62 @@ function fromPaperOcrMarkdown(md: string): PyqWorkedSolution | null {
 export function isPaperOcrSolution(raw: string): boolean {
   const text = String(raw ?? "");
   return /<!--\s*paper-ocr\s*-->/.test(text) || /\[\[fig:/.test(text);
+}
+
+/**
+ * Physics MCQ answers are an option, not a derived quantity. The worked sheet
+ * takes its FINAL ANSWER chip and note from the *last* step, so appending a
+ * closing step that carries only the option leaves the chip empty and the note
+ * naming the option — the student sees which option, never the keyed algebra.
+ *
+ * A printed line that already names the option ("Correct Option (3)") is that
+ * closing step. Appending another Final Answer reprints it.
+ *
+ * Idempotent: a solution that already ends with this step is returned unchanged.
+ */
+const PAPER_OPTION_FINAL = /##\s*Final Answer\s*\n\s*Option\s*[1-4]\s*$/i;
+const PRINTED_OPTION_LINE =
+  /^(?:correct\s+)?option\s*\(?\s*[1-4]\s*\)?\.?$|^(?:ans(?:wer)?\.?)\s*(?:is|:)?\s*\(?\s*[1-4]\s*\)?\.?$/i;
+
+function endsWithPrintedOption(text: string): boolean {
+  const lines = text
+    .trimEnd()
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const last = lines[lines.length - 1] ?? "";
+  return PRINTED_OPTION_LINE.test(last);
+}
+
+/**
+ * The mapper used to append `## Final Answer / Option N` after a paper step
+ * that already said "Correct Option (N)". Drop that repeat so the sheet shows
+ * one closing step. A lone appended option step is kept: that is the case
+ * where the paper never named the option.
+ */
+function dropRepeatedOptionStep(phases: PyqWorkedPhase[]): PyqWorkedPhase[] {
+  if (phases.length < 2) return phases;
+  const last = phases[phases.length - 1]!;
+  if (!/^final answer$/i.test(last.title.trim())) return phases;
+  const only =
+    last.blocks.length === 1 && last.blocks[0]?.kind === "paragraph" ? last.blocks[0].text.trim() : "";
+  if (!/^option\s+[1-4]$/i.test(only)) return phases;
+  const alreadyNamed = phases.slice(0, -1).some((phase) => {
+    if (!/final answer/i.test(phase.title)) return false;
+    return phase.blocks.some(
+      (block) => block.kind === "paragraph" && PRINTED_OPTION_LINE.test(block.text.trim())
+    );
+  });
+  return alreadyNamed ? phases.slice(0, -1) : phases;
+}
+
+export function appendOptionFinalStep(md: string, option: number | null | undefined): string {
+  const text = String(md ?? "");
+  if (!text.trim()) return text;
+  if (option == null || !/^[1-4]$/.test(String(option))) return text;
+  if (PAPER_OPTION_FINAL.test(text.trimEnd())) return text;
+  if (endsWithPrintedOption(text)) return text;
+  return `${text.trimEnd()}\n\n## Final Answer\nOption ${option}\n`;
 }
 
 const SMASHED_JSON_TEX =
@@ -700,19 +880,35 @@ function parseWorkedJson(blob: string): PyqWorkedSolution | null {
   return fromJsonObject(rec);
 }
 
-export function parsePyqWorkedSolution(raw: string): PyqWorkedSolution | null {
+export function parsePyqWorkedSolution(
+  raw: string,
+  folder: PyqFigureFolder = "math/figures"
+): PyqWorkedSolution | null {
   const text = String(raw ?? "").trim();
   if (!text) return null;
   if (isPaperOcrSolution(text) && !text.startsWith("{")) {
-    return fromPaperOcrMarkdown(text);
+    return fromPaperOcrMarkdown(text, folder);
   }
   const blob = jsonObjectBlob(text);
   if (blob) return parseWorkedJson(blob);
+  // Enriched solutions are plain `## Step N:` markdown with no paper-ocr marker;
+  // they ride the same worked sheet instead of the raw-text modal.
+  if (MD_HEADING_ANY.test(text)) return fromPaperOcrMarkdown(text, folder);
   return fromNumberedMarkdown(text);
 }
 
+function stripMathDelimiters(tex: string): string {
+  const t = tex.trim();
+  const display = t.match(/^\$\$([\s\S]*)\$\$$/);
+  if (display?.[1] != null) return display[1].trim();
+  const inline = t.match(/^\$([\s\S]*)\$$/);
+  if (inline?.[1] != null && !inline[1].includes("$")) return inline[1].trim();
+  return t;
+}
+
 export function wrapDisplayTex(tex: string): string {
-  const t = stackEqualsChain(tex.trim());
+  const stripped = braceBareSubscripts(stripMathDelimiters(tex));
+  const t = stackEqualsChain(stripped);
   if (!t) return "";
   if (t.startsWith("$$") || t.startsWith("$")) return t;
   return `$$${t}$$`;
@@ -791,46 +987,170 @@ function isTextCommandAt(source: string, index: number): boolean {
   return after < source.length && (source[after] === "{" || source[after] === " " || source[after] === "\t");
 }
 
+const NESTING_OPEN = /^\\(?:left|begin)(?![A-Za-z])/;
+const NESTING_CLOSE = /^\\(?:right|end)(?![A-Za-z])/;
+
+/**
+ * Top-level `\text{…}` groups only: one inside `\frac{…}`, `1^{\text{st}}`, `\left\{…\right\}` or
+ * `\begin{cases}` is part of that formula, and splitting there leaves `$` islands KaTeX rejects.
+ */
+function topLevelTextGroups(t: string): { start: number; end: number; inner: string }[] {
+  const groups: { start: number; end: number; inner: string }[] = [];
+  let braces = 0;
+  let nesting = 0;
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i]!;
+    if (ch === "\\") {
+      const rest = t.slice(i);
+      if (NESTING_OPEN.test(rest)) nesting += 1;
+      else if (NESTING_CLOSE.test(rest)) nesting = Math.max(0, nesting - 1);
+      else if (braces === 0 && nesting === 0 && isTextCommandAt(t, i)) {
+        const braceAt = t.indexOf("{", i);
+        const group = braceAt >= 0 ? readBraceGroup(t, braceAt) : null;
+        if (group) {
+          groups.push({ start: i, end: group.end, inner: group.inner });
+          i = group.end;
+          continue;
+        }
+      }
+      i += 1;
+      continue;
+    }
+    if (ch === "{") braces += 1;
+    else if (ch === "}") braces = Math.max(0, braces - 1);
+  }
+  return groups;
+}
+
 /** Turn `\text{If } \theta_1 \text{ and } …` into wrapping `If $\theta_1$ and …`. */
 export function unwrapProblemTex(tex: string): string {
   const t = tex.trim();
   if (!t) return "";
-  let i = 0;
   let out = "";
-  let mathBuf = "";
-  const flushMath = () => {
-    const math = mathBuf.replace(/\s+/g, " ").trim();
-    mathBuf = "";
-    if (!math) return;
-    if (out && !/\s$/.test(out)) out += " ";
-    out += `$${math}$`;
-  };
-  while (i < t.length) {
-    if (isTextCommandAt(t, i)) {
-      const braceAt = t.indexOf("{", i);
-      const group = braceAt >= 0 ? readBraceGroup(t, braceAt) : null;
-      if (group) {
-        flushMath();
-        out += group.inner.replace(/~/g, " ");
-        i = group.end + 1;
-        continue;
-      }
+  const pushMath = (raw: string) => {
+    const full = trimTexSpacing(raw.replace(/\s+/g, " "));
+    const tail = full.match(/[.,;]+$/)?.[0] ?? "";
+    const math = trimTexSpacing(full.slice(0, full.length - tail.length));
+    if (!math) {
+      out += tail;
+      return;
     }
-    mathBuf += t[i];
-    i += 1;
+    if (out && !/\s$/.test(out)) out += " ";
+    out += `$${math}$${tail}`;
+  };
+  let at = 0;
+  for (const group of topLevelTextGroups(t)) {
+    pushMath(t.slice(at, group.start));
+    out += group.inner.replace(/~/g, " ");
+    at = group.end + 1;
   }
-  flushMath();
+  pushMath(t.slice(at));
   return out.replace(/[ \t]{2,}/g, " ").replace(/\s+([,.;:!?])/g, "$1").trim();
+}
+
+const WEAK_PROSE = new Set([
+  "a", "an", "as", "at", "be", "by", "if", "in", "is", "it", "of", "on", "or", "so", "to", "we",
+]);
+const TRAILING_PUNCT = /[,.;:!?]+$/;
+
+type ProseToken = { raw: string; kind: "prose" | "weak" | "punct" | "math" };
+
+function proseTokenKind(raw: string): ProseToken["kind"] {
+  if (/^[,.;:!?]+$/.test(raw)) return "punct";
+  const word = raw.replace(TRAILING_PUNCT, "");
+  if (/^[A-Za-z]{3,}$/.test(word)) return "prose";
+  if (WEAK_PROSE.has(word.toLowerCase())) return "weak";
+  return "math";
+}
+
+/** A `\\` line break or `\,` / `\ ` / `\quad` spacer right before `$` would escape the closing delimiter. */
+function trimTexSpacing(math: string): string {
+  const edge = String.raw`(?:\\\\|\\[,;:! ]|\\q?quad(?![A-Za-z])|\s)+`;
+  return math.replace(new RegExp(`^${edge}`), "").replace(new RegExp(`${edge}$`), "");
+}
+
+/** Words inside an open `{…}` (`\text{ on }`, `\frac{a + b}{c}`) belong to the math around them. */
+function tokenizeProse(tex: string): ProseToken[] {
+  let depth = 0;
+  return tex
+    .trim()
+    .split(/\s+/)
+    .map((raw) => {
+      const inside = depth > 0;
+      for (const ch of raw.replace(/\\[{}]/g, "")) {
+        if (ch === "{") depth += 1;
+        else if (ch === "}") depth -= 1;
+      }
+      return { raw, kind: inside || depth > 0 ? "math" : proseTokenKind(raw) };
+    });
+}
+
+function isBareProseProblemTex(tex: string): boolean {
+  if (tex.includes("$")) return false;
+  return tokenizeProse(tex).filter((token) => token.kind === "prose").length >= 4;
+}
+
+/** A glm `problem_tex` written as a plain English sentence: prose stays text, runs of math get `$…$`. */
+function splitBareProseProblemTex(tex: string): string {
+  const tokens = tokenizeProse(tex);
+  const neighbourKind = (from: number, step: number): ProseToken["kind"] | "edge" => {
+    for (let i = from + step; i >= 0 && i < tokens.length; i += step) {
+      if (tokens[i]!.kind !== "punct") return tokens[i]!.kind;
+    }
+    return "edge";
+  };
+  for (let changed = true; changed; ) {
+    changed = false;
+    tokens.forEach((token, i) => {
+      if (token.kind !== "weak") return;
+      const capitalised = /^[A-Z]/.test(token.raw);
+      const near = [neighbourKind(i, -1), neighbourKind(i, 1)];
+      if (capitalised || near.includes("prose") || near.includes("edge")) {
+        token.kind = "prose";
+        changed = true;
+      } else if (near.every((kind) => kind === "math")) {
+        token.kind = "math";
+        changed = true;
+      }
+    });
+  }
+  const parts: string[] = [];
+  let math: string[] = [];
+  const flushMath = () => {
+    if (math.length === 0) return;
+    const joined = math.join(" ");
+    const tail = joined.match(TRAILING_PUNCT)?.[0] ?? "";
+    const body = trimTexSpacing(joined.slice(0, joined.length - tail.length));
+    parts.push(body ? `$${body}$${tail}` : tail);
+    math = [];
+  };
+  tokens.forEach((token, i) => {
+    const isMath =
+      token.kind === "math" ||
+      token.kind === "weak" ||
+      (token.kind === "punct" && math.length > 0 && neighbourKind(i, 1) === "math");
+    if (isMath) {
+      math.push(token.raw);
+      return;
+    }
+    flushMath();
+    parts.push(token.raw);
+  });
+  flushMath();
+  return parts.join(" ");
 }
 
 export function problemTexForQuestion(tex: string): { display: boolean; text: string } {
   const t = tex.trim();
   if (!t) return { display: false, text: "" };
-  if (/\\text\s*\{/.test(t)) {
-    return { display: false, text: unwrapProblemTex(t) };
-  }
   if (t.includes("$") && !t.startsWith("$$")) {
     return { display: false, text: t };
+  }
+  if (topLevelTextGroups(t).length > 0) {
+    return { display: false, text: unwrapProblemTex(t) };
+  }
+  if (isBareProseProblemTex(t)) {
+    return { display: false, text: splitBareProseProblemTex(t) };
   }
   return { display: true, text: t };
 }

@@ -2065,7 +2065,7 @@ export default function StudentHomeDashboard() {
                           item.id === "a"
                             ? "/play"
                             : item.id === "b"
-                              ? "/explore-1"
+                              ? "/learnhub"
                               : item.id === "c"
                                 ? "/doubts"
                                 : item.id === "d"

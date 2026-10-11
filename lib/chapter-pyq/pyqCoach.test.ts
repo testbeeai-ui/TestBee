@@ -17,6 +17,27 @@ describe("parsePyqCoachTips", () => {
     ]);
   });
 
+  it("renders a braced-subscript callout instead of raw TeX", () => {
+    const steps = parsePyqCoachTips(
+      JSON.stringify({
+        tips: [
+          {
+            title: "Newton's second law",
+            body: "Apply $mg - T = ma_{cm}$ vertically at the centre of mass.",
+            callout: "mg - T = ma_{cm}",
+          },
+          {
+            title: "Conserve linear momentum",
+            body: "Find the velocity of the combined centre of mass after the masses stick to the bar.",
+            callout: "mv - 2mv = 23m\\,v_{cm}",
+          },
+        ],
+      })
+    );
+    expect(steps?.[0]?.callout).toBe("$mg - T = ma_{cm}$");
+    expect(steps?.[1]?.callout).toBe("$mv - 2mv = 23m\\,v_{cm}$");
+  });
+
   it("keeps an explicit formula callout on the step", () => {
     const steps = parsePyqCoachTips(
       JSON.stringify({

@@ -48,6 +48,7 @@ export type PyqQuestionRow = {
   correct_option: number | null;
   numerical_answer: string | null;
   exam_date: string | null;
+  exam_year?: number | null;
   exam_shift: PyqExamShift | null;
   source_page: number;
   review_status: string;
@@ -74,6 +75,7 @@ export const PYQ_QUESTION_SELECT = [
   "correct_option",
   "numerical_answer",
   "exam_date",
+  "exam_year",
   "exam_shift",
   "source_page",
   "review_status",
@@ -101,6 +103,7 @@ export const PYQ_COUNT_SELECT = [
   "format",
   "body",
   "numerical_answer",
+  "exam_year",
   "chapters:pyq_chapters!inner(catalog_slug)",
   "question_options:pyq_question_options(option_index, body)",
 ].join(", ");
@@ -130,36 +133,47 @@ export function isPyqPaperFilled(row: {
   if (/\$[A-Za-z](?:_\{[^}]+\})?\s*=\s*\{[A-Za-z$]/.test(body)) return false;
   if (/\{[A-Za-z]\$$/.test(body)) return false;
   if (/(?:\\sqrt|√)\s*$/.test(body)) return false;
+  const format = row.format;
+  // A complete MCQ (four real options) is not a truncated stem even when the
+  // printed stem ends in `:` / `,` — the options are the completion.
+  const mcqTexts =
+    format === "mcq"
+      ? [...(row.question_options ?? [])]
+          .sort((a, b) => a.option_index - b.option_index)
+          .slice(0, 4)
+          .map((o) => cleanPyqOcrText(o.body ?? "").trim())
+      : [];
+  const hasFourOptions = mcqTexts.length === 4 && mcqTexts.every((t) => Boolean(t));
+
+  // Commas and colons inside `$…$` (`\, dx`, `n=1, 2, 3`) are math, not a cut-off tail.
+  const prose = body.replace(/\$\$[\s\S]*?\$\$|\$[^$]*\$/g, " M ").replace(/\s+/g, " ").trim();
   if (
-    /:\s*$/.test(body) &&
-    !/\b(is|are|equal|equals|then|which|find|follows|has|represents|below|equation|intersect)\b/i.test(
-      body.slice(-40)
+    !hasFourOptions &&
+    /:\s*$/.test(prose) &&
+    !/\b(is|are|equal|equals|then|which|find|follows|has|represents|below|equation|intersect|lies|on|line|curve|belongs?|to|satisfies|in|if|only)\b|\bM\s*:\s*$/i.test(
+      prose.slice(-40)
     )
   ) {
     return false;
   }
-  // Truncated tails like `, ₁/2`. A real stem may end `, is` / `, then:` / `, represents:`.
+  // Truncated tails like `, ₁/2`. A real stem may end `, is :` / `. Then,` / `M equals :` / `is :-` / `is ———.`.
   if (
-    body.length < 80 &&
-    /,\s*[^,]{0,12}$/.test(body) &&
-    !/,\s*(is(?:\s+equal to)?|then:?|represents:?)\s*$/i.test(body) &&
-    !/\b(?:is:?|are:?|equal to:?)\s*$/i.test(body)
+    !hasFourOptions &&
+    prose.length < 80 &&
+    /,\s*[^,]{0,12}$/.test(prose) &&
+    !/(?:\b(?:then|equals?|equal to|is|are|has|represents)|\bM)\s*(?::-?|[—–-]+|_+|[.,:])*\s*$/i.test(prose)
   ) {
     return false;
   }
   if (body.length < 50 && /[₀-₉ⁿ¹-⁹]/.test(body) && !body.includes("$")) return false;
 
-  const format = row.format;
   if (format == null) return true;
 
   switch (format) {
     case "numerical":
       return Boolean(row.numerical_answer?.trim());
     case "mcq": {
-      const texts = [...(row.question_options ?? [])]
-        .sort((a, b) => a.option_index - b.option_index)
-        .slice(0, 4)
-        .map((o) => cleanPyqOcrText(o.body ?? "").trim());
+      const texts = mcqTexts;
       if (texts.length < 4 || texts.some((t) => !t)) return false;
       if (texts.some((t) => !pyqStudentTextIsSafe(t))) return false;
       return !texts.some((t) => /\b(Inequalities|MUST DO|CONCEPT BUILDER|ADVANCED)\b/i.test(t) && t.length < 48);
@@ -194,6 +208,7 @@ export function sortPyqRows(rows: PyqQuestionRow[]): PyqQuestionRow[] {
 export type PyqCountRow = {
   review_status: string;
   body?: string | null;
+  exam_year?: number | null;
   format?: PyqFormat | null;
   numerical_answer?: string | null;
   question_options?: PyqOptionRow[] | null;
