@@ -8,11 +8,14 @@ const FIG_PLACEHOLDER_RE = /\[\[fig:([a-zA-Z0-9_]+)\]\]/g;
 /** Ingestion key: `p{page:03d}_x{xref}`, `s2026j_q01_1`, `s2025j_di_q04_1`, `s2025apr_te_q03_1`, `s2026_te_q01_1`. */
 const RASTER_KEY = /^(?:p\d+_x\d+|s\d{4}[a-z]{0,3}(?:_[a-z]+)?_q\d+_\d+)$/i;
 
-export type PyqFigureFolder = "physics/figures" | "math/figures";
+export type PyqFigureFolder = "physics/figures" | "math/figures" | "chem/figures";
 
 /** Chapter PYQ subject string → the public folder that subject's drawings use. */
 export function pyqFigureFolderForSubject(subject: string): PyqFigureFolder {
-  return subject.trim().toLowerCase() === "math" ? "math/figures" : "physics/figures";
+  const name = subject.trim().toLowerCase();
+  if (name === "math") return "math/figures";
+  if (name === "chemistry") return "chem/figures";
+  return "physics/figures";
 }
 
 export type ResolvePyqFigureOpts = {
@@ -51,6 +54,7 @@ function folderFromLinks(links: PyqFigureLinkRow[], fallback: PyqFigureFolder): 
   for (const link of links) {
     const path = asFigure(link.figures)?.storage_path ?? "";
     if (path.includes("math/figures")) return "math/figures";
+    if (path.includes("chem/figures")) return "chem/figures";
     if (path.includes("physics/figures")) return "physics/figures";
   }
   return fallback;

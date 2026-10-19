@@ -65,13 +65,14 @@ async function loadAllPages<T>(load: (from: number, to: number, withCount: boole
 }
 
 /**
- * Year window the player serves, per subject. Physics is 2023 onward; Mathematics
- * drops 2020. Both match the year chips the set picker renders, so the chapter
- * card total and the year cards inside can never disagree.
+ * Year window the player serves, per subject. Physics and Chemistry are 2023
+ * onward; Mathematics drops 2020. The floor matches the year chips the set
+ * picker renders, so the chapter card total and the year cards inside agree.
  */
 /** Oldest exam year a subject serves, or null when the subject has no floor. */
 export function subjectFirstExamYear(catalogSlug: string): number | null {
-  return subjectForCatalogSlug(catalogSlug) === "physics" ? PYQ_PHYSICS_FIRST_YEAR : null;
+  const subject = subjectForCatalogSlug(catalogSlug);
+  return subject === "physics" || subject === "chemistry" ? PYQ_PHYSICS_FIRST_YEAR : null;
 }
 
 /** Row-level year window, matching the year cards the set picker renders. */

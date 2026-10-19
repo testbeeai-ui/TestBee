@@ -12,11 +12,10 @@ import {
   type ChapterPyqEntry,
 } from "@/lib/chapter-pyq/catalog";
 import { isChapterPyqStudentVisible, publishedCountForStudent } from "@/lib/chapter-pyq/visibleChapters";
-import { CHAPTER_PYQ_CACHE_VERSION } from "@/lib/chapter-pyq/cacheVersion";
 import { fetchChapterPyqCounts, fetchChapterPyqQuestions } from "@/lib/chapter-pyq/fetchPyqQuestions";
 import type { ChapterPyqQuestion } from "@/lib/chapter-pyq/pyqQuestionMap";
-import { buildPyqEvenPracticeSets, buildPyqSubjectPracticeSets, buildPyqYearMonthSets, secondsForSet, practiceSetSessionLabel, pyqYearSetListedCount, isPyqYearGroupedSubject } from "@/lib/chapter-pyq/pyqSets";
-import { countByTier, filterByTier, PYQ_TIER_CHIPS, type PyqTierFilter } from "@/lib/chapter-pyq/pyqTiers";
+import { buildPyqSubjectPracticeSets, secondsForSet, practiceSetSessionLabel, pyqYearSetListedCount, isPyqYearGroupedSubject } from "@/lib/chapter-pyq/pyqSets";
+import { filterByTier, type PyqTierFilter } from "@/lib/chapter-pyq/pyqTiers";
 import ChapterPyqExamSession from "@/components/chapter-pyq/ChapterPyqExamSession";
 import ChapterPyqTestSetup from "@/components/chapter-pyq/ChapterPyqTestSetup";
 import ChapterPyqAttemptStats from "@/components/chapter-pyq/ChapterPyqAttemptStats";
@@ -406,131 +405,132 @@ const CHAPTER_METAS: Record<string, ChapterMeta> = {
   },
 
   // === CHEMISTRY ===
+  // Same 2023–2026 window as Physics. getChapterMeta also forces SESSION_PYQ_YEAR_RANGE.
   "some-basic-concepts-of-chemistry": {
     category: "Physical Chemistry",
     weightage: "high",
-    yearRange: "2018 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 48,
   },
   "structure-of-atom": {
     category: "Physical Chemistry",
     weightage: "high",
-    yearRange: "2018 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 54,
   },
   "classification-of-elements-and-periodicity": {
     category: "Inorganic Chemistry",
     weightage: "high",
-    yearRange: "2019 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 42,
   },
   "chemical-bonding-and-molecular-structure": {
     category: "Inorganic Chemistry",
     weightage: "high",
-    yearRange: "2017 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 68,
   },
   "chemical-thermodynamics": {
     category: "Physical Chemistry",
     weightage: "high",
-    yearRange: "2017 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 62,
   },
   "equilibrium": {
     category: "Physical Chemistry",
     weightage: "high",
-    yearRange: "2017 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 70,
   },
   "redox-reactions": {
     category: "Physical Chemistry",
     weightage: "normal",
-    yearRange: "2019 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 32,
   },
   "the-p-block-elements": {
     category: "Inorganic Chemistry",
     weightage: "high",
-    yearRange: "2016 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 80,
   },
   "the-d-and-f-block-elements": {
     category: "Inorganic Chemistry",
     weightage: "high",
-    yearRange: "2017 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 52,
   },
   "coordination-compounds": {
     category: "Inorganic Chemistry",
     weightage: "high",
-    yearRange: "2016 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 64,
   },
   "organic-chemistry-basic-principles": {
     category: "Organic Chemistry",
     weightage: "high",
-    yearRange: "2017 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 60,
   },
   "hydrocarbons": {
     category: "Organic Chemistry",
     weightage: "high",
-    yearRange: "2017 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 66,
   },
   "haloalkanes-and-haloarenes": {
     category: "Organic Chemistry",
     weightage: "medium",
-    yearRange: "2018 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 46,
   },
   "alcohols-phenols-and-ethers": {
     category: "Organic Chemistry",
     weightage: "high",
-    yearRange: "2017 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 58,
   },
   "aldehydes-ketones-and-carboxylic-acids": {
     category: "Organic Chemistry",
     weightage: "high",
-    yearRange: "2016 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 72,
   },
   "amines": {
     category: "Organic Chemistry",
     weightage: "medium",
-    yearRange: "2018 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 48,
   },
   "biomolecules": {
     category: "Organic Chemistry",
     weightage: "medium",
-    yearRange: "2019 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 40,
   },
   "solutions": {
     category: "Physical Chemistry",
     weightage: "high",
-    yearRange: "2018 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 56,
   },
   "electrochemistry": {
     category: "Physical Chemistry",
     weightage: "high",
-    yearRange: "2017 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 62,
   },
   "chemical-kinetics": {
     category: "Physical Chemistry",
     weightage: "high",
-    yearRange: "2017 – 2025",
+    yearRange: "2023 – 2026",
     defaultTotal: 58,
   },
 };
 
 const MATH_PYQ_YEAR_RANGE = "2023 – 2026";
-/** Physics serves the same 2023-onward window; see PYQ_PHYSICS_FIRST_YEAR. */
-const PHYSICS_PYQ_YEAR_RANGE = "2023 – 2026";
+/** Physics and Chemistry serve the same 2023-onward window; see PYQ_PHYSICS_FIRST_YEAR. */
+const SESSION_PYQ_YEAR_RANGE = "2023 – 2026";
 
 function getChapterMeta(slug: string, subject: ChapterPyqSubject): ChapterMeta {
   const meta = CHAPTER_METAS[slug];
@@ -546,13 +546,13 @@ function getChapterMeta(slug: string, subject: ChapterPyqSubject): ChapterMeta {
     yearRange: "2019 – 2025",
     defaultTotal: 45,
   };
-  // Both year-grouped subjects must show the window they actually serve, or the
+  // Year-grouped subjects must show the window they actually serve, or the
   // card advertises years the player will never load.
   if (subject === "math") {
     return { ...resolved, yearRange: MATH_PYQ_YEAR_RANGE };
   }
-  if (subject === "physics") {
-    return { ...resolved, yearRange: PHYSICS_PYQ_YEAR_RANGE };
+  if (subject === "physics" || subject === "chemistry") {
+    return { ...resolved, yearRange: SESSION_PYQ_YEAR_RANGE };
   }
   return resolved;
 }
@@ -576,25 +576,30 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
     questions: ChapterPyqQuestion[];
     minutesPerQuestion: number;
   } | null>(null);
+  const [seenEntry, setSeenEntry] = useState(entry);
   const onLiveCountRef = useRef(onLiveCount);
-  onLiveCountRef.current = onLiveCount;
-
   useEffect(() => {
-    if (!entry) return;
-    let cancelled = false;
-    setEntries(null);
+    onLiveCountRef.current = onLiveCount;
+  }, [onLiveCount]);
+
+  if (entry !== seenEntry) {
+    setSeenEntry(entry);
     setLoadError(null);
     setTier("all");
     setActiveSetIndex(null);
     setTestSetup(null);
     setTestDraw(null);
+    setEntries(entry && !isChapterPyqStudentVisible(entry.subject, entry.slug) ? [] : null);
+  }
 
+  useEffect(() => {
+    if (!entry) return;
     if (!isChapterPyqStudentVisible(entry.subject, entry.slug)) {
-      setEntries([]);
       onLiveCountRef.current(entry.slug, 0);
       return;
     }
 
+    let cancelled = false;
     void fetchChapterPyqQuestions(entry.slug, entry.subject)
       .then((bundle) => {
         if (cancelled) return;
@@ -616,7 +621,7 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
     return () => {
       cancelled = true;
     };
-  }, [entry, CHAPTER_PYQ_CACHE_VERSION]);
+  }, [entry]);
 
   // Handle escape key to close modal
   useEffect(() => {
@@ -643,7 +648,6 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
     () => buildPyqSubjectPracticeSets(filtered, entry?.subject),
     [entry?.subject, filtered]
   );
-  const counts = useMemo(() => countByTier(entries ?? []), [entries]);
   const listedQuestionCount = useMemo(
     () =>
       entry && isPyqYearGroupedSubject(entry.subject)
@@ -652,7 +656,7 @@ function ChapterPracticeModal({ entry, onClose, onLiveCount }: ChapterPracticeMo
             0
           )
         : filtered.length,
-    [entry?.slug, entry?.subject, filtered.length, sets]
+    [entry, filtered.length, sets]
   );
 
   if (!entry) return null;
@@ -892,6 +896,11 @@ export default function ChapterPyqListView({
   const [subject, setSubject] = useState<ChapterPyqSubject>(
     subjectFromUrl ?? initialSubject ?? "physics"
   );
+  const [seenUrlSubject, setSeenUrlSubject] = useState(subjectFromUrl);
+  if (!keepAddress && subjectFromUrl !== seenUrlSubject) {
+    setSeenUrlSubject(subjectFromUrl);
+    if (subjectFromUrl) setSubject(subjectFromUrl);
+  }
   const [attemptMap, setAttemptMap] = useState<PyqAttemptMap>({});
   const [query, setQuery] = useState("");
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
@@ -904,11 +913,6 @@ export default function ChapterPyqListView({
     () => filterChapters(chaptersForSubject(subject), query),
     [subject, query]
   );
-
-  useEffect(() => {
-    if (keepAddress) return;
-    if (subjectFromUrl) setSubject(subjectFromUrl);
-  }, [keepAddress, subjectFromUrl]);
 
   const selectSubject = (next: ChapterPyqSubject) => {
     setSubject(next);
@@ -945,7 +949,7 @@ export default function ChapterPyqListView({
     return () => {
       cancelled = true;
     };
-  }, [CHAPTER_PYQ_CACHE_VERSION]);
+  }, []);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

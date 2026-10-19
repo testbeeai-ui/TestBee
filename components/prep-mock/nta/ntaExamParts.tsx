@@ -270,7 +270,7 @@ export const NtaQuestionStem = memo(function NtaQuestionStem({
       <div
         ref={htmlRef}
         className={cn(
-          "prose max-w-none font-medium leading-[1.75] [&_p]:my-2",
+          "prose max-w-none font-medium leading-[1.75] [&_p]:my-2 [&_p.nta-stem-point]:mt-3 [&_p.nta-stem-point]:mb-1",
           mobile
             ? "text-[14px] leading-[1.7] sm:text-[15px]"
             : "text-base sm:text-[17px] md:text-[18px] lg:text-[18.5px] xl:text-[19px]",

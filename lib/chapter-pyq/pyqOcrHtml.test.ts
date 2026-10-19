@@ -1,7 +1,9 @@
 import katex from "katex";
 import { describe, expect, it } from "vitest";
 import { sanitizeMockHtml } from "@/lib/mock/mockHtml";
+import { repairBankMathLatex } from "@/lib/mock/mockRichTextKatex";
 import { cleanPyqOcrText, pyqSolutionToHtml, pyqStemToHtml, pyqStudentTextIsSafe } from "./pyqOcrHtml";
+import { plainCoachCallout } from "./pyqCoach";
 import { PYQ_SAMPLE_FIGURES } from "./fixtures/lawsOfMotionSample";
 import type { PyqFigureLinkRow } from "./pyqQuestionRow";
 
@@ -59,6 +61,41 @@ describe("cleanPyqOcrText", () => {
     expect(cleaned).not.toMatch(/vertical wall/i);
   });
 
+  it("keeps a structure where the paper printed it, not after the Given line", () => {
+    const cleaned = cleanPyqOcrText(
+      "will weigh $x$ g.\n\n[[fig:s2025apr_sbc_q03_1]]\n\n(Given : molar mass in g mol)"
+    );
+    const figAt = cleaned.indexOf("[[fig:s2025apr_sbc_q03_1]]");
+    const givenAt = cleaned.indexOf("(Given");
+    expect(figAt).toBeGreaterThan(-1);
+    expect(givenAt).toBeGreaterThan(figAt);
+  });
+
+  it("keeps the blast-furnace Given list as a right brace with baseline state symbols", () => {
+    const raw = [
+      "Consider the following reaction occurring in the blast furnace:",
+      "",
+      "$\\mathrm{Fe}_3\\mathrm{O}_4(s) + 4\\mathrm{CO}(g) \\rightarrow 3\\mathrm{Fe}(l) + 4\\mathrm{CO}_2(g)$",
+      "",
+      "'$x$' kg of iron is produced when $2.32 \\times 10^{3}$ kg $\\mathrm{Fe}_3\\mathrm{O}_4$ and $2.8 \\times 10^{2}$ kg $\\mathrm{CO}$ are brought together in the furnace.",
+      "",
+      "Given:",
+      "",
+      "$\\left.\\begin{aligned} \\text{molar mass of }\\mathrm{Fe}_3\\mathrm{O}_4 &= 232\\text{ g mol}^{-1} \\\\ \\text{molar mass of }\\mathrm{CO} &= 28\\text{ g mol}^{-1} \\\\ \\text{molar mass of }\\mathrm{Fe} &= 56\\text{ g mol}^{-1} \\end{aligned}\\right\\}$",
+    ].join("\n");
+    const cleaned = cleanPyqOcrText(raw);
+    expect(cleaned).toContain("\\mathrm{Fe}_3\\mathrm{O}_4(s)");
+    expect(cleaned).not.toContain("_{4(s)}");
+    expect(cleaned).toContain("\\right\\}");
+    expect(cleaned).toContain("kg $\\mathrm{Fe}_3\\mathrm{O}_4$");
+    const reaction = cleaned.match(/\$\\mathrm\{Fe\}_3\\mathrm\{O\}_4\(s\)[^$]+\$/)?.[0] ?? "";
+    const given = cleaned.match(/\$\\left\.\\begin\{aligned\}[^$]+\$/)?.[0] ?? "";
+    expect(reaction).not.toBe("");
+    expect(given).not.toBe("");
+    katex.renderToString(repairBankMathLatex(reaction.slice(1, -1)), { throwOnError: true });
+    katex.renderToString(repairBankMathLatex(given.slice(1, -1)), { throwOnError: true });
+  });
+
   it("keeps only the printed option, not the figure caption glued onto it", () => {
     expect(
       cleanPyqOcrText(
@@ -75,6 +112,9 @@ describe("cleanPyqOcrText", () => {
   it("strips book headings, page numbers, and figure labels leaked into the stem", () => {
     expect(cleanPyqOcrText("The maximum speed would be ______ m/s. MUST DO PROBLEMS")).toBe(
       "The maximum speed would be ______ m/s."
+    );
+    expect(cleanPyqOcrText("The value of $x$ is \\_\\_\\_. (nearest integer)")).toBe(
+      "The value of $x$ is ___. (nearest integer)"
     );
     expect(cleanPyqOcrText("Then F equals: (Take g = 10) 75N 49")).toBe(
       "Then F equals: (Take g = 10) 75N"
@@ -259,6 +299,11 @@ describe("cleanPyqOcrText", () => {
     for (const math of [...cleaned.matchAll(/\$([^$]+)\$/g)].map((m) => m[1] ?? "")) {
       expect(() => katex.renderToString(math, { throwOnError: true })).not.toThrow();
     }
+    expect(
+      cleanPyqOcrText(
+        "Identify which of the below medium will favour the reaction. [2023 (06 Apr Shift 2)]"
+      )
+    ).toBe("Identify which of the below medium will favour the reaction.");
     expect(cleanPyqOcrText("3π/4 16 4 4 mi")).toBe("$3\\pi/4$");
     expect(cleanPyqOcrText("5π/6")).toBe("$5\\pi/6$");
     expect(cleanPyqOcrText("is equal to. MathonGo #PaperPhodnaHai www.mathongo.com")).toBe(
@@ -348,6 +393,62 @@ describe("pyqStemToHtml", () => {
     expect(html).toContain("<p class=\"nta-math-plain\">Reason (R): At high enough temperature");
     expect(html).toContain("<p class=\"nta-math-plain\">In the light of the above statements");
     expect(html).not.toContain("domains. Reason (R)");
+  });
+
+  it("lists Statement I and Statement II on their own lines", () => {
+    const raw = [
+      "Given below are two statements :\\nStatement I : $\\text{SO}_2$ and $\\text{H}_2\\text{O}$ both possess V-shaped structure\\nStatement II : The bond angle of $\\text{SO}_2$ is less than that of $\\text{H}_2\\text{O}$.\\nIn the light of the above statements, choose the most appropriate answer.",
+    ].join("");
+    const html = pyqStemToHtml(raw, []);
+    expect(html).toContain('<p class="nta-math-plain">Given below are two statements :</p>');
+    expect(html).toContain('<p class="nta-math-plain">Statement I :');
+    expect(html).toContain('<p class="nta-math-plain">Statement II :');
+    expect(html).toContain('<p class="nta-math-plain">In the light of the above statements');
+    expect(html).not.toContain("structure Statement II");
+    expect(html).not.toContain("statements : Statement I");
+  });
+
+  it("lists A–D statements on their own lines", () => {
+    const raw = [
+      "Identify the INCORRECT statements from the following: A. Notation $^{24}_{12}$Mg represents 24 protons and 12 neutrons.",
+      "B. Wavelength of a radiation of frequency $4.5 \\times 10^{15}$ s$^{-1}$ is $6.7 \\times 10^{-8}$ m.",
+      "C. One radiation has wavelength $= \\lambda_1$(900 nm) and energy $= E_1$. Other radiation has wavelength $= \\lambda_2$(300 nm) and energy $= E_2$. $E_1 : E_2 = 3 : 1$.",
+      "D. Number of photons of light of wavelength 2000 pm that provides 1 J of energy is $1.006 \\times 10^{16}$.",
+      "Choose the correct answer from the options given below:",
+    ].join("\\" + "n");
+    const html = pyqStemToHtml(raw, []);
+    expect(html).toContain('<p class="nta-math-plain">Identify the INCORRECT statements from the following:</p>');
+    expect(html).toContain('<p class="nta-math-plain nta-stem-point">A. Notation');
+    expect(html).toContain('<p class="nta-math-plain nta-stem-point">B. Wavelength');
+    expect(html).toContain('<p class="nta-math-plain nta-stem-point">C. One radiation');
+    expect(html).toContain("$E_1 : E_2 = 3 : 1$");
+    expect(html).toContain('<p class="nta-math-plain nta-stem-point">D. Number of photons');
+    expect(html).toContain('<p class="nta-math-plain">Choose the correct answer from the options given below:</p>');
+    expect(html).not.toContain("neutrons. B. Wavelength");
+    expect(html).not.toContain("1$. D. Number");
+  });
+
+  it("lists an A–E cell question that never says statements", () => {
+    const html = pyqStemToHtml(
+      "In the given electrochemical cell, $\\text{Ag(s)}|\\text{AgCl(s)}$ at $298\\text{ K}$, the cell potential $(E_{\\text{cell}})$ will increase when : A. Concentration of $\\text{Fe}^{2+}$ is increased. B. Concentration of $\\text{Fe}^{3+}$ is decreased. C. Concentration of $\\text{Fe}^{2+}$ is decreased. D. Concentration of $\\text{Fe}^{3+}$ is increased. E. Concentration of $\\text{Cl}^-$ is increased. Choose the correct answer from the options given below :",
+      []
+    );
+    expect(html).toContain('<p class="nta-math-plain nta-stem-point">A. Concentration');
+    expect(html).toContain('<p class="nta-math-plain nta-stem-point">B. Concentration');
+    expect(html).toContain('<p class="nta-math-plain nta-stem-point">C. Concentration');
+    expect(html).toContain('<p class="nta-math-plain nta-stem-point">D. Concentration');
+    expect(html).toContain('<p class="nta-math-plain nta-stem-point">E. Concentration');
+    expect(html).toContain('<p class="nta-math-plain">Choose the correct answer');
+    expect(html).not.toContain("increased. B. Concentration");
+    expect(html).not.toContain("increased. E. Concentration");
+  });
+
+  it("keeps northeast and northwest arrows in the stem", () => {
+    const html = pyqStemToHtml("The ray goes $\\nearrow$ then $\\nwarrow$ and $\\swarrow$ $\\searrow$.", []);
+    expect(html).toContain("$\\nearrow$");
+    expect(html).toContain("$\\nwarrow$");
+    expect(html).toContain("$\\swarrow$");
+    expect(html).toContain("$\\searrow$");
   });
 
   it("still emits the paper raster when figure_links is missing", () => {
@@ -729,5 +830,47 @@ describe("pyqSolutionToHtml", () => {
     expect(wavyAt).toBeLessThan(finalAt);
     expect(html).toContain("Number of local maximum $= 2$");
     expect(html).toContain("Number of local minimum $= 3$");
+  });
+});
+
+describe("printed tables and coach callouts", () => {
+  it("turns a run-on match list into a table", () => {
+    const html = pyqStemToHtml(
+      "Match List-I with List-II. A. Work done in reversible isothermal expansion of 2 mol ideal gas from $2\\text{ dm}^3$ to $20\\text{ dm}^3$ at $300\\text{ K}$ — I. $4$ B. Work done in irreversible isothermal expansion of 1 mol ideal gas — II. $11.5$ C. Change in internal energy for adiabatic expansion, $\\Delta T = 320\\text{ K}$ — III. $6$ D. Change in enthalpy at constant pressure, $\\Delta T = 337\\text{ K}$ — IV. $7$ Choose the correct answer from the options given below:",
+      []
+    );
+    expect(html).toContain('<table class="nta-pyq-table">');
+    expect(html).toContain("reversible isothermal expansion");
+    expect(html).toContain("$11.5$");
+    expect(html).toContain("Choose the correct answer");
+    expect(html.indexOf("<table")).toBeLessThan(html.indexOf("Choose the correct answer"));
+    expect(html).not.toContain("&lt;table");
+  });
+
+  it("does not read the article a as match-list item A", () => {
+    const html = pyqStemToHtml(
+      "For a gas, match List-I with List-II. A. Work done in reversible isothermal expansion — I. $4$ B. Work done in irreversible isothermal expansion — II. $11.5$ C. Change in internal energy — III. $6$ D. Change in enthalpy — IV. $7$ Choose the correct answer from the options given below:",
+      []
+    );
+    expect(html).toContain("For a gas, match List-I with List-II.");
+    expect(html).toContain("<td>A.</td><td>Work done in reversible isothermal expansion</td>");
+    expect(html).not.toContain("<td>gas, match List-I");
+  });
+
+  it("turns a dashed data chart into a table", () => {
+    const html = pyqStemToHtml(
+      "Use the following data : \\nSubstance — $\\Delta H$ — $S$\n$AB(g)$ — 32 — 222\n$A_2(g)$ — 6 — 146\n$B_2(g)$ — $x$ — 280\\nOne mole each of $A_2$ and $B_2$ are taken.",
+      []
+    );
+    expect(html).toContain('<table class="nta-pyq-table">');
+    expect(html).toContain("$AB(g)$");
+    expect(html).toContain("One mole each");
+    expect(html.indexOf("Use the following data")).toBeLessThan(html.indexOf("<table"));
+  });
+
+  it("spells a bare text-command callout instead of gluing the words", () => {
+    expect(plainCoachCallout("\\text{Shape} \\ne \\text{electron geometry when LP} > 0")).toBe(
+      "Shape ≠ electron geometry when LP > 0"
+    );
   });
 });

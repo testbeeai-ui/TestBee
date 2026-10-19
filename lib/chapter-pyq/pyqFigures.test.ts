@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { PYQ_FIGURE_BUCKET, pyqFigurePublicUrl, resolvePyqFigureHtml } from "./pyqFigures";
+import {
+  PYQ_FIGURE_BUCKET,
+  pyqFigureFolderForSubject,
+  pyqFigurePublicUrl,
+  resolvePyqFigureHtml,
+} from "./pyqFigures";
 import { PYQ_SAMPLE_FIGURES } from "./fixtures/lawsOfMotionSample";
 import type { PyqFigureLinkRow } from "./pyqQuestionRow";
 
@@ -62,6 +67,14 @@ describe("pyq figures", () => {
     expect(html).toContain("<img");
     expect(html).toContain("s2025apr_te_q03_1.png");
     expect(html).not.toContain("[[fig:");
+  });
+
+  it("sends chemistry drawings to the chemistry figure folder", () => {
+    expect(pyqFigureFolderForSubject("chemistry")).toBe("chem/figures");
+    expect(pyqFigureFolderForSubject("Chemistry")).toBe("chem/figures");
+    const html = resolvePyqFigureHtml("See [[fig:s2025apr_sbc_q03_1]]", [], "chem/figures");
+    expect(html).toContain("pyq/chem/figures/s2025apr_sbc_q03_1.png");
+    expect(html).toContain('class="nta-mock-img"');
   });
 
   it("synthesizes an img from a year-only session chapter key", () => {

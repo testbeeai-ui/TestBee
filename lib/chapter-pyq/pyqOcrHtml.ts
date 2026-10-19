@@ -8,9 +8,15 @@ const FIG_TOKEN = /\[\[fig:[^\]]+\]\]/g;
 /** OCR leftovers such as `![circuit](https://i.imgur.com/your_image_placeholder.png)`. The real drawing is `[[fig:]]`. */
 const MD_IMAGE = /!\[[^\]]*\](?:\([^)]*\))?/g;
 
+/** Parked `[[fig:]]` token. Caption stripping must stop before it. */
+const FIG_MARK = "\uE001";
+/** Parked match-list / data table. The whitespace pass must not flatten its cells. */
+const TABLE_MARK = "\uE002";
+const NTA_TABLE = /<table\b[^>]*\bnta-pyq-table\b[^>]*>[\s\S]*?<\/table>/gi;
+
 /** Document-AI captions for the printed figure — never part of the question paper. */
 const IMAGE_CAPTION =
-  /(?:The image\s+(?:displays|shows|is)\b|Note:\s*The function is not explicitly|It does not contain any charts|The diagram (?:features|illustrates|visually)|This image is)\b[\s\S]*/i;
+  /(?:The image\s+(?:displays|shows|is)\b|Note:\s*The function is not explicitly|It does not contain any charts|The diagram (?:features|illustrates|visually)|This image is)\b(?:(?!\uE001)[\s\S])*/i;
 
 const HTML_TABLE = /<table\b[\s\S]*?<\/table>/gi;
 const MD_TABLE = /\|[^\n]*\|[\s\S]*/;
@@ -24,6 +30,8 @@ const PAGE_TAIL = /(?<=\S{3})\s+(?:4[6-9]|5[0-9]|60)\s*$/;
 const HASH_MI = /\s*#\s*#\s*mi\s*$/i;
 /** Page-footer digits plus a leftover `mi` scrap on option 4. */
 const PAGE_FOOTER = /(?<=\S)\s+\d{1,3}(?:\s+\d{1,3}){1,4}\s*(?:mi)?\s*$/i;
+/** Booklet session tag. The player already shows the date on the question badge. */
+const EXAM_SESSION_TAG = /\[\s*20\d{2}\s*\(\s*\d{1,2}\s+[A-Za-z]+\s+Shift\s*[12]\s*\)\s*\]/gi;
 
 /**
  * Paper-only OCR: stem/option text as printed. Drop figure captions, invented
@@ -34,16 +42,61 @@ const OPTION_GRAPH =
 
 /** Survives the whitespace collapse, then becomes a blank line between stem blocks. */
 const STEM_PARA = "\uE000";
+/** A stored two-char `\n` is a line break — unless it starts `\neq`, `\notin`, `\nu`, `\nabla`, … */
+const LITERAL_NEWLINE =
+  /(?<!\\)\\n(?!(?:e|eq|eg|earrow|u|abla|ot|otin|i|mid|leq|geq|less|gtr|exists|parallel|subseteq|supseteq|leftarrow|rightarrow|Leftarrow|Rightarrow|leftrightarrow|Leftrightarrow|cong|sim|prec|succ|vdash|vDash|searrow|nwarrow|warrow|atural|ewline)(?![A-Za-z]))/g;
 const ASSERTION_LABEL =
-  String.raw`Assertion\s*\(\s*A\s*\)\s*:|Reason\s*\(\s*R\s*\)\s*:|In the light of the above`;
+  String.raw`Assertion\s*\(\s*A\s*\)\s*:|Reason\s*\(\s*R\s*\)\s*:|Statement\s*[-–]?\s*(?:I{1,3}|[12])\s*:|In the light of the above`;
 
 /**
  * Assertion–Reason stems are printed as separate lines. The cleaner collapses
  * every newline, so mark those breaks before the collapse and put them back after.
  */
+/**
+ * "A. … B. … C. …" lists are printed as one OCR line, including lists
+ * that never say "statements". A real item starts with a capital, a digit,
+ * or math, and the letters run in order. A passing mention such as
+ * "both (A) and (B)" does not.
+ */
+function markLetterStatements(chunk: string): string {
+  const mathSpans: Array<[number, number]> = [];
+  const mathRe = /\$[^$]*\$/g;
+  let math: RegExpExecArray | null;
+  while ((math = mathRe.exec(chunk)) !== null) {
+    mathSpans.push([math.index, math.index + math[0].length]);
+  }
+  const insideMath = (index: number) => mathSpans.some(([start, end]) => index >= start && index < end);
+  const re = /(?:^|(?<=[\s:.]))(?:\(([A-E])\)|([A-E])\.)(?=\s+(?:[A-Z0-9$\\]))/g;
+  const hits: { index: number; letter: string }[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(chunk)) !== null) {
+    if (insideMath(match.index)) continue;
+    hits.push({ index: match.index, letter: (match[1] || match[2] || "").toUpperCase() });
+  }
+  const order = ["A", "B", "C", "D", "E"] as const;
+  const run: { index: number; letter: string }[] = [];
+  let after = -1;
+  for (const want of order) {
+    const hit = hits.find((item) => item.letter === want && item.index > after);
+    if (!hit) break;
+    run.push(hit);
+    after = hit.index;
+  }
+  if (run.length < 3) return chunk;
+  let out = chunk;
+  for (const hit of [...run].reverse()) {
+    if (hit.index <= 0) continue;
+    out = `${out.slice(0, hit.index).trimEnd()}${STEM_PARA}${out.slice(hit.index)}`;
+  }
+  return out.replace(/\s+(?=Choose the correct answer\b)/gi, STEM_PARA);
+}
+
 function protectStemParagraphs(s: string): string {
   const label = ASSERTION_LABEL;
-  let out = s.replace(/\r\n/g, "\n");
+  let out = s.replace(/\r\n/g, "\n").replace(LITERAL_NEWLINE, "\n");
+  // Blank lines are printed blocks (a reaction, a structure, a Given list).
+  // Single wrapped lines still collapse below.
+  out = out.replace(/\n{2,}/g, STEM_PARA);
   out = out.replace(
     new RegExp(String.raw`\n+([^\n]{0,140}:)\n+(?=(?:${label}))`, "gi"),
     (_m, line: string) => `${STEM_PARA}${line.trim()}${STEM_PARA}`
@@ -57,6 +110,7 @@ function protectStemParagraphs(s: string): string {
     ),
     `.${STEM_PARA}`
   );
+  out = markLetterStatements(out);
   return out;
 }
 
@@ -69,8 +123,21 @@ export function cleanPyqOcrText(raw: string): string {
   // Choice graphs are the option itself. Leave the tag alone so the button
   // can show the plot instead of an OCR caption.
   if (OPTION_GRAPH.test(source.trim())) return source.trim();
-  const figs = [...source.matchAll(FIG_TOKEN)].map((m) => m[0]);
-  let s = source.replace(FIG_TOKEN, " ");
+  // Pull tokens out before caption/whitespace passes, then put each one back
+  // where the paper printed it. Appending them all at the end drops a structure
+  // that sits in the middle of the stem.
+  const figs: string[] = [];
+  const tables: string[] = [];
+  let s = source.replace(FIG_TOKEN, (token) => {
+    const mark = `${FIG_MARK}${figs.length}${FIG_MARK}`;
+    figs.push(token);
+    return mark;
+  });
+  s = s.replace(NTA_TABLE, (token) => {
+    const mark = `${TABLE_MARK}${tables.length}${TABLE_MARK}`;
+    tables.push(token);
+    return mark;
+  });
   s = s.replace(MD_IMAGE, " ");
   s = s.replace(/\*\*/g, "");
   s = s.replace(HTML_TABLE, " ");
@@ -84,12 +151,17 @@ export function cleanPyqOcrText(raw: string): string {
   s = s.replace(HASH_MI, " ");
   s = s.replace(PAGE_FOOTER, " ");
   s = s.replace(PAGE_TAIL, " ");
+  s = s.replace(EXAM_SESSION_TAG, " ");
   s = protectStemParagraphs(s);
   s = s.replace(/\s+/g, " ").trim();
+  // A fill-in blank is written `\_\_\_` outside math. KaTeX never sees it,
+  // so the backslash would show. The paper blank is a run of underscores.
+  s = mapOutsideMath(s, (chunk) => chunk.replace(/\\_/g, "_"));
   s = repairPyqKatex(s);
   s = restoreStemParagraphs(s);
-  const uniqueFigs = [...new Set(figs)];
-  return uniqueFigs.length > 0 ? `${s}\n\n${uniqueFigs.join("\n\n")}`.trim() : s;
+  s = s.replace(new RegExp(`${FIG_MARK}(\\d+)${FIG_MARK}`, "g"), (_m, n: string) => figs[Number(n)] ?? "");
+  s = s.replace(new RegExp(`${TABLE_MARK}(\\d+)${TABLE_MARK}`, "g"), (_m, n: string) => tables[Number(n)] ?? "");
+  return s.trim();
 }
 
 const SUB_NUM: Record<string, string> = {
@@ -711,7 +783,7 @@ export function repairPyqKatex(raw: string): string {
   s = s.replace(/λ\s*\\hat\{/g, "\\lambda \\hat{");
   s = s.replace(/λ/g, "\\lambda ");
   s = s.replace(/\$\\lambda\$\s*\$\\hat\{/g, "$\\lambda \\hat{");
-  s = s.replace(/\\n(?=\s*[A-Za-z0-9$])/g, "\n");
+  s = s.replace(LITERAL_NEWLINE, "\n");
   s = s.replace(/\$([^$]+)\$([²³])(?:\/(\d+))?/g, (_m, inner: string, sup: string, den: string | undefined) => {
     const n = sup === "²" ? "2" : "3";
     return den ? `$${inner}^{${n}}/${den}$` : `$${inner}^{${n}}$`;
@@ -787,27 +859,114 @@ export function repairPyqKatex(raw: string): string {
  * The NTA stem renderer collapses raw newlines unless they live in HTML, so
  * wrap text runs in `<p>` and leave `$…$` for `useKatexAutoRender`.
  */
+const COLUMN_DASH = "[\\u2014\\u2013]";
+const ROMAN = "VIII|VII|VI|IV|IX|III|II|V|I";
+/** `A.` / `A —` / `$A$`. A bare "a" or "A" is the article, not list item A. */
+const LIST_MARK = String.raw`(?:\.\s*|\s*${COLUMN_DASH}\s*|(?<=\$)\s+)`;
+
+function tableCell(text: string): string {
+  return escapeHtmlTextNode(text.replace(/\s+/g, " ").trim());
+}
+
+function pyqTable(headers: string[], rows: string[][]): string {
+  const head = headers.some((cell) => cell.trim())
+    ? `<thead><tr>${headers.map((cell) => `<th>${tableCell(cell)}</th>`).join("")}</tr></thead>`
+    : "";
+  const body = rows
+    .map((row) => `<tr>${row.map((cell) => `<td>${tableCell(cell)}</td>`).join("")}</tr>`)
+    .join("");
+  return `<table class="nta-pyq-table">${head}<tbody>${body}</tbody></table>`;
+}
+
+/**
+ * Match-lists and data charts are stored as one run of em dashes. The player
+ * collapses that into a paragraph, so lift the printed columns into a table
+ * before the cleaner runs.
+ */
+export function liftPyqTables(raw: string): string {
+  const text = String(raw ?? "").replace(LITERAL_NEWLINE, "\n");
+  return liftMatchList(text) ?? liftDataTable(text) ?? text;
+}
+
+function liftMatchList(text: string): string | null {
+  const flat = text.replace(/\s+/g, " ").trim();
+  const rowRe = new RegExp(
+    String.raw`(?:^|\s)(?:\$)?([A-D])(?:\$)?${LIST_MARK}([\s\S]+?)\s*${COLUMN_DASH}\s*(?:\$)?(${ROMAN})(?:\$)?\.?\s*(?:${COLUMN_DASH}\s*)?([\s\S]+?)(?=\s+(?:\$)?[A-D](?:\$)?${LIST_MARK}|Choose the correct answer\b|$)`,
+    "gi"
+  );
+  const rows: string[][] = [];
+  for (const match of flat.matchAll(rowRe)) {
+    const left = match[2]?.trim() ?? "";
+    const right = match[4]?.trim() ?? "";
+    if (!left || !right) continue;
+    const tidy = (value: string) => value.replace(/^(?:[—–]|-)\s*/, "").trim();
+    rows.push([`${match[1].toUpperCase()}.`, tidy(left), `${match[3].toUpperCase()}.`, tidy(right)]);
+  }
+  if (rows.length < 3) return null;
+  const letters = rows.map((row) => row[0][0]).join("");
+  if (letters !== "ABCD".slice(0, rows.length)) return null;
+  const firstAt = flat.search(new RegExp(String.raw`(?:^|\s)(?:\$)?A(?:\$)?${LIST_MARK}`, "i"));
+  if (firstAt < 0) return null;
+  const chooseAt = flat.search(/Choose the correct answer\b/i);
+  const intro = flat.slice(0, firstAt).trim();
+  const outro = chooseAt >= 0 ? flat.slice(chooseAt).trim() : "";
+  const titled = intro.match(
+    new RegExp(String.raw`List-?\s*I\b\s*${COLUMN_DASH}\s*(.+?)\s*${COLUMN_DASH}\s*List-?\s*II\b\s*${COLUMN_DASH}\s*(.+)$`, "i")
+  );
+  const headers = titled
+    ? ["", titled[1].trim(), "", titled[2].trim()]
+    : ["", "List I", "", "List II"];
+  const lead = intro
+    .replace(new RegExp(String.raw`\s*List-?\s*I\b\s*${COLUMN_DASH}[\s\S]*$`, "i"), "")
+    .trim();
+  return [lead, pyqTable(headers, rows), outro].filter(Boolean).join("\n\n");
+}
+
+function liftDataTable(text: string): string | null {
+  if (/match\s+list/i.test(text)) return null;
+  const lines = text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const dashed = lines.filter((line) => (line.match(new RegExp(COLUMN_DASH, "g")) || []).length >= 2);
+  if (dashed.length < 3) return null;
+  const cells = dashed.map((line) => line.split(new RegExp(`\\s*${COLUMN_DASH}\\s*`)).map((cell) => cell.trim()).filter(Boolean));
+  const width = cells[0]?.length ?? 0;
+  if (width < 3 || width > 4 || cells.some((row) => row.length !== width)) return null;
+  const first = lines.findIndex((line) => line === dashed[0]);
+  const last = lines.findIndex((line) => line === dashed[dashed.length - 1]);
+  if (first < 0 || last < first) return null;
+  const lead = lines.slice(0, first).join(" ").trim();
+  const outro = lines.slice(last + 1).join(" ").trim();
+  return [lead, pyqTable(cells[0], cells.slice(1)), outro].filter(Boolean).join("\n\n");
+}
+
 export function pyqStemToHtml(
   body: string,
   links: PyqFigureLinkRow[] | null | undefined,
   folder: PyqFigureFolder = "physics/figures"
 ): string {
-  const resolved = resolvePyqFigureHtml(cleanPyqOcrText(body), links, folder);
+  const resolved = resolvePyqFigureHtml(cleanPyqOcrText(liftPyqTables(body)), links, folder);
   // `resolvePyqFigureHtml` wraps appended figures in a `<p>`. Splitting only on
   // `<img>` left those wrapper tags to be escaped, so students saw a literal
   // `<p>` / `</p>` around the diagram. Pass block tags through untouched.
-  const parts = resolved.split(/(<img\b[^>]*>|<\/?p\b[^>]*>)/i);
+  const parts = resolved.split(/(<img\b[^>]*>|<\/?p\b[^>]*>|<table\b[^>]*>[\s\S]*?<\/table>)/i);
   return parts
     .map((part) => {
       if (/^<img\b/i.test(part)) return part;
       if (/^<\/?p\b/i.test(part)) return part;
+      if (/^<table\b/i.test(part)) return part;
       const text = part.replace(/\r\n/g, "\n").trim();
       if (!text) return "";
       return text
-        .split(/\n{2,}/)
+        .split(/\n{2,}|\n(?=(?:\([A-E]\)|[A-E]\.)\s)|\n(?=Choose the correct answer\b)/i)
         .map((para) => para.replace(/\n/g, " ").trim())
         .filter(Boolean)
-        .map((para) => `<p class="nta-math-plain">${escapeHtmlTextNode(para)}</p>`)
+        .map((para) => {
+          const point = /^(?:\([A-E]\)|[A-E]\.)\s/.test(para);
+          const cls = point ? "nta-math-plain nta-stem-point" : "nta-math-plain";
+          return `<p class="${cls}">${escapeHtmlTextNode(para)}</p>`;
+        })
         .join("");
     })
     .join("");
@@ -851,10 +1010,6 @@ function splitSolutionChunks(raw: string): string[] {
 }
 
 const PAPER_LISTING_KEY_ONLY = /^\(\s*\d+\s*\)$/;
-
-/** A stored two-char `\n` is a line break — unless it starts `\neq`, `\notin`, `\nu`, `\nabla`, … */
-const LITERAL_NEWLINE =
-  /(?<!\\)\\n(?!(?:e|eq|eg|u|abla|ot|otin|i|mid|leq|geq|less|gtr|exists|parallel|subseteq|supseteq|leftarrow|rightarrow|Leftarrow|Rightarrow|leftrightarrow|Leftrightarrow|cong|sim|prec|succ|vdash|vDash|searrow|nwarrow|atural|ewline)(?![A-Za-z]))/g;
 
 function paperContentLines(raw: string): string[] {
   const lines = raw

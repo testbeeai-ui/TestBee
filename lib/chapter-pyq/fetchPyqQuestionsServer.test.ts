@@ -11,11 +11,13 @@ describe("subject year window", () => {
     expect(subjectForCatalogSlug("units-and-measurements")).toBe("physics");
     expect(subjectForCatalogSlug("motion-in-a-straight-line")).toBe("physics");
     expect(subjectForCatalogSlug("definite-integration")).toBe("math");
+    expect(subjectForCatalogSlug("equilibrium")).toBe("chemistry");
     expect(subjectForCatalogSlug("not-a-real-slug")).toBeNull();
   });
 
-  it("floors Physics at 2023 and leaves Mathematics unfloored", () => {
+  it("floors Physics and Chemistry at 2023 and leaves Mathematics unfloored", () => {
     expect(subjectFirstExamYear("units-and-measurements")).toBe(2023);
+    expect(subjectFirstExamYear("equilibrium")).toBe(2023);
     expect(subjectFirstExamYear("definite-integration")).toBeNull();
     expect(subjectFirstExamYear("not-a-real-slug")).toBeNull();
   });
@@ -29,6 +31,9 @@ describe("subject year window", () => {
     }
     expect(isWithinSubjectYearWindow("units-and-measurements", null)).toBe(false);
     expect(isWithinSubjectYearWindow("units-and-measurements", undefined)).toBe(false);
+    expect(isWithinSubjectYearWindow("equilibrium", 2024)).toBe(true);
+    expect(isWithinSubjectYearWindow("equilibrium", 2022)).toBe(false);
+    expect(isWithinSubjectYearWindow("equilibrium", null)).toBe(false);
   });
 
   it("leaves Mathematics year handling exactly as it was", () => {

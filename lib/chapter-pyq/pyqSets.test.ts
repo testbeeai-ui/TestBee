@@ -8,6 +8,7 @@ import {
   filterPyqSubjectYearWindow,
   isPyqPhysicsOutOfRangeYear,
   isPyqYearGroupedSubject,
+  usesPyqSessionYearWindow,
   pyqYearSetListedCount,
   secondsForSet,
   splitIntoSetSizes,
@@ -134,6 +135,25 @@ describe("physics year window", () => {
     expect(isPyqPhysicsOutOfRangeYear(2026)).toBe(false);
   });
 
+  it("groups Chemistry into the same 2023–2026 year cards", () => {
+    const items = [
+      row("y2019", 2019),
+      row("y2023-apr", 2023),
+      row("y2024", 2024),
+      row("y2025", 2025),
+      row("y2026", 2026),
+      row("undated", null),
+    ];
+    const sets = buildPyqSubjectPracticeSets(items, "chemistry");
+    expect(sets.map((s) => s.label)).toEqual(["2026", "2025", "2024", "2023"]);
+    expect(filterPyqSubjectYearWindow(items, "chemistry").map((i) => i.id)).toEqual([
+      "y2023-apr",
+      "y2024",
+      "y2025",
+      "y2026",
+    ]);
+  });
+
   it("groups Physics into year cards instead of Set 1 / Set 2", () => {
     const items = [
       row("y2019", 2019),
@@ -160,10 +180,13 @@ describe("physics year window", () => {
     ]);
   });
 
-  it("treats math and physics as year-grouped, other subjects as even sets", () => {
+  it("treats math, physics, and chemistry as year-grouped", () => {
     expect(isPyqYearGroupedSubject("math")).toBe(true);
     expect(isPyqYearGroupedSubject("physics")).toBe(true);
-    expect(isPyqYearGroupedSubject("chemistry")).toBe(false);
+    expect(isPyqYearGroupedSubject("chemistry")).toBe(true);
+    expect(usesPyqSessionYearWindow("chemistry")).toBe(true);
+    expect(usesPyqSessionYearWindow("physics")).toBe(true);
+    expect(usesPyqSessionYearWindow("math")).toBe(false);
     expect(isPyqYearGroupedSubject(null)).toBe(false);
   });
 });

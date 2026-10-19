@@ -397,3 +397,4 @@ Anything that is not Next.js / tooling config now lives under:
 - 2026-07-14: **Preview auth URL** — canonical path is `/preview` (`PREVIEW_AUTH_PATH`); `/preview-raknas-amu` (+ older obfuscated paths) redirect via middleware; web + mobileapp configs updated.
 - 2026-07-14: **AppLayout CSS Modules** — moved `--eb-*` tokens from illegal `:root` onto `.nav`/`.drawer` (fixes Webpack “Selector :root is not pure”).
 - 2026-07-14: **mobileapp parked** — not in active use; deleted `mobileapp/tsconfig.json` (Expo config kept as `tsconfig.expo.json`); hidden via `.vscode/settings.json` + `.cursorignore` (web `tsconfig` already excludes it).
+- 2026-10-19: **PYQ OCR match-list and arrow newlines** — `liftMatchList` requires `A.` / `A —` / `$A$` so the article “a” is not item A; `LITERAL_NEWLINE` keeps `\nearrow` and `\nwarrow` (`earrow` / `warrow` suffixes) and the stem KaTeX pass uses that same pattern.
