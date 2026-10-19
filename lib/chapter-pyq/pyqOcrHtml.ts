@@ -44,7 +44,7 @@ const OPTION_GRAPH =
 const STEM_PARA = "\uE000";
 /** A stored two-char `\n` is a line break — unless it starts `\neq`, `\notin`, `\nu`, `\nabla`, … */
 const LITERAL_NEWLINE =
-  /(?<!\\)\\n(?!(?:e|eq|eg|u|abla|ot|otin|i|mid|leq|geq|less|gtr|exists|parallel|subseteq|supseteq|leftarrow|rightarrow|Leftarrow|Rightarrow|leftrightarrow|Leftrightarrow|cong|sim|prec|succ|vdash|vDash|searrow|nwarrow|atural|ewline)(?![A-Za-z]))/g;
+  /(?<!\\)\\n(?!(?:e|eq|eg|earrow|u|abla|ot|otin|i|mid|leq|geq|less|gtr|exists|parallel|subseteq|supseteq|leftarrow|rightarrow|Leftarrow|Rightarrow|leftrightarrow|Leftrightarrow|cong|sim|prec|succ|vdash|vDash|searrow|nwarrow|warrow|atural|ewline)(?![A-Za-z]))/g;
 const ASSERTION_LABEL =
   String.raw`Assertion\s*\(\s*A\s*\)\s*:|Reason\s*\(\s*R\s*\)\s*:|Statement\s*[-–]?\s*(?:I{1,3}|[12])\s*:|In the light of the above`;
 
@@ -783,7 +783,7 @@ export function repairPyqKatex(raw: string): string {
   s = s.replace(/λ\s*\\hat\{/g, "\\lambda \\hat{");
   s = s.replace(/λ/g, "\\lambda ");
   s = s.replace(/\$\\lambda\$\s*\$\\hat\{/g, "$\\lambda \\hat{");
-  s = s.replace(/\\n(?=\s*[A-Za-z0-9$])/g, "\n");
+  s = s.replace(LITERAL_NEWLINE, "\n");
   s = s.replace(/\$([^$]+)\$([²³])(?:\/(\d+))?/g, (_m, inner: string, sup: string, den: string | undefined) => {
     const n = sup === "²" ? "2" : "3";
     return den ? `$${inner}^{${n}}/${den}$` : `$${inner}^{${n}}$`;
@@ -861,6 +861,8 @@ export function repairPyqKatex(raw: string): string {
  */
 const COLUMN_DASH = "[\\u2014\\u2013]";
 const ROMAN = "VIII|VII|VI|IV|IX|III|II|V|I";
+/** `A.` / `A —` / `$A$`. A bare "a" or "A" is the article, not list item A. */
+const LIST_MARK = String.raw`(?:\.\s*|\s*${COLUMN_DASH}\s*|(?<=\$)\s+)`;
 
 function tableCell(text: string): string {
   return escapeHtmlTextNode(text.replace(/\s+/g, " ").trim());
@@ -889,7 +891,7 @@ export function liftPyqTables(raw: string): string {
 function liftMatchList(text: string): string | null {
   const flat = text.replace(/\s+/g, " ").trim();
   const rowRe = new RegExp(
-    String.raw`(?:^|\s)(?:\$)?([A-D])(?:\$)?\.?\s*(?:${COLUMN_DASH}\s*)?([\s\S]+?)\s*${COLUMN_DASH}\s*(?:\$)?(${ROMAN})(?:\$)?\.?\s*(?:${COLUMN_DASH}\s*)?([\s\S]+?)(?=\s+(?:\$)?[A-D](?:\$)?\.?\s|Choose the correct answer\b|$)`,
+    String.raw`(?:^|\s)(?:\$)?([A-D])(?:\$)?${LIST_MARK}([\s\S]+?)\s*${COLUMN_DASH}\s*(?:\$)?(${ROMAN})(?:\$)?\.?\s*(?:${COLUMN_DASH}\s*)?([\s\S]+?)(?=\s+(?:\$)?[A-D](?:\$)?${LIST_MARK}|Choose the correct answer\b|$)`,
     "gi"
   );
   const rows: string[][] = [];
@@ -903,7 +905,7 @@ function liftMatchList(text: string): string | null {
   if (rows.length < 3) return null;
   const letters = rows.map((row) => row[0][0]).join("");
   if (letters !== "ABCD".slice(0, rows.length)) return null;
-  const firstAt = flat.search(/(?:^|\s)(?:\$)?A(?:\$)?\.?\s/i);
+  const firstAt = flat.search(new RegExp(String.raw`(?:^|\s)(?:\$)?A(?:\$)?${LIST_MARK}`, "i"));
   if (firstAt < 0) return null;
   const chooseAt = flat.search(/Choose the correct answer\b/i);
   const intro = flat.slice(0, firstAt).trim();

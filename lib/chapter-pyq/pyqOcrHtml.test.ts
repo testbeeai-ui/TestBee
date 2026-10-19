@@ -443,6 +443,14 @@ describe("pyqStemToHtml", () => {
     expect(html).not.toContain("increased. E. Concentration");
   });
 
+  it("keeps northeast and northwest arrows in the stem", () => {
+    const html = pyqStemToHtml("The ray goes $\\nearrow$ then $\\nwarrow$ and $\\swarrow$ $\\searrow$.", []);
+    expect(html).toContain("$\\nearrow$");
+    expect(html).toContain("$\\nwarrow$");
+    expect(html).toContain("$\\swarrow$");
+    expect(html).toContain("$\\searrow$");
+  });
+
   it("still emits the paper raster when figure_links is missing", () => {
     const html = pyqStemToHtml(
       "Three blocks A, B and C are pulled as shown.\n\n[[fig:p047_x549]]",
@@ -837,6 +845,16 @@ describe("printed tables and coach callouts", () => {
     expect(html).toContain("Choose the correct answer");
     expect(html.indexOf("<table")).toBeLessThan(html.indexOf("Choose the correct answer"));
     expect(html).not.toContain("&lt;table");
+  });
+
+  it("does not read the article a as match-list item A", () => {
+    const html = pyqStemToHtml(
+      "For a gas, match List-I with List-II. A. Work done in reversible isothermal expansion — I. $4$ B. Work done in irreversible isothermal expansion — II. $11.5$ C. Change in internal energy — III. $6$ D. Change in enthalpy — IV. $7$ Choose the correct answer from the options given below:",
+      []
+    );
+    expect(html).toContain("For a gas, match List-I with List-II.");
+    expect(html).toContain("<td>A.</td><td>Work done in reversible isothermal expansion</td>");
+    expect(html).not.toContain("<td>gas, match List-I");
   });
 
   it("turns a dashed data chart into a table", () => {
