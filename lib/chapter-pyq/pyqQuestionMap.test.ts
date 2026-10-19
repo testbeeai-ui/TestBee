@@ -52,6 +52,31 @@ describe("pyq question mapper", () => {
     expect(mapped.question.topic).toBe("Laws of Motion");
   });
 
+  it("loads a chemistry drawing from the chemistry figure folder", () => {
+    const row = byId("000000000002");
+    const mapped = mapPyqRowToChapterPyqQuestion(
+      {
+        ...row,
+        body: "0.1 mol of compound (P) will weigh x g.\n\n[[fig:s2025apr_sbc_q03_1]]\n\n(Given : H : 1)",
+        chapters: {
+          ...row.chapters!,
+          name: "Some Basic Concepts of Chemistry",
+          catalog_slug: "some-basic-concepts-of-chemistry",
+        },
+        figure_links: [],
+      },
+      "Some Basic Concepts of Chemistry"
+    )!;
+    expect(mapped.question.questionHtml).toContain(
+      "/pyq/chem/figures/s2025apr_sbc_q03_1.png"
+    );
+    expect(mapped.question.questionHtml).not.toContain("physics/figures");
+    const imgAt = mapped.question.questionHtml.indexOf("s2025apr_sbc_q03_1.png");
+    const givenAt = mapped.question.questionHtml.indexOf("(Given");
+    expect(imgAt).toBeGreaterThan(-1);
+    expect(givenAt).toBeGreaterThan(imgAt);
+  });
+
   it("renders a figure placeholder as an img and leaves no placeholder behind", () => {
     const mapped = mapPyqRowToChapterPyqQuestion(byId("000000000002"), "Laws of Motion")!;
     expect(mapped.question.questionHtml).toContain("<img");

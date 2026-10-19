@@ -74,13 +74,18 @@ export function isPyqMathExcludedYear(year: number | null | undefined): boolean 
 }
 
 /**
- * Physics year chips start at 2023 — four years (2023, 2024, 2025, 2026).
- * Anything older, or undated, stays out of the player.
+ * Physics and Chemistry year chips start at 2023 — four years
+ * (2023, 2024, 2025, 2026). Anything older, or undated, stays out of the player.
  */
 export const PYQ_PHYSICS_FIRST_YEAR = 2023;
 
 export function isPyqPhysicsOutOfRangeYear(year: number | null | undefined): boolean {
   return year == null || year < PYQ_PHYSICS_FIRST_YEAR;
+}
+
+/** Physics and Chemistry share the 2023–2026 year cards. */
+export function usesPyqSessionYearWindow(subject: string | null | undefined): boolean {
+  return subject === "physics" || subject === "chemistry";
 }
 
 export function isPyqMathExcludedExamDate(examDate: string | null | undefined): boolean {
@@ -135,15 +140,15 @@ export function buildPyqEvenPracticeSets<T>(items: T[]): PyqPracticeSet<T>[] {
 
 /**
  * One practice set per exam year, newest year first, for every subject that
- * groups by year. Physics keeps only 2023 and later; Mathematics keeps its
- * own excluded-year rule. Anything else falls back to even-sized sets.
+ * groups by year. Physics and Chemistry keep only 2023 and later; Mathematics
+ * keeps its own excluded-year rule. Anything else falls back to even-sized sets.
  */
 export function buildPyqSubjectPracticeSets<T extends PyqYearMonthEntry>(
   items: T[],
   subject: string | null | undefined
 ): PyqPracticeSet<T>[] {
   if (subject === "math") return buildPyqYearMonthSets(items);
-  if (subject === "physics") {
+  if (usesPyqSessionYearWindow(subject)) {
     return buildPyqYearMonthSets(
       items.filter((item) => !isPyqPhysicsOutOfRangeYear(item.examYear))
     ).filter((set) => set.label !== "Undated");
@@ -156,13 +161,13 @@ export function filterPyqSubjectYearWindow<T extends PyqYearMonthEntry>(
   items: T[],
   subject: string | null | undefined
 ): T[] {
-  if (subject !== "physics") return items;
+  if (!usesPyqSessionYearWindow(subject)) return items;
   return items.filter((item) => !isPyqPhysicsOutOfRangeYear(item.examYear));
 }
 
-/** Physics and Mathematics list by year; other subjects list every live row. */
+/** Physics, Chemistry, and Mathematics list by year. */
 export function isPyqYearGroupedSubject(subject: string | null | undefined): boolean {
-  return subject === "math" || subject === "physics";
+  return subject === "math" || usesPyqSessionYearWindow(subject);
 }
 
 export function practiceSetSessionLabel(label: string, totalSets: number): string {

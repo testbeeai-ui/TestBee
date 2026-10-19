@@ -37,7 +37,7 @@ export function parsePyqCoachTips(raw: string): PyqCoachTipStep[] | null {
     if (!row) continue;
     const title = wrapBareTexProse(String(row.title ?? "").trim());
     const body = wrapBareTexProse(String(row.body ?? "").trim());
-    const calloutRaw = wrapBareTexProse(String(row.callout ?? "").trim());
+    const calloutRaw = wrapBareTexProse(plainCoachCallout(String(row.callout ?? "").trim()));
     if (!title || !body) continue;
     const split = splitCoachTipCallout(body, calloutRaw);
     steps.push({ title, body: split.body, callout: split.callout });
@@ -90,6 +90,21 @@ export function formatCoachFormulaNote(note: string): string {
   if (!text) return "";
   const body = text.replace(/^note\s*:\s*/i, "").trim();
   return body ? `Note : ${body}` : "";
+}
+
+/**
+ * A callout written as `\text{Shape} \ne \text{electron…}` is not in math mode.
+ * `\text` and `\ne` then glue into one word. Spell them as text.
+ */
+export function plainCoachCallout(callout: string): string {
+  const text = callout.trim();
+  if (!text || text.includes("$")) return text;
+  if (!/\\text\{|\\ne\b|\\neq\b/.test(text)) return text;
+  return text
+    .replace(/\\text\{([^{}]*)\}/g, "$1")
+    .replace(/\\neq\b|\\ne\b/g, "≠")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 /** glm often writes ascii `sqrt3/2` in formula titles. The card label is CSS-uppercase, so that becomes SQRT3/2 unless it is real KaTeX. */

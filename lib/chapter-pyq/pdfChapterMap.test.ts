@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { chaptersForSubject, findChapter } from "./catalog";
 import {
+  PYQ_CHEMISTRY_PDF_CHAPTERS,
   PYQ_DEFERRED_PDF_CHAPTERS,
   PYQ_MATH_PDF_CHAPTERS,
   PYQ_PHYSICS_PDF_CHAPTERS,
+  catalogSlugForChemistryPdfChapter,
   catalogSlugForMathPdfChapter,
   catalogSlugForPdfChapter,
+  chemistryPdfChaptersForCatalogSlug,
   isPyqSourcedCatalogSlug,
   mathPdfChaptersForCatalogSlug,
   pdfChaptersForCatalogSlug,
@@ -163,5 +166,53 @@ describe("math PDF chapter map", () => {
   it("returns null for an out-of-range math PDF chapter number", () => {
     expect(catalogSlugForMathPdfChapter(0)).toBeNull();
     expect(catalogSlugForMathPdfChapter(30)).toBeNull();
+  });
+});
+
+describe("chemistry PDF chapter map", () => {
+  it("accounts for every 2025 TOC chapter 1 through 26 exactly once", () => {
+    const numbers = PYQ_CHEMISTRY_PDF_CHAPTERS.map((row) => row.pdfChapterNo);
+    expect(numbers).toEqual(Array.from({ length: 26 }, (_, i) => i + 1));
+  });
+
+  it("points every mapped slug at a real chemistry catalog chapter", () => {
+    for (const row of PYQ_CHEMISTRY_PDF_CHAPTERS) {
+      if (row.catalogSlug === null) continue;
+      expect(findChapter("chemistry", row.catalogSlug), `chapter ${row.pdfChapterNo}`).not.toBeNull();
+    }
+  });
+
+  it("merges the split PDF titles onto the three shared app chapters", () => {
+    expect(chemistryPdfChaptersForCatalogSlug("equilibrium").map((r) => r.pdfChapterNo)).toEqual([
+      5, 6,
+    ]);
+    expect(chemistryPdfChaptersForCatalogSlug("the-p-block-elements").map((r) => r.pdfChapterNo)).toEqual([
+      13, 14,
+    ]);
+    expect(
+      chemistryPdfChaptersForCatalogSlug("aldehydes-ketones-and-carboxylic-acids").map(
+        (r) => r.pdfChapterNo,
+      ),
+    ).toEqual([22, 23]);
+  });
+
+  it("leaves the printed-but-unlinked titles off the app", () => {
+    expect(catalogSlugForChemistryPdfChapter(3)).toBeNull();
+    expect(catalogSlugForChemistryPdfChapter(17)).toBeNull();
+    expect(catalogSlugForChemistryPdfChapter(26)).toBeNull();
+    expect(findChapter("chemistry", "states-of-matter")).toBeNull();
+    expect(findChapter("chemistry", "practical-chemistry")).toBeNull();
+    expect(findChapter("chemistry", "ionic-equilibrium")).toBeNull();
+    expect(findChapter("chemistry", "chemical-equilibrium")).toBeNull();
+  });
+
+  it("does not reuse a physics chapter number as a chemistry slug", () => {
+    expect(catalogSlugForPdfChapter(4)).toBe("motion-in-a-plane");
+    expect(catalogSlugForChemistryPdfChapter(4)).toBe("chemical-thermodynamics");
+  });
+
+  it("covers all 20 chemistry catalog chapters", () => {
+    const sourced = chaptersForSubject("chemistry").filter((c) => isPyqSourcedCatalogSlug(c.slug));
+    expect(sourced).toHaveLength(20);
   });
 });

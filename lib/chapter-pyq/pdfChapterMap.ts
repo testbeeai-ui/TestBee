@@ -111,7 +111,8 @@ export function pdfChaptersForCatalogSlug(catalogSlug: string): PdfChapterMappin
 export function isPyqSourcedCatalogSlug(catalogSlug: string): boolean {
   return (
     pdfChaptersForCatalogSlug(catalogSlug).length > 0 ||
-    mathPdfChaptersForCatalogSlug(catalogSlug).length > 0
+    mathPdfChaptersForCatalogSlug(catalogSlug).length > 0 ||
+    chemistryPdfChaptersForCatalogSlug(catalogSlug).length > 0
   );
 }
 
@@ -123,4 +124,57 @@ export function catalogSlugForMathPdfChapter(pdfChapterNo: number): string | nul
 
 export function mathPdfChaptersForCatalogSlug(catalogSlug: string): PdfChapterMapping[] {
   return PYQ_MATH_PDF_CHAPTERS.filter((row) => row.catalogSlug === catalogSlug);
+}
+
+/**
+ * MathonGo JEE Main 2025 January / April Chemistry bank (26 TOC titles)
+ * → the 20 app chapters. Numbers are that booklet’s TOC, not the By Chapter
+ * folder list. Folder names may say "and" where the footer says "&".
+ *
+ * `null` rows are printed in the 2025 key strip so the neighbor’s keys stay
+ * intact. They are not app chapters. Do not add a route for them, and do not
+ * source the older By Chapter folders that are absent from this TOC
+ * (Hydrogen, s-Block, Environmental Chemistry, Solid State, Surface Chemistry,
+ * Polymers, Isolation of Metals).
+ *
+ * Two printed titles share one app page: Chemical + Ionic Equilibrium;
+ * both p-Block groups; Aldehydes and Ketones + Carboxylic Acid Derivatives.
+ */
+export const PYQ_CHEMISTRY_PDF_CHAPTERS: readonly PdfChapterMapping[] = [
+  { pdfChapterNo: 1, pdfChapterTitle: "Some Basic Concepts of Chemistry", catalogSlug: "some-basic-concepts-of-chemistry", note: "1:1" },
+  { pdfChapterNo: 2, pdfChapterTitle: "Structure of Atom", catalogSlug: "structure-of-atom", note: "1:1" },
+  { pdfChapterNo: 3, pdfChapterTitle: "States of Matter", catalogSlug: null, note: "Printed in 2025. Not an app chapter" },
+  { pdfChapterNo: 4, pdfChapterTitle: "Thermodynamics (C)", catalogSlug: "chemical-thermodynamics", note: "Rename. Not the physics Thermodynamics slug" },
+  { pdfChapterNo: 5, pdfChapterTitle: "Chemical Equilibrium", catalogSlug: "equilibrium", note: "Merge-as-topic with ch.6" },
+  { pdfChapterNo: 6, pdfChapterTitle: "Ionic Equilibrium", catalogSlug: "equilibrium", note: "Merge-as-topic with ch.5. No new route" },
+  { pdfChapterNo: 7, pdfChapterTitle: "Redox Reactions", catalogSlug: "redox-reactions", note: "1:1" },
+  { pdfChapterNo: 8, pdfChapterTitle: "Solutions", catalogSlug: "solutions", note: "1:1. Title is also a section word — match the footer line" },
+  { pdfChapterNo: 9, pdfChapterTitle: "Electrochemistry", catalogSlug: "electrochemistry", note: "1:1" },
+  { pdfChapterNo: 10, pdfChapterTitle: "Chemical Kinetics", catalogSlug: "chemical-kinetics", note: "1:1" },
+  { pdfChapterNo: 11, pdfChapterTitle: "Classification of Elements and Periodicity in Properties", catalogSlug: "classification-of-elements-and-periodicity", note: "Rename" },
+  { pdfChapterNo: 12, pdfChapterTitle: "Chemical Bonding and Molecular Structure", catalogSlug: "chemical-bonding-and-molecular-structure", note: "1:1" },
+  { pdfChapterNo: 13, pdfChapterTitle: "p Block Elements (Group 13 & 14)", catalogSlug: "the-p-block-elements", note: "Merge-as-topic with ch.14. Footer may say and, or wrap after Group 13" },
+  { pdfChapterNo: 14, pdfChapterTitle: "p Block Elements (Group 15, 16, 17 & 18)", catalogSlug: "the-p-block-elements", note: "Merge-as-topic with ch.13. No new route" },
+  { pdfChapterNo: 15, pdfChapterTitle: "d and f Block Elements", catalogSlug: "the-d-and-f-block-elements", note: "Rename" },
+  { pdfChapterNo: 16, pdfChapterTitle: "Coordination Compounds", catalogSlug: "coordination-compounds", note: "1:1" },
+  { pdfChapterNo: 17, pdfChapterTitle: "Practical Chemistry", catalogSlug: null, note: "Printed through 2026. Not an app chapter" },
+  { pdfChapterNo: 18, pdfChapterTitle: "General Organic Chemistry", catalogSlug: "organic-chemistry-basic-principles", note: "Rename" },
+  { pdfChapterNo: 19, pdfChapterTitle: "Hydrocarbons", catalogSlug: "hydrocarbons", note: "1:1" },
+  { pdfChapterNo: 20, pdfChapterTitle: "Haloalkanes and Haloarenes", catalogSlug: "haloalkanes-and-haloarenes", note: "1:1" },
+  { pdfChapterNo: 21, pdfChapterTitle: "Alcohols Phenols and Ethers", catalogSlug: "alcohols-phenols-and-ethers", note: "Rename" },
+  { pdfChapterNo: 22, pdfChapterTitle: "Aldehydes and Ketones", catalogSlug: "aldehydes-ketones-and-carboxylic-acids", note: "Merge-as-topic with ch.23" },
+  { pdfChapterNo: 23, pdfChapterTitle: "Carboxylic Acid Derivatives", catalogSlug: "aldehydes-ketones-and-carboxylic-acids", note: "Merge-as-topic with ch.22. No new route" },
+  { pdfChapterNo: 24, pdfChapterTitle: "Amines", catalogSlug: "amines", note: "1:1" },
+  { pdfChapterNo: 25, pdfChapterTitle: "Biomolecules", catalogSlug: "biomolecules", note: "1:1" },
+  { pdfChapterNo: 26, pdfChapterTitle: "Chemistry in Everyday Life", catalogSlug: null, note: "April 2025 only. Not an app chapter" },
+];
+
+export function catalogSlugForChemistryPdfChapter(pdfChapterNo: number): string | null {
+  return (
+    PYQ_CHEMISTRY_PDF_CHAPTERS.find((row) => row.pdfChapterNo === pdfChapterNo)?.catalogSlug ?? null
+  );
+}
+
+export function chemistryPdfChaptersForCatalogSlug(catalogSlug: string): PdfChapterMapping[] {
+  return PYQ_CHEMISTRY_PDF_CHAPTERS.filter((row) => row.catalogSlug === catalogSlug);
 }

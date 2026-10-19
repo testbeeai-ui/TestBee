@@ -6,8 +6,8 @@ import {
   isPaperOcrSolution,
   parsePyqWorkedSolution,
 } from "@/lib/chapter-pyq/pyqWorkedSolution";
-import { chaptersForSubject } from "@/lib/chapter-pyq/catalog";
-import { mathPdfChaptersForCatalogSlug } from "@/lib/chapter-pyq/pdfChapterMap";
+import { subjectForCatalogSlug } from "@/lib/chapter-pyq/catalog";
+import { pyqFigureFolderForSubject } from "@/lib/chapter-pyq/pyqFigures";
 import { buildFallbackTips, buildFallbackFormulas } from "@/lib/chapter-pyq/pyqCoach";
 import {
   isPyqPaperFilled,
@@ -180,11 +180,7 @@ export function mapPyqRowToChapterPyqQuestion(
   const topicName = row.topics?.name?.trim() || null;
   const isNumerical = row.format === "numerical";
   const catalogSlug = row.chapters.catalog_slug ?? "";
-  const figFolder =
-    mathPdfChaptersForCatalogSlug(catalogSlug).length > 0 ||
-    chaptersForSubject("math").some((chapter) => chapter.slug === catalogSlug)
-      ? "math/figures"
-      : "physics/figures";
+  const figFolder = pyqFigureFolderForSubject(subjectForCatalogSlug(catalogSlug) ?? "");
   const questionHtml = pyqStemToHtml(body, row.figure_links ?? [], figFolder);
 
   const solutionMd = row.solution_md?.trim() ?? "";
