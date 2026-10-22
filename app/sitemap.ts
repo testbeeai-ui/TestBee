@@ -13,22 +13,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteBaseUrl();
   const posts = await getPublicPostsServer();
 
+  // Google and Bing ignore priority and changeFrequency. lastmod is included
+  // only when it is the post's real update time.
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: `${base}/`, changeFrequency: "weekly", priority: 1 },
-    { url: `${base}/news-blog`, changeFrequency: "daily", priority: 0.9 },
-    { url: `${base}/pricing`, changeFrequency: "monthly", priority: 0.8 },
-    { url: `${base}/contact`, changeFrequency: "monthly", priority: 0.7 },
-    { url: `${base}/waitlist`, changeFrequency: "monthly", priority: 0.6 },
-    { url: `${base}/terms-conditions`, changeFrequency: "monthly", priority: 0.3 },
-    { url: `${base}/terms-conditions/terms-and-conditions`, changeFrequency: "monthly", priority: 0.3 },
-    { url: `${base}/terms-conditions/privacy-policy`, changeFrequency: "monthly", priority: 0.3 },
+    { url: `${base}/` },
+    { url: `${base}/news-blog` },
+    { url: `${base}/pricing` },
+    { url: `${base}/contact` },
+    { url: `${base}/waitlist` },
+    { url: `${base}/terms-conditions` },
+    { url: `${base}/terms-conditions/terms-and-conditions` },
+    { url: `${base}/terms-conditions/privacy-policy` },
   ];
 
   const articleRoutes: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${base}${postSlugPath(post)}`,
     lastModified: post.updatedAt || post.publishDate || post.createdAt,
-    changeFrequency: "weekly" as const,
-    priority: 0.8,
   }));
 
   return [...staticRoutes, ...articleRoutes];

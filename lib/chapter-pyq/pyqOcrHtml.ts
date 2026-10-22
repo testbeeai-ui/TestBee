@@ -861,8 +861,8 @@ export function repairPyqKatex(raw: string): string {
  */
 const COLUMN_DASH = "[\\u2014\\u2013]";
 const ROMAN = "VIII|VII|VI|IV|IX|III|II|V|I";
-/** `A.` / `A —` / `$A$`. A bare "a" or "A" is the article, not list item A. */
-const LIST_MARK = String.raw`(?:\.\s*|\s*${COLUMN_DASH}\s*|(?<=\$)\s+)`;
+/** `A. ` / `A —` / `$A$`. A bare "a" or "A", and dotted abbreviations (`A.P.`, `a.u.`), are not list item A. */
+const LIST_MARK = String.raw`(?:\.\s+|\s*${COLUMN_DASH}\s*|(?<=\$)\s+)`;
 
 function tableCell(text: string): string {
   return escapeHtmlTextNode(text.replace(/\s+/g, " ").trim());

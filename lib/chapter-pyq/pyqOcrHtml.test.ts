@@ -857,6 +857,16 @@ describe("printed tables and coach callouts", () => {
     expect(html).not.toContain("<td>gas, match List-I");
   });
 
+  it("does not read A.P., A.C., or a.u. as match-list item A", () => {
+    const html = pyqStemToHtml(
+      "If a, b, c are in A.P. and the energy is 2 a.u. in an A.C. circuit, match List-I with List-II. A. Work done — I. $4$ B. Heat absorbed — II. $11.5$ C. Change in internal energy — III. $6$ D. Enthalpy change — IV. $7$ Choose the correct answer from the options given below:",
+      []
+    );
+    expect(html).toContain("If a, b, c are in A.P. and the energy is 2 a.u. in an A.C. circuit, match List-I with List-II.");
+    expect(html).toContain("<td>A.</td><td>Work done</td>");
+    expect(html).not.toContain("<td>P. and the energy");
+  });
+
   it("turns a dashed data chart into a table", () => {
     const html = pyqStemToHtml(
       "Use the following data : \\nSubstance — $\\Delta H$ — $S$\n$AB(g)$ — 32 — 222\n$A_2(g)$ — 6 — 146\n$B_2(g)$ — $x$ — 280\\nOne mole each of $A_2$ and $B_2$ are taken.",
