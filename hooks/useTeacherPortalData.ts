@@ -215,9 +215,10 @@ export function useTeacherPortalData(
   const [error, setError] = useState<string | null>(null);
   /** Collapse overlapping triggers (poll + focus + visibility + realtime) into one network pass. */
   const inFlightRef = useRef<Promise<void> | null>(null);
+  const createClassroomLockRef = useRef<Promise<void> | null>(null);
 
   const refresh = useCallback(
-    async (opts?: { silent?: boolean }) => {
+    async (opts?: { silent?: boolean; force?: boolean }) => {
       if (!userId) return;
       if (inFlightRef.current) {
         if (!opts?.silent) setLoading(true);
@@ -226,7 +227,7 @@ export function useTeacherPortalData(
         } finally {
           if (!opts?.silent) setLoading(false);
         }
-        return;
+        if (!opts?.force) return;
       }
       const silent = Boolean(opts?.silent);
       if (!silent) setLoading(true);
@@ -352,18 +353,19 @@ export function useTeacherPortalData(
       scheduleEndDate?: string | null;
       allowAdhocTrial: boolean;
     }) => {
-      const charge = await chargeTeacherRdm("create_classroom", rdmCosts);
-      if (typeof charge.rdm === "number") {
-        patchRdmBalance(charge.rdm);
-      }
-      let classroomId: string;
-      try {
-        ({ classroomId } = await createTeacherClassroom(input));
-      } catch (e) {
-        await refundTeacherRdm("create_classroom", rdmCosts).catch(() => {});
-        throw e;
-      }
-      if (input.scheduleDate && input.scheduleTime) {
+      if (createClassroomLockRef.current) return createClassroomLockRef.current;
+      const run = (async () => {
+        const className = input.name.trim().slice(0, 80);
+        if (!className) throw new Error("Classroom name is required.");
+        const charge = await chargeTeacherRdm("create_classroom", rdmCosts);
+        let classroomId: string;
+        try {
+          ({ classroomId } = await createTeacherClassroom({ ...input, name: className }));
+        } catch (e) {
+          await refundTeacherRdm("create_classroom", rdmCosts).catch(() => {});
+          throw e;
+        }
+        if (input.scheduleDate && input.scheduleTime) {
         const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         try {
           const res = await fetchWithClientAuth(
@@ -393,7 +395,15 @@ export function useTeacherPortalData(
           console.warn("[google calendar] sync:", e);
         }
       }
-      await refresh();
+        await refresh({ force: true, silent: true });
+        if (typeof charge.rdm === "number") patchRdmBalance(charge.rdm);
+      })();
+      createClassroomLockRef.current = run;
+      try {
+        await run;
+      } finally {
+        createClassroomLockRef.current = null;
+      }
     },
     [refresh, rdmCosts, patchRdmBalance]
   );

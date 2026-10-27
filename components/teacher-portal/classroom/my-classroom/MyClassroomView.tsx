@@ -40,7 +40,6 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import InviteStudents from "@/components/InviteStudents";
 import { useToast } from "@/hooks/use-toast";
-import { useUserStore } from "@/store/useUserStore";
 import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 import {
   chargeTeacherRdm,
@@ -202,6 +201,7 @@ export default function MyClassroomView({
   onUpdateClassroom,
   onDeleteClassroom,
   onRefreshTeacherPortal,
+  onRdmBalance,
   onScheduleLiveSession,
   onRequireVerifiedAction,
   allowNudgeStructuredAssignmentCreate = true,
@@ -1641,9 +1641,7 @@ export default function MyClassroomView({
     setSectionCreating(true);
     try {
       const charge = await chargeTeacherRdm("create_section", teacherRdmCosts);
-      if (typeof charge.rdm === "number") {
-        useUserStore.getState().setRdmFromProfile(Math.max(0, Math.round(charge.rdm)));
-      }
+      if (typeof charge.rdm === "number") onRdmBalance?.(charge.rdm);
       let createdRow: { id?: string } | null = null;
       try {
         const { data: created, error } = await supabase
@@ -1671,7 +1669,8 @@ export default function MyClassroomView({
       setNewSectionName("");
       setCohortTab({ kind: "section", id: createdRow.id });
       setDetailTab("settings");
-      await onRefreshTeacherPortal({ silent: true });
+      await onRefreshTeacherPortal({ silent: true, force: true });
+      if (typeof charge.rdm === "number") onRdmBalance?.(charge.rdm);
     } catch (e) {
       toast({
         title: "Could not create section",
@@ -4313,7 +4312,8 @@ export default function MyClassroomView({
               </label>
               <input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value.slice(0, 80))}
+                maxLength={80}
                 placeholder="e.g. JEE Advanced Batch A 2026"
                 className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400"
               />
@@ -4499,11 +4499,6 @@ export default function MyClassroomView({
         <DialogContent
           hideClose
           onInteractOutside={(e) => {
-            // Investor request: wizard should only close via explicit Close (X).
-            e.preventDefault();
-          }}
-          onEscapeKeyDown={(e) => {
-            // Avoid accidental close on small screens.
             e.preventDefault();
           }}
           className="left-0 top-0 grid h-[100vh] max-h-[100vh] w-screen sm:w-[96vw] max-w-[980px] translate-x-0 translate-y-0 overflow-hidden rounded-none border-r border-white/20 bg-[#07070f] p-0 text-slate-100 shadow-2xl data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:rounded-r-3xl md:max-w-[1240px] lg:max-w-[1320px]"
@@ -4527,6 +4522,7 @@ export default function MyClassroomView({
             onCreateAssignment={onCreateAssignment}
             onCreateClassroom={onCreateClassroom}
             onRefreshTeacherPortal={onRefreshTeacherPortal}
+            onRdmBalance={onRdmBalance}
             onMotivateStudents={onMotivateStudents}
             onScheduleLiveSession={onScheduleLiveSession}
             onRequireVerifiedAction={onRequireVerifiedAction}

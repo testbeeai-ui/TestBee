@@ -111,7 +111,7 @@ function TeacherPortalPageContent() {
       const currentQs = searchParams.toString();
       const current = currentQs ? `/teacher-portal?${currentQs}` : "/teacher-portal";
       if (target === current) return;
-      router.replace(target);
+      router.push(target);
     },
     [router, searchParams]
   );
@@ -271,6 +271,7 @@ function TeacherPortalPageContent() {
                 allowNudgeStructuredAssignmentCreate={!isAdminImpersonation}
                 teacherId={targetTeacherId ?? ""}
                 onRefreshTeacherPortal={activeHook.refresh}
+                onRdmBalance={activeHook.patchRdmBalance}
                 onRequireVerifiedAction={async (actionLabel) => {
                   const result = await guardAction(async () => true, { actionLabel });
                   return result === true;
@@ -371,6 +372,7 @@ function TeacherPortalPageContent() {
                 onNavigateToSection={handleSectionChange}
                 teacherId={targetTeacherId ?? ""}
                 classrooms={activeHook.data.classrooms}
+                onRdmBalance={activeHook.patchRdmBalance}
                 onRequireVerifiedAction={async (actionLabel) => {
                   const result = await guardAction(async () => true, { actionLabel });
                   return result === true;

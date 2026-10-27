@@ -36,6 +36,7 @@ export async function POST(req: Request) {
     chapterTitle,
     topicTitle,
     unitTitle,
+    displayName,
     questions,
     questionCount,
     durationMinutes,
@@ -48,6 +49,7 @@ export async function POST(req: Request) {
     chapterTitle?: unknown;
     topicTitle?: unknown;
     unitTitle?: unknown;
+    displayName?: unknown;
     questions?: unknown;
     questionCount?: unknown;
     durationMinutes?: unknown;
@@ -100,6 +102,10 @@ export async function POST(req: Request) {
       chapter_title: typeof chapterTitle === "string" ? chapterTitle : null,
       topic_title: typeof topicTitle === "string" ? topicTitle : null,
       unit_title: typeof unitTitle === "string" ? unitTitle : null,
+      display_name:
+        typeof displayName === "string" && displayName.trim()
+          ? displayName.trim().slice(0, 80)
+          : null,
       questions,
       question_count: questionCount,
       duration_minutes: durationMinutes,

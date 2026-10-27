@@ -67,7 +67,7 @@ export default function WallTimeSelects({
             onChange("");
             return;
           }
-          apply({ hour12: Number(v) });
+          apply({ hour12: Math.min(12, Math.max(1, Number(v))) });
         }}
         className={
           size === "md" && variant === "inline"

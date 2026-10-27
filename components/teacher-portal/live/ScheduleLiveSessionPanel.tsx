@@ -18,6 +18,7 @@ import type { TeacherPortalClassroomCard } from "@/lib/teacherPortal/types";
 import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 import WallTimeSelects from "@/components/teacher-portal/live/WallTimeSelects";
+import { hhmmToWallParts } from "@/lib/teacherPortal/timeHHmm";
 import TeacherLiveClassChargeConfirm from "@/components/teacher-portal/rdm/TeacherLiveClassChargeConfirm";
 import TeacherQuotaUpgradeBanner from "@/components/teacher-portal/rdm/TeacherQuotaUpgradeBanner";
 import { useTeacherPlanLimits } from "@/hooks/useTeacherPlanLimits";
@@ -543,7 +544,7 @@ export default function ScheduleLiveSessionPanel({
   };
 
   const runSubmit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit && !chargeConfirmOpen) return;
     setSubmitting(true);
     try {
       const preConceptRef =
@@ -688,8 +689,13 @@ export default function ScheduleLiveSessionPanel({
           : sectionId && deliveryBreakdown.totalRdm > 0
             ? `${baseSubmitLabel} (${formatRdmCredit(deliveryBreakdown.totalRdm)})`
             : baseSubmitLabel;
-  const slotSummary =
-    date && startTime ? `${date} ${startTime} · ${durationMinutes} min` : "";
+  const slotClock = (() => {
+    const parts = hhmmToWallParts(startTime);
+    if (!parts) return startTime;
+    const minute = parts.minute === 30 ? "30" : "00";
+    return `${parts.hour12}:${minute} ${parts.isPm ? "PM" : "AM"}`;
+  })();
+  const slotSummary = date && startTime ? `${date} ${slotClock} · ${durationMinutes} min` : "";
 
   const stepCount = 5 as const;
   const stepTabLabels = [

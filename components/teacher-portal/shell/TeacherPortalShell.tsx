@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   Bell,
   BookOpen,
@@ -62,6 +62,7 @@ export default function TeacherPortalShell({
   children,
 }: TeacherPortalShellProps) {
   const [walletOpen, setWalletOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const router = useRouter();
   const { costs, liveClassDelivery } = useTeacherRdmCosts();
   const walletGuide = useMemo(
@@ -71,8 +72,19 @@ export default function TeacherPortalShell({
 
   const openWallet = () => {
     void onSyncWallet?.();
+    setNotesOpen(false);
     setWalletOpen(true);
   };
+  useEffect(() => {
+    if (!walletOpen && !notesOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setWalletOpen(false);
+      setNotesOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [notesOpen, walletOpen]);
   const initials =
     teacherName
       .split(" ")
@@ -143,7 +155,13 @@ export default function TeacherPortalShell({
             </button>
             <button
               type="button"
+              onClick={() => {
+                setWalletOpen(false);
+                setNotesOpen((open) => !open);
+              }}
               className="rounded-md border border-white/10 bg-[#11152a] p-1.5 text-slate-400 hover:text-white sm:p-2"
+              aria-label="Notifications"
+              aria-expanded={notesOpen}
             >
               <Bell className="h-4 w-4" />
             </button>
@@ -243,6 +261,36 @@ export default function TeacherPortalShell({
       </div>
 
       {/* Wallet popup */}
+      {notesOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-end bg-black/40 p-4 pt-16"
+          onClick={() => setNotesOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-white/15 bg-[#0d0d22] p-5 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="teacher-notifications-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="teacher-notifications-title" className="text-lg font-semibold text-slate-100">
+                Notifications
+              </h2>
+              <button
+                type="button"
+                onClick={() => setNotesOpen(false)}
+                className="rounded-md p-1 text-slate-400 hover:text-white"
+                aria-label="Close notifications"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-slate-400">No new notifications.</p>
+          </div>
+        </div>
+      ) : null}
+
       {walletOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"

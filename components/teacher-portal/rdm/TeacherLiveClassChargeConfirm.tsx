@@ -61,9 +61,15 @@ export default function TeacherLiveClassChargeConfirm({
           : "Book this live lesson?";
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/65 p-4">
+    <div
+      className="pointer-events-auto fixed inset-0 z-[1400] flex items-center justify-center bg-black/65 p-4"
+      role="presentation"
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !busy) onCancel();
+      }}
+    >
       <div
-        className="w-full max-w-md rounded-2xl border border-white/15 bg-[#0c0e14] p-5 shadow-2xl"
+        className="pointer-events-auto w-full max-w-md rounded-2xl border border-white/15 bg-[#0c0e14] p-5 shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="live-class-charge-title"

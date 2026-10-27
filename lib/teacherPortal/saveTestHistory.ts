@@ -8,6 +8,7 @@ interface SaveTestHistoryParams {
   chapterTitle?: string | null;
   topicTitle?: string | null;
   unitTitle?: string | null;
+  displayName?: string | null;
   questions: unknown[];
   questionCount: number;
   durationMinutes?: number | null;

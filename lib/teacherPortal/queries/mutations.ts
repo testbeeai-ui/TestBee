@@ -294,8 +294,9 @@ export async function createTeacherClassroom(
 ): Promise<{ classroomId: string }> {
   const db = client ?? supabase;
   await assertTeacherApprovedForMutations(input.userId, db, options);
-  const className = input.name.trim();
+  const className = input.name.trim().slice(0, 80);
   if (!className) throw new Error("Classroom name is required.");
+  if (input.name.trim().length > 80) throw new Error("Classroom name must be 80 characters or fewer.");
 
   const repeatText = input.repeatDays.length ? input.repeatDays.join(", ") : "No repeat selected";
   const scheduleText =
