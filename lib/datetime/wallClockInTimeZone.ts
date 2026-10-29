@@ -1,3 +1,20 @@
+/** Teacher schedules are India wall time, not the browser or server clock. */
+export const INDIA_TIME_ZONE = "Asia/Kolkata";
+
+/** Print a stored instant as India wall time, e.g. "Thu, Nov 05, 6:00 PM". */
+export function formatIndiaDateTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("en-US", {
+    timeZone: INDIA_TIME_ZONE,
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 /** Convert a wall-clock date/time in an IANA zone to the correct UTC instant. */
 export function wallClockInTimeZoneToUtc(
   dateYmd: string,

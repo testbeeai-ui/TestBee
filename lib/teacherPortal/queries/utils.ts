@@ -1,6 +1,7 @@
 import type { Json } from "@/integrations/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { formatIndiaDateTime } from "@/lib/datetime/wallClockInTimeZone";
 
 export type DbClient = SupabaseClient<Database>;
 
@@ -77,12 +78,7 @@ export function asStringArray(input: Json | undefined): string[] {
 
 export function formatSessionLabel(iso: string | null): string {
   if (!iso) return "No session scheduled";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "No session scheduled";
-  const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
-  const day = date.toLocaleDateString("en-US", { day: "2-digit", month: "short" });
-  const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  return `${weekday} ${day} · ${time}`;
+  return formatIndiaDateTime(iso) || "No session scheduled";
 }
 
 export function normalizeScheduleYmd(raw: string): string | null {

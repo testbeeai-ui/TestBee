@@ -581,7 +581,7 @@ export function useTeacherPortalData(
       if (typeof payload.rdm === "number") {
         patchRdmBalance(payload.rdm);
       }
-      await refresh();
+      await refresh({ force: true, silent: true });
     },
     [refresh, patchRdmBalance]
   );

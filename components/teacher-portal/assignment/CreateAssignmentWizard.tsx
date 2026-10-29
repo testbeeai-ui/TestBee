@@ -193,6 +193,7 @@ export default function CreateAssignmentWizard(props: {
   };
 
   const [typeKey, setTypeKey] = useState<WizardTypeKey>("quiz");
+  const [typePicked, setTypePicked] = useState(false);
   const meta = TYPE_META[typeKey];
 
   const [title, setTitle] = useState("");
@@ -322,8 +323,10 @@ export default function CreateAssignmentWizard(props: {
         d.typeKey === "gyan" ||
         d.typeKey === "mock" ||
         d.typeKey === "past_paper"
-      )
+      ) {
         setTypeKey(d.typeKey);
+        setTypePicked(true);
+      }
       if (typeof d.title === "string") setTitle(d.title);
       titleTouchedRef.current = Boolean(d.titleTouched);
       if (d.chapterQuizSel && typeof d.chapterQuizSel === "object")
@@ -709,7 +712,7 @@ export default function CreateAssignmentWizard(props: {
     void runPublish(confirmEscrow, confirmUnlock);
   };
 
-  const step1Ready = title.trim().length > 0;
+  const step1Ready = typePicked && title.trim().length > 0;
   const nextDisabled =
     step === 1
       ? !step1Ready
@@ -860,12 +863,15 @@ export default function CreateAssignmentWizard(props: {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {(Object.keys(TYPE_META) as WizardTypeKey[]).map((k) => {
                 const t = TYPE_META[k];
-                const active = k === typeKey;
+                const active = typePicked && k === typeKey;
                 return (
                   <button
                     key={k}
                     type="button"
-                    onClick={() => setTypeKey(k)}
+                    onClick={() => {
+                      setTypeKey(k);
+                      setTypePicked(true);
+                    }}
                     className={`rounded-2xl border p-4 text-left transition ${
                       active
                         ? "border-emerald-400/40 bg-emerald-500/10"

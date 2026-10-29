@@ -851,9 +851,10 @@ export default function CreateTestsView({
           questionCount: pickedQuestions.length,
           durationMinutes: duration,
           usedQuestionStems: pickedQuestions.map((q) => q.question.trim().toLowerCase()),
-        }).then(({ error }) => {
+        }).then(async ({ error }) => {
           if (error) {
             console.error("Failed to save test history:", error);
+            await refundTeacherRdm("generate_test", teacherRdmCosts).catch(() => {});
             toast.error("Failed to save test history: " + error);
             return;
           }
@@ -943,9 +944,10 @@ export default function CreateTestsView({
       questionCount: built.picked,
       durationMinutes: duration,
       usedQuestionStems: built.questions.map((q) => q.question.trim().toLowerCase()),
-    }).then(({ error }) => {
+    }).then(async ({ error }) => {
       if (error) {
         console.error("Failed to save test history:", error);
+        await refundTeacherRdm("generate_test", teacherRdmCosts).catch(() => {});
         toast.error("Failed to save test history: " + error);
         return;
       }

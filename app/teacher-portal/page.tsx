@@ -160,6 +160,7 @@ function TeacherPortalPageContent() {
 
   useEffect(() => {
     if (!user || authLoading) return;
+    if (profile === null) return;
     if (isAdminImpersonation || isTeacherRole) return;
     if (isAdminRole && !adminTeacherIdRaw) {
       router.replace("/admin/teacher-portal");
@@ -173,6 +174,7 @@ function TeacherPortalPageContent() {
     isTeacherRole,
     isAdminRole,
     adminTeacherIdRaw,
+    profile,
     router,
   ]);
 

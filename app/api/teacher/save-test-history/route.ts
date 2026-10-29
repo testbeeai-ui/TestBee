@@ -91,28 +91,39 @@ export async function POST(req: Request) {
 
   const db = createAdminClient() ?? supabaseUser;
 
-  const { data, error } = await db
-    .from("teacher_generated_test_history")
-    .insert({
-      teacher_id: user.id,
-      board: typeof board === "string" ? board : "CBSE",
-      class_level: classLevel,
-      subject,
-      scope,
-      chapter_title: typeof chapterTitle === "string" ? chapterTitle : null,
-      topic_title: typeof topicTitle === "string" ? topicTitle : null,
-      unit_title: typeof unitTitle === "string" ? unitTitle : null,
-      display_name:
-        typeof displayName === "string" && displayName.trim()
-          ? displayName.trim().slice(0, 80)
-          : null,
-      questions,
-      question_count: questionCount,
-      duration_minutes: durationMinutes,
-      used_question_ids: usedQuestionStems,
-    } as any)
-    .select("id")
-    .single();
+  const displayNameValue =
+    typeof displayName === "string" && displayName.trim()
+      ? displayName.trim().slice(0, 80)
+      : null;
+
+  const row: Record<string, unknown> = {
+    teacher_id: user.id,
+    board: typeof board === "string" ? board : "CBSE",
+    class_level: classLevel,
+    subject,
+    scope,
+    chapter_title: typeof chapterTitle === "string" ? chapterTitle : null,
+    topic_title: typeof topicTitle === "string" ? topicTitle : null,
+    unit_title: typeof unitTitle === "string" ? unitTitle : null,
+    display_name: displayNameValue,
+    questions,
+    question_count: questionCount,
+    duration_minutes: durationMinutes,
+    used_question_ids: usedQuestionStems,
+  };
+
+  const insertHistory = (payload: Record<string, unknown>) =>
+    db.from("teacher_generated_test_history").insert(payload as any).select("id").single();
+
+  let { data, error } = await insertHistory(row);
+  if (error && /display_name/i.test(error.message)) {
+    const withoutColumn = { ...row };
+    delete withoutColumn.display_name;
+    if (displayNameValue && withoutColumn.topic_title == null) {
+      withoutColumn.topic_title = displayNameValue;
+    }
+    ({ data, error } = await insertHistory(withoutColumn));
+  }
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
