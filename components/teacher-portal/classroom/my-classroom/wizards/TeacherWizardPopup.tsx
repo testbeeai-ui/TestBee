@@ -146,6 +146,7 @@ export function TeacherWizardPopup(props: {
   onCreateAssignment: MyClassroomViewProps["onCreateAssignment"];
   onCreateClassroom: MyClassroomViewProps["onCreateClassroom"];
   onRefreshTeacherPortal: MyClassroomViewProps["onRefreshTeacherPortal"];
+  onRdmBalance?: (balance: number) => void;
   onMotivateStudents: MyClassroomViewProps["onMotivateStudents"];
   onScheduleLiveSession: MyClassroomViewProps["onScheduleLiveSession"];
   onRequireVerifiedAction?: MyClassroomViewProps["onRequireVerifiedAction"];
@@ -636,7 +637,9 @@ export function TeacherWizardPopup(props: {
           if (!secName) continue;
 
           try {
-            await chargeTeacherRdm("create_section", teacherRdmCosts);
+            await chargeTeacherRdm("create_section", teacherRdmCosts).then((charge) => {
+              if (typeof charge.rdm === "number") props.onRdmBalance?.(charge.rdm);
+            });
             try {
               const { data: created, error } = await supabase
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -664,7 +667,7 @@ export function TeacherWizardPopup(props: {
         }
       }
 
-      await props.onRefreshTeacherPortal({ silent: true });
+      await props.onRefreshTeacherPortal({ silent: true, force: true });
       setCreatedSummary({ classroomId, joinCode, classroomName });
       props.toast({ title: "Classroom created" });
     } catch (e) {
@@ -1179,7 +1182,8 @@ export function TeacherWizardPopup(props: {
                                   </label>
                                   <input
                                     value={cwName}
-                                    onChange={(e) => setCwName(e.target.value)}
+                                    onChange={(e) => setCwName(e.target.value.slice(0, 80))}
+                                    maxLength={80}
                                     placeholder="e.g. JEE Advanced Batch A — 2026"
                                     className="h-9 w-full rounded-lg border border-white/15 bg-[#070b17] px-2.5 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
                                   />

@@ -86,7 +86,8 @@ export interface MyClassroomViewProps {
   }) => Promise<void>;
   onDeleteClassroom: (input: { classroomId: string }) => Promise<void>;
   /** Reload portal bundle; use `{ silent: true }` from polling so the page does not flash the loading state. */
-  onRefreshTeacherPortal: (opts?: { silent?: boolean }) => Promise<void>;
+  onRefreshTeacherPortal: (opts?: { silent?: boolean; force?: boolean }) => Promise<void>;
+  onRdmBalance?: (balance: number) => void;
   /**
    * When false (e.g. admin impersonation), the nudge wizard cannot inline-create mock/quiz assignments
    * — teachers must pick an existing mock/quiz post from the class wall.

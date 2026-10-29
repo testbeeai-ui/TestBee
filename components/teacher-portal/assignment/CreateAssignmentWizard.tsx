@@ -193,6 +193,7 @@ export default function CreateAssignmentWizard(props: {
   };
 
   const [typeKey, setTypeKey] = useState<WizardTypeKey>("quiz");
+  const [typePicked, setTypePicked] = useState(false);
   const meta = TYPE_META[typeKey];
 
   const [title, setTitle] = useState("");
@@ -322,8 +323,10 @@ export default function CreateAssignmentWizard(props: {
         d.typeKey === "gyan" ||
         d.typeKey === "mock" ||
         d.typeKey === "past_paper"
-      )
+      ) {
         setTypeKey(d.typeKey);
+        setTypePicked(true);
+      }
       if (typeof d.title === "string") setTitle(d.title);
       titleTouchedRef.current = Boolean(d.titleTouched);
       if (d.chapterQuizSel && typeof d.chapterQuizSel === "object")
@@ -709,6 +712,16 @@ export default function CreateAssignmentWizard(props: {
     void runPublish(confirmEscrow, confirmUnlock);
   };
 
+  const step1Ready = typePicked && title.trim().length > 0;
+  const nextDisabled =
+    step === 1
+      ? !step1Ready
+      : step === 2
+        ? !canContinueStep2
+        : step === 3
+          ? !canContinueStep3
+          : true;
+
   const filteredStudents = useMemo(() => {
     const rows = detail?.students ?? [];
     const q = studentSearch.trim().toLowerCase();
@@ -742,13 +755,11 @@ export default function CreateAssignmentWizard(props: {
               <button
                 type="button"
                 onClick={() => {
-                  if (step === 1) setStepSynced(2);
+                  if (step === 1 && step1Ready) setStepSynced(2);
                   else if (step === 2 && canContinueStep2) setStepSynced(3);
                   else if (step === 3 && canContinueStep3) setStepSynced(4);
                 }}
-                disabled={
-                  step === 2 ? !canContinueStep2 : step === 3 ? !canContinueStep3 : step === 4
-                }
+                disabled={nextDisabled}
                 className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100 enabled:hover:bg-emerald-500/20 disabled:opacity-50"
               >
                 Next
@@ -801,13 +812,11 @@ export default function CreateAssignmentWizard(props: {
               <button
                 type="button"
                 onClick={() => {
-                  if (step === 1) setStepSynced(2);
+                  if (step === 1 && step1Ready) setStepSynced(2);
                   else if (step === 2 && canContinueStep2) setStepSynced(3);
                   else if (step === 3 && canContinueStep3) setStepSynced(4);
                 }}
-                disabled={
-                  step === 2 ? !canContinueStep2 : step === 3 ? !canContinueStep3 : step === 4
-                }
+                disabled={nextDisabled}
                 className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100 enabled:hover:bg-emerald-500/20 disabled:opacity-50"
               >
                 Next
@@ -854,12 +863,15 @@ export default function CreateAssignmentWizard(props: {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {(Object.keys(TYPE_META) as WizardTypeKey[]).map((k) => {
                 const t = TYPE_META[k];
-                const active = k === typeKey;
+                const active = typePicked && k === typeKey;
                 return (
                   <button
                     key={k}
                     type="button"
-                    onClick={() => setTypeKey(k)}
+                    onClick={() => {
+                      setTypeKey(k);
+                      setTypePicked(true);
+                    }}
                     className={`rounded-2xl border p-4 text-left transition ${
                       active
                         ? "border-emerald-400/40 bg-emerald-500/10"
@@ -901,6 +913,11 @@ export default function CreateAssignmentWizard(props: {
 
         {step === 2 ? (
           <div className="space-y-4">
+            {!canContinueStep2 ? (
+              <p className="text-xs text-amber-200">
+                Choose class, subject, chapter, topic, and subtopic before Next.
+              </p>
+            ) : null}
             {typeKey === "quiz" ? (
               <ChapterQuizAssignmentFields
                 taxonomy={taxonomy}

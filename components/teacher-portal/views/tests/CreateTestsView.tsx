@@ -198,6 +198,7 @@ type CreateTestsViewProps = {
     extraContentJson?: Record<string, Json> | null;
   }) => Promise<{ id: string }>;
   onRequireVerifiedAction?: (actionLabel: string) => Promise<boolean>;
+  onRdmBalance?: (balance: number) => void;
 };
 
 export default function CreateTestsView({
@@ -209,6 +210,7 @@ export default function CreateTestsView({
   classrooms = [],
   onCreateAssignment,
   onRequireVerifiedAction,
+  onRdmBalance,
 }: CreateTestsViewProps) {
   const { costs: teacherRdmCosts, refresh: refreshTeacherRdmCosts } = useTeacherRdmCosts();
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -738,7 +740,8 @@ export default function CreateTestsView({
     setGenerateLoading(true);
     setGenerateError(null);
     try {
-      await chargeTeacherRdm("generate_test", teacherRdmCosts);
+      const charge = await chargeTeacherRdm("generate_test", teacherRdmCosts);
+      if (typeof charge.rdm === "number") onRdmBalance?.(charge.rdm);
     } catch (e) {
       setGenerateLoading(false);
       setGenerateError(
@@ -843,13 +846,15 @@ export default function CreateTestsView({
               : "Full Paper",
           topicTitle: null,
           unitTitle: null,
+          displayName: computedTestName,
           questions: pickedQuestions,
           questionCount: pickedQuestions.length,
           durationMinutes: duration,
           usedQuestionStems: pickedQuestions.map((q) => q.question.trim().toLowerCase()),
-        }).then(({ error }) => {
+        }).then(async ({ error }) => {
           if (error) {
             console.error("Failed to save test history:", error);
+            await refundTeacherRdm("generate_test", teacherRdmCosts).catch(() => {});
             toast.error("Failed to save test history: " + error);
             return;
           }
@@ -934,13 +939,15 @@ export default function CreateTestsView({
         scope === "Topic-wise" ? findChapterTitleOnly(curriculumUnits, chapterId) : null,
       topicTitle: topicTitle || null,
       unitTitle: unitTitle || null,
+      displayName: computedTestName,
       questions: built.questions,
       questionCount: built.picked,
       durationMinutes: duration,
       usedQuestionStems: built.questions.map((q) => q.question.trim().toLowerCase()),
-    }).then(({ error }) => {
+    }).then(async ({ error }) => {
       if (error) {
         console.error("Failed to save test history:", error);
+        await refundTeacherRdm("generate_test", teacherRdmCosts).catch(() => {});
         toast.error("Failed to save test history: " + error);
         return;
       }
@@ -966,41 +973,33 @@ export default function CreateTestsView({
     }
   };
 
-  const openAssignDialog = () => {
+  const openAssignDialog = (paper?: GeneratedTeacherTest) => {
+    const target = paper ?? generatedTest;
+    const open = () => {
+      setAssignError(null);
+      setAssignSuccess(null);
+      if (!canAssignToClassroom) {
+        setGenerateError(
+          "Assignment flow is unavailable. Please open My Classroom and create from there."
+        );
+        return;
+      }
+      if (!target) return;
+      if (paper) setGeneratedTest(paper);
+      setAssignInstructions(
+        "Read each question carefully. Submit once when finished. Review correct answers after submission to learn from mistakes."
+      );
+      setAssignDueDate("");
+      setAssignDialogOpen(true);
+    };
     if (onRequireVerifiedAction) {
       void onRequireVerifiedAction("Assign test").then((allowed) => {
         if (!allowed) return;
-        setAssignError(null);
-        setAssignSuccess(null);
-        if (!canAssignToClassroom) {
-          setGenerateError(
-            "Assignment flow is unavailable. Please open My Classroom and create from there."
-          );
-          return;
-        }
-        if (!generatedTest) return;
-        setAssignInstructions(
-          "Read each question carefully. Submit once when finished. Review correct answers after submission to learn from mistakes."
-        );
-        setAssignDueDate("");
-        setAssignDialogOpen(true);
+        open();
       });
       return;
     }
-    setAssignError(null);
-    setAssignSuccess(null);
-    if (!canAssignToClassroom) {
-      setGenerateError(
-        "Assignment flow is unavailable. Please open My Classroom and create from there."
-      );
-      return;
-    }
-    if (!generatedTest) return;
-    setAssignInstructions(
-      "Read each question carefully. Submit once when finished. Review correct answers after submission to learn from mistakes."
-    );
-    setAssignDueDate("");
-    setAssignDialogOpen(true);
+    open();
   };
 
   const submitAssignToClassroom = async () => {
@@ -1895,6 +1894,7 @@ export default function CreateTestsView({
               <div>
                 <label className="mb-1 block text-sm font-semibold text-slate-300">Test name</label>
                 <input
+                  maxLength={80}
                   value={testName}
                   onChange={(e) => {
                     setTestName(e.target.value);
@@ -2174,7 +2174,8 @@ export default function CreateTestsView({
                       })}
                     </div>
                     <div className="mb-2 pr-14 text-sm font-semibold text-slate-100 line-clamp-2 sm:mb-3 sm:pr-16">
-                      {item.topic_title ||
+                      {item.display_name?.trim() ||
+                        item.topic_title ||
                         item.unit_title ||
                         item.chapter_title ||
                         "Generated Test"}
@@ -2195,7 +2196,10 @@ export default function CreateTestsView({
                         onClick={() => {
                           const historyTest: GeneratedTeacherTest = {
                             id: item.id,
-                            name: `CBSE Board — ${item.chapter_title || item.unit_title || "Generated Test"}`,
+                            name: item.display_name?.trim() ||
+                              item.chapter_title ||
+                              item.unit_title ||
+                              "Generated Test",
                             examType: "CBSE Board" as ExamType,
                             board: "CBSE Board",
                             classLevelLabel:
@@ -2247,7 +2251,10 @@ export default function CreateTestsView({
                         onClick={() => {
                           const historyTest: GeneratedTeacherTest = {
                             id: item.id,
-                            name: `CBSE Board — ${item.chapter_title || item.unit_title || "Generated Test"}`,
+                            name: item.display_name?.trim() ||
+                              item.chapter_title ||
+                              item.unit_title ||
+                              "Generated Test",
                             examType: "CBSE Board" as ExamType,
                             board: "CBSE Board",
                             classLevelLabel:
@@ -2288,7 +2295,7 @@ export default function CreateTestsView({
                             })),
                           };
                           setGeneratedTest(historyTest);
-                          openAssignDialog();
+                          openAssignDialog(historyTest);
                         }}
                         className="flex-1 rounded-lg border border-violet-500/20 bg-violet-500/10 px-2.5 py-1.5 text-xs font-medium text-violet-300 transition hover:bg-violet-500/15 hover:text-violet-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-violet-500/10 disabled:hover:text-violet-300 sm:px-3 sm:py-2"
                       >

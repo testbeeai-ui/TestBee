@@ -15,6 +15,7 @@ export interface TestHistoryItem {
   duration_minutes: number | null;
   generated_at: string;
   used_question_ids: string[];
+  display_name?: string | null;
 }
 
 interface FetchTestHistoryParams {

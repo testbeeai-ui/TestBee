@@ -1,4 +1,8 @@
 import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
+import {
+  INDIA_TIME_ZONE,
+  wallClockInTimeZoneToUtc,
+} from "@/lib/datetime/wallClockInTimeZone";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import {
@@ -294,8 +298,9 @@ export async function createTeacherClassroom(
 ): Promise<{ classroomId: string }> {
   const db = client ?? supabase;
   await assertTeacherApprovedForMutations(input.userId, db, options);
-  const className = input.name.trim();
+  const className = input.name.trim().slice(0, 80);
   if (!className) throw new Error("Classroom name is required.");
+  if (input.name.trim().length > 80) throw new Error("Classroom name must be 80 characters or fewer.");
 
   const repeatText = input.repeatDays.length ? input.repeatDays.join(", ") : "No repeat selected";
   const scheduleText =
@@ -339,8 +344,17 @@ export async function createTeacherClassroom(
   if (membershipErr && membershipErr.code !== "23505") throw ensureError(membershipErr);
 
   if (input.scheduleDate && input.scheduleTime) {
-    const scheduledAt = new Date(`${input.scheduleDate}T${input.scheduleTime}:00`);
-    if (!Number.isNaN(scheduledAt.getTime())) {
+    let scheduledAt: Date | null = null;
+    try {
+      scheduledAt = wallClockInTimeZoneToUtc(
+        input.scheduleDate,
+        input.scheduleTime,
+        INDIA_TIME_ZONE
+      );
+    } catch {
+      scheduledAt = null;
+    }
+    if (scheduledAt) {
       const { error: sessionErr } = await db.from("live_sessions").insert({
         classroom_id: classroomId,
         teacher_id: input.userId,
@@ -869,8 +883,12 @@ export async function createTeacherLiveSession(
       ? meetLinkRaw
       : `https://${meetLinkRaw}`;
 
-  const scheduledAt = new Date(`${input.date}T${input.startTime}:00`);
-  if (Number.isNaN(scheduledAt.getTime())) throw new Error("Invalid session date/time.");
+  let scheduledAt: Date;
+  try {
+    scheduledAt = wallClockInTimeZoneToUtc(input.date, input.startTime, INDIA_TIME_ZONE);
+  } catch {
+    throw new Error("Invalid session date/time.");
+  }
 
   const postDelayDays =
     Number.isFinite(Number(input.postWorkDelayDays)) && Number(input.postWorkDelayDays) >= 0

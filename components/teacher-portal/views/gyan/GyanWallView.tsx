@@ -328,7 +328,7 @@ export default function GyanWallView({
               />
               <button
                 type="button"
-                disabled={postingId === activeComposerDoubtId}
+                disabled={postingId === activeComposerDoubtId || !(draftById[activeComposerDoubtId] ?? "").trim()}
                 onClick={() => void submit(activeComposerDoubtId)}
                 className="inline-flex w-full items-center justify-center rounded-full bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-400 disabled:opacity-60"
               >

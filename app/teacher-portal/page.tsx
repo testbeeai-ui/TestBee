@@ -111,7 +111,7 @@ function TeacherPortalPageContent() {
       const currentQs = searchParams.toString();
       const current = currentQs ? `/teacher-portal?${currentQs}` : "/teacher-portal";
       if (target === current) return;
-      router.replace(target);
+      router.push(target);
     },
     [router, searchParams]
   );
@@ -160,6 +160,7 @@ function TeacherPortalPageContent() {
 
   useEffect(() => {
     if (!user || authLoading) return;
+    if (profile === null) return;
     if (isAdminImpersonation || isTeacherRole) return;
     if (isAdminRole && !adminTeacherIdRaw) {
       router.replace("/admin/teacher-portal");
@@ -173,6 +174,7 @@ function TeacherPortalPageContent() {
     isTeacherRole,
     isAdminRole,
     adminTeacherIdRaw,
+    profile,
     router,
   ]);
 
@@ -271,6 +273,7 @@ function TeacherPortalPageContent() {
                 allowNudgeStructuredAssignmentCreate={!isAdminImpersonation}
                 teacherId={targetTeacherId ?? ""}
                 onRefreshTeacherPortal={activeHook.refresh}
+                onRdmBalance={activeHook.patchRdmBalance}
                 onRequireVerifiedAction={async (actionLabel) => {
                   const result = await guardAction(async () => true, { actionLabel });
                   return result === true;
@@ -371,6 +374,7 @@ function TeacherPortalPageContent() {
                 onNavigateToSection={handleSectionChange}
                 teacherId={targetTeacherId ?? ""}
                 classrooms={activeHook.data.classrooms}
+                onRdmBalance={activeHook.patchRdmBalance}
                 onRequireVerifiedAction={async (actionLabel) => {
                   const result = await guardAction(async () => true, { actionLabel });
                   return result === true;

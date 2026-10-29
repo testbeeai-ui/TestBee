@@ -13,8 +13,17 @@ import {
   fetchTeacherRdmCosts,
   getChargeAmountForAction,
 } from "@/lib/teacherPortal/teacherRdmConfig";
-import { readTeacherRdmBalance } from "@/lib/teacherPortal/creditTeacherRdmBalance";
+import {
+  creditTeacherRdmBalance,
+  readTeacherRdmBalance,
+} from "@/lib/teacherPortal/creditTeacherRdmBalance";
 import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
+import {
+  INDIA_TIME_ZONE,
+  wallClockInTimeZoneToUtc,
+} from "@/lib/datetime/wallClockInTimeZone";
+import { awardLiveClassDeliveryOnSchedule } from "@/lib/teacherPortal/awardLiveClassDeliveryOnSchedule";
+import { liveClassDeliveryRdmConfigFromRows } from "@/lib/teacherPortal/liveClassDeliveryRdm";
 
 export const runtime = "nodejs";
 
@@ -85,8 +94,11 @@ export async function POST(request: Request) {
   const teacherId = auth.user.id;
   const date = typeof body.date === "string" ? body.date.trim() : "";
   const startTime = typeof body.startTime === "string" ? body.startTime.trim() : "";
-  const scheduledAt = new Date(`${date}T${startTime}:00`);
-  if (!date || !startTime || Number.isNaN(scheduledAt.getTime())) {
+  let scheduledAt: Date;
+  try {
+    if (!date || !startTime) throw new Error("missing");
+    scheduledAt = wallClockInTimeZoneToUtc(date, startTime, INDIA_TIME_ZONE);
+  } catch {
     return NextResponse.json({ error: "Valid date and start time required" }, { status: 400 });
   }
 
@@ -164,7 +176,42 @@ export async function POST(request: Request) {
       { skipPlanQuotaCheck: true }
     );
 
-    const walletRdm = await readTeacherRdmBalance(admin, teacherId);
+    let walletRdm: number | null = null;
+    const sectionId = typeof body.sectionId === "string" ? body.sectionId.trim() : "";
+    try {
+      let awarded = false;
+      if (sectionId) {
+        const award = await awardLiveClassDeliveryOnSchedule(admin, {
+          sectionId,
+          occurrenceAtIso: scheduledAt.toISOString(),
+        });
+        awarded = award.ok === true || award.already_awarded === true;
+        if (typeof award.balance === "number") walletRdm = award.balance;
+      }
+      if (!awarded) {
+        const { data: costRows } = await admin
+          .from("rdm_config")
+          .select("key, value")
+          .in("key", ["teacher_live_class_base_rdm"]);
+        const delivery = liveClassDeliveryRdmConfigFromRows(
+          (costRows ?? []) as Array<{ key: string; value: number | null }>
+        );
+        const base = delivery.baseRdm;
+        if (base > 0) {
+          walletRdm = await creditTeacherRdmBalance(admin, teacherId, base);
+        }
+      }
+    } catch (creditError) {
+      console.error("[live-sessions/create] delivery RDM credit failed", creditError);
+    }
+
+    if (walletRdm == null) {
+      try {
+        walletRdm = await readTeacherRdmBalance(admin, teacherId);
+      } catch (balanceError) {
+        console.error("[live-sessions/create] balance read failed", balanceError);
+      }
+    }
 
     return NextResponse.json({
       ok: true,

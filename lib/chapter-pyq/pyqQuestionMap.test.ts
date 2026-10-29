@@ -71,8 +71,9 @@ describe("pyq question mapper", () => {
       "/pyq/chem/figures/s2025apr_sbc_q03_1.png"
     );
     expect(mapped.question.questionHtml).not.toContain("physics/figures");
-    const imgAt = mapped.question.questionHtml.indexOf("s2025apr_sbc_q03_1.png");
-    const givenAt = mapped.question.questionHtml.indexOf("(Given");
+    const html = mapped.question.questionHtml ?? "";
+    const imgAt = html.indexOf("s2025apr_sbc_q03_1.png");
+    const givenAt = html.indexOf("(Given");
     expect(imgAt).toBeGreaterThan(-1);
     expect(givenAt).toBeGreaterThan(imgAt);
   });

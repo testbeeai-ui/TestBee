@@ -11,6 +11,7 @@ import type {
   TeacherPortalSessionWorkKind,
 } from "@/lib/teacherPortal/types";
 import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
+import { formatIndiaDateTime } from "@/lib/datetime/wallClockInTimeZone";
 
 interface MyClassesViewProps {
   sessions: TeacherPortalSessionItem[];
@@ -53,14 +54,7 @@ interface MyClassesViewProps {
 }
 
 function timeLabel(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString("en-US", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatIndiaDateTime(iso) || "Scheduled";
 }
 
 function compactStatusLabel(session: TeacherPortalSessionItem): {

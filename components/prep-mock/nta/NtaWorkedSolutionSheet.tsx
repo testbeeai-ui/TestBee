@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import "@fontsource/plus-jakarta-sans/400.css";
+import "@fontsource/plus-jakarta-sans/500.css";
+import "@fontsource/plus-jakarta-sans/600.css";
+import "@fontsource/plus-jakarta-sans/700.css";
 import { useKatexAutoRender } from "@/hooks/useKatexAutoRender";
 import { sanitizeMockHtml } from "@/lib/mock/mockHtml";
 import {
@@ -20,12 +23,6 @@ import {
 } from "@/lib/chapter-pyq/pyqWorkedSolution";
 import { NtaFigureLightbox, useNtaFigurePreview } from "@/components/prep-mock/nta/NtaFigureLightbox";
 import { cn } from "@/lib/utils";
-
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
 
 const MATH_WHITE =
   "[&_.katex]:!text-white [&_.katex_*]:!text-white [&_.katex-html]:!text-white [&_.katex-error]:!text-red-400";
@@ -261,7 +258,7 @@ export function NtaWorkedSolutionSheet({
   return (
     <div
       className={cn(
-        jakarta.className,
+        "font-['Plus_Jakarta_Sans',sans-serif]",
         "nta-worked-solution relative flex h-auto max-h-[78dvh] w-full min-w-0 max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-slate-800/80 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-xl sm:max-h-[min(70vh,38rem)] sm:rounded-2xl sm:p-5"
       )}
       onClick={(event) => {
