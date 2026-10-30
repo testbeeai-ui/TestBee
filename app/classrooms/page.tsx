@@ -922,13 +922,30 @@ const Classrooms = () => {
   };
 
   const handleJoin = async () => {
-    if (!joinCode.trim() || !user) return;
-    const { data: classroom } = await supabase
-      .from("classrooms")
-      .select("id")
-      .eq("join_code", joinCode.trim())
-      .maybeSingle();
-    if (!classroom) {
+    const code = joinCode.replace(/\s+/g, "").toUpperCase();
+    if (!user) return;
+    if (!code) {
+      toast({
+        title: "Enter a join code",
+        description: "Ask your teacher for the classroom code.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (code.length < 6) {
+      toast({
+        title: "Enter the full join code",
+        description: "Codes are 6 characters. A few older classes use 8.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const res = await fetch(`/api/join/lookup?code=${encodeURIComponent(code)}`);
+    const body = (await res.json().catch(() => null)) as {
+      classroom?: { id?: string } | null;
+    } | null;
+    const classroomId = body?.classroom?.id;
+    if (!res.ok || !classroomId) {
       toast({
         title: "Invalid code",
         description: "No classroom found with that code.",
@@ -936,6 +953,7 @@ const Classrooms = () => {
       });
       return;
     }
+    const classroom = { id: classroomId };
 
     const { error } = await supabase.from("classroom_join_requests").insert({
       classroom_id: classroom.id,
@@ -994,14 +1012,24 @@ const Classrooms = () => {
                     </DialogHeader>
                     <div className="space-y-4 mt-2">
                       <Input
-                        placeholder="Enter 6-character join code"
+                        placeholder="Enter join code"
                         value={joinCode}
-                        onChange={(e) => setJoinCode(e.target.value)}
+                        onChange={(e) =>
+                          setJoinCode(e.target.value.replace(/\s+/g, "").toUpperCase().slice(0, 8))
+                        }
                         className="rounded-xl h-12 text-center text-lg tracking-widest font-bold"
-                        maxLength={16}
+                        maxLength={8}
+                        autoCapitalize="characters"
+                        aria-describedby="join-code-hint"
                       />
+                      <p id="join-code-hint" className="text-xs text-muted-foreground">
+                        {joinCode.length === 0
+                          ? "Enter the code from your teacher. Join stays off until it is complete."
+                          : "Codes are 6 characters. A few older classes use 8."}
+                      </p>
                       <Button
                         onClick={handleJoin}
+                        disabled={joinCode.replace(/\s+/g, "").length < 6}
                         className="w-full rounded-xl edu-btn-primary h-12 font-extrabold"
                       >
                         Join 🚀

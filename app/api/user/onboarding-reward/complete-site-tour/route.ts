@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       alreadyClaimed: Boolean(result.already_claimed),
       amount: Number(result.amount) || 0,
       balance: Number(result.balance) || 0,
-      claimedEver: profile.free_trial_checklist_reward_claimed_ever === true,
+      claimedEver: true,
     });
   } catch (e) {
     console.error("complete-site-tour POST error", e);

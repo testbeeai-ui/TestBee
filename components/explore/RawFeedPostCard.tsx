@@ -228,12 +228,13 @@ export default function RawFeedPostCard({
         {isOwnPost && onDelete ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <span
+              <button
+                type="button"
                 className="ml-auto inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Post options"
               >
                 <MoreVertical className="h-3.5 w-3.5" />
-              </span>
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem

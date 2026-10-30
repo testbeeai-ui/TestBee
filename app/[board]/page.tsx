@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import AppLayout from "@/components/AppLayout";
 import ChapterPyqListView from "@/components/chapter-pyq/ChapterPyqListView";
-import { LearnHubAtName } from "@/app/learnhub/[[...subject]]/page";
+import { LearnHubAtName } from "@/app/learnhub/[[...subject]]/ExploreClient";
 import { createAdminClient } from "@/integrations/supabase/server";
 import { parseLearnHubSubjectSlug } from "@/lib/learnhub/routes";
 import {

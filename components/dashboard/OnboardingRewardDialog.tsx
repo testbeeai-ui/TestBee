@@ -1991,7 +1991,7 @@ export function OnboardingRewardDialog({
                     </div>
                   </div>
                   <div>
-                    <div className="pop-title">Daily tasks — Day {trialDayNumber} of 10</div>
+                    <div className="pop-title">Daily tasks — Day {trialDayNumber} of 10, inside a 14-day trial</div>
                     <div className="pop-day">
                       {streakLockedByTrialEnd
                         ? `Trial time left — streak can reach Day ${maxReachableStreakDay} only`

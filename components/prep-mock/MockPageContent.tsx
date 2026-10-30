@@ -40,6 +40,7 @@ import {
   Target,
   Lightbulb,
   CheckCircle2,
+  CircleDashed,
   XCircle,
   RotateCcw,
   ChevronDown,
@@ -1086,6 +1087,12 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     () => questions.filter((q) => answers[q.id] === q.correctAnswer).length,
     [questions, answers]
   );
+  const answeredCount = useMemo(
+    () => questions.filter((q) => typeof answers[q.id] === "number").length,
+    [questions, answers]
+  );
+  const unansweredCount = questions.length - answeredCount;
+  const incorrectCount = Math.max(0, answeredCount - correctCount);
 
   const handleBackFromResults = useCallback(() => {
     if (isLibraryPage) {
@@ -1716,7 +1723,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
                   </p>
                 ) : null}
                 <p className="edu-page-desc">
-                  {correctCount} / {questions.length} correct
+                  {correctCount} correct · {incorrectCount} wrong · {unansweredCount} unanswered
                   {timeTakenSeconds > 0 && ` · ${formatMockExamTime(timeTakenSeconds)} taken`}
                 </p>
               </div>
@@ -1730,13 +1737,13 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
                 </div>
                 <div className="edu-card p-4 rounded-2xl text-center">
                   <span className="text-2xl font-extrabold text-destructive block">
-                    {questions.length - correctCount}
+                    {incorrectCount}
                   </span>
                   <span className="text-xs text-muted-foreground font-bold">Wrong</span>
                 </div>
                 <div className="edu-card p-4 rounded-2xl text-center">
                   <span className="text-2xl font-extrabold text-primary block">
-                    {formatMockAccuracyPercent(correctCount, questions.length)}%
+                    {formatMockAccuracyPercent(correctCount, answeredCount)}%
                   </span>
                   <span className="text-xs text-muted-foreground font-bold">Score</span>
                 </div>
@@ -1915,7 +1922,8 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
                 <div className="space-y-3">
                   {reviewQuestions.map((q) => {
                     const selected = answers[q.id];
-                    const correct = selected === q.correctAnswer;
+                    const attempted = typeof selected === "number";
+                    const correct = attempted && selected === q.correctAnswer;
                     const open = expandedReviewId === q.id;
                     return (
                       <div key={q.id} className="border border-border rounded-xl overflow-hidden">
@@ -1927,8 +1935,10 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
                           <span className="shrink-0">
                             {correct ? (
                               <CheckCircle2 className="w-4 h-4 text-edu-green sm:w-5 sm:h-5" />
-                            ) : (
+                            ) : attempted ? (
                               <XCircle className="w-4 h-4 text-destructive sm:w-5 sm:h-5" />
+                            ) : (
+                              <CircleDashed className="w-4 h-4 text-muted-foreground sm:w-5 sm:h-5" />
                             )}
                           </span>
                           <span className="text-xs font-bold text-foreground line-clamp-2 flex-1 sm:text-sm">

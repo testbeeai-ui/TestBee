@@ -698,6 +698,12 @@ function ReferEarnPageContent() {
       setSelectedClaim(null);
     }
     setTab(key);
+    queueMicrotask(() => {
+      document.getElementById("refer-earn-panel")?.scrollIntoView({
+        behavior: "auto",
+        block: "start",
+      });
+    });
   }, []);
 
   const showLearningBuddyPanel = tab === "learning_buddy";
@@ -865,6 +871,7 @@ function ReferEarnPageContent() {
                 })}
               </div>
 
+              <div id="refer-earn-panel" className="scroll-mt-24 space-y-4">
               {tab === "how" ? (
                 <div className="space-y-4">
                   <p className={cn("flex items-center gap-2", reLabel)}>
@@ -1214,6 +1221,7 @@ function ReferEarnPageContent() {
                   </span>
                 </p>
               ) : null}
+              </div>
             </div>
 
             {/* RIGHT — Challenges or Learning Buddy (animated) */}

@@ -935,10 +935,24 @@ function DoubtsPageContent() {
       const gained = afterRdm - beforeRdm;
       toast({
         title: "Saved for revision",
-        description:
-          gained >= gyanRdm.save
-            ? `+${gyanRdm.save} RDM — first save milestone today (IST).`
-            : undefined,
+        description: (
+          <div className="mt-0.5 space-y-2">
+            <p className="text-xs leading-relaxed">
+              {gained >= gyanRdm.save
+                ? `+${gyanRdm.save} RDM — first save milestone today (IST). `
+                : ""}
+              It is listed under Revision, Saved doubts.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 rounded-md px-3 text-xs font-semibold"
+              onClick={() => router.push("/revision?tab=doubts")}
+            >
+              Open saved doubts
+            </Button>
+          </div>
+        ),
       });
       void refreshProfile();
       void fetchUserRdmToday();

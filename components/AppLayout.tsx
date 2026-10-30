@@ -38,6 +38,7 @@ import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { LEARN_HUB_PATH, isLearnHubPathname } from "@/lib/learnhub/routes";
 import StudentRdmWalletDialog from "@/components/wallet/StudentRdmWalletDialog";
 import { requestOpenSiteTourCarousel } from "@/lib/onboarding/openSiteTourCarousel";
+import { isOnboardingRewardClaimed } from "@/lib/subscription/freeTrialClient";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -204,7 +205,9 @@ const AppLayout = ({
     return name.slice(0, 2).toUpperCase();
   })();
 
-  const isTourClaimed = profile?.free_trial_checklist_reward_claimed_ever === true;
+  const isTourClaimed =
+    profile?.free_trial_checklist_reward_claimed_ever === true ||
+    isOnboardingRewardClaimed(profile);
   const { signOut } = useAuth();
 
   useEffect(() => {
@@ -212,6 +215,17 @@ const AppLayout = ({
     window.addEventListener("open-rdm-wallet", handleOpenWallet);
     return () => window.removeEventListener("open-rdm-wallet", handleOpenWallet);
   }, []);
+
+  useEffect(() => {
+    if (!drawerOpen && !studentWalletOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setDrawerOpen(false);
+      setStudentWalletOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawerOpen, studentWalletOpen]);
 
   // Inject Tabler Icons for the student navbar icons
   useEffect(() => {
@@ -460,7 +474,7 @@ const AppLayout = ({
                 </div>
 
                 {/* Dynamic Notification Bell */}
-                <div className={styles.bellBtn} aria-label="Notifications" style={{ border: "none", background: "transparent" }}>
+                <div className={styles.bellBtn} style={{ border: "none", background: "transparent" }}>
                   <NotificationBell />
                 </div>
 
@@ -470,14 +484,15 @@ const AppLayout = ({
                 </Link>
 
                 {/* Burger Quick-Menu Icon */}
-                <div
+                <button
+                  type="button"
                   className={`${styles.burgerBtn} ${drawerOpen ? styles.open : ""}`}
                   onClick={() => setDrawerOpen(!drawerOpen)}
                   aria-label="Quick navigation menu"
                   aria-expanded={drawerOpen}
                 >
                   <i className="ti ti-menu-2" aria-hidden="true"></i>
-                </div>
+                </button>
               </div>
             </nav>
           )
@@ -664,7 +679,7 @@ const AppLayout = ({
                     </div>
                     <div className={styles.ditemBody}>
                       <div className={styles.ditemName}>DailyDose</div>
-                      <div className={styles.ditemDesc}>5 PCM questions | +25 RDM daily</div>
+                      <div className={styles.ditemDesc}>5 PCM questions | +15 RDM for a full run</div>
                     </div>
                     <i className={`ti ti-arrow-right ${styles.ditemArrow}`} aria-hidden="true"></i>
                   </Link>

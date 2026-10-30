@@ -92,11 +92,9 @@ export default function StudentProfileShell({
   const router = useRouter();
   const { signOut, profile } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [personalSubCollapsed, setPersonalSubCollapsed] = useState(false);
   const [subscriptionSubCollapsed, setSubscriptionSubCollapsed] = useState(false);
   const personalOpen = PERSONAL_GROUP.includes(activeSection);
   const subscriptionOpen = SUBSCRIPTION_GROUP.includes(activeSection);
-  const subMenuVisible = personalOpen && !personalSubCollapsed;
   const subscriptionMenuVisible = subscriptionOpen && !subscriptionSubCollapsed;
 
   const planKey = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
@@ -105,10 +103,6 @@ export default function StudentProfileShell({
   const studentId = formatStudentId(profile?.student_code);
 
   const visibleSubscriptionItems = SUBSCRIPTION_ITEMS;
-
-  useEffect(() => {
-    if (!personalOpen) setPersonalSubCollapsed(false);
-  }, [personalOpen]);
 
   useEffect(() => {
     if (!subscriptionOpen) setSubscriptionSubCollapsed(false);
@@ -182,15 +176,7 @@ export default function StudentProfileShell({
         <nav className="flex flex-col gap-0.5 p-1.5 sm:p-2">
           <button
             type="button"
-            onClick={() => {
-              if (!personalOpen) {
-                onSectionChange("personal");
-                setPersonalSubCollapsed(false);
-                return;
-              }
-              if (subMenuVisible) setPersonalSubCollapsed(true);
-              else setPersonalSubCollapsed(false);
-            }}
+            onClick={() => onSectionChange("personal")}
             className={cn(
               "flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-[11px] font-bold transition-colors sm:gap-2 sm:px-3 sm:py-2.5 sm:text-xs lg:text-sm",
               personalActive
@@ -205,12 +191,11 @@ export default function StudentProfileShell({
             <ChevronDown
               className={cn(
                 "h-3.5 w-3.5 shrink-0 opacity-70 transition-transform sm:h-4 sm:w-4",
-                subMenuVisible ? "rotate-0" : "-rotate-90"
+                "rotate-0"
               )}
             />
           </button>
-          {subMenuVisible
-            ? underPersonal.map(({ id, label, icon: SubIcon }) => {
+          {underPersonal.map(({ id, label, icon: SubIcon }) => {
                 const active = activeSection === id;
                 return (
                   <button
@@ -228,8 +213,7 @@ export default function StudentProfileShell({
                     <span className="min-w-0 flex-1 truncate">{label}</span>
                   </button>
                 );
-              })
-            : null}
+              })}
           <button
             type="button"
             onClick={() => onSectionChange(edufundId)}

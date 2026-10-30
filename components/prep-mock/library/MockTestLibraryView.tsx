@@ -26,7 +26,12 @@ import {
   mockPaperTypeLabel,
   type LibraryExamFilter,
 } from "@/lib/mock/mockPapersCatalog";
-import { QUICK_DURATIONS, subjectEmojis, SUBJECT_LABELS } from "@/components/prep-mock/constants";
+import {
+  estimateQuickQuestionCount,
+  QUICK_DURATIONS,
+  subjectEmojis,
+  SUBJECT_LABELS,
+} from "@/components/prep-mock/constants";
 import McqChapterBrowser from "@/components/prep-mock/library/McqChapterBrowser";
 import type { LibraryCollectionTab, PaperSource } from "@/components/prep-mock/types";
 
@@ -104,7 +109,7 @@ export default function MockTestLibraryView({
   monthlyAttemptsCount,
   mocksPerMonthLimit,
 }: MockTestLibraryViewProps) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string>("all");
 
@@ -913,7 +918,12 @@ export default function MockTestLibraryView({
                   ))}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  ~{Math.ceil(duration / 2.5)} questions · ~2–3 min per question
+                  {estimateQuickQuestionCount(
+                    [effectiveSubject],
+                    profile?.class_level ?? 11,
+                    duration
+                  )}{" "}
+                  questions · about 2–3 min each
                 </p>
               </div>
               <div>

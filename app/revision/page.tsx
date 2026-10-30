@@ -39,6 +39,7 @@ import {
 } from "@/lib/saved/revisionCardRecall";
 import { useRecallNowMs } from "@/hooks/useRecallNowMs";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   fetchSavedQuestionRows,
@@ -51,7 +52,9 @@ import { cn } from "@/lib/utils";
 
 import { DEMO_REVISION_CARDS } from "@/lib/saved/demoRevisionCards";
 
-type RevisionTab = "instacue" | "units" | "saved" | "community" | "questions";
+type RevisionTab = "instacue" | "units" | "saved" | "community" | "questions" | "doubts";
+
+type SavedDoubtRow = { id: string; title: string; subject: string | null };
 
 /** Show only the subtopic name: strip "Subtopic 1.1:" prefix and " (Level: ...)" suffix. */
 function subtopicDisplayName(sectionTitle: string): string {
@@ -63,7 +66,14 @@ function subtopicDisplayName(sectionTitle: string): string {
   );
 }
 
-const VALID_REVISION_TABS: RevisionTab[] = ["instacue", "units", "saved", "community", "questions"];
+const VALID_REVISION_TABS: RevisionTab[] = [
+  "instacue",
+  "units",
+  "saved",
+  "community",
+  "questions",
+  "doubts",
+];
 
 const RevisionContent = () => {
   const searchParams = useSearchParams();
@@ -78,6 +88,7 @@ const RevisionContent = () => {
   const recallNowMs = useRecallNowMs();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<RevisionTab>("instacue");
+  const [savedDoubts, setSavedDoubts] = useState<SavedDoubtRow[]>([]);
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -85,6 +96,38 @@ const RevisionContent = () => {
       setActiveTab(tab as RevisionTab);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!authUser?.id) {
+      setSavedDoubts([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("doubt_saves")
+        .select("doubt_id, doubts(id, title, subject)")
+        .eq("user_id", authUser.id)
+        .order("created_at", { ascending: false });
+      if (cancelled || error) return;
+      const rows: SavedDoubtRow[] = [];
+      for (const row of data ?? []) {
+        const doubt = row.doubts as { id?: string; title?: string | null; subject?: string | null } | { id?: string; title?: string | null; subject?: string | null }[] | null;
+        const one = Array.isArray(doubt) ? doubt[0] : doubt;
+        const id = one?.id ?? row.doubt_id;
+        if (!id) continue;
+        rows.push({
+          id,
+          title: (one?.title ?? "").trim() || "Untitled doubt",
+          subject: one?.subject ?? null,
+        });
+      }
+      setSavedDoubts(rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser?.id]);
 
   const [savedQuestionRows, setSavedQuestionRows] = useState<SavedQuestionRow[]>([]);
   const [savedQuestionsMerged, setSavedQuestionsMerged] = useState<Question[]>([]);
@@ -344,6 +387,7 @@ const RevisionContent = () => {
         count: savedCommunityPostsStoreCount,
       },
       { id: "questions" as const, label: "Saved Questions", count: savedQuestionsCount },
+      { id: "doubts" as const, label: "Saved doubts", count: savedDoubts.length },
     ],
     [
       instacueStudyCards.length,
@@ -351,6 +395,7 @@ const RevisionContent = () => {
       savedTabBadgeCount,
       savedCommunityPostsStoreCount,
       savedQuestionsCount,
+      savedDoubts.length,
     ]
   );
 
@@ -361,9 +406,11 @@ const RevisionContent = () => {
         ? "Unit Revision"
         : activeTab === "saved"
           ? "Saved Quiz & Formulas"
-          : activeTab === "community"
-            ? "Community Posts"
-            : "Saved Questions";
+      : activeTab === "community"
+        ? "Community Posts"
+        : activeTab === "doubts"
+          ? "Saved doubts"
+          : "Saved Questions";
 
   return (
     <ProtectedRoute allowRoles={["student"]}>
@@ -390,7 +437,9 @@ const RevisionContent = () => {
                       ? "Quiz and formula practice you saved from Deep Dive"
                       : activeTab === "community"
                         ? "Community feed posts you saved for revision"
-                        : "Saved questions from mock tests and past papers."}
+                        : activeTab === "doubts"
+                          ? "Gyan++ doubts you saved for revision"
+                          : "Saved questions from mock tests and past papers."}
               </p>
             </div>
 
@@ -455,6 +504,46 @@ const RevisionContent = () => {
                 <InstaCuePlayer cards={instacueStudyCards} onClose={() => {}} />
               )}
             </>
+          )}
+
+          {activeTab === "doubts" && (
+            <section className="space-y-3">
+              {savedDoubts.length === 0 ? (
+                <div className="edu-card p-8 text-center rounded-2xl border-2 border-dashed border-border">
+                  <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-3" aria-hidden />
+                  <p className="text-muted-foreground font-medium">No saved doubts yet</p>
+                  <p className="text-sm text-muted-foreground mt-1 mb-4">
+                    Save a Gyan++ doubt and it shows up here.
+                  </p>
+                  <Button variant="outline" className="rounded-xl" asChild>
+                    <Link href="/doubts">
+                      Go to Gyan++ <ChevronRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {savedDoubts.map((doubt) => (
+                    <li key={doubt.id}>
+                      <Link
+                        href={`/doubts/${doubt.id}`}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-muted/40"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold text-foreground">
+                            {doubt.title}
+                          </span>
+                          {doubt.subject ? (
+                            <span className="text-xs text-muted-foreground">{doubt.subject}</span>
+                          ) : null}
+                        </span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           )}
 
           {activeTab === "questions" && (

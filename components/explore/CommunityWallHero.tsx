@@ -62,7 +62,7 @@ export default function CommunityWallHero() {
         activeStudents,
         postsToday: postsTodayRes.count ?? null,
         postRdm: rdmConfig.gyan_post_rdm ?? DEFAULT_RDM_CONFIG.gyan_post_rdm,
-        topStreak: 89,
+        topStreak: null,
       });
     })();
     return () => {

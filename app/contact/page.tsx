@@ -824,7 +824,7 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                             type="button"
                             className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0 ${submitTheme}`}
                             onClick={() => void submit()}
-                            disabled={submitting}
+                            disabled={submitting || getSubmitValidationError(cat, form, severity) !== null}
                           >
                             {submitting ? "Sending…" : "Send message"}
                           </button>

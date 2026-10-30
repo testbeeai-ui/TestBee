@@ -898,12 +898,16 @@ export default function DoubtDetailPage() {
                         <span className="text-muted-foreground">Untitled</span>
                       )}
                     </div>
-                    {isAuthor && !doubt.is_resolved && (
+                    {isAuthor && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <span className="inline-flex items-center justify-center rounded-xl h-8 w-8 shrink-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer">
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center rounded-xl h-8 w-8 shrink-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
+                            aria-label="Doubt options"
+                          >
                             <MoreVertical className="w-4 h-4" />
-                          </span>
+                          </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem className="rounded-lg" onClick={handleEditDoubtOpen}>
