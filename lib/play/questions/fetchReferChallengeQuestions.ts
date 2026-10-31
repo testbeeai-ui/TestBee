@@ -49,8 +49,8 @@ function toPlayQuestionRow(r: PqRow): PlayQuestionRow {
     id: r.id,
     content: r.content as PlayQuestionRow["content"],
     options: r.options as unknown as string[],
-    correct_answer_index: r.correct_answer_index,
-    explanation: r.explanation,
+    correct_answer_index: -1,
+    explanation: null,
     difficulty_rating: r.difficulty_rating,
     category: r.category,
   };
@@ -72,7 +72,7 @@ async function fetchReferQuestionsWithStratifiedFallback(
       const topUp = await sb
         .from("play_questions")
         .select(
-          "id, content, options, correct_answer_index, explanation, difficulty_rating, category"
+          "id, content, options, difficulty_rating, category"
         )
         .eq("domain", "funbrain")
         .eq("category", "mental_math")
@@ -96,7 +96,7 @@ async function fetchReferQuestionsWithStratifiedFallback(
     const { data, error } = await sb
       .from("play_questions")
       .select(
-        "id, content, options, correct_answer_index, explanation, difficulty_rating, category"
+        "id, content, options, difficulty_rating, category"
       )
       .eq("domain", "funbrain")
       .eq("category", "mental_math")

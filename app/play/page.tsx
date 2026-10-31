@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsAppAdmin } from "@/hooks/useIsAppAdmin";
 import { useStreakTimer } from "@/hooks/useStreakTimer";
 import { supabase } from "@/integrations/supabase/client";
+import { checkPlayAnswer } from "@/lib/assessment/revealAnswer";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import PlayQuestionCard from "@/components/PlayQuestionCard";
@@ -620,7 +621,15 @@ function PlayPageContent() {
     if (!streakQuestion || !selectedDomain) return;
     if (streakAnsweredThisRoundRef.current) return;
     streakAnsweredThisRoundRef.current = true;
-    const isCorrect = selectedIndex === streakQuestion.correct_answer_index;
+    const checked = await checkPlayAnswer(
+      streakQuestion.id,
+      streakQuestion.optionOriginIndexes?.[selectedIndex] ?? selectedIndex
+    );
+    const isCorrect = checked?.isCorrect === true;
+    const shownCorrect =
+      streakQuestion.optionOriginIndexes?.findIndex((origin) => origin === checked?.correctIndex) ??
+      checked?.correctIndex ??
+      selectedIndex;
     await supabase.rpc("record_play_result", {
       p_question_id: streakQuestion.id,
       p_is_correct: isCorrect,
@@ -641,7 +650,7 @@ function PlayPageContent() {
       type: isCorrect ? "correct" : "wrong",
       message: isCorrect
         ? "✓ Correct!"
-        : `✗ Incorrect — correct answer was option ${streakQuestion.correct_answer_index + 1}`,
+        : `✗ Incorrect — correct answer was option ${shownCorrect + 1}`,
     });
     setStreakResultPauseMs(remainingOptionsReviewMs(streakQTimeLeftRef.current, OPTIONS_PHASE_SEC));
     setStreakRoundAnswered(true);
@@ -830,10 +839,15 @@ function PlayPageContent() {
     setLeaderboardLoading(false);
   };
 
-  const handleGauntletAnswer = (selectedIndex: number, timeTakenMs: number) => {
+  const handleGauntletAnswer = async (selectedIndex: number, timeTakenMs: number) => {
     if (!gauntletQuestions[gauntletIndex]) return;
     const q = gauntletQuestions[gauntletIndex];
-    const isCorrect = selectedIndex === q.correct_answer_index;
+    const checked = await checkPlayAnswer(q.id, q.optionOriginIndexes?.[selectedIndex] ?? selectedIndex);
+    const isCorrect = checked?.isCorrect === true;
+    const shownCorrect =
+      q.optionOriginIndexes?.findIndex((origin) => origin === checked?.correctIndex) ??
+      checked?.correctIndex ??
+      selectedIndex;
     const newResult: PlayGauntletAnswerPayload = {
       question_id: q.id,
       is_correct: isCorrect,
@@ -847,7 +861,7 @@ function PlayPageContent() {
       type: isCorrect ? "correct" : "wrong",
       message: isCorrect
         ? "✓ Correct!"
-        : `✗ Incorrect — correct answer was option ${q.correct_answer_index + 1}`,
+        : `✗ Incorrect — correct answer was option ${shownCorrect + 1}`,
     });
     setGauntletResultPauseMs(
       remainingOptionsReviewMs(gauntletQTimeLeftRef.current, OPTIONS_PHASE_SEC)

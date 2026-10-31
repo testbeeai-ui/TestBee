@@ -282,6 +282,8 @@ export interface PlayQuestionRow {
   correct_answer_index: number;
   explanation: string | null;
   difficulty_rating: number;
+  /** Original option index for each displayed slot, after shuffle. */
+  optionOriginIndexes?: number[];
   /** Real play_questions.category from RPC (e.g. verbal, mental_math) for mixed-pool UI. */
   category?: string;
 }

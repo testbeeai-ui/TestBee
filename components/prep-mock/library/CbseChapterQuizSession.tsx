@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { recordCbseChapterQuizAttempt } from "@/lib/mock/recordCbseChapterQuizAttempt";
+import { applyCatalogGrades, gradeCatalogAnswers } from "@/lib/assessment/revealAnswer";
 import CbseChapterQuizCommunityShare from "@/components/prep-mock/library/CbseChapterQuizCommunityShare";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserStore } from "@/store/useUserStore";
@@ -77,11 +78,27 @@ export default function CbseChapterQuizSession({
   const [scoreRdmLine, setScoreRdmLine] = useState<string | null>(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [answerKey, setAnswerKey] = useState<
+    Record<string, { correctIndex: number; solutionHtml: string | null }>
+  >({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CbseChapterQuizResult | null>(null);
 
   const total = questions.length;
-  const q = questions[currentIdx];
+  const baseQuestion = questions[currentIdx];
+  const revealed = baseQuestion ? answerKey[baseQuestion.id] : undefined;
+  const q = baseQuestion
+    ? revealed
+      ? {
+          ...baseQuestion,
+          correctAnswer: revealed.correctIndex,
+          solutionHtml: revealed.solutionHtml,
+          solution: revealed.solutionHtml
+            ? revealed.solutionHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+            : "",
+        }
+      : baseQuestion
+    : undefined;
   const selected = q ? selectedAnswers[currentIdx] : undefined;
   const answered = typeof selected === "number";
   const isLast = currentIdx >= total - 1;
@@ -95,15 +112,6 @@ export default function CbseChapterQuizSession({
   }, [selectedAnswers, total]);
 
   const paperTitle = `Class ${classLevel} · ${chapterTitle}`;
-
-  const scoreFromAnswers = useCallback(() => {
-    let correct = 0;
-    for (let i = 0; i < total; i++) {
-      const sel = selectedAnswers[i];
-      if (typeof sel === "number" && questions[i]!.correctAnswer === sel) correct++;
-    }
-    return correct;
-  }, [questions, selectedAnswers, total]);
 
   const persistAttempt = useCallback(
     async (correct: number, durationSeconds: number) => {
@@ -206,21 +214,35 @@ export default function CbseChapterQuizSession({
 
   const handleSubmit = () => {
     setSubmitting(true);
-    const correct = scoreFromAnswers();
-    const wrong = total - correct;
-    const durationSeconds = Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000));
-    attemptKeyRef.current = `${String(Date.now())}:${paperId}`;
-    const next: CbseChapterQuizResult = {
-      correct,
-      wrong,
-      total,
-      durationSeconds,
-      answeredCount: filledCount,
-      attemptKey: attemptKeyRef.current,
-    };
-    setResult(next);
-    setPhase("results");
-    setSubmitting(false);
+    void (async () => {
+      const grades = await gradeCatalogAnswers(
+        "mock",
+        questions.map((question, index) => ({
+          id: question.id,
+          selected: selectedAnswers[index],
+        }))
+      );
+      const scored = applyCatalogGrades(questions, grades);
+      let correct = 0;
+      for (let i = 0; i < total; i++) {
+        const sel = selectedAnswers[i];
+        if (typeof sel === "number" && scored[i]!.correctAnswer === sel) correct++;
+      }
+      const wrong = total - correct;
+      const durationSeconds = Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000));
+      attemptKeyRef.current = `${String(Date.now())}:${paperId}`;
+      const next: CbseChapterQuizResult = {
+        correct,
+        wrong,
+        total,
+        durationSeconds,
+        answeredCount: filledCount,
+        attemptKey: attemptKeyRef.current,
+      };
+      setResult(next);
+      setPhase("results");
+      setSubmitting(false);
+    })();
 
     // Onboarding CBSE MCQ task completion on quiz finish (so we do not interrupt them during the quiz)
     try {
@@ -350,6 +372,14 @@ export default function CbseChapterQuizSession({
                 disabled={answered}
                 onClick={() => {
                   setSelectedAnswers((prev) => ({ ...prev, [currentIdx]: oi }));
+                  void gradeCatalogAnswers("mock", [{ id: q.id, selected: oi }]).then((grades) => {
+                    const row = grades.get(q.id);
+                    if (!row) return;
+                    setAnswerKey((prev) => ({
+                      ...prev,
+                      [q.id]: { correctIndex: row.correct_index, solutionHtml: row.solution_html },
+                    }));
+                  });
                   if (isOnboardingTaskCompanionLaunched("prep_mcq")) {
                     markOnboardingStepComplete("prep_mcq", 3);
                   }

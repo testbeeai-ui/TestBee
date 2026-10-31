@@ -776,14 +776,25 @@ export default function CreateTestsView({
 
         // 2) Fetch all questions under these paper IDs
         const paperIds = papers.map((p) => p.id);
-        const { data: qRows, error: qErr } = await supabase
-          .from("mock_questions")
-          .select(
-            "id, paper_id, sort_order, subject, topic, chapter, difficulty, question_html, solution_html, correct_letter, options_json"
-          )
-          .in("paper_id", paperIds);
+        const { data: bank, error: qErr } = await (
+          supabase as unknown as {
+            rpc: (
+              fn: string,
+              args: { p_paper_ids: string[] }
+            ) => Promise<{ data: unknown; error: { message: string } | null }>;
+          }
+        ).rpc("teacher_mock_question_bank", { p_paper_ids: paperIds });
 
         if (qErr) throw qErr;
+        const bankBody = bank as {
+          ok?: boolean;
+          error?: string;
+          questions?: Parameters<typeof mapCatalogQuestionRowToQuestion>[0][];
+        } | null;
+        if (!bankBody?.ok) {
+          throw new Error(bankBody?.error === "forbidden" ? "Only a teacher can load question keys." : "Could not load questions.");
+        }
+        const qRows = bankBody.questions ?? [];
         if (!qRows || qRows.length === 0) {
           throw new Error("No questions found in the database for the selected chapters.");
         }

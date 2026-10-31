@@ -42,6 +42,7 @@ import {
   markEarnChallengeCompanionRoundComplete,
 } from "@/lib/onboarding/earnChallengeCompanionOnboarding";
 import { shufflePlayQuestionOptions } from "@/lib/play/questions/shufflePlayQuestionOptions";
+import { checkPlayAnswer } from "@/lib/assessment/revealAnswer";
 import {
   referChallengePerQuestionTotalSec,
   referChallengeSessionDurationSec,
@@ -245,10 +246,18 @@ export default function InlineRdmChallenge({
   );
 
   const recordPlayResult = useCallback(
-    async (selectedIndex: number, timeTakenMs: number) => {
+    async (selectedIndex: number, timeTakenMs: number, forceIncorrect = false) => {
       const q = questionsRef.current[indexRef.current];
-      if (!q || phaseRef.current !== "playing") return;
-      const isCorrect = selectedIndex === q.correct_answer_index;
+      if (!q || phaseRef.current !== "playing") return null;
+      let isCorrect = false;
+      let shownCorrect = selectedIndex;
+      if (!forceIncorrect) {
+        const origin = q.optionOriginIndexes?.[selectedIndex] ?? selectedIndex;
+        const checked = await checkPlayAnswer(q.id, origin);
+        isCorrect = checked?.isCorrect === true;
+        const slot = q.optionOriginIndexes?.findIndex((originIndex) => originIndex === checked?.correctIndex);
+        shownCorrect = slot != null && slot >= 0 ? slot : (checked?.correctIndex ?? selectedIndex);
+      }
       const alreadyLocal = resultsRef.current.some((r) => r.question_id === q.id);
       await supabase.rpc("record_play_result", {
         p_question_id: q.id,
@@ -259,11 +268,13 @@ export default function InlineRdmChallenge({
         p_selected_answer_index: selectedIndex,
       });
       void bumpUserStudyDayMs(timeTakenMs);
-      if (alreadyLocal) return;
-      const row = { question_id: q.id, is_correct: isCorrect, time_taken_ms: timeTakenMs };
-      const next = [...resultsRef.current, row];
-      resultsRef.current = next;
-      setResults(next);
+      if (!alreadyLocal) {
+        const row = { question_id: q.id, is_correct: isCorrect, time_taken_ms: timeTakenMs };
+        const next = [...resultsRef.current, row];
+        resultsRef.current = next;
+        setResults(next);
+      }
+      return { isCorrect, shownCorrect };
     },
     [spec.playCategory]
   );
@@ -301,9 +312,6 @@ export default function InlineRdmChallenge({
     answeredThisRoundRef.current = true;
     lockResultReviewFromRemaining();
     questionRoundDeadlineRef.current = null;
-    const nOpt = Array.isArray(q.options) ? q.options.length : 4;
-    const wrongPick =
-      Array.from({ length: nOpt }, (_, i) => i).find((i) => i !== q.correct_answer_index) ?? 0;
     const started = questionRoundStartedAtRef.current ?? Date.now();
     const elapsed = Date.now() - started;
     setRoundOutcomes((o) => [...o, "skip"]);
@@ -317,7 +325,7 @@ export default function InlineRdmChallenge({
       time_taken_ms: elapsed,
     });
     try {
-      await recordPlayResult(wrongPick, elapsed);
+      await recordPlayResult(0, elapsed, true);
     } catch {
       void bumpUserStudyDayMs(elapsed);
     } finally {
@@ -385,24 +393,24 @@ export default function InlineRdmChallenge({
     answeredThisRoundRef.current = true;
     lockResultReviewFromRemaining();
     questionRoundDeadlineRef.current = null;
-    const isCorrect = selectedIndex === q.correct_answer_index;
-    pushLocalResult({
-      question_id: q.id,
-      is_correct: isCorrect,
-      time_taken_ms: timeTakenMs,
-    });
+    let isCorrect = false;
+    let shownCorrect = selectedIndex;
+    try {
+      const graded = await recordPlayResult(selectedIndex, timeTakenMs);
+      if (graded) {
+        isCorrect = graded.isCorrect;
+        shownCorrect = graded.shownCorrect;
+      }
+    } catch {
+      void bumpUserStudyDayMs(timeTakenMs);
+    }
     setRoundOutcomes((o) => [...o, isCorrect ? "correct" : "wrong"]);
     setResultFlash({
       type: isCorrect ? "correct" : "wrong",
       message: isCorrect
         ? `✓ Correct! +${spec.winRdm} RDM on pass`
-        : `✗ Incorrect — correct answer was option ${q.correct_answer_index + 1}`,
+        : `✗ Incorrect — correct answer was option ${shownCorrect + 1}`,
     });
-    try {
-      await recordPlayResult(selectedIndex, timeTakenMs);
-    } catch {
-      void bumpUserStudyDayMs(timeTakenMs);
-    }
   };
 
   const handleSkip = useCallback(async () => {
@@ -413,9 +421,6 @@ export default function InlineRdmChallenge({
     questionRoundDeadlineRef.current = null;
     const started = questionRoundStartedAtRef.current ?? Date.now();
     const elapsed = Date.now() - started;
-    const nOpt = Array.isArray(q.options) ? q.options.length : 4;
-    const wrongPick =
-      Array.from({ length: nOpt }, (_, i) => i).find((i) => i !== q.correct_answer_index) ?? 0;
     pushLocalResult({
       question_id: q.id,
       is_correct: false,
@@ -427,7 +432,7 @@ export default function InlineRdmChallenge({
       message: "→ Skipped — marked as unanswered",
     });
     try {
-      await recordPlayResult(wrongPick, elapsed);
+      await recordPlayResult(0, elapsed, true);
     } catch {
       void bumpUserStudyDayMs(elapsed);
     }

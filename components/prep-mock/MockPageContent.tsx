@@ -77,6 +77,7 @@ import {
   fetchPastPapersFromSupabase,
   fetchPastQuestionsForPaper,
 } from "@/lib/mock/pastPapersFromSupabase";
+import { applyCatalogGrades, gradeCatalogAnswers } from "@/lib/assessment/revealAnswer";
 import { useToast } from "@/hooks/use-toast";
 import { isValidAssignmentPostId } from "@/lib/teacherPortal/assignmentPostIdTemplate";
 
@@ -404,10 +405,20 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     }
 
     if (authUser?.id && questions.length > 0) {
-      const computedCorrectCount = questions.filter(
+      let scoredQuestions = questions;
+      if (questions.some((q) => q.correctAnswer < 0)) {
+        const source = activePaperSource === "past" ? "past_paper" : "mock";
+        const grades = await gradeCatalogAnswers(
+          source,
+          questions.map((q) => ({ id: q.id, selected: answers[q.id] }))
+        );
+        scoredQuestions = applyCatalogGrades(questions, grades);
+        setQuestions(scoredQuestions);
+      }
+      const computedCorrectCount = scoredQuestions.filter(
         (q) => answers[q.id] === q.correctAnswer
       ).length;
-      const orderedAnswers = questions.map((q) => {
+      const orderedAnswers = scoredQuestions.map((q) => {
         const v = answers[q.id];
         return typeof v === "number" ? v : -1;
       });

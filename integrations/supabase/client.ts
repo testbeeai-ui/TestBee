@@ -2,6 +2,7 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "./types";
+import { supabaseAuthCookieOptions } from "@/lib/supabase/authCookieOptions";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
@@ -18,6 +19,7 @@ if (!supabaseUrl || !supabaseKey) {
  * a session → `router.replace("/home")` loop and hundreds of GETs.
  */
 export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseKey, {
+  cookieOptions: supabaseAuthCookieOptions,
   auth: {
     // Disable Navigator LockManager — on some Windows/embedded browsers it can delay or break
     // persisting the code verifier before redirecting to Google.

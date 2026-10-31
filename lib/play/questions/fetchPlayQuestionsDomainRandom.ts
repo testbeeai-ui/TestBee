@@ -16,8 +16,6 @@ type RawPlayQuestion = {
   id: string;
   content: unknown;
   options: unknown;
-  correct_answer_index: number;
-  explanation: string | null;
   difficulty_rating: number;
   category: string;
 };
@@ -27,8 +25,8 @@ function toPlayQuestionRow(r: RawPlayQuestion): PlayQuestionRow {
     id: r.id,
     content: r.content as unknown as PlayQuestionRow["content"],
     options: r.options as unknown as string[],
-    correct_answer_index: r.correct_answer_index,
-    explanation: r.explanation,
+    correct_answer_index: -1,
+    explanation: null,
     difficulty_rating: r.difficulty_rating,
     category: r.category,
   };
@@ -68,7 +66,7 @@ export async function fetchPlayQuestionsDomainRandom(
       sb
         .from("play_questions")
         .select(
-          "id, content, options, correct_answer_index, explanation, difficulty_rating, category"
+          "id, content, options, difficulty_rating, category"
         )
         .eq("domain", domain)
         .eq("category", category)
