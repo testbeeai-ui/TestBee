@@ -637,9 +637,8 @@ export function TeacherWizardPopup(props: {
           if (!secName) continue;
 
           try {
-            await chargeTeacherRdm("create_section", teacherRdmCosts).then((charge) => {
-              if (typeof charge.rdm === "number") props.onRdmBalance?.(charge.rdm);
-            });
+            const charge = await chargeTeacherRdm("create_section", teacherRdmCosts);
+            if (typeof charge.rdm === "number") props.onRdmBalance?.(charge.rdm);
             try {
               const { data: created, error } = await supabase
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -654,7 +653,7 @@ export function TeacherWizardPopup(props: {
               const createdRow = created as { id?: string } | null;
               if (error || !createdRow?.id) throw error ?? new Error("Could not create section.");
             } catch (secInsertErr) {
-              await refundTeacherRdm("create_section", teacherRdmCosts).catch(() => {});
+              await refundTeacherRdm("create_section", teacherRdmCosts, charge.chargeId).catch(() => {});
               throw secInsertErr;
             }
           } catch (secErr) {

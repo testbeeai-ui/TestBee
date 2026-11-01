@@ -1657,7 +1657,7 @@ export default function MyClassroomView({
         createdRow = created as { id?: string } | null;
         if (error || !createdRow?.id) throw error ?? new Error("Could not create section.");
       } catch (e) {
-        await refundTeacherRdm("create_section", teacherRdmCosts).catch(() => {});
+        await refundTeacherRdm("create_section", teacherRdmCosts, charge.chargeId).catch(() => {});
         throw e;
       }
 

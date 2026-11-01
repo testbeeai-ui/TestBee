@@ -739,8 +739,10 @@ export default function CreateTestsView({
     }
     setGenerateLoading(true);
     setGenerateError(null);
+    let generateChargeId: string | null = null;
     try {
       const charge = await chargeTeacherRdm("generate_test", teacherRdmCosts);
+      generateChargeId = charge.chargeId;
       if (typeof charge.rdm === "number") onRdmBalance?.(charge.rdm);
     } catch (e) {
       setGenerateLoading(false);
@@ -865,7 +867,7 @@ export default function CreateTestsView({
         }).then(async ({ error }) => {
           if (error) {
             console.error("Failed to save test history:", error);
-            await refundTeacherRdm("generate_test", teacherRdmCosts).catch(() => {});
+            await refundTeacherRdm("generate_test", teacherRdmCosts, generateChargeId).catch(() => {});
             toast.error("Failed to save test history: " + error);
             return;
           }
@@ -876,7 +878,7 @@ export default function CreateTestsView({
           });
         });
       } catch (err) {
-        await refundTeacherRdm("generate_test", teacherRdmCosts).catch(() => {});
+        await refundTeacherRdm("generate_test", teacherRdmCosts, generateChargeId).catch(() => {});
         setGenerateLoading(false);
         setGenerateError(err instanceof Error ? err.message : "Failed to generate test.");
       }
@@ -895,7 +897,7 @@ export default function CreateTestsView({
       match: currentMatch,
     });
     if (!rowsResult.data || rowsResult.error) {
-      await refundTeacherRdm("generate_test", teacherRdmCosts).catch(() => {});
+      await refundTeacherRdm("generate_test", teacherRdmCosts, generateChargeId).catch(() => {});
       setGenerateLoading(false);
       setGenerateError(rowsResult.error ?? "Could not load questions from question bank.");
       return;
@@ -903,7 +905,7 @@ export default function CreateTestsView({
 
     const built = buildTeacherTestQuestionSet(rowsResult.data.rows, effectiveTestQuestionCount);
     if (built.picked <= 0) {
-      await refundTeacherRdm("generate_test", teacherRdmCosts).catch(() => {});
+      await refundTeacherRdm("generate_test", teacherRdmCosts, generateChargeId).catch(() => {});
       setGenerateLoading(false);
       setGenerateError("No valid MCQs were found for this scope.");
       return;
@@ -958,7 +960,7 @@ export default function CreateTestsView({
     }).then(async ({ error }) => {
       if (error) {
         console.error("Failed to save test history:", error);
-        await refundTeacherRdm("generate_test", teacherRdmCosts).catch(() => {});
+        await refundTeacherRdm("generate_test", teacherRdmCosts, generateChargeId).catch(() => {});
         toast.error("Failed to save test history: " + error);
         return;
       }

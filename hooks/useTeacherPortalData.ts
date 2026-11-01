@@ -362,7 +362,7 @@ export function useTeacherPortalData(
         try {
           ({ classroomId } = await createTeacherClassroom({ ...input, name: className }));
         } catch (e) {
-          await refundTeacherRdm("create_classroom", rdmCosts).catch(() => {});
+          await refundTeacherRdm("create_classroom", rdmCosts, charge.chargeId).catch(() => {});
           throw e;
         }
         if (input.scheduleDate && input.scheduleTime) {

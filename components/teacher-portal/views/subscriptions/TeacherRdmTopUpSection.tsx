@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Check, Coins, Sparkles } from "lucide-react";
 import RazorpayCheckoutButton from "@/components/payments/RazorpayCheckoutButton";
 import { useToast } from "@/hooks/use-toast";
@@ -13,8 +14,30 @@ type Props = {
   onCreditsAdded: (newBalance: number) => Promise<void>;
 };
 
+type PurchaseRow = {
+  id: string;
+  rdmGranted: number;
+  rdmUnspent: number;
+  amountPaise: number;
+  status: string;
+  createdAt: string;
+  canRefund: boolean;
+};
+
 export function TeacherRdmTopUpSection({ onCreditsAdded }: Props) {
   const { toast } = useToast();
+  const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
+  const [refundingId, setRefundingId] = useState<string | null>(null);
+
+  const loadPurchases = async () => {
+    const res = await fetchWithClientAuth("/api/teacher/rdm/purchases");
+    const body = (await res.json().catch(() => ({}))) as { purchases?: PurchaseRow[] };
+    if (res.ok) setPurchases(body.purchases ?? []);
+  };
+
+  useEffect(() => {
+    void loadPurchases();
+  }, []);
 
   const handlePackPaymentVerified = async (
     packId: TeacherRdmPackId,
@@ -44,6 +67,7 @@ export function TeacherRdmTopUpSection({ onCreditsAdded }: Props) {
     }
 
     await onCreditsAdded(purchaseBody.newBalance);
+    await loadPurchases();
     toast({
       title: "RDM credited",
       description: `+${purchaseBody.rdmAmount?.toLocaleString("en-IN") ?? ""} RDM · balance ${purchaseBody.newBalance.toLocaleString("en-IN")}`,
@@ -139,6 +163,87 @@ export function TeacherRdmTopUpSection({ onCreditsAdded }: Props) {
           );
         })}
       </div>
+
+      {purchases.length > 0 ? (
+        <div className="relative border-t border-white/[0.06] px-5 py-5 md:px-7">
+          <h3 className="text-sm font-bold text-white">Your RDM purchases</h3>
+          <p className="mt-1 text-xs leading-relaxed text-slate-400">
+            A refund sends the rupees back through Razorpay and removes only that pack. It stays
+            available while every credit from that purchase is unused. RDM earned from students or
+            tasks is not refunded.
+          </p>
+          <ul className="mt-4 space-y-2">
+            {purchases.map((purchase) => {
+              const rupees = Math.round(purchase.amountPaise / 100);
+              const when = new Date(purchase.createdAt).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              });
+              return (
+                <li
+                  key={purchase.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-3"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {purchase.rdmGranted.toLocaleString("en-IN")} RDM · ₹{rupees.toLocaleString("en-IN")}
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      {when}
+                      {purchase.status === "refunded"
+                        ? " · Refunded"
+                        : purchase.canRefund
+                          ? " · Unused"
+                          : ` · ${purchase.rdmUnspent.toLocaleString("en-IN")} of ${purchase.rdmGranted.toLocaleString("en-IN")} left`}
+                    </p>
+                  </div>
+                  {purchase.canRefund ? (
+                    <button
+                      type="button"
+                      disabled={refundingId === purchase.id}
+                      onClick={() => {
+                        void (async () => {
+                          setRefundingId(purchase.id);
+                          try {
+                            const res = await fetchWithClientAuth("/api/teacher/rdm/pack-refund", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ purchaseId: purchase.id }),
+                            });
+                            const payload = (await res.json().catch(() => ({}))) as {
+                              error?: string;
+                              rdm?: number;
+                            };
+                            if (!res.ok) throw new Error(payload.error || "Refund failed");
+                            if (typeof payload.rdm === "number") await onCreditsAdded(payload.rdm);
+                            await loadPurchases();
+                            toast({
+                              title: "Refund started",
+                              description: `₹${rupees.toLocaleString("en-IN")} is returning through Razorpay. ${purchase.rdmGranted.toLocaleString("en-IN")} RDM was removed.`,
+                            });
+                          } catch (e) {
+                            toast({
+                              title: "Refund not completed",
+                              description: e instanceof Error ? e.message : "Try again.",
+                              variant: "destructive",
+                            });
+                          } finally {
+                            setRefundingId(null);
+                          }
+                        })();
+                      }}
+                      className="rounded-lg border border-amber-400/40 px-3 py-2 text-xs font-bold text-amber-200 hover:bg-amber-500/10 disabled:opacity-60"
+                    >
+                      {refundingId === purchase.id ? "Refunding…" : "Refund payment"}
+                    </button>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
     </section>
   );
 }

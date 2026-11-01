@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import LandingNavbar from "@/components/landing/LandingNavbar";
 import { INVESTOR_NAV_LINKS } from "@/components/landing/landing-constants";
 
-type DocId = "overview" | "tnc" | "pp";
+type DocId = "overview" | "tnc" | "pp" | "refund" | "cancel";
 
 const SIDEBAR_SECTIONS: Record<
   DocId,
@@ -68,6 +68,21 @@ const SIDEBAR_SECTIONS: Record<
       scrollTo: "pp-12",
     },
   ],
+  refund: [
+    { id: "refund-1", icon: "ti ti-circle-number-1", label: "What this covers" },
+    { id: "refund-2", icon: "ti ti-circle-number-2", label: "Annual subscriptions" },
+    { id: "refund-3", icon: "ti ti-circle-number-3", label: "Monthly subscriptions" },
+    { id: "refund-4", icon: "ti ti-circle-number-4", label: "How to ask" },
+    { id: "refund-5", icon: "ti ti-circle-number-5", label: "Teacher RDM packs" },
+    { id: "refund-6", icon: "ti ti-circle-number-6", label: "What is not refunded" },
+    { id: "refund-7", icon: "ti ti-circle-number-7", label: "Price changes" },
+  ],
+  cancel: [
+    { id: "cancel-1", icon: "ti ti-circle-number-1", label: "How to cancel" },
+    { id: "cancel-2", icon: "ti ti-circle-number-2", label: "After you cancel" },
+    { id: "cancel-3", icon: "ti ti-circle-number-3", label: "Fees after cancellation" },
+    { id: "cancel-4", icon: "ti ti-circle-number-4", label: "Free accounts" },
+  ],
   tnc: [
     { id: "tnc-1", icon: "ti ti-circle-number-1", label: "Definitions" },
     { id: "tnc-2", icon: "ti ti-circle-number-2", label: "User eligibility" },
@@ -105,7 +120,11 @@ export default function TermsClientLayout({ children }: { children: React.ReactN
     ? "pp"
     : pathname.includes("/terms-and-conditions")
       ? "tnc"
-      : "overview";
+      : pathname.includes("/refund-policy")
+        ? "refund"
+        : pathname.includes("/cancellation-policy")
+          ? "cancel"
+          : "overview";
 
   const sidebarItems = SIDEBAR_SECTIONS[activeDoc];
 
@@ -155,6 +174,26 @@ export default function TermsClientLayout({ children }: { children: React.ReactN
         >
           <span className="md:hidden">Privacy</span>
           <span className="hidden md:inline">Privacy Policy</span>
+        </Link>
+        <Link
+          href="/terms-conditions/refund-policy"
+          className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors md:px-3.5 md:text-xs ${
+            activeDoc === "refund"
+              ? "border-[#1D9E75] bg-[#0A2A20] text-[#9FE1CB]"
+              : "border-white/10 bg-transparent text-white/50 hover:bg-white/5"
+          }`}
+        >
+          Refund Policy
+        </Link>
+        <Link
+          href="/terms-conditions/cancellation-policy"
+          className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors md:px-3.5 md:text-xs ${
+            activeDoc === "cancel"
+              ? "border-[#1D9E75] bg-[#0A2A20] text-[#9FE1CB]"
+              : "border-white/10 bg-transparent text-white/50 hover:bg-white/5"
+          }`}
+        >
+          Cancellation Policy
         </Link>
       </div>
 

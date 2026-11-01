@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ArrowUp } from "lucide-react";
 
 function HighlightBox({
@@ -292,10 +293,11 @@ export function TermsAndConditionsContent({ scrollContainerId }: { scrollContain
       <SectionHeading id="tnc-6">6. RDM rewards system and Edufundz</SectionHeading>
       <HighlightBox color="teal" title="Important — RDM is not currency">
         <p className="text-sm leading-relaxed text-white/50">
-          RDM (Reward and Development Marks) are non-monetary digital points issued by EduBlast as a
-          reward for platform engagement. RDM has no monetary value, cannot be redeemed for cash,
-          cannot be transferred between accounts, and cannot be sold or traded. EduBlast may modify,
-          reset, or discontinue the RDM system at any time.
+          RDM (Reward and Development Marks) earned from platform activity are non-monetary digital
+          points. Earned RDM has no cash value, cannot be transferred, sold, or refunded. RDM bought
+          in a teacher pack is a payment and can be refunded only as described in the Refund Policy,
+          and only while that pack is unused. EduBlast may modify, reset, or discontinue the RDM
+          system at any time.
         </p>
       </HighlightBox>
       <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-white/50">
@@ -357,8 +359,18 @@ export function TermsAndConditionsContent({ scrollContainerId }: { scrollContain
         <li>
           <strong>Refund policy:</strong> A full refund is available within 7 calendar days of an
           annual subscription renewal, provided no more than 10% of the subscription period has been
-          used. Monthly subscriptions are non-refundable. Refund requests must be submitted to
-          billing@edublast.in.
+          used. Monthly subscriptions are non-refundable. A teacher RDM pack bought with rupees can
+          be refunded through Razorpay only while every credit from that pack is unused. RDM earned
+          from students or other activity is not a purchase and is not refunded. Refund requests for
+          subscriptions must be submitted to billing@edublast.in. The full text is on the{" "}
+          <Link href="/terms-conditions/refund-policy" className="text-[#9FE1CB] underline">
+            Refund Policy
+          </Link>{" "}
+          page. How to stop a plan is on the{" "}
+          <Link href="/terms-conditions/cancellation-policy" className="text-[#9FE1CB] underline">
+            Cancellation Policy
+          </Link>{" "}
+          page.
         </li>
         <li>
           EduBlast reserves the right to change subscription pricing with 30 days&apos; prior

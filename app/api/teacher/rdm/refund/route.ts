@@ -4,23 +4,9 @@ import {
   enforceSameOriginForCookieAuth,
   requireAuthenticatedUser,
 } from "@/lib/auth/securityGuards";
-import type { TeacherRdmChargeAction } from "@/lib/teacherPortal/rdmCharges";
-import {
-  fetchTeacherRdmCosts,
-  getChargeAmountForAction,
-} from "@/lib/teacherPortal/teacherRdmConfig";
 
-const CHARGE_ACTIONS: TeacherRdmChargeAction[] = [
-  "create_classroom",
-  "create_section",
-  "create_assignment",
-  "schedule_session",
-  "generate_test",
-];
-
-function isChargeAction(x: unknown): x is TeacherRdmChargeAction {
-  return typeof x === "string" && CHARGE_ACTIONS.includes(x as TeacherRdmChargeAction);
-}
+const CHARGE_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(request: Request) {
   const csrf = enforceSameOriginForCookieAuth(request);
@@ -36,22 +22,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const action = (body as { action?: unknown })?.action;
-  const explicitAmount = (body as { amount?: unknown })?.amount;
-  if (!isChargeAction(action)) {
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  const chargeId = (body as { chargeId?: unknown })?.chargeId;
+  if (typeof chargeId !== "string" || !CHARGE_ID.test(chargeId)) {
+    return NextResponse.json({ error: "A charge id is required" }, { status: 400 });
   }
 
   const admin = createAdminClient();
   if (!admin) {
     return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   }
-
-  const costs = await fetchTeacherRdmCosts(admin);
-  const amount =
-    typeof explicitAmount === "number" && Number.isFinite(explicitAmount) && explicitAmount > 0
-      ? Math.round(explicitAmount)
-      : getChargeAmountForAction(costs, action);
 
   const { data: profile } = await admin
     .from("profiles")
@@ -63,18 +42,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Teacher account required" }, { status: 403 });
   }
 
-  if (amount <= 0) {
-    return NextResponse.json({ ok: true, rdm: null, amount, action, skipped: true });
-  }
-
-  const { data: newRdm, error: rpcErr } = await admin.rpc("add_rdm", {
-    uid: auth.user.id,
-    amt: amount,
+  const { data, error } = await (
+    admin as unknown as {
+      rpc: (
+        fn: string,
+        args: { p_charge_id: string; p_teacher_id: string }
+      ) => Promise<{ data: unknown; error: { message: string } | null }>;
+    }
+  ).rpc("refund_teacher_rdm_charge", {
+    p_charge_id: chargeId,
+    p_teacher_id: auth.user.id,
   });
 
-  if (rpcErr) {
-    return NextResponse.json({ error: rpcErr.message }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, rdm: newRdm, amount, action });
+  const result = data as {
+    ok?: boolean;
+    error?: string;
+    amount?: number;
+    rdm?: number;
+    already_refunded?: boolean;
+  } | null;
+
+  if (!result?.ok) {
+    const status = result?.error === "charge_not_found" ? 404 : 400;
+    return NextResponse.json({ error: result?.error ?? "Refund refused" }, { status });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    rdm: result.rdm ?? null,
+    amount: result.amount ?? 0,
+    alreadyRefunded: result.already_refunded === true,
+  });
 }
