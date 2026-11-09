@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { supabaseNodeFetch } from "@/lib/supabase/supabaseNodeFetch";
+import { supabaseAuthCookieOptions } from "@/lib/supabase/authCookieOptions";
 import type { Database } from "./types";
 
 const supabaseGlobal = { fetch: supabaseNodeFetch };
@@ -103,6 +104,7 @@ export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    cookieOptions: supabaseAuthCookieOptions,
     global: supabaseGlobal,
     cookies: {
       getAll() {

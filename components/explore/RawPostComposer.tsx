@@ -40,7 +40,7 @@ export interface RawPostComposerProps {
 }
 
 export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -79,24 +79,42 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
 
       setSubmitting(true);
       try {
-        const { error } = await supabase.from("lessons_raw_posts").insert({
-          user_id: user.id,
-          kind: "post",
-          title: nt,
-          content: nb,
-          tags: [],
-          subject,
-          chapter_ref: null,
-        });
-        if (error) {
-          toast({ title: "Could not post", description: error.message, variant: "destructive" });
+        const { data: inserted, error } = await supabase
+          .from("lessons_raw_posts")
+          .insert({
+            user_id: user.id,
+            kind: "post",
+            title: nt,
+            content: nb,
+            tags: [],
+            subject,
+            chapter_ref: null,
+          })
+          .select("id")
+          .single();
+        if (error || !inserted?.id) {
+          toast({ title: "Could not post", description: error?.message, variant: "destructive" });
           return false;
         }
+        const { error: rewardErr } = await (supabase as unknown as {
+          rpc: (
+            fn: string,
+            args: { p_post_id: string }
+          ) => Promise<{ error: { message: string } | null }>;
+        }).rpc("claim_community_feed_post_rdm", { p_post_id: inserted.id });
         setTitle("");
         setBody("");
         setDialogSubject(null);
         setSubjectPickerOpen(false);
-        toast({ title: "Posted", description: "Your update is live on the feed." });
+        if (rewardErr) {
+          toast({
+            title: "Posted",
+            description: "Your update is live. The +5 RDM reward could not be added.",
+          });
+        } else {
+          toast({ title: "Posted", description: "Your update is live on the feed. +5 RDM if this is a new post." });
+          void refreshProfile();
+        }
         notifyBuddyActivityRefresh();
         onPosted?.();
         return true;
@@ -106,7 +124,7 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
         setSubmitting(false);
       }
     },
-    [user?.id, title, body, toast, onPosted]
+    [user?.id, title, body, toast, onPosted, refreshProfile]
   );
 
   const openPostDialog = useCallback(() => {

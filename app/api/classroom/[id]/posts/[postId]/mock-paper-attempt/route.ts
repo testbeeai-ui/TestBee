@@ -199,7 +199,10 @@ export async function GET(
     .maybeSingle();
   if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { data: questionRows, error: qErr } = await authedClient
+  const admin = createAdminClient();
+  if (!admin) return NextResponse.json({ error: "Database configuration error" }, { status: 500 });
+
+  const { data: questionRows, error: qErr } = await admin
     .from("mock_questions")
     .select("id, sort_order, question_html, solution_html, correct_letter, options_json")
     .eq("paper_id", mockPaper.id)

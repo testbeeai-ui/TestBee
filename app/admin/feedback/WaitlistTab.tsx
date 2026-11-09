@@ -47,6 +47,28 @@ function tierBadge(tier: string | undefined) {
   return <Badge variant="outline" className="text-muted-foreground">waitlist only</Badge>;
 }
 
+async function readJsonBody(res: Response): Promise<{
+  error?: string;
+  referrals?: WaitlistSubmissionDbRow[];
+  emailSent?: boolean;
+  emailError?: string | null;
+}> {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text) as {
+      error?: string;
+      referrals?: WaitlistSubmissionDbRow[];
+      emailSent?: boolean;
+      emailError?: string | null;
+    };
+  } catch {
+    throw new Error(
+      res.ok ? "The server returned a page instead of data." : `Request failed (${res.status})`
+    );
+  }
+}
+
 function displayName(row: WaitlistSubmissionDbRow) {
   const name = [row.first_name, row.last_name].filter(Boolean).join(" ").trim();
   return name || "—";
@@ -146,10 +168,13 @@ export function WaitlistTab({ initialId, tier }: WaitlistTabProps) {
       try {
         const { session } = await safeGetSession();
         if (!session?.access_token) return;
-        const res = await fetch(`/api/admin/waitlist/${selectedId}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        const body = await res.json();
+        const res = await fetch(
+          `/api/admin/waitlist?referralsFor=${encodeURIComponent(selectedId)}`,
+          {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          }
+        );
+        const body = await readJsonBody(res);
         if (res.ok && body.referrals) {
           setReferrals(body.referrals);
         } else {
@@ -171,15 +196,15 @@ export function WaitlistTab({ initialId, tier }: WaitlistTabProps) {
     try {
       const { session } = await safeGetSession();
       if (!session?.access_token) throw new Error("Missing access token");
-      const res = await fetch(`/api/admin/waitlist/${selected.id}`, {
+      const res = await fetch("/api/admin/waitlist", {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(patch),
+        body: JSON.stringify({ id: selected.id, ...patch }),
       });
-      const body = await res.json();
+      const body = await readJsonBody(res);
       if (!res.ok) throw new Error(body.error || "Update failed");
       await load();
     } catch (e) {
@@ -204,7 +229,7 @@ export function WaitlistTab({ initialId, tier }: WaitlistTabProps) {
       const { session } = await safeGetSession();
       if (!session?.access_token) throw new Error("Missing access token");
 
-      const res = await fetch("/api/admin/waitlist/approve", {
+      const res = await fetch("/api/admin/waitlist", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -217,7 +242,7 @@ export function WaitlistTab({ initialId, tier }: WaitlistTabProps) {
         }),
       });
 
-      const body = await res.json();
+      const body = await readJsonBody(res);
       if (!res.ok) throw new Error(body.error || "Approval failed");
 
       if (body.emailSent) {

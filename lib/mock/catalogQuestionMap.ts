@@ -8,8 +8,8 @@ export type CatalogQuestionRow = {
   chapter: string | null;
   difficulty?: string | null;
   question_html: string;
-  solution_html: string | null;
-  correct_letter: string;
+  solution_html?: string | null;
+  correct_letter?: string | null;
   options_json: unknown;
 };
 
@@ -61,7 +61,7 @@ export function mapCatalogQuestionRowToQuestion(
     questionHtml: row.question_html,
     solutionHtml: row.solution_html,
     options,
-    correctAnswer: letterToIndex(row.correct_letter),
+    correctAnswer: row.correct_letter ? letterToIndex(row.correct_letter) : -1,
     hint: "",
     solution: solutionPlain,
     reference: emptyReference,

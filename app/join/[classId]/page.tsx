@@ -28,13 +28,17 @@ const JoinClassroom = () => {
 
   useEffect(() => {
     if (!classId) return;
-    supabase
-      .from("classrooms")
-      .select("*")
-      .eq("id", classId)
-      .maybeSingle()
+    void (
+      supabase as unknown as {
+        rpc: (
+          fn: string,
+          args: { p_id: string }
+        ) => Promise<{ data: { ok?: boolean; classroom?: ClassroomRow | null } | null }>;
+      }
+    )
+      .rpc("get_classroom_preview", { p_id: classId })
       .then(({ data }) => {
-        setClassroom(data);
+        setClassroom(data?.classroom ?? null);
         setLoading(false);
       });
   }, [classId]);

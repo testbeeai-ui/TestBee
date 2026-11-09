@@ -2,9 +2,17 @@ import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { waitlistSubmissionsTable, type WaitlistSubmissionDbRow } from "@/lib/waitlist/waitlistDb";
+import { waitlistSubmissionsTable } from "@/lib/waitlist/waitlistDb";
+import {
+  approveWaitlistSubmission,
+  getWaitlistReferrals,
+  patchWaitlistSubmission,
+} from "@/lib/waitlist/adminWaitlistDetail";
 
 export async function GET(request: Request) {
+  const referralsFor = new URL(request.url).searchParams.get("referralsFor")?.trim() ?? "";
+  if (referralsFor) return getWaitlistReferrals(request, referralsFor);
+
   try {
     const ctx = await getSupabaseAndUser(request);
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -104,4 +112,20 @@ export async function GET(request: Request) {
     console.error("[GET /api/admin/waitlist] Server error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
+}
+
+export async function PATCH(request: Request) {
+  let id = "";
+  try {
+    const body = (await request.clone().json()) as { id?: unknown };
+    id = typeof body.id === "string" ? body.id.trim() : "";
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+  return patchWaitlistSubmission(request, id);
+}
+
+export async function POST(request: Request) {
+  return approveWaitlistSubmission(request);
 }

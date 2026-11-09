@@ -28,7 +28,7 @@ export async function GET(request: Request) {
         if (!supabase) throw new Error("Database configuration error");
         return fetchCbseChapterMcqsServer(supabase, chapterId, classLevel);
       },
-      ["cbse-chapter-mcqs", chapterId, String(classLevel)],
+      ["cbse-chapter-mcqs-v2", chapterId, String(classLevel)],
       { revalidate: CACHE_REVALIDATE_SEC, tags: [`cbse-mcq-${chapterId}`] }
     );
 

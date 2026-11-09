@@ -15,7 +15,7 @@ export type SavedQuestionRow = {
 };
 
 const CATALOG_QUESTION_SELECT =
-  "id, paper_id, sort_order, subject, topic, chapter, difficulty, question_html, solution_html, correct_letter, options_json";
+  "id, paper_id, sort_order, subject, topic, chapter, difficulty, question_html, options_json";
 
 function isSavedQuestionSource(s: string): s is SavedQuestionSource {
   return s === "mock" || s === "past_paper" || s === "static";

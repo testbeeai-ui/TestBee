@@ -11,6 +11,7 @@ import {
   getActiveStreakDayNumber,
   parseDailyStreakServerState,
 } from "@/lib/onboarding/dailyChecklistTaskStorage";
+import { FREE_TRIAL_DURATION_DAYS } from "@/lib/subscription/freeTrialTimer";
 import NotificationBell from "@/components/NotificationBell";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CheckCircle2, Flame } from "lucide-react";
@@ -175,11 +176,11 @@ const SUBMENU_DATA: Record<string, Record<string, SubmenuData>> = {
       title: "DailyDose",
       sub: "Five PCM questions every morning. Build habit, earn RDM, protect your streak.",
       themeClass: styles.tFun,
-      chips: ["5 questions daily", "+5 RDM per correct", "Streak builder", "Physics · Chem · Maths"],
+      chips: ["5 questions daily", "+15 RDM full run", "Streak builder", "Physics · Chem · Maths"],
       col: { bg: "rgba(127,119,221,.12)", bc: "rgba(127,119,221,.3)", ic: "#AFA9EC", tag: "#7F77DD", cta: "#7F77DD" },
       features: [
         { i: "ti-clock", t: "Under 3 minutes", s: "Five questions, no timer pressure. Perfect before breakfast or commute." },
-        { i: "ti-coin", t: "+5 RDM per correct answer", s: "Answer all five correctly to pocket +25 RDM in one session." },
+        { i: "ti-coin", t: "+15 RDM for a full run", s: "Finish all five with answers to pocket +15 RDM. A timeout with no answers pays nothing." },
         { i: "ti-flame", t: "Streak protection", s: "Miss a day and lose 25 RDM. Hit 7 days straight and earn +100 bonus." },
         { i: "ti-atom", t: "Physics · Chemistry · Maths", s: "Always one question per subject, plus two mixed-format questions daily." },
       ]
@@ -205,13 +206,13 @@ const SUBMENU_DATA: Record<string, Record<string, SubmenuData>> = {
       title: "Community Feed",
       sub: "India's only study social network - learn in public, score together.",
       themeClass: styles.tFun,
-      chips: ["Post scores", "+5 RDM per post", "Save for revision", "4,287 students active"],
+      chips: ["Post scores", "+5 RDM per post", "Save for revision", "Student feed"],
       col: { bg: "rgba(127,119,221,.12)", bc: "rgba(127,119,221,.3)", ic: "#AFA9EC", tag: "#7F77DD", cta: "#7F77DD" },
       features: [
         { i: "ti-message-circle", t: "Post scores and learnings", s: "Share wins, setbacks and doubts. Every post earns +5 RDM and helps others." },
         { i: "ti-chart-bar", t: "Score bar on every post", s: "Visual progress bar shows percentage at a glance - 80% teal, 0% red." },
         { i: "ti-bookmark", t: "Save for revision", s: "Bookmark any community post directly into your Revisions queue." },
-        { i: "ti-trending-up", t: "Trending topics", s: "See what chapters 4,287 students are discussing right now." },
+        { i: "ti-trending-up", t: "Trending topics", s: "See which chapters students are discussing right now." },
       ]
     },
     magic: {
@@ -659,7 +660,7 @@ export default function RedesignedHomeDashboard() {
               <div className={styles.rdmStats}>
                 <div>
                   <div className={styles.rdmStatLbl}>Trial day</div>
-                  <div className={styles.rdmStatVal}>{trialDayNumber} / 7</div>
+                  <div className={styles.rdmStatVal}>{trialDayNumber} / {FREE_TRIAL_DURATION_DAYS}</div>
                 </div>
                 <div>
                   <div className={styles.rdmStatLbl}>Streak</div>

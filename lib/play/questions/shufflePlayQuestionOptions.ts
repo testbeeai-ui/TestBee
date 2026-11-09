@@ -7,15 +7,11 @@ import type { PlayQuestionRow } from "@/types";
  */
 export function shufflePlayQuestionOptions(q: PlayQuestionRow): PlayQuestionRow {
   const raw = q.options;
-  if (!Array.isArray(raw) || raw.length < 2) return q;
-
-  const options = raw.map((o) => String(o));
-  const n = options.length;
-  let oldCorrect = Math.floor(Number(q.correct_answer_index));
-  if (!Number.isFinite(oldCorrect) || oldCorrect < 0 || oldCorrect >= n) {
-    oldCorrect = 0;
+  if (!Array.isArray(raw) || raw.length < 2) {
+    return { ...q, correct_answer_index: -1, explanation: null, optionOriginIndexes: raw.map((_, i) => i) };
   }
 
+  const options = raw.map((o) => String(o));
   const tagged = options.map((text, i) => ({ text, i }));
   for (let k = tagged.length - 1; k > 0; k--) {
     const j = Math.floor(Math.random() * (k + 1));
@@ -24,10 +20,11 @@ export function shufflePlayQuestionOptions(q: PlayQuestionRow): PlayQuestionRow 
     tagged[j] = tmp;
   }
 
-  const newCorrect = tagged.findIndex((t) => t.i === oldCorrect);
   return {
     ...q,
     options: tagged.map((t) => t.text),
-    correct_answer_index: newCorrect >= 0 ? newCorrect : 0,
+    optionOriginIndexes: tagged.map((t) => t.i),
+    correct_answer_index: -1,
+    explanation: null,
   };
 }

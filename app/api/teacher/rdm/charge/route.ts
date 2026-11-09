@@ -130,5 +130,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Insufficient RDM", amount, action }, { status: 402 });
   }
 
-  return NextResponse.json({ ok: true, rdm: newRdm, amount, action, skipped });
+  const { data: chargeRow, error: chargeErr } = await (
+    admin as unknown as {
+      from: (table: string) => {
+        insert: (row: { teacher_id: string; action: string; amount: number }) => {
+          select: (cols: string) => {
+            single: () => Promise<{ data: { id: string } | null; error: { message: string } | null }>;
+          };
+        };
+      };
+    }
+  )
+    .from("teacher_rdm_charges")
+    .insert({
+      teacher_id: auth.user.id,
+      action,
+      amount,
+    })
+    .select("id")
+    .single();
+
+  if (chargeErr || !chargeRow?.id) {
+    await admin.rpc("add_rdm", { uid: auth.user.id, amt: amount });
+    return NextResponse.json({ error: "Could not record the charge" }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    rdm: newRdm,
+    amount,
+    action,
+    skipped,
+    chargeId: chargeRow.id,
+  });
 }

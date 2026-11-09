@@ -16,7 +16,7 @@ import { authFinishWaitPhase } from "@/lib/auth/authFinishWait";
 import { pickEduDecaMockAwareDestination } from "@/lib/edudeca-mock/post-login";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { triggerLoginNotificationEmail } from "@/lib/email/triggerLoginNotificationClient";
-import { readOnboardingAuthMode } from "@/lib/onboarding/resolveOnboardingEntry";
+import { readOnboardingAuthMode, readStoredOnboardingIntent } from "@/lib/onboarding/resolveOnboardingEntry";
 
 async function readClientSession() {
   try {
@@ -122,11 +122,11 @@ function AuthCallbackFinishContent() {
     const signupMode =
       readOnboardingAuthMode(typeof window === "undefined" ? null : window.sessionStorage) ===
       "signup";
-    const onboardPath = signupMode
-      ? isTeacher
-        ? "/onboarding?role=teacher"
-        : "/onboarding?role=student"
-      : "/onboarding";
+    const storedIntent = readStoredOnboardingIntent(
+      typeof window === "undefined" ? null : window.sessionStorage
+    );
+    const signupRole = storedIntent ?? (isTeacher ? "teacher" : "student");
+    const onboardPath = signupMode ? `/onboarding?role=${signupRole}` : "/onboarding";
 
     if (user && profile !== null) {
       void supabase.auth.signOut({ scope: "others" }).catch(() => {});

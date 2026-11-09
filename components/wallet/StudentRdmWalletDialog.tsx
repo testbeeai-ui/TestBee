@@ -19,6 +19,15 @@ export default function StudentRdmWalletDialog({ open, onClose, balance }: Props
 
   useEffect(() => {
     if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
     let cancelled = false;
     void fetchRdmConfig()
       .then((cfg) => {

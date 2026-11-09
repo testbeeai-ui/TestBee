@@ -942,8 +942,15 @@ export default function StudentHomeDashboard() {
       if (target.closest?.("[data-icon-flyout]")) return;
       setOpenIconFlyout(null);
     };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenIconFlyout(null);
+    };
     document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [openIconFlyout]);
 
   useEffect(() => {
@@ -1480,10 +1487,10 @@ export default function StudentHomeDashboard() {
                 siteTourClaimedEver ? "text-emerald-500" : "text-muted-foreground"
               )}
             >
-              +100
+              {siteTourClaimedEver ? "Done" : "+100"}
             </span>
             <span className="text-[9px] font-medium text-muted-foreground">
-              {siteTourClaimedEver ? "Tour claimed" : "Site Tour"}
+              {siteTourClaimedEver ? "Tour done" : "Site Tour"}
             </span>
           </button>
           ) : null}

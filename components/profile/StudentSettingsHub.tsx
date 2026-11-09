@@ -54,9 +54,7 @@ export default function StudentSettingsHub() {
   const [examAlerts, setExamAlerts] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Time-travel simulator states
-  const [globalActive, setGlobalActive] = useState(false);
-  const [loadingAccess, setLoadingAccess] = useState(true);
+  // Time-travel simulator — only for a student an admin turned on individually.
   const [customDatetime, setCustomDatetime] = useState("");
 
   // Free-trial demo quick actions
@@ -65,24 +63,6 @@ export default function StudentSettingsHub() {
 
   const currentOffset = profile?.time_travel_offset_ms ?? 0;
   const isTimeTravelActive = currentOffset > 0;
-
-  useEffect(() => {
-    const checkGlobalAccess = async () => {
-      try {
-        const { data } = await supabase
-          .from("rdm_config")
-          .select("value")
-          .eq("key", "global_time_travel_enabled")
-          .maybeSingle();
-        setGlobalActive(data ? Number(data.value) === 1 : false);
-      } catch (e) {
-        console.error("[settings] checkGlobalAccess", e);
-      } finally {
-        setLoadingAccess(false);
-      }
-    };
-    void checkGlobalAccess();
-  }, []);
 
   // Initialize datetime input based on simulated time
   useEffect(() => {
@@ -95,7 +75,7 @@ export default function StudentSettingsHub() {
     setCustomDatetime(`${yyyy}-${mm}-${dd}T${hh}:${min}`);
   }, [currentOffset]);
 
-  const allowed = globalActive || Boolean(profile?.time_travel_enabled);
+  const allowed = Boolean(profile?.time_travel_enabled);
 
   const handleUpdateOffset = async (
     offsetMs: number,

@@ -129,7 +129,7 @@ export function estimateQuickQuestionCount(
   const eligible = questionBank.filter(
     (q) => subjects.includes(q.subject) && q.classLevel <= classLevel
   ).length;
-  return Math.max(1, Math.min(Math.ceil(durationMin / 2.5), eligible || 1));
+  return Math.min(Math.ceil(durationMin / 2.5), eligible);
 }
 
 /** Dashboard spotlight — matches `scripts/import-jee-main-mock-csv.ts` slug. */

@@ -13,7 +13,7 @@ async function fetchQuestionsForPaper(
   const { data, error } = await supabase
     .from("mock_questions")
     .select(
-      "id, paper_id, sort_order, subject, topic, chapter, difficulty, question_html, solution_html, correct_letter, options_json"
+      "id, paper_id, sort_order, subject, topic, chapter, difficulty, question_html, options_json"
     )
     .eq("paper_id", paperId)
     .order("sort_order", { ascending: true });

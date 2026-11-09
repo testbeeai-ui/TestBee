@@ -417,6 +417,7 @@ const NotificationBell = () => {
     <button
       type="button"
       className="relative w-9 h-9 rounded-xl bg-muted/60 hover:bg-muted flex items-center justify-center transition-colors"
+      aria-label="Notifications"
     >
       <Bell className="w-4.5 h-4.5 text-muted-foreground" suppressHydrationWarning />
       {unread > 0 && (

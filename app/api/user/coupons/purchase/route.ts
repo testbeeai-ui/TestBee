@@ -11,6 +11,7 @@ import {
   teacherRdmPackAmountPaise,
   teacherRdmPackById,
 } from "@/lib/subscription/teacherRdmPacks";
+import { recordRdmPackPurchase } from "@/lib/teacherPortal/rdmPackPurchase";
 import {
   getRazorpayKeySecret,
   verifyRazorpayPaymentSignature,
@@ -91,6 +92,14 @@ export async function POST(request: Request) {
 
     if (existingCoupon) {
       const newBalance = await applyPurchasedCouponRdmCredit(admin, user.id, existingCoupon);
+      await recordRdmPackPurchase(admin, {
+        teacherId: user.id,
+        packId: pack.id,
+        rdmGranted: pack.rdm,
+        amountPaise: expectedPaise,
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+      });
       return NextResponse.json({
         ok: true,
         code: existingCoupon.code,
@@ -133,6 +142,14 @@ export async function POST(request: Request) {
 
     const coupon = couponRaw as unknown as PurchasedCouponRow;
     const newBalance = await applyPurchasedCouponRdmCredit(admin, user.id, coupon);
+    await recordRdmPackPurchase(admin, {
+      teacherId: user.id,
+      packId: pack.id,
+      rdmGranted: pack.rdm,
+      amountPaise: expectedPaise,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+    });
 
     return NextResponse.json({
       ok: true,

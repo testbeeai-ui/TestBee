@@ -10,22 +10,14 @@ export async function GET(request: Request) {
       const sb = auth.supabase as any;
       const uid = auth.user.id;
 
-      // 1. Check if global time-travel is enabled in rdm_config
-      const { data: rdmData } = await sb
-        .from("rdm_config")
-        .select("value")
-        .eq("key", "global_time_travel_enabled")
-        .maybeSingle();
-      const globalActive = rdmData ? Number(rdmData.value) === 1 : false;
-
-      // 2. Fetch specific student's profile time-travel details
+      // Offset applies only when an admin enabled time-travel for this student.
       const { data: profile } = await sb
         .from("profiles")
         .select("time_travel_enabled, time_travel_offset_ms")
         .eq("id", uid)
         .maybeSingle();
 
-      const allowed = globalActive || (profile ? Boolean(profile.time_travel_enabled) : false);
+      const allowed = profile ? Boolean(profile.time_travel_enabled) : false;
 
       if (allowed && profile?.time_travel_offset_ms) {
         const offset = Number(profile.time_travel_offset_ms);

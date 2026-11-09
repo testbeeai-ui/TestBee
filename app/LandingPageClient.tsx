@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, Suspense } from "react";
+import { useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
 import LandingNavbar from "@/components/landing/LandingNavbar";
 import LandingFooter from "@/components/landing/LandingFooter";
 import EduBlastInvestorLanding from "@/components/landing/EduBlastInvestorLanding";
-import SignInNoticeModal from "@/components/landing/SignInNoticeModal";
 import { INVESTOR_NAV_LINKS } from "@/components/landing/landing-constants";
 import {
   getSafeInternalNextPath,
@@ -38,7 +37,6 @@ function LandingPageContent() {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [noticeOpen, setNoticeOpen] = useState(false);
   const didPostLoginNavigateRef = useRef(false);
   const nextParam = searchParams.get("next");
   const safeNextFromUrl = getSafeInternalNextPath(nextParam);
@@ -82,27 +80,24 @@ function LandingPageContent() {
         sharedNext={safeNextFromUrl} 
         onOpenWaitlist={(role) => {
           if (role === "teacher") {
-            router.push("/auth?role=teacher");
+            router.push("/auth?role=teacher&mode=signup");
+          } else if (role === "student") {
+            router.push("/auth?role=student&mode=signup");
           } else {
-            router.push(role ? `/waitlist?role=${role}` : "/waitlist");
+            router.push("/auth");
           }
         }}
-        onOpenSignInNotice={() => setNoticeOpen(true)}
       />
       <EduBlastInvestorLanding onOpenWaitlist={(role) => {
         if (role === "teacher") {
-          router.push("/auth?role=teacher");
+          router.push("/auth?role=teacher&mode=signup");
+        } else if (role === "student") {
+          router.push("/auth?role=student&mode=signup");
         } else {
-          router.push(role ? `/waitlist?role=${role}` : "/waitlist");
+          router.push("/auth");
         }
       }} />
       <LandingFooter variant="dark" />
-
-      <SignInNoticeModal
-        open={noticeOpen}
-        onOpenChange={setNoticeOpen}
-        onJoinWaitlist={() => router.push("/waitlist")}
-      />
     </div>
   );
 }
