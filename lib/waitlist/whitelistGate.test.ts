@@ -129,7 +129,7 @@ describe("evaluateWhitelistGate", () => {
     ).resolves.toEqual({ allowed: true, reason: "edudeca_student" });
   });
 
-  it("still blocks a new Web account with no EduDeca lineup", async () => {
+  it("lets a new account into onboarding even when the email was never approved", async () => {
     const client = makeGateClient({
       profile: { role: "student", onboarding_complete: false },
       approved: null,
@@ -140,10 +140,10 @@ describe("evaluateWhitelistGate", () => {
         email: "new@example.com",
         onboardingComplete: false,
       }),
-    ).resolves.toEqual({ allowed: false, reason: "not_approved" });
+    ).resolves.toEqual({ allowed: true, reason: "open_signup" });
   });
 
-  it("does not treat an empty self-inserted progress row as an EduDeca student", async () => {
+  it("lets an account in even when an empty progress row is not an EduDeca lineup", async () => {
     const client = makeGateClient({
       profile: { role: "student", onboarding_complete: false },
       approved: null,
@@ -155,6 +155,6 @@ describe("evaluateWhitelistGate", () => {
         email: "fake@example.com",
         onboardingComplete: false,
       }),
-    ).resolves.toEqual({ allowed: false, reason: "not_approved" });
+    ).resolves.toEqual({ allowed: true, reason: "open_signup" });
   });
 });

@@ -21,14 +21,12 @@ export default function LandingNavbar({
   /** When user opened a shared lesson link, preserve it on Sign in / auth nav. */
   sharedNext,
   onOpenWaitlist,
-  onOpenSignInNotice,
 }: {
   variant?: "light" | "dark";
   navLinks?: NavItem[];
   /** When user opened a shared lesson link, preserve it on Sign in / auth nav. */
   sharedNext?: string | null;
   onOpenWaitlist?: (role?: string) => void;
-  onOpenSignInNotice?: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -56,9 +54,11 @@ export default function LandingNavbar({
       onOpenWaitlist(roleStr);
     } else {
       if (roleStr === "teacher") {
-        router.push("/auth?role=teacher");
+        router.push("/auth?role=teacher&mode=signup");
+      } else if (roleStr === "student") {
+        router.push("/auth?role=student&mode=signup");
       } else {
-        router.push(roleStr ? `/waitlist?role=${roleStr}` : "/waitlist");
+        router.push("/auth");
       }
     }
   };
@@ -161,11 +161,7 @@ export default function LandingNavbar({
               <>
                 <button
                   onClick={() => {
-                    if (onOpenSignInNotice) {
-                      onOpenSignInNotice();
-                    } else {
-                      handleWaitlist();
-                    }
+                    router.push(withNextQuery("/auth", sharedNext));
                   }}
                   className={
                     isDark
@@ -254,11 +250,7 @@ export default function LandingNavbar({
                 <button
                   onClick={() => {
                     setMobileOpen(false);
-                    if (onOpenSignInNotice) {
-                      onOpenSignInNotice();
-                    } else {
-                      handleWaitlist();
-                    }
+                    router.push(withNextQuery("/auth", sharedNext));
                   }}
                   className={
                     isDark

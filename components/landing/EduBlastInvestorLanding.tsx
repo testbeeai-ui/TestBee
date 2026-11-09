@@ -417,9 +417,11 @@ function TeacherInvestorSections({ onOpenWaitlist }: { onOpenWaitlist?: (role?: 
       onOpenWaitlist(roleStr);
     } else {
       if (roleStr === "teacher") {
-        router.push("/auth?role=teacher");
+        router.push("/auth?role=teacher&mode=signup");
+      } else if (roleStr === "student") {
+        router.push("/auth?role=student&mode=signup");
       } else {
-        router.push(roleStr ? `/waitlist?role=${roleStr}` : "/waitlist");
+        router.push("/auth");
       }
     }
   };
@@ -650,7 +652,7 @@ function TeacherInvestorSections({ onOpenWaitlist }: { onOpenWaitlist?: (role?: 
                 onClick={() => handleWaitlist("teacher")}
                 className="inline-flex items-center gap-2 rounded-full bg-[#6f71ff] px-7 py-3 text-sm font-bold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#5f62f7] hover:shadow-[0_12px_26px_-10px_rgba(111,113,255,0.6)] cursor-pointer"
               >
-                Apply as teacher ambassador <ArrowUpRight className="h-4 w-4" />
+                Continue as a teacher <ArrowUpRight className="h-4 w-4" />
               </button>
               <button
                 type="button"
@@ -680,9 +682,11 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
       onOpenWaitlist(roleStr);
     } else {
       if (roleStr === "teacher") {
-        router.push("/auth?role=teacher");
+        router.push("/auth?role=teacher&mode=signup");
+      } else if (roleStr === "student") {
+        router.push("/auth?role=student&mode=signup");
       } else {
-        router.push(roleStr ? `/waitlist?role=${roleStr}` : "/waitlist");
+        router.push("/auth");
       }
     }
   };
@@ -800,7 +804,7 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
                     : "bg-[#34f5a4] text-neutral-950 hover:bg-[#2ee89a]"
                 }`}
               >
-                {persona === "teacher" ? "Apply as teacher" : "Join free — 2 minutes"}{" "}
+                {persona === "teacher" ? "Continue as a teacher" : "Join free — 2 minutes"}{" "}
                 <ArrowUpRight className="h-4 w-4 shrink-0" strokeWidth={2.5} />
               </button>
             <button

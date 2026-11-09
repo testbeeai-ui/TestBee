@@ -19,7 +19,6 @@ import {
 import { shouldFollowPostLoginNext } from "@/lib/edudeca-mock/post-login";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { OnboardingTermsAcceptance } from "@/components/legal/OnboardingTermsAcceptance";
-import SignInNoticeModal from "@/components/landing/SignInNoticeModal";
 
 const googlePathD = {
   blue: "M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z",
@@ -57,7 +56,7 @@ export default function Auth() {
 }
 
 function AuthContent() {
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading, signOut, signInWithGoogle } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const roleParam = searchParams.get("role");
@@ -74,7 +73,6 @@ function AuthContent() {
     modeParam === "signup" ? "signup" : "signin"
   );
   const [signupTermsAccepted, setSignupTermsAccepted] = useState(false);
-  const [showWaitlistModal, setShowWaitlistModal] = useState(false);
 
   useEffect(() => {
     if (roleParam) {
@@ -142,7 +140,29 @@ function AuthContent() {
       </div>
     );
 
-  const openWaitlistGate = () => setShowWaitlistModal(true);
+  const startGoogleSignIn = async () => {
+    try {
+      sessionStorage.setItem("auth_mode", "signin");
+      sessionStorage.setItem("auth_entry_base", "/auth");
+      sessionStorage.removeItem("auth_intended_role");
+    } catch {
+      /* ignore */
+    }
+    await signInWithGoogle("/onboarding");
+  };
+
+  const startGoogleSignUp = async () => {
+    try {
+      sessionStorage.setItem("auth_mode", "signup");
+      sessionStorage.setItem("auth_entry_base", "/auth");
+      sessionStorage.setItem("auth_intended_role", effectiveSignupRole);
+    } catch {
+      /* ignore */
+    }
+    const path =
+      effectiveSignupRole === "teacher" ? "/onboarding?role=teacher" : "/onboarding?role=student";
+    await signInWithGoogle(path);
+  };
 
   if (user && profile !== null && !profile.onboarding_complete) {
     const resumeRole = profile.role === "teacher" ? "teacher" : "student";
@@ -265,7 +285,7 @@ function AuthContent() {
 
                 <button
                   type="button"
-                  onClick={openWaitlistGate}
+                  onClick={() => void startGoogleSignIn()}
                   className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/[0.04] text-base font-medium text-white transition-colors hover:bg-white/[0.08] sm:h-14 sm:text-lg"
                 >
                   <GoogleGlyph className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
@@ -274,7 +294,12 @@ function AuthContent() {
 
                 <button
                   type="button"
-                  onClick={openWaitlistGate}
+                  onClick={() => {
+                    setActivePanel("signup");
+                    const p = new URLSearchParams(searchParams.toString());
+                    p.set("mode", "signup");
+                    router.replace(`/auth?${p.toString()}`, { scroll: false });
+                  }}
                   className="group mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/12 bg-transparent text-base font-medium text-white/60 transition-all hover:border-violet-500/50 hover:bg-violet-600/[0.08] hover:text-white sm:mt-10 sm:h-14 sm:text-lg"
                 >
                   Sign up now
@@ -348,7 +373,7 @@ function AuthContent() {
                   action={
                     <button
                       type="button"
-                      onClick={openWaitlistGate}
+                      onClick={() => void startGoogleSignUp()}
                       className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border-0 bg-gradient-to-br from-[#7c3aed] to-[#e0496a] px-3 text-base font-medium text-white transition-opacity hover:opacity-[0.88] sm:h-14 sm:gap-3 sm:text-lg"
                     >
                       <GoogleGlyph cta className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
@@ -386,12 +411,6 @@ function AuthContent() {
           )}
         </div>
       </div>
-
-      <SignInNoticeModal
-        open={showWaitlistModal}
-        onOpenChange={setShowWaitlistModal}
-        onJoinWaitlist={() => router.push("/waitlist")}
-      />
     </div>
   );
 }

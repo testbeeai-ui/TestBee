@@ -10,11 +10,13 @@ export type WhitelistGateResult = {
     | "admin"
     | "approved"
     | "edudeca_student"
+    | "open_signup"
     | "not_approved"
     | "no_email";
   approvedRole?: "student" | "teacher";
 };
 
+/** Signed-in accounts enter onboarding. Waitlist and ambassador lists are not the door. */
 export type WhitelistGateInput = {
   userId: string;
   email: string | null | undefined;
@@ -53,7 +55,7 @@ function hasEduDecaLineup(raw: unknown): boolean {
   );
 }
 
-/** Returns true when the user may access the app (complete onboarding, admin, or approved email). */
+/** A signed-in Google account may enter onboarding. Waitlist and ambassador lists are not checked. */
 export async function evaluateWhitelistGate(
   supabase: SupabaseClient<Database>,
   input: WhitelistGateInput
@@ -83,24 +85,7 @@ export async function evaluateWhitelistGate(
     return { allowed: true, reason: "edudeca_student" };
   }
 
-  const email = input.email?.toLowerCase().trim();
-  if (!email) {
-    return { allowed: false, reason: "no_email" };
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = (await (supabase.from as (name: string) => ReturnType<typeof supabase.from>)(
-    "approved_emails"
-  )
-    .select("role")
-    .eq("email", email)
-    .maybeSingle()) as { data: { role: string } | null };
-
-  if (data?.role === "student" || data?.role === "teacher") {
-    return { allowed: true, reason: "approved", approvedRole: data.role };
-  }
-
-  return { allowed: false, reason: "not_approved" };
+  return { allowed: true, reason: "open_signup" };
 }
 
 export function waitlistBlockedAuthUrl(
