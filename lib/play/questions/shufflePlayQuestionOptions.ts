@@ -7,8 +7,16 @@ import type { PlayQuestionRow } from "@/types";
  */
 export function shufflePlayQuestionOptions(q: PlayQuestionRow): PlayQuestionRow {
   const raw = q.options;
-  if (!Array.isArray(raw) || raw.length < 2) {
-    return { ...q, correct_answer_index: -1, explanation: null, optionOriginIndexes: raw.map((_, i) => i) };
+  if (!Array.isArray(raw)) {
+    return { ...q, correct_answer_index: -1, explanation: null, optionOriginIndexes: [] };
+  }
+  if (raw.length < 2) {
+    return {
+      ...q,
+      correct_answer_index: -1,
+      explanation: null,
+      optionOriginIndexes: raw.map((_, i) => i),
+    };
   }
 
   const options = raw.map((o) => String(o));

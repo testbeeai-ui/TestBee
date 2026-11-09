@@ -5,10 +5,7 @@ import { Check, Coins, Sparkles } from "lucide-react";
 import RazorpayCheckoutButton from "@/components/payments/RazorpayCheckoutButton";
 import { useToast } from "@/hooks/use-toast";
 import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
-import {
-  TEACHER_RDM_PACKS,
-  type TeacherRdmPackId,
-} from "@/lib/subscription/teacherRdmPacks";
+import { TEACHER_RDM_PACKS, type TeacherRdmPackId } from "@/lib/subscription/teacherRdmPacks";
 
 type Props = {
   onCreditsAdded: (newBalance: number) => Promise<void>;
@@ -187,15 +184,18 @@ export function TeacherRdmTopUpSection({ onCreditsAdded }: Props) {
                 >
                   <div>
                     <p className="text-sm font-semibold text-white">
-                      {purchase.rdmGranted.toLocaleString("en-IN")} RDM · ₹{rupees.toLocaleString("en-IN")}
+                      {purchase.rdmGranted.toLocaleString("en-IN")} RDM · ₹
+                      {rupees.toLocaleString("en-IN")}
                     </p>
                     <p className="text-[11px] text-slate-500">
                       {when}
                       {purchase.status === "refunded"
                         ? " · Refunded"
-                        : purchase.canRefund
-                          ? " · Unused"
-                          : ` · ${purchase.rdmUnspent.toLocaleString("en-IN")} of ${purchase.rdmGranted.toLocaleString("en-IN")} left`}
+                        : purchase.status === "refund_pending"
+                          ? " · Refund in progress"
+                          : purchase.canRefund
+                            ? " · Unused"
+                            : ` · ${purchase.rdmUnspent.toLocaleString("en-IN")} of ${purchase.rdmGranted.toLocaleString("en-IN")} left`}
                     </p>
                   </div>
                   {purchase.canRefund ? (

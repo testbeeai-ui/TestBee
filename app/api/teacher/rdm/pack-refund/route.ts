@@ -7,8 +7,29 @@ import {
 import { getRazorpayClient, parseRazorpayError } from "@/lib/razorpay/razorpayClient";
 import { packRefundBlockReason } from "@/lib/teacherPortal/rdmPackRefund";
 
-const PURCHASE_ID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PURCHASE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const RAZORPAY_ALREADY_REFUNDED =
+  /fully refunded|already been refunded|refunded already|already refunded/i;
+
+type PackRpc = {
+  rpc: (
+    fn: string,
+    args: Record<string, unknown>
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
+function packRpc(admin: unknown): PackRpc {
+  return admin as PackRpc;
+}
+
+function razorpayDefinitelyRejected(message: string, status: number): boolean {
+  if (status >= 400 && status < 500) return true;
+  return /authentication|rejected this key pair/i.test(message);
+}
+
+const PAYOUT_INCONSISTENT =
+  "Razorpay refunded the payment, but the wallet could not be updated. Contact billing@edublast.in with the payment reference.";
 
 type PurchaseRow = {
   id: string;
@@ -56,9 +77,7 @@ export async function POST(request: Request) {
   const db = admin as typeof admin & { from: (table: string) => any };
   const { data: row, error: readErr } = await db
     .from("rdm_pack_purchases")
-    .select(
-      "id, teacher_id, rdm_granted, rdm_unspent, amount_paise, razorpay_payment_id, status"
-    )
+    .select("id, teacher_id, rdm_granted, rdm_unspent, amount_paise, razorpay_payment_id, status")
     .eq("id", purchaseId)
     .eq("teacher_id", auth.user.id)
     .maybeSingle();
@@ -91,6 +110,42 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Razorpay credentials not configured" }, { status: 401 });
   }
 
+  const { data: reservedRaw, error: reserveErr } = await packRpc(admin).rpc(
+    "reserve_rdm_pack_refund",
+    {
+      p_purchase_id: purchase.id,
+      p_teacher_id: auth.user.id,
+    }
+  );
+  if (reserveErr) {
+    return NextResponse.json({ error: reserveErr.message }, { status: 500 });
+  }
+  const reserved = reservedRaw as {
+    ok?: boolean;
+    error?: string;
+    already_refunded?: boolean;
+    already_reserved?: boolean;
+  } | null;
+  if (reserved?.already_refunded) {
+    return NextResponse.json({ ok: true, alreadyRefunded: true });
+  }
+  if (!reserved?.ok) {
+    if (reserved?.error === "not_found") {
+      return NextResponse.json({ error: "Purchase not found" }, { status: 404 });
+    }
+    if (reserved?.error === "insufficient_balance") {
+      return NextResponse.json(
+        { error: "Your RDM balance is below this pack, so the payment cannot be refunded." },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json(
+      { error: "This pack has been used, so the payment cannot be refunded." },
+      { status: 409 }
+    );
+  }
+
+  const createdReservation = reserved.already_reserved !== true;
   let refundId = "";
   try {
     const refund = (await razorpay.payments.refund(purchase.razorpay_payment_id, {
@@ -99,35 +154,49 @@ export async function POST(request: Request) {
     refundId = typeof refund?.id === "string" ? refund.id : "";
   } catch (e) {
     const parsed = parseRazorpayError(e);
-    return NextResponse.json({ error: parsed.message }, { status: parsed.status });
+    if (!RAZORPAY_ALREADY_REFUNDED.test(parsed.message)) {
+      if (createdReservation && razorpayDefinitelyRejected(parsed.message, parsed.status)) {
+        const { error: releaseErr } = await packRpc(admin).rpc("release_rdm_pack_refund", {
+          p_purchase_id: purchase.id,
+          p_teacher_id: auth.user.id,
+        });
+        if (releaseErr) {
+          return NextResponse.json(
+            {
+              error:
+                "Razorpay did not refund the payment, and the reserved RDM could not be restored. Contact billing@edublast.in.",
+            },
+            { status: 500 }
+          );
+        }
+      }
+      const status = parsed.status >= 400 && parsed.status < 600 ? parsed.status : 502;
+      const error =
+        createdReservation && !razorpayDefinitelyRejected(parsed.message, parsed.status)
+          ? "The refund could not be confirmed with Razorpay. Try again in a moment. This pack stays reserved until the refund finishes."
+          : parsed.message;
+      return NextResponse.json({ error }, { status });
+    }
   }
 
-  const { data, error } = await (
-    admin as unknown as {
-      rpc: (
-        fn: string,
-        args: { p_purchase_id: string; p_teacher_id: string; p_razorpay_refund_id: string }
-      ) => Promise<{ data: unknown; error: { message: string } | null }>;
-    }
-  ).rpc("finalize_rdm_pack_refund", {
+  const { data, error } = await packRpc(admin).rpc("finalize_rdm_pack_refund", {
     p_purchase_id: purchase.id,
     p_teacher_id: auth.user.id,
     p_razorpay_refund_id: refundId,
   });
 
   if (error) {
-    return NextResponse.json(
-      {
-        error:
-          "Razorpay refunded the payment, but the wallet could not be updated. Contact billing@edublast.in with the payment reference.",
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: PAYOUT_INCONSISTENT }, { status: 500 });
   }
 
-  const result = data as { ok?: boolean; error?: string; rdm?: number; already_refunded?: boolean } | null;
+  const result = data as {
+    ok?: boolean;
+    error?: string;
+    rdm?: number;
+    already_refunded?: boolean;
+  } | null;
   if (!result?.ok) {
-    return NextResponse.json({ error: result?.error ?? "Refund refused" }, { status: 409 });
+    return NextResponse.json({ error: PAYOUT_INCONSISTENT }, { status: 409 });
   }
 
   return NextResponse.json({

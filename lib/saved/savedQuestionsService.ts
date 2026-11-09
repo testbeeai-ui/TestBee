@@ -3,6 +3,7 @@ import {
   mapCatalogQuestionRowToQuestion,
   type CatalogQuestionRow,
 } from "@/lib/mock/catalogQuestionMap";
+import { applyCatalogGrades, revealSavedCatalogAnswers } from "@/lib/assessment/revealAnswer";
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import type { Question } from "@/types";
 
@@ -91,13 +92,11 @@ export async function fetchSavedQuestionRows(userId: string): Promise<SavedQuest
   const rows = (data ?? []) as { question_id: string; source_type: string; created_at: string }[];
   return rows
     .filter((r) => isSavedQuestionSource(r.source_type))
-    .map(
-      (r): SavedQuestionRow => ({
-        question_id: r.question_id,
-        source_type: r.source_type as SavedQuestionSource,
-        created_at: r.created_at,
-      })
-    );
+    .map((r): SavedQuestionRow => ({
+      question_id: r.question_id,
+      source_type: r.source_type as SavedQuestionSource,
+      created_at: r.created_at,
+    }));
 }
 
 async function fetchMockQuestionsByIds(ids: string[]): Promise<Map<string, Question>> {
@@ -110,6 +109,10 @@ async function fetchMockQuestionsByIds(ids: string[]): Promise<Map<string, Quest
   if (error) throw new Error(error.message);
   for (const row of (data ?? []) as CatalogQuestionRow[]) {
     map.set(row.id, mapCatalogQuestionRowToQuestion(row, "Mock"));
+  }
+  const revealed = await revealSavedCatalogAnswers("mock", [...map.keys()]);
+  for (const question of applyCatalogGrades([...map.values()], revealed)) {
+    map.set(question.id, question);
   }
   return map;
 }
@@ -124,6 +127,10 @@ async function fetchPastQuestionsByIds(ids: string[]): Promise<Map<string, Quest
   if (error) throw new Error(error.message);
   for (const row of (data ?? []) as CatalogQuestionRow[]) {
     map.set(row.id, mapCatalogQuestionRowToQuestion(row, "Past Paper"));
+  }
+  const revealed = await revealSavedCatalogAnswers("past_paper", [...map.keys()]);
+  for (const question of applyCatalogGrades([...map.values()], revealed)) {
+    map.set(question.id, question);
   }
   return map;
 }

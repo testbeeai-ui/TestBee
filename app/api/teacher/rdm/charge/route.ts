@@ -95,11 +95,7 @@ export async function POST(request: Request) {
 
   if (action === "schedule_session") {
     const refDate = parseScheduledAt(body);
-    const charge = await computeTeacherLiveClassScheduleCharge(
-      auth.user.id,
-      refDate,
-      flatAmount
-    );
+    const charge = await computeTeacherLiveClassScheduleCharge(auth.user.id, refDate, flatAmount);
     if (!charge.ok) {
       return NextResponse.json({ error: charge.error, code: charge.code }, { status: 403 });
     }
@@ -117,50 +113,46 @@ export async function POST(request: Request) {
     });
   }
 
-  const { data: newRdm, error: rpcErr } = await admin.rpc("deduct_rdm", {
-    uid: auth.user.id,
-    amt: amount,
+  const { data, error: rpcErr } = await (
+    admin as unknown as {
+      rpc: (
+        fn: string,
+        args: { p_teacher_id: string; p_action: string; p_amount: number }
+      ) => Promise<{ data: unknown; error: { message: string } | null }>;
+    }
+  ).rpc("charge_teacher_rdm", {
+    p_teacher_id: auth.user.id,
+    p_action: action,
+    p_amount: amount,
   });
 
   if (rpcErr) {
     return NextResponse.json({ error: rpcErr.message }, { status: 500 });
   }
 
-  if (newRdm === null) {
-    return NextResponse.json({ error: "Insufficient RDM", amount, action }, { status: 402 });
-  }
+  const charged = data as {
+    ok?: boolean;
+    error?: string;
+    rdm?: number;
+    charge_id?: string;
+  } | null;
 
-  const { data: chargeRow, error: chargeErr } = await (
-    admin as unknown as {
-      from: (table: string) => {
-        insert: (row: { teacher_id: string; action: string; amount: number }) => {
-          select: (cols: string) => {
-            single: () => Promise<{ data: { id: string } | null; error: { message: string } | null }>;
-          };
-        };
-      };
+  if (!charged?.ok) {
+    if (charged?.error === "insufficient") {
+      return NextResponse.json({ error: "Insufficient RDM", amount, action }, { status: 402 });
     }
-  )
-    .from("teacher_rdm_charges")
-    .insert({
-      teacher_id: auth.user.id,
-      action,
-      amount,
-    })
-    .select("id")
-    .single();
-
-  if (chargeErr || !chargeRow?.id) {
-    await admin.rpc("add_rdm", { uid: auth.user.id, amt: amount });
-    return NextResponse.json({ error: "Could not record the charge" }, { status: 500 });
+    return NextResponse.json(
+      { error: charged?.error ?? "Could not record the charge" },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({
     ok: true,
-    rdm: newRdm,
+    rdm: charged.rdm ?? null,
     amount,
     action,
     skipped,
-    chargeId: chargeRow.id,
+    chargeId: charged.charge_id,
   });
 }

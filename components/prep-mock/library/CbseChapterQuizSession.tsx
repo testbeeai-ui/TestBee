@@ -11,7 +11,11 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { recordCbseChapterQuizAttempt } from "@/lib/mock/recordCbseChapterQuizAttempt";
-import { applyCatalogGrades, gradeCatalogAnswers } from "@/lib/assessment/revealAnswer";
+import {
+  applyCatalogGrades,
+  catalogGradesCoverQuestions,
+  gradeCatalogAnswers,
+} from "@/lib/assessment/revealAnswer";
 import CbseChapterQuizCommunityShare from "@/components/prep-mock/library/CbseChapterQuizCommunityShare";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserStore } from "@/store/useUserStore";
@@ -94,7 +98,10 @@ export default function CbseChapterQuizSession({
           correctAnswer: revealed.correctIndex,
           solutionHtml: revealed.solutionHtml,
           solution: revealed.solutionHtml
-            ? revealed.solutionHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+            ? revealed.solutionHtml
+                .replace(/<[^>]+>/g, " ")
+                .replace(/\s+/g, " ")
+                .trim()
             : "",
         }
       : baseQuestion
@@ -215,33 +222,48 @@ export default function CbseChapterQuizSession({
   const handleSubmit = () => {
     setSubmitting(true);
     void (async () => {
-      const grades = await gradeCatalogAnswers(
-        "mock",
-        questions.map((question, index) => ({
-          id: question.id,
-          selected: selectedAnswers[index],
-        }))
-      );
-      const scored = applyCatalogGrades(questions, grades);
-      let correct = 0;
-      for (let i = 0; i < total; i++) {
-        const sel = selectedAnswers[i];
-        if (typeof sel === "number" && scored[i]!.correctAnswer === sel) correct++;
+      try {
+        const grades = await gradeCatalogAnswers(
+          "mock",
+          questions.map((question, index) => ({
+            id: question.id,
+            selected: selectedAnswers[index],
+          }))
+        );
+        if (!catalogGradesCoverQuestions(questions, grades)) {
+          throw new Error(
+            "Could not grade every question. Check your connection and submit again."
+          );
+        }
+        const scored = applyCatalogGrades(questions, grades);
+        let correct = 0;
+        for (let i = 0; i < total; i++) {
+          const sel = selectedAnswers[i];
+          if (typeof sel === "number" && scored[i]!.correctAnswer === sel) correct++;
+        }
+        const wrong = total - correct;
+        const durationSeconds = Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000));
+        attemptKeyRef.current = `${String(Date.now())}:${paperId}`;
+        const next: CbseChapterQuizResult = {
+          correct,
+          wrong,
+          total,
+          durationSeconds,
+          answeredCount: filledCount,
+          attemptKey: attemptKeyRef.current,
+        };
+        setResult(next);
+        setPhase("results");
+      } catch (e) {
+        toast({
+          title: "Could not score this quiz",
+          description:
+            e instanceof Error && e.message ? e.message : "Check your connection and submit again.",
+          variant: "destructive",
+        });
+      } finally {
+        setSubmitting(false);
       }
-      const wrong = total - correct;
-      const durationSeconds = Math.max(0, Math.round((Date.now() - startedAtRef.current) / 1000));
-      attemptKeyRef.current = `${String(Date.now())}:${paperId}`;
-      const next: CbseChapterQuizResult = {
-        correct,
-        wrong,
-        total,
-        durationSeconds,
-        answeredCount: filledCount,
-        attemptKey: attemptKeyRef.current,
-      };
-      setResult(next);
-      setPhase("results");
-      setSubmitting(false);
     })();
 
     // Onboarding CBSE MCQ task completion on quiz finish (so we do not interrupt them during the quiz)
@@ -372,14 +394,19 @@ export default function CbseChapterQuizSession({
                 disabled={answered}
                 onClick={() => {
                   setSelectedAnswers((prev) => ({ ...prev, [currentIdx]: oi }));
-                  void gradeCatalogAnswers("mock", [{ id: q.id, selected: oi }]).then((grades) => {
-                    const row = grades.get(q.id);
-                    if (!row) return;
-                    setAnswerKey((prev) => ({
-                      ...prev,
-                      [q.id]: { correctIndex: row.correct_index, solutionHtml: row.solution_html },
-                    }));
-                  });
+                  void gradeCatalogAnswers("mock", [{ id: q.id, selected: oi }])
+                    .then((grades) => {
+                      const row = grades.get(q.id);
+                      if (!row) return;
+                      setAnswerKey((prev) => ({
+                        ...prev,
+                        [q.id]: {
+                          correctIndex: row.correct_index,
+                          solutionHtml: row.solution_html,
+                        },
+                      }));
+                    })
+                    .catch(() => {});
                   if (isOnboardingTaskCompanionLaunched("prep_mcq")) {
                     markOnboardingStepComplete("prep_mcq", 3);
                   }

@@ -3,15 +3,9 @@ import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import { createAdminClient } from "@/integrations/supabase/server";
 import { generateSubscriptionCouponCode } from "@/lib/subscription/subscriptionCouponUtils";
-import {
-  applyPurchasedCouponRdmCredit,
-  type PurchasedCouponRow,
-} from "@/lib/teacherPortal/creditTeacherRdmBalance";
-import {
-  teacherRdmPackAmountPaise,
-  teacherRdmPackById,
-} from "@/lib/subscription/teacherRdmPacks";
-import { recordRdmPackPurchase } from "@/lib/teacherPortal/rdmPackPurchase";
+import { type PurchasedCouponRow } from "@/lib/teacherPortal/creditTeacherRdmBalance";
+import { teacherRdmPackAmountPaise, teacherRdmPackById } from "@/lib/subscription/teacherRdmPacks";
+import { commitRdmPackPurchase } from "@/lib/teacherPortal/rdmPackPurchase";
 import {
   getRazorpayKeySecret,
   verifyRazorpayPaymentSignature,
@@ -50,7 +44,7 @@ export async function POST(request: Request) {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-      keySecret,
+      keySecret
     );
     if (!valid) {
       return NextResponse.json({ error: "Invalid payment signature" }, { status: 400 });
@@ -77,7 +71,10 @@ export async function POST(request: Request) {
     }
 
     if (profile.role !== "teacher") {
-      return NextResponse.json({ error: "Only teachers can purchase RDM credits" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Only teachers can purchase RDM credits" },
+        { status: 403 }
+      );
     }
 
     const { data: existingCouponRaw } = await (admin as typeof admin & { from: (t: string) => any })
@@ -91,11 +88,10 @@ export async function POST(request: Request) {
     const existingCoupon = existingCouponRaw as unknown as PurchasedCouponRow | null;
 
     if (existingCoupon) {
-      const newBalance = await applyPurchasedCouponRdmCredit(admin, user.id, existingCoupon);
-      await recordRdmPackPurchase(admin, {
+      const committed = await commitRdmPackPurchase(admin, {
         teacherId: user.id,
+        couponId: existingCoupon.id,
         packId: pack.id,
-        rdmGranted: pack.rdm,
         amountPaise: expectedPaise,
         razorpayOrderId: razorpay_order_id,
         razorpayPaymentId: razorpay_payment_id,
@@ -104,19 +100,21 @@ export async function POST(request: Request) {
         ok: true,
         code: existingCoupon.code,
         rdmAmount: existingCoupon.rdm_amount,
-        newBalance,
+        newBalance: committed.balance,
         price: pack.priceInr,
         orderId: razorpay_order_id,
-        alreadyProcessed: Boolean(existingCoupon.balance_applied_at),
-        recovered: !existingCoupon.balance_applied_at,
+        alreadyProcessed: committed.alreadyCredited,
+        recovered: !committed.alreadyCredited,
       });
     }
 
     const newCouponCode = generateSubscriptionCouponCode();
 
-    const { data: couponRaw, error: insertError } = await (admin as typeof admin & {
-      from: (t: string) => any;
-    })
+    const { data: couponRaw, error: insertError } = await (
+      admin as typeof admin & {
+        from: (t: string) => any;
+      }
+    )
       .from("coupons")
       .insert({
         code: newCouponCode,
@@ -136,16 +134,15 @@ export async function POST(request: Request) {
     if (insertError || !couponRaw) {
       return NextResponse.json(
         { error: insertError?.message || "Failed to create coupon code" },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
     const coupon = couponRaw as unknown as PurchasedCouponRow;
-    const newBalance = await applyPurchasedCouponRdmCredit(admin, user.id, coupon);
-    await recordRdmPackPurchase(admin, {
+    const committed = await commitRdmPackPurchase(admin, {
       teacherId: user.id,
+      couponId: coupon.id,
       packId: pack.id,
-      rdmGranted: pack.rdm,
       amountPaise: expectedPaise,
       razorpayOrderId: razorpay_order_id,
       razorpayPaymentId: razorpay_payment_id,
@@ -155,7 +152,7 @@ export async function POST(request: Request) {
       ok: true,
       code: coupon.code,
       rdmAmount: coupon.rdm_amount,
-      newBalance,
+      newBalance: committed.balance,
       price: pack.priceInr,
       orderId: razorpay_order_id,
       paymentId: razorpay_payment_id,
@@ -164,7 +161,7 @@ export async function POST(request: Request) {
     console.error("purchase coupon error", e);
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Server error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

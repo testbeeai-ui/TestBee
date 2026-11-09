@@ -77,7 +77,11 @@ import {
   fetchPastPapersFromSupabase,
   fetchPastQuestionsForPaper,
 } from "@/lib/mock/pastPapersFromSupabase";
-import { applyCatalogGrades, gradeCatalogAnswers } from "@/lib/assessment/revealAnswer";
+import {
+  applyCatalogGrades,
+  catalogGradesCoverQuestions,
+  gradeCatalogAnswers,
+} from "@/lib/assessment/revealAnswer";
 import { useToast } from "@/hooks/use-toast";
 import { isValidAssignmentPostId } from "@/lib/teacherPortal/assignmentPostIdTemplate";
 
@@ -141,7 +145,10 @@ import {
   normalizePlanTier,
   type SubscriptionConfig,
 } from "@/lib/subscription/subscriptionConfig";
-import { shouldBlockMocksForFreePlanCap, getFreePlanMaxMonths } from "@/lib/subscription/freePlanCap";
+import {
+  shouldBlockMocksForFreePlanCap,
+  getFreePlanMaxMonths,
+} from "@/lib/subscription/freePlanCap";
 import { cn } from "@/lib/utils";
 import {
   saveMockAssignmentTracking,
@@ -379,8 +386,35 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const effectiveSubject = selectedSubject ?? subjects[0] ?? null;
 
   const handleFinishTest = useCallback(async () => {
+    let scoredQuestions = questions;
+    if (authUser?.id && questions.length > 0 && questions.some((q) => q.correctAnswer < 0)) {
+      try {
+        const source = activePaperSource === "past" ? "past_paper" : "mock";
+        const grades = await gradeCatalogAnswers(
+          source,
+          questions.map((q) => ({ id: q.id, selected: answers[q.id] }))
+        );
+        if (!catalogGradesCoverQuestions(questions, grades)) {
+          throw new Error(
+            "Could not grade every question. Check your connection and submit again."
+          );
+        }
+        scoredQuestions = applyCatalogGrades(questions, grades);
+      } catch (e) {
+        toast({
+          title: "Could not score this test",
+          description:
+            e instanceof Error && e.message ? e.message : "Check your connection and submit again.",
+          variant: "destructive",
+        });
+        setSubmitDialogOpen(false);
+        return;
+      }
+    }
+
     const finishedAt = Date.now();
     setEndTime(finishedAt);
+    if (scoredQuestions !== questions) setQuestions(scoredQuestions);
     setView("results");
     setSubmitDialogOpen(false);
 
@@ -405,16 +439,6 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     }
 
     if (authUser?.id && questions.length > 0) {
-      let scoredQuestions = questions;
-      if (questions.some((q) => q.correctAnswer < 0)) {
-        const source = activePaperSource === "past" ? "past_paper" : "mock";
-        const grades = await gradeCatalogAnswers(
-          source,
-          questions.map((q) => ({ id: q.id, selected: answers[q.id] }))
-        );
-        scoredQuestions = applyCatalogGrades(questions, grades);
-        setQuestions(scoredQuestions);
-      }
       const computedCorrectCount = scoredQuestions.filter(
         (q) => answers[q.id] === q.correctAnswer
       ).length;
@@ -1009,7 +1033,10 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
         title: copy.title,
         description: copy.description,
         action: (
-          <ToastAction altText="Upgrade plan" onClick={() => router.push(SAVED_QUESTION_UPGRADE_PATH)}>
+          <ToastAction
+            altText="Upgrade plan"
+            onClick={() => router.push(SAVED_QUESTION_UPGRADE_PATH)}
+          >
             Upgrade
           </ToastAction>
         ),
@@ -1025,11 +1052,16 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     if (error) {
       unsaveQuestionFromStore(id);
       toast({
-        title: limitReached ? savedQuestionLimitToastCopy(limit.cap).title : "Could not save question",
+        title: limitReached
+          ? savedQuestionLimitToastCopy(limit.cap).title
+          : "Could not save question",
         description: error.message,
         variant: "destructive",
         action: limitReached ? (
-          <ToastAction altText="Upgrade plan" onClick={() => router.push(SAVED_QUESTION_UPGRADE_PATH)}>
+          <ToastAction
+            altText="Upgrade plan"
+            onClick={() => router.push(SAVED_QUESTION_UPGRADE_PATH)}
+          >
             Upgrade
           </ToastAction>
         ) : undefined,
@@ -2026,13 +2058,17 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
 
               <div className="space-y-2">
                 <DialogTitle className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-indigo-400">
-                  {freePlanCapBlocksMocks ? "FREE PLAN DURATION EXCEEDED" : "UPGRADE PREMIUM TO UNLOCK"}
+                  {freePlanCapBlocksMocks
+                    ? "FREE PLAN DURATION EXCEEDED"
+                    : "UPGRADE PREMIUM TO UNLOCK"}
                 </DialogTitle>
                 <div className="text-sm text-slate-400 font-medium px-4 leading-relaxed space-y-3">
                   {freePlanCapBlocksMocks ? (
                     <p>
                       Free plan mock tests are capped at a total of{" "}
-                      <span className="text-indigo-300 font-bold">{totalFreeMocksCap} tests max</span>{" "}
+                      <span className="text-indigo-300 font-bold">
+                        {totalFreeMocksCap} tests max
+                      </span>{" "}
                       ({freePlanMaxMonths} months duration). You have exceeded this period.
                     </p>
                   ) : (

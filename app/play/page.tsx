@@ -97,6 +97,17 @@ function streakPoolForDomain(domain: PlayDomain): string {
   return domain === "academic" ? ACADEMIC_STREAK_POOL : FUNBRAIN_STREAK_POOL;
 }
 
+function shownPlayOptionIndex(
+  origins: readonly number[] | undefined,
+  correctIndex: number
+): number {
+  if (origins && origins.length > 0) {
+    const slot = origins.findIndex((origin) => origin === correctIndex);
+    if (slot >= 0) return slot;
+  }
+  return correctIndex >= 0 ? correctIndex : 0;
+}
+
 function topicLabelForQuestionCategory(domain: PlayDomain | null, cat: string | undefined): string {
   if (!domain || !cat) return "Mixed";
   if (domain === "academic") {
@@ -250,6 +261,8 @@ function PlayPageContent() {
   const [streakOutcomes, setStreakOutcomes] = useState<PlayRoundOutcome[]>([]);
   const [streakResultFlash, setStreakResultFlash] = useState<EduBlastResultFlash | null>(null);
   const [streakRoundAnswered, setStreakRoundAnswered] = useState(false);
+  const [streakCheckEpoch, setStreakCheckEpoch] = useState(0);
+  const [streakCheckNotice, setStreakCheckNotice] = useState<string | null>(null);
   const [streakResultPauseMs, setStreakResultPauseMs] = useState(() =>
     remainingOptionsReviewMs(OPTIONS_PHASE_SEC, OPTIONS_PHASE_SEC)
   );
@@ -332,6 +345,10 @@ function PlayPageContent() {
   const [gauntletOutcomes, setGauntletOutcomes] = useState<PlayRoundOutcome[]>([]);
   const [gauntletResultFlash, setGauntletResultFlash] = useState<EduBlastResultFlash | null>(null);
   const [gauntletRoundAnswered, setGauntletRoundAnswered] = useState(false);
+  const [gauntletCheckEpoch, setGauntletCheckEpoch] = useState(0);
+  const [gauntletCheckNotice, setGauntletCheckNotice] = useState<string | null>(null);
+  const [gauntletAnswerPending, setGauntletAnswerPending] = useState(false);
+  const gauntletRoundBusyRef = useRef(false);
   const [gauntletResultPauseMs, setGauntletResultPauseMs] = useState(() =>
     remainingOptionsReviewMs(OPTIONS_PHASE_SEC, OPTIONS_PHASE_SEC)
   );
@@ -577,6 +594,7 @@ function PlayPageContent() {
     setView("streak");
     setStreakRoundIndex(0);
     streakAnsweredThisRoundRef.current = false;
+    setStreakCheckNotice(null);
     setStreakQTimeLeft(QUESTION_TOTAL_SEC);
     setStreakExitReason(null);
     setStreakCount(0);
@@ -625,11 +643,19 @@ function PlayPageContent() {
       streakQuestion.id,
       streakQuestion.optionOriginIndexes?.[selectedIndex] ?? selectedIndex
     );
-    const isCorrect = checked?.isCorrect === true;
-    const shownCorrect =
-      streakQuestion.optionOriginIndexes?.findIndex((origin) => origin === checked?.correctIndex) ??
-      checked?.correctIndex ??
-      selectedIndex;
+    if (!checked) {
+      streakAnsweredThisRoundRef.current = false;
+      setStreakResultFlash(null);
+      setStreakCheckNotice("Couldn't verify that answer. Please try again.");
+      setStreakCheckEpoch((n) => n + 1);
+      return;
+    }
+    setStreakCheckNotice(null);
+    const isCorrect = checked.isCorrect;
+    const shownCorrect = shownPlayOptionIndex(
+      streakQuestion.optionOriginIndexes,
+      checked.correctIndex
+    );
     await supabase.rpc("record_play_result", {
       p_question_id: streakQuestion.id,
       p_is_correct: isCorrect,
@@ -680,6 +706,7 @@ function PlayPageContent() {
   const handleStreakNext = useCallback(() => {
     if (!streakQuestion || !selectedDomain) return;
     streakAnsweredThisRoundRef.current = false;
+    setStreakCheckNotice(null);
     setStreakRoundAnswered(false);
     setStreakResultFlash(null);
     const nextRound = streakRoundIndex + 1;
@@ -815,6 +842,9 @@ function PlayPageContent() {
     setGauntletOutcomes([]);
     setGauntletResultFlash(null);
     setGauntletRoundAnswered(false);
+    setGauntletCheckNotice(null);
+    setGauntletAnswerPending(false);
+    gauntletRoundBusyRef.current = false;
     gauntletSessionEndRef.current = false;
     gauntletSubmitLockRef.current = false;
     setView("gauntlet");
@@ -840,14 +870,30 @@ function PlayPageContent() {
   };
 
   const handleGauntletAnswer = async (selectedIndex: number, timeTakenMs: number) => {
-    if (!gauntletQuestions[gauntletIndex]) return;
     const q = gauntletQuestions[gauntletIndex];
-    const checked = await checkPlayAnswer(q.id, q.optionOriginIndexes?.[selectedIndex] ?? selectedIndex);
-    const isCorrect = checked?.isCorrect === true;
-    const shownCorrect =
-      q.optionOriginIndexes?.findIndex((origin) => origin === checked?.correctIndex) ??
-      checked?.correctIndex ??
-      selectedIndex;
+    if (!q || gauntletRoundBusyRef.current) return;
+    gauntletRoundBusyRef.current = true;
+    setGauntletAnswerPending(true);
+    const checked = await checkPlayAnswer(
+      q.id,
+      q.optionOriginIndexes?.[selectedIndex] ?? selectedIndex
+    );
+    if (gauntletResultsRef.current.some((row) => row.question_id === q.id)) {
+      setGauntletRoundAnswered(true);
+      setGauntletAnswerPending(false);
+      return;
+    }
+    if (!checked) {
+      gauntletRoundBusyRef.current = false;
+      setGauntletAnswerPending(false);
+      setGauntletResultFlash(null);
+      setGauntletCheckNotice("Couldn't verify that answer. Please try again.");
+      setGauntletCheckEpoch((n) => n + 1);
+      return;
+    }
+    setGauntletCheckNotice(null);
+    const isCorrect = checked.isCorrect;
+    const shownCorrect = shownPlayOptionIndex(q.optionOriginIndexes, checked.correctIndex);
     const newResult: PlayGauntletAnswerPayload = {
       question_id: q.id,
       is_correct: isCorrect,
@@ -855,6 +901,7 @@ function PlayPageContent() {
       selected_answer_index: selectedIndex,
     };
     const fullSoFar = [...gauntletResultsRef.current, newResult];
+    gauntletResultsRef.current = fullSoFar;
     setGauntletResults(fullSoFar);
     setGauntletOutcomes((o) => [...o, isCorrect ? "correct" : "wrong"]);
     setGauntletResultFlash({
@@ -867,15 +914,18 @@ function PlayPageContent() {
       remainingOptionsReviewMs(gauntletQTimeLeftRef.current, OPTIONS_PHASE_SEC)
     );
     setGauntletRoundAnswered(true);
+    setGauntletAnswerPending(false);
   };
 
   const handleGauntletSkip = useCallback(() => {
     const idx = gauntletIndexRef.current;
     const qs = gauntletQuestionsRef.current;
     const q = qs[idx];
-    if (!q || gauntletRoundAnswered) return;
+    if (!q || gauntletRoundBusyRef.current || gauntletRoundAnswered) return;
     const prev = gauntletResultsRef.current;
     if (prev.some((r) => r.question_id === q.id)) return;
+    gauntletRoundBusyRef.current = true;
+    setGauntletCheckNotice(null);
     const row: PlayGauntletAnswerPayload = {
       question_id: q.id,
       is_correct: false,
@@ -960,6 +1010,8 @@ function PlayPageContent() {
   );
 
   const handleGauntletNext = useCallback(() => {
+    gauntletRoundBusyRef.current = false;
+    setGauntletCheckNotice(null);
     setGauntletRoundAnswered(false);
     setGauntletResultFlash(null);
     const idx = gauntletIndexRef.current;
@@ -976,9 +1028,11 @@ function PlayPageContent() {
     const idx = gauntletIndexRef.current;
     const qs = gauntletQuestionsRef.current;
     const q = qs[idx];
-    if (!q) return;
+    if (!q || gauntletRoundBusyRef.current) return;
     const prev = gauntletResultsRef.current;
     if (prev.some((r) => r.question_id === q.id)) return;
+    gauntletRoundBusyRef.current = true;
+    setGauntletCheckNotice(null);
     const row: PlayGauntletAnswerPayload = {
       question_id: q.id,
       is_correct: false,
@@ -1016,6 +1070,7 @@ function PlayPageContent() {
 
   useEffect(() => {
     if (view !== "gauntlet" || gauntletSessionLeft > 0 || gauntletQuestions.length === 0) return;
+    if (gauntletAnswerPending) return;
     if (gauntletSessionEndRef.current) return;
     gauntletSessionEndRef.current = true;
     const qs = gauntletQuestionsRef.current;
@@ -1032,7 +1087,7 @@ function PlayPageContent() {
     gauntletResultsRef.current = existing;
     setGauntletResults(existing);
     void submitGauntlet(existing);
-  }, [gauntletSessionLeft, view, gauntletQuestions.length, submitGauntlet]);
+  }, [gauntletAnswerPending, gauntletSessionLeft, view, gauntletQuestions.length, submitGauntlet]);
 
   const backToDashboard = () => {
     streakSessionEndRef.current = false;
@@ -1052,6 +1107,10 @@ function PlayPageContent() {
     setGauntletQTimeLeft(QUESTION_TOTAL_SEC);
     gauntletSessionEndRef.current = false;
     gauntletSubmitLockRef.current = false;
+    gauntletRoundBusyRef.current = false;
+    setGauntletAnswerPending(false);
+    setGauntletCheckNotice(null);
+    setStreakCheckNotice(null);
     fetchUserStats();
   };
 
@@ -1302,127 +1361,127 @@ function PlayPageContent() {
                   </div>
 
                   <div className="mt-auto">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="mb-2 block w-full">
-                        <button
-                          type="button"
-                          className={cn(
-                            "w-full flex items-center justify-center gap-2 rounded-[11px] py-3 text-[13px]",
-                            academicStreakLockedToday
-                              ? cn(
-                                  "font-semibold border border-emerald-400/45 text-emerald-800 bg-emerald-500/10 cursor-default",
-                                  "opacity-95 dark:border-emerald-500/30 dark:text-emerald-300 dark:bg-emerald-500/12",
-                                  "disabled:opacity-95 disabled:pointer-events-none"
-                                )
-                              : cn(
-                                  "font-bold bg-indigo-600 text-white hover:bg-indigo-700",
-                                  "disabled:opacity-50 disabled:pointer-events-none"
-                                )
-                          )}
-                          onClick={() => void startStreak("academic")}
-                          disabled={streakLoading || gauntletLoading || academicStreakLockedToday}
-                        >
-                          {academicStreakLockedToday ? (
-                            <>
-                              <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                              Streak Survival — Done
-                            </>
-                          ) : streakLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                              Start streak survival
-                            </>
-                          )}
-                        </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="mb-2 block w-full">
+                          <button
+                            type="button"
+                            className={cn(
+                              "w-full flex items-center justify-center gap-2 rounded-[11px] py-3 text-[13px]",
+                              academicStreakLockedToday
+                                ? cn(
+                                    "font-semibold border border-emerald-400/45 text-emerald-800 bg-emerald-500/10 cursor-default",
+                                    "opacity-95 dark:border-emerald-500/30 dark:text-emerald-300 dark:bg-emerald-500/12",
+                                    "disabled:opacity-95 disabled:pointer-events-none"
+                                  )
+                                : cn(
+                                    "font-bold bg-indigo-600 text-white hover:bg-indigo-700",
+                                    "disabled:opacity-50 disabled:pointer-events-none"
+                                  )
+                            )}
+                            onClick={() => void startStreak("academic")}
+                            disabled={streakLoading || gauntletLoading || academicStreakLockedToday}
+                          >
+                            {academicStreakLockedToday ? (
+                              <>
+                                <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                                Streak Survival — Done
+                              </>
+                            ) : streakLoading ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                                Start streak survival
+                              </>
+                            )}
+                          </button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        {academicStreakLockedToday
+                          ? "You’ve already used today’s Academic streak run. Funbrain streak is separate. Back tomorrow."
+                          : `Up to ${dailyDoseQuestionCount} questions · 5 min session · 20s read + 10s options · auto next`}
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <div className="relative">
+                      {showDailyDoseGuide ? (
+                        <div className="pointer-events-none absolute -top-11 left-1/2 z-20 -translate-x-1/2">
+                          <OnboardingClickHerePointer label="Click here" variant="emerald" />
+                        </div>
+                      ) : null}
+                      <button
+                        type="button"
+                        data-play-dailydose="1"
+                        className={cn(
+                          "w-full flex items-center justify-center gap-2 rounded-[11px] border py-3 text-[13px] font-semibold mb-1.5 transition-colors",
+                          academicDoseLocked
+                            ? "border-emerald-400/45 text-emerald-800 bg-emerald-500/10 cursor-default opacity-95 dark:border-emerald-500/30 dark:text-emerald-300 dark:bg-emerald-500/12"
+                            : cn(
+                                "border-zinc-200 bg-zinc-100/50 text-zinc-700 hover:bg-zinc-100",
+                                "dark:border-white/[0.11] dark:bg-white/[0.06] dark:text-[#f0f0ff]/70 dark:hover:bg-white/10"
+                              )
+                        )}
+                        onClick={() => !academicDoseLocked && checkGauntletAndStart("academic")}
+                        disabled={streakLoading || gauntletLoading || academicDoseLocked}
+                      >
+                        {academicDoseLocked ? (
+                          <>
+                            <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                            DailyDose — Done (+{rdmConfig.play_dailydose_academic_rdm} RDM)
+                          </>
+                        ) : gauntletLoading && selectedDomain === "academic" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Clock className="h-4 w-4 opacity-80" />
+                            DailyDose — all subjects (+{rdmConfig.play_dailydose_academic_rdm} RDM)
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1 mt-1.5 text-[10px] text-zinc-400 dark:text-[#f0f0ff]/30">
+                      <span className="min-w-0 flex-1">
+                        {isPlayAdmin
+                          ? `DailyDose ${dailyDoseQuestionCount} Q · 30s/Q (20+10) · Streak 10 Q/5 min · auto next · unlimited (admin)`
+                          : `DailyDose ${dailyDoseQuestionCount} Q (+${rdmConfig.play_dailydose_academic_rdm} RDM full run) · 30s/Q (20+10) · 1/day · Streak 10 Q/5 min · auto next · 1/day`}
                       </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                      {academicStreakLockedToday
-                        ? "You’ve already used today’s Academic streak run. Funbrain streak is separate. Back tomorrow."
-                        : `Up to ${dailyDoseQuestionCount} questions · 5 min session · 20s read + 10s options · auto next`}
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <div className="relative">
-                    {showDailyDoseGuide ? (
-                      <div className="pointer-events-none absolute -top-11 left-1/2 z-20 -translate-x-1/2">
-                        <OnboardingClickHerePointer label="Click here" variant="emerald" />
-                      </div>
-                    ) : null}
-                    <button
-                      type="button"
-                      data-play-dailydose="1"
-                      className={cn(
-                        "w-full flex items-center justify-center gap-2 rounded-[11px] border py-3 text-[13px] font-semibold mb-1.5 transition-colors",
-                        academicDoseLocked
-                          ? "border-emerald-400/45 text-emerald-800 bg-emerald-500/10 cursor-default opacity-95 dark:border-emerald-500/30 dark:text-emerald-300 dark:bg-emerald-500/12"
-                          : cn(
-                              "border-zinc-200 bg-zinc-100/50 text-zinc-700 hover:bg-zinc-100",
-                              "dark:border-white/[0.11] dark:bg-white/[0.06] dark:text-[#f0f0ff]/70 dark:hover:bg-white/10"
-                            )
-                      )}
-                      onClick={() => !academicDoseLocked && checkGauntletAndStart("academic")}
-                      disabled={streakLoading || gauntletLoading || academicDoseLocked}
-                    >
-                      {academicDoseLocked ? (
-                        <>
-                          <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                          DailyDose — Done (+{rdmConfig.play_dailydose_academic_rdm} RDM)
-                        </>
-                      ) : gauntletLoading && selectedDomain === "academic" ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Clock className="h-4 w-4 opacity-80" />
-                          DailyDose — all subjects (+{rdmConfig.play_dailydose_academic_rdm} RDM)
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1 mt-1.5 text-[10px] text-zinc-400 dark:text-[#f0f0ff]/30">
-                    <span className="min-w-0 flex-1">
-                      {isPlayAdmin
-                        ? `DailyDose ${dailyDoseQuestionCount} Q · 30s/Q (20+10) · Streak 10 Q/5 min · auto next · unlimited (admin)`
-                        : `DailyDose ${dailyDoseQuestionCount} Q (+${rdmConfig.play_dailydose_academic_rdm} RDM full run) · 30s/Q (20+10) · 1/day · Streak 10 Q/5 min · auto next · 1/day`}
-                    </span>
-                    <button
-                      type="button"
-                      className="shrink-0 text-[11px] font-semibold text-sky-600 dark:text-sky-400 inline-flex items-center gap-0.5 hover:underline"
-                      onClick={async () => {
-                        setSelectedDomain("academic");
-                        setGauntletAlreadyPlayed(academicDoseLocked);
-                        setView("gauntlet_result");
-                        const today = todayDate();
-                        setLeaderboardLoading(true);
-                        const { data } = await supabase.rpc("get_daily_gauntlet_leaderboard", {
-                          p_gauntlet_date: today,
-                          p_domain: "academic",
-                        });
-                        const rows =
-                          (data as {
-                            rank: number;
-                            user_id?: string;
-                            display_name: string | null;
-                            correct_count: number;
-                            total_time_ms: number;
-                          }[]) || [];
-                        setLeaderboard(rows);
-                        setLeaderboardLoading(false);
-                        const myRow = rows.find((r) => r.user_id === user?.id);
-                        if (myRow)
-                          setGauntletSubmitted({
-                            correct_count: myRow.correct_count,
-                            total_time_ms: myRow.total_time_ms,
+                      <button
+                        type="button"
+                        className="shrink-0 text-[11px] font-semibold text-sky-600 dark:text-sky-400 inline-flex items-center gap-0.5 hover:underline"
+                        onClick={async () => {
+                          setSelectedDomain("academic");
+                          setGauntletAlreadyPlayed(academicDoseLocked);
+                          setView("gauntlet_result");
+                          const today = todayDate();
+                          setLeaderboardLoading(true);
+                          const { data } = await supabase.rpc("get_daily_gauntlet_leaderboard", {
+                            p_gauntlet_date: today,
+                            p_domain: "academic",
                           });
-                      }}
-                    >
-                      Leaderboard <ChevronRight className="h-3 w-3" />
-                    </button>
-                  </div>
+                          const rows =
+                            (data as {
+                              rank: number;
+                              user_id?: string;
+                              display_name: string | null;
+                              correct_count: number;
+                              total_time_ms: number;
+                            }[]) || [];
+                          setLeaderboard(rows);
+                          setLeaderboardLoading(false);
+                          const myRow = rows.find((r) => r.user_id === user?.id);
+                          if (myRow)
+                            setGauntletSubmitted({
+                              correct_count: myRow.correct_count,
+                              total_time_ms: myRow.total_time_ms,
+                            });
+                        }}
+                      >
+                        Leaderboard <ChevronRight className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1541,127 +1600,127 @@ function PlayPageContent() {
                   </div>
 
                   <div className="mt-auto">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="mb-2 block w-full">
-                        <button
-                          type="button"
-                          className={cn(
-                            "w-full flex items-center justify-center gap-2 rounded-[11px] py-3 text-[13px]",
-                            funbrainStreakLockedToday
-                              ? cn(
-                                  "font-semibold border border-emerald-400/45 text-emerald-800 bg-emerald-500/10 cursor-default",
-                                  "opacity-95 dark:border-emerald-500/30 dark:text-emerald-300 dark:bg-emerald-500/12",
-                                  "disabled:opacity-95 disabled:pointer-events-none"
-                                )
-                              : cn(
-                                  "font-bold bg-orange-600 text-white hover:bg-orange-700",
-                                  "disabled:opacity-50 disabled:pointer-events-none"
-                                )
-                          )}
-                          onClick={() => void startStreak("funbrain")}
-                          disabled={streakLoading || gauntletLoading || funbrainStreakLockedToday}
-                        >
-                          {funbrainStreakLockedToday ? (
-                            <>
-                              <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                              Streak Survival — Done
-                            </>
-                          ) : streakLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Flame className="h-4 w-4 shrink-0" />
-                              Streak Survival
-                            </>
-                          )}
-                        </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="mb-2 block w-full">
+                          <button
+                            type="button"
+                            className={cn(
+                              "w-full flex items-center justify-center gap-2 rounded-[11px] py-3 text-[13px]",
+                              funbrainStreakLockedToday
+                                ? cn(
+                                    "font-semibold border border-emerald-400/45 text-emerald-800 bg-emerald-500/10 cursor-default",
+                                    "opacity-95 dark:border-emerald-500/30 dark:text-emerald-300 dark:bg-emerald-500/12",
+                                    "disabled:opacity-95 disabled:pointer-events-none"
+                                  )
+                                : cn(
+                                    "font-bold bg-orange-600 text-white hover:bg-orange-700",
+                                    "disabled:opacity-50 disabled:pointer-events-none"
+                                  )
+                            )}
+                            onClick={() => void startStreak("funbrain")}
+                            disabled={streakLoading || gauntletLoading || funbrainStreakLockedToday}
+                          >
+                            {funbrainStreakLockedToday ? (
+                              <>
+                                <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                                Streak Survival — Done
+                              </>
+                            ) : streakLoading ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Flame className="h-4 w-4 shrink-0" />
+                                Streak Survival
+                              </>
+                            )}
+                          </button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        {funbrainStreakLockedToday
+                          ? "You’ve already used today’s Funbrain streak run. Academic streak is separate. Back tomorrow."
+                          : `Up to ${dailyDoseQuestionCount} questions · 5 min session · 20s read + 10s options · auto next`}
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <div className="relative">
+                      {showDailyDoseGuide ? (
+                        <div className="pointer-events-none absolute -top-11 left-1/2 z-20 -translate-x-1/2">
+                          <OnboardingClickHerePointer label="Click here" variant="emerald" />
+                        </div>
+                      ) : null}
+                      <button
+                        type="button"
+                        data-play-dailydose="1"
+                        className={cn(
+                          "w-full flex items-center justify-center gap-2 rounded-[11px] border py-3 text-[13px] font-semibold mb-1.5",
+                          funbrainDoseLocked
+                            ? "border-emerald-300/50 text-emerald-700 bg-emerald-500/8 cursor-default opacity-90 dark:border-emerald-500/25 dark:text-emerald-400"
+                            : cn(
+                                "border-zinc-200 bg-zinc-100/50 text-zinc-700 hover:bg-zinc-100",
+                                "dark:border-white/[0.11] dark:bg-white/[0.06] dark:text-[#f0f0ff]/70 dark:hover:bg-white/10"
+                              )
+                        )}
+                        onClick={() => !funbrainDoseLocked && checkGauntletAndStart("funbrain")}
+                        disabled={streakLoading || gauntletLoading || funbrainDoseLocked}
+                      >
+                        {funbrainDoseLocked ? (
+                          <>
+                            <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                            DailyDose — Done (+{rdmConfig.play_dailydose_funbrain_rdm} RDM)
+                          </>
+                        ) : gauntletLoading && selectedDomain === "funbrain" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Trophy className="h-4 w-4 opacity-80" />
+                            DailyDose — all modes (+{rdmConfig.play_dailydose_funbrain_rdm} RDM)
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1 mt-1.5 text-[10px] text-zinc-400 dark:text-[#f0f0ff]/30">
+                      <span className="min-w-0 flex-1">
+                        {isPlayAdmin
+                          ? `DailyDose ${dailyDoseQuestionCount} Q · 30s/Q (20+10) · ranked · Streak 10 Q/5 min · auto next · unlimited (admin)`
+                          : `DailyDose ${dailyDoseQuestionCount} Q (+${rdmConfig.play_dailydose_funbrain_rdm} RDM full run) · ranked · 30s/Q (20+10) · Streak 10 Q/5 min · auto next · 1/day each`}
                       </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                      {funbrainStreakLockedToday
-                        ? "You’ve already used today’s Funbrain streak run. Academic streak is separate. Back tomorrow."
-                        : `Up to ${dailyDoseQuestionCount} questions · 5 min session · 20s read + 10s options · auto next`}
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <div className="relative">
-                    {showDailyDoseGuide ? (
-                      <div className="pointer-events-none absolute -top-11 left-1/2 z-20 -translate-x-1/2">
-                        <OnboardingClickHerePointer label="Click here" variant="emerald" />
-                      </div>
-                    ) : null}
-                    <button
-                      type="button"
-                      data-play-dailydose="1"
-                      className={cn(
-                        "w-full flex items-center justify-center gap-2 rounded-[11px] border py-3 text-[13px] font-semibold mb-1.5",
-                        funbrainDoseLocked
-                          ? "border-emerald-300/50 text-emerald-700 bg-emerald-500/8 cursor-default opacity-90 dark:border-emerald-500/25 dark:text-emerald-400"
-                          : cn(
-                              "border-zinc-200 bg-zinc-100/50 text-zinc-700 hover:bg-zinc-100",
-                              "dark:border-white/[0.11] dark:bg-white/[0.06] dark:text-[#f0f0ff]/70 dark:hover:bg-white/10"
-                            )
-                      )}
-                      onClick={() => !funbrainDoseLocked && checkGauntletAndStart("funbrain")}
-                      disabled={streakLoading || gauntletLoading || funbrainDoseLocked}
-                    >
-                      {funbrainDoseLocked ? (
-                        <>
-                          <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                          DailyDose — Done (+{rdmConfig.play_dailydose_funbrain_rdm} RDM)
-                        </>
-                      ) : gauntletLoading && selectedDomain === "funbrain" ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Trophy className="h-4 w-4 opacity-80" />
-                          DailyDose — all modes (+{rdmConfig.play_dailydose_funbrain_rdm} RDM)
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1 mt-1.5 text-[10px] text-zinc-400 dark:text-[#f0f0ff]/30">
-                    <span className="min-w-0 flex-1">
-                      {isPlayAdmin
-                        ? `DailyDose ${dailyDoseQuestionCount} Q · 30s/Q (20+10) · ranked · Streak 10 Q/5 min · auto next · unlimited (admin)`
-                        : `DailyDose ${dailyDoseQuestionCount} Q (+${rdmConfig.play_dailydose_funbrain_rdm} RDM full run) · ranked · 30s/Q (20+10) · Streak 10 Q/5 min · auto next · 1/day each`}
-                    </span>
-                    <button
-                      type="button"
-                      className="shrink-0 text-[11px] font-semibold text-sky-600 dark:text-sky-400 inline-flex items-center gap-0.5 hover:underline"
-                      onClick={async () => {
-                        setSelectedDomain("funbrain");
-                        setGauntletAlreadyPlayed(funbrainDoseLocked);
-                        setView("gauntlet_result");
-                        const today = todayDate();
-                        setLeaderboardLoading(true);
-                        const { data } = await supabase.rpc("get_daily_gauntlet_leaderboard", {
-                          p_gauntlet_date: today,
-                          p_domain: "funbrain",
-                        });
-                        const rows =
-                          (data as {
-                            rank: number;
-                            user_id?: string;
-                            display_name: string | null;
-                            correct_count: number;
-                            total_time_ms: number;
-                          }[]) || [];
-                        setLeaderboard(rows);
-                        setLeaderboardLoading(false);
-                        const myRow = rows.find((r) => r.user_id === user?.id);
-                        if (myRow)
-                          setGauntletSubmitted({
-                            correct_count: myRow.correct_count,
-                            total_time_ms: myRow.total_time_ms,
+                      <button
+                        type="button"
+                        className="shrink-0 text-[11px] font-semibold text-sky-600 dark:text-sky-400 inline-flex items-center gap-0.5 hover:underline"
+                        onClick={async () => {
+                          setSelectedDomain("funbrain");
+                          setGauntletAlreadyPlayed(funbrainDoseLocked);
+                          setView("gauntlet_result");
+                          const today = todayDate();
+                          setLeaderboardLoading(true);
+                          const { data } = await supabase.rpc("get_daily_gauntlet_leaderboard", {
+                            p_gauntlet_date: today,
+                            p_domain: "funbrain",
                           });
-                      }}
-                    >
-                      Leaderboard <ChevronRight className="h-3 w-3" />
-                    </button>
-                  </div>
+                          const rows =
+                            (data as {
+                              rank: number;
+                              user_id?: string;
+                              display_name: string | null;
+                              correct_count: number;
+                              total_time_ms: number;
+                            }[]) || [];
+                          setLeaderboard(rows);
+                          setLeaderboardLoading(false);
+                          const myRow = rows.find((r) => r.user_id === user?.id);
+                          if (myRow)
+                            setGauntletSubmitted({
+                              correct_count: myRow.correct_count,
+                              total_time_ms: myRow.total_time_ms,
+                            });
+                        }}
+                      >
+                        Leaderboard <ChevronRight className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
 
                   <div
@@ -1834,7 +1893,13 @@ function PlayPageContent() {
                                   </span>
                                 )}
                               </div>
+                              {streakCheckNotice ? (
+                                <p className="mb-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                  {streakCheckNotice}
+                                </p>
+                              ) : null}
                               <PlayQuestionCard
+                                key={`${streakQuestion.id}:${streakCheckEpoch}`}
                                 challengeUi="edublast"
                                 question={streakQuestion}
                                 onAnswer={handleStreakAnswer}
@@ -1993,8 +2058,14 @@ function PlayPageContent() {
                               </button>
                             </div>
                           </div>
+                          {gauntletCheckNotice ? (
+                            <p className="mb-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                              {gauntletCheckNotice}
+                            </p>
+                          ) : null}
                           {gauntletQuestions[gauntletIndex] && (
                             <PlayQuestionCard
+                              key={`${gauntletQuestions[gauntletIndex]!.id}:${gauntletCheckEpoch}`}
                               challengeUi="edublast"
                               question={gauntletQuestions[gauntletIndex]!}
                               onAnswer={handleGauntletAnswer}
